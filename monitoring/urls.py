@@ -11,8 +11,9 @@ urlpatterns = [
     
     path('projects/<int:pk>/api/delete/', views.project_delete_api, name='project_delete_api'),
     path('delayed/', views.delayed_projects, name='delayed_projects'),
-    path('analytics/project-engineer/', views.project_engineer_analytics, name='project_engineer_analytics'),
+    path('analytics/project-engineer/<int:pk>/', views.project_engineer_analytics, name='project_engineer_analytics'),
     path('analytics/head-engineer/', views.head_engineer_analytics, name='head_engineer_analytics'),
     path('projects/<int:pk>/', views.project_detail, name='project_detail'),
     path('monitoring/projects/<int:pk>/detail/', views.head_engineer_project_detail, name='monitoring_project_detail'),
+    path('dashboard/api/card-data/', views.head_dashboard_card_data_api, name='head_dashboard_card_data_api'),
 ] 

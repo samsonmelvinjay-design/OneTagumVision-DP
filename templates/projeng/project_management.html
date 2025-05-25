@@ -113,6 +113,7 @@
                     </button>
                 </form>
                 <div id="progress-success-message" style="display:none;" class="text-green-600 font-bold mt-2"></div>
+                <div id="progress-error-message" style="display:none;" class="text-red-600 font-bold mt-2"></div>
             </div>
 
         </div>
@@ -361,10 +362,13 @@
         // Progress form handling
         const progressForm = document.getElementById('progressForm');
         const progressSuccessMsg = document.getElementById('progress-success-message');
+        const progressErrorMsg = document.getElementById('progress-error-message');
 
         if (progressForm) {
             progressForm.addEventListener('submit', function(e) {
                 e.preventDefault();
+                progressSuccessMsg.style.display = 'none';
+                progressErrorMsg.style.display = 'none';
                 const formData = new FormData(progressForm);
 
                 fetch(progressForm.action, {
@@ -380,19 +384,15 @@
                         progressSuccessMsg.textContent = data.message || 'Progress update added successfully!';
                         progressSuccessMsg.style.display = 'block';
                         progressForm.reset();
-                        setTimeout(() => { progressSuccessMsg.style.display = 'none'; }, 3000);
-                        // Update progress overview
-                        const newTotal = parseInt(document.getElementById('progress-percentage').textContent) + parseInt(data.progress.percentage_complete);
-                        document.getElementById('progress-percentage').textContent = newTotal + '%';
-                        document.getElementById('progress-bar').style.width = newTotal + '%';
-                        document.getElementById('progress-date').textContent = data.progress.date;
-                        document.getElementById('progress-description').textContent = data.progress.description;
+                        setTimeout(() => { location.reload(); }, 1000);
                     } else {
-                        alert(data.error || 'Failed to add progress update.');
+                        progressErrorMsg.textContent = data.error || 'Failed to add progress update.';
+                        progressErrorMsg.style.display = 'block';
                     }
                 })
                 .catch(() => {
-                    alert('An error occurred. Please try again.');
+                    progressErrorMsg.textContent = 'An error occurred. Please try again.';
+                    progressErrorMsg.style.display = 'block';
                 });
             });
         }

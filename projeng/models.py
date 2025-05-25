@@ -51,6 +51,7 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_update = models.DateField(blank=True, null=True)
+    progress = models.PositiveIntegerField(default=0, help_text="Project progress in percentage (0-100)", blank=True, null=True)
 
     class Meta:
         ordering = ['name']

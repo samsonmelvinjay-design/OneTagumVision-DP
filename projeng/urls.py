@@ -25,10 +25,17 @@ urlpatterns = [
     path('projects/<int:pk>/add-cost/', views.add_cost_entry, name='projeng_add_cost_entry'),
     path('analytics/', views.analytics_overview, name='projeng_analytics_overview'),
     path('analytics/overview-data/', views.analytics_overview_data, name='projeng_analytics_overview_data'),
-    path('api/engineer-projects/<int:engineer_id>/', views.engineer_projects_api, name='engineer_projects_api'),
+    path('projects/<int:engineer_id>/', views.engineer_projects_api, name='engineer_projects_api'),
     
     # URL for project photo uploads
     path('projects/<int:pk>/upload-photo/', views.upload_project_photo, name='projeng_upload_project_photo'),
     # URL for project document uploads
     path('projects/<int:pk>/upload-document/', views.upload_project_document, name='projeng_upload_project_document'),
+
+    path('map/api/projects/', views.map_projects_api, name='projeng_map_projects_api'),
+
+    path('dashboard/api/card-data/', views.dashboard_card_data_api, name='projeng_dashboard_card_data_api'),
+    
+    # Add project delete API endpoint
+    path('projects/<int:pk>/api/delete/', views.project_delete_api, name='project_delete_api'),
 ] 

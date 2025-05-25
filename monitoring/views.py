@@ -19,6 +19,10 @@ from itertools import chain
 from django.utils import timezone
 import logging
 from projeng.utils import flag_overdue_projects_as_delayed
+from decimal import Decimal
+from django.views.decorators.http import require_GET
+import traceback
+from django.db.models import ProtectedError
 
 def is_head_engineer(user):
     return user.is_authenticated and user.groups.filter(name='Head Engineer').exists()
@@ -36,16 +40,47 @@ def home(request):
 
 @user_passes_test(is_head_engineer, login_url='/accounts/login/')
 def dashboard(request):
-    project_count = MonitoringProject.objects.count()
-    completed_count = MonitoringProject.objects.filter(status='completed').count()
-    in_progress_count = MonitoringProject.objects.filter(status='in_progress').count()
-    delayed_count = MonitoringProject.objects.filter(status='delayed').count()
-    recent_projects = MonitoringProject.objects.order_by('-created_at')[:5]
+    from projeng.models import Project as ProjEngProject, ProjectProgress
+    all_projects = MonitoringProject.objects.all()
+    today = timezone.now().date()
+    completed_count = 0
+    in_progress_count = 0
+    delayed_count = 0
+    planned_count = 0
+    for p in all_projects:
+        # Try to find the corresponding ProjEngProject by PRN
+        projeng_project = ProjEngProject.objects.filter(prn=getattr(p, "prn", None)).first()
+        if projeng_project:
+            latest_progress = ProjectProgress.objects.filter(project=projeng_project).order_by('-date').first()
+            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        else:
+            progress = 0
+        # Dynamic status logic
+        status = p.status
+        if progress >= 99:
+            status = 'completed'
+        elif progress < 99 and p.end_date and p.end_date < today:
+            status = 'delayed'
+        elif status in ['in_progress', 'ongoing']:
+            status = 'in_progress'
+        elif status in ['planned', 'pending']:
+            status = 'planned'
+        if status == 'completed':
+            completed_count += 1
+        elif status == 'in_progress':
+            in_progress_count += 1
+        elif status == 'delayed':
+            delayed_count += 1
+        elif status == 'planned':
+            planned_count += 1
+    project_count = all_projects.count()
+    recent_projects = all_projects.order_by('-created_at')[:5]
     return render(request, 'monitoring/dashboard.html', {
         'project_count': project_count,
         'completed_count': completed_count,
         'in_progress_count': in_progress_count,
         'delayed_count': delayed_count,
+        'planned_count': planned_count,
         'recent_projects': recent_projects,
     })
 
@@ -187,33 +222,35 @@ def project_list(request):
         # Ensure correct project objects (MonitoringProject) are used here
         projects_data = []
         for p in page_obj.object_list: # Iterate over projects on the current page
-             # Attempt to get latest progress for MonitoringProject - needs annotation or similar approach
-             # For now, setting progress to 0 or N/A
-             progress = 0 # Default or fetch from related model if available on MonitoringProject
-             # You would need a similar Subquery annotation as in map_view if progress is tracked per project in Monitoring DB
+            # Try to find the corresponding ProjEngProject by PRN
+            projeng_project = ProjEngProject.objects.filter(prn=getattr(p, "prn", None)).first()
+            if projeng_project:
+                latest_progress = ProjectProgress.objects.filter(project=projeng_project).order_by('-date').first()
+                progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            else:
+                progress = 0  # Or use p.progress if you want to fallback to MonitoringProject's own field
 
-             # Convert date fields to ISO strings for JSON
-             start_date_str = p.start_date.isoformat() if p.start_date else '';
-             end_date_str = p.end_date.isoformat() if p.end_date else '';
-             created_at_str = p.created_at.isoformat() if p.created_at else '';
+            start_date_str = p.start_date.isoformat() if p.start_date else '';
+            end_date_str = p.end_date.isoformat() if p.end_date else '';
+            created_at_str = p.created_at.isoformat() if p.created_at else '';
 
-             projects_data.append({
-                 "id": p.id,
-                 "prn": getattr(p, "prn", ""),
-                 "name": p.name,
-                 "description": p.description,
-                 "barangay": p.barangay,
-                 "project_cost": str(getattr(p, "project_cost", "")) if getattr(p, "project_cost", None) else "",
-                 "source_of_funds": getattr(p, "source_of_funds", ""),
-                 "status": p.status,
-                 "latitude": str(getattr(p, "latitude", "")) if getattr(p, "latitude", None) else "",
-                 "longitude": str(getattr(p, "longitude", "")) if getattr(p, "longitude", None) else "",
-                 "start_date": start_date_str,
-                 "end_date": end_date_str,
-                 "image": p.image.url if getattr(p, "image", None) else "",
-                 "progress": progress, # Placeholder progress
-                 "assigned_engineers": list(p.assigned_engineers.values_list('username', flat=True)) if hasattr(p, 'assigned_engineers') else [], # Use assigned_engineers from MonitoringProject
-             })
+            projects_data.append({
+                "id": p.id,
+                "prn": getattr(p, "prn", ""),
+                "name": p.name,
+                "description": p.description,
+                "barangay": p.barangay,
+                "project_cost": str(getattr(p, "project_cost", "")) if getattr(p, "project_cost", None) else "",
+                "source_of_funds": getattr(p, "source_of_funds", ""),
+                "status": p.status,
+                "latitude": str(getattr(p, "latitude", "")) if getattr(p, "latitude", None) else "",
+                "longitude": str(getattr(p, "longitude", "")) if getattr(p, "longitude", None) else "",
+                "start_date": start_date_str,
+                "end_date": end_date_str,
+                "image": p.image.url if getattr(p, "image", None) else "",
+                "progress": progress,
+                "assigned_engineers": list(p.assigned_engineers.values_list('username', flat=True)) if hasattr(p, 'assigned_engineers') else [],
+            })
 
         context = {
             'page_obj': page_obj, # Pass the Page object for pagination in template
@@ -284,9 +321,29 @@ def map_view(request):
     return render(request, 'monitoring/map.html', context)
 
 def reports(request):
+    from projeng.models import Project as ProjEngProject, ProjectProgress
     projects = MonitoringProject.objects.all()
-    project_list = [
-        {
+    project_list = []
+    today = timezone.now().date()
+    for p in projects:
+        # Try to find the corresponding ProjEngProject by PRN
+        projeng_project = ProjEngProject.objects.filter(prn=getattr(p, "prn", None)).first()
+        if projeng_project:
+            latest_progress = ProjectProgress.objects.filter(project=projeng_project).order_by('-date').first()
+            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        else:
+            progress = 0
+        # Dynamic status logic
+        status = p.status
+        if progress >= 99:
+            status = 'completed'
+        elif progress < 99 and p.end_date and p.end_date < today:
+            status = 'delayed'
+        elif status in ['in_progress', 'ongoing']:
+            status = 'in_progress'
+        elif status in ['planned', 'pending']:
+            status = 'planned'
+        project_list.append({
             "prn": p.prn,
             "name": p.name,
             "description": p.description,
@@ -296,10 +353,8 @@ def reports(request):
             "source_of_funds": p.source_of_funds,
             "start_date": p.start_date.strftime('%Y-%m-%d') if p.start_date else '',
             "end_date": p.end_date.strftime('%Y-%m-%d') if p.end_date else '',
-            "status": p.status,
-        }
-        for p in projects
-    ]
+            "status": status,
+        })
     context = {}
     context['projects_json'] = json.dumps(project_list)
 
@@ -333,9 +388,19 @@ def project_update_api(request, pk):
             # Update in project engineer database (primary)
             projeng_project = ProjEngProject.objects.get(pk=pk)
             data = json.loads(request.body)
-            # Update fields from request data
-            projeng_project.status = data.get('status', projeng_project.status)
-            # You might want to update other fields here if the API allows
+            
+            # Get the latest progress update
+            latest_progress = ProjectProgress.objects.filter(project=projeng_project).order_by('-date').first()
+            if latest_progress:
+                projeng_project.progress = int(latest_progress.percentage_complete)
+                projeng_project.save(update_fields=["progress"])
+            # Check if progress is 99% or more and update status to completed
+            if latest_progress and int(latest_progress.percentage_complete) >= 99:
+                projeng_project.status = 'completed'
+            else:
+                # Update status from request data if not completed by progress
+                projeng_project.status = data.get('status', projeng_project.status)
+            
             projeng_project.save()
 
             # Update corresponding project in head engineer database
@@ -346,11 +411,12 @@ def project_update_api(request, pk):
                     barangay=projeng_project.barangay
                 )
                 monitoring_project.status = projeng_project.status
-                # Update other fields as needed
-                monitoring_project.save()
+                monitoring_project.progress = projeng_project.progress
+                monitoring_project.save(update_fields=["status", "progress"])
+                print(f"DEBUG: MonitoringProject {monitoring_project.prn} status and progress synced to {monitoring_project.status}, {monitoring_project.progress}%.")
             except MonitoringProject.DoesNotExist:
                 # If corresponding project doesn't exist, create it
-                 monitoring_project = MonitoringProject(
+                monitoring_project = MonitoringProject(
                     prn=projeng_project.prn,
                     name=projeng_project.name,
                     description=projeng_project.description,
@@ -364,13 +430,12 @@ def project_update_api(request, pk):
                     end_date=projeng_project.end_date,
                     image=projeng_project.image
                 )
-                 monitoring_project.save()
+                monitoring_project.save()
+                print(f"DEBUG: Created new MonitoringProject {monitoring_project.prn} with status {monitoring_project.status}")
             except MonitoringProject.MultipleObjectsReturned:
-                 # Handle case where multiple monitoring projects match (log or raise error)
-                 print(f"Warning: Multiple monitoring projects found for {projeng_project.name} - {projeng_project.barangay}")
-                 # Decide how to handle: update first one? log and skip? raise error?
+                print(f"Warning: Multiple monitoring projects found for {projeng_project.name} - {projeng_project.barangay}")
 
-            return JsonResponse({'success': True, 'status': projeng_project.status}) # Return status from primary source
+            return JsonResponse({'success': True, 'status': projeng_project.status})
         except ProjEngProject.DoesNotExist:
             return JsonResponse({'error': 'Project not found'}, status=404)
         except json.JSONDecodeError:
@@ -380,62 +445,51 @@ def project_update_api(request, pk):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
     return HttpResponseNotAllowed(['POST'])
 
+@user_passes_test(is_head_engineer, login_url='/accounts/login/')
 @csrf_exempt
+@transaction.atomic
 def project_delete_api(request, pk):
     print(f"DEBUG: Received delete request for project id: {pk}, method: {request.method}")
     if request.method == 'POST' or request.method == 'DELETE':
         try:
-            # First try to find the project in MonitoringProject
-            try:
-                monitoring_project = MonitoringProject.objects.get(pk=pk)
-                project_name = monitoring_project.name
-                project_barangay = monitoring_project.barangay
+            deleted = False
+            # Try MonitoringProject first
+            monitoring_project = MonitoringProject.objects.filter(pk=pk).first()
+            if monitoring_project:
+                prn = getattr(monitoring_project, 'prn', None)
+                name = getattr(monitoring_project, 'name', None)
+                barangay = getattr(monitoring_project, 'barangay', None)
                 monitoring_project.delete()
-                print(f"DEBUG: Deleted MonitoringProject with id {pk}")
-
-                # Try to find and delete corresponding ProjEngProject
-                try:
-                    projeng_project = ProjEngProject.objects.get(
-                        name=project_name,
-                        barangay=project_barangay
-                    )
+                deleted = True
+                # Try to delete corresponding ProjEngProject
+                if prn:
+                    ProjEngProject.objects.filter(prn=prn).delete()
+                elif name and barangay:
+                    ProjEngProject.objects.filter(name=name, barangay=barangay).delete()
+            else:
+                # Try ProjEngProject
+                projeng_project = ProjEngProject.objects.filter(pk=pk).first()
+                if projeng_project:
+                    prn = getattr(projeng_project, 'prn', None)
+                    name = getattr(projeng_project, 'name', None)
+                    barangay = getattr(projeng_project, 'barangay', None)
                     projeng_project.delete()
-                    print(f"DEBUG: Deleted ProjEngProject with name {project_name} and barangay {project_barangay}")
-                except ProjEngProject.DoesNotExist:
-                    print("DEBUG: No corresponding ProjEngProject found")
-                except ProjEngProject.MultipleObjectsReturned:
-                    print("DEBUG: Multiple ProjEngProjects found")
-
-            except MonitoringProject.DoesNotExist:
-                # If not found in MonitoringProject, try ProjEngProject
-                try:
-                    projeng_project = ProjEngProject.objects.get(pk=pk)
-                    project_name = projeng_project.name
-                    project_barangay = projeng_project.barangay
-                    projeng_project.delete()
-                    print(f"DEBUG: Deleted ProjEngProject with id {pk}")
-
-                    # Try to find and delete corresponding MonitoringProject
-                    try:
-                        monitoring_project = MonitoringProject.objects.get(
-                            name=project_name,
-                            barangay=project_barangay
-                        )
-                        monitoring_project.delete()
-                        print(f"DEBUG: Deleted MonitoringProject with name {project_name} and barangay {project_barangay}")
-                    except MonitoringProject.DoesNotExist:
-                        print("DEBUG: No corresponding MonitoringProject found")
-                    except MonitoringProject.MultipleObjectsReturned:
-                        print("DEBUG: Multiple MonitoringProjects found")
-
-                except ProjEngProject.DoesNotExist:
-                    print("DEBUG: Project not found in either model")
-                    return JsonResponse({'error': 'Project not found'}, status=404)
-
-            return JsonResponse({'success': True})
+                    deleted = True
+                    # Try to delete corresponding MonitoringProject
+                    if prn:
+                        MonitoringProject.objects.filter(prn=prn).delete()
+                    elif name and barangay:
+                        MonitoringProject.objects.filter(name=name, barangay=barangay).delete()
+            if deleted:
+                print(f"DEBUG: Deleted project(s) with id {pk} and corresponding entries.")
+                return JsonResponse({'success': True})
+            else:
+                return JsonResponse({'success': False, 'error': 'Project not found'}, status=404)
         except Exception as e:
             print(f"DEBUG: Exception occurred: {e}")
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            import traceback; traceback.print_exc()
+            transaction.set_rollback(True)
+            return JsonResponse({'success': False, 'error': f'An unexpected error occurred: {str(e)}'}, status=500)
     print("DEBUG: Method not allowed")
     return HttpResponseNotAllowed(['POST', 'DELETE'])
 
@@ -483,88 +537,74 @@ def delayed_projects(request):
     return render(request, 'monitoring/delayed_projects.html', context)
 
 @login_required
-def project_engineer_analytics(request):
-    # Get projects assigned to the current project engineer from the ProjEng DB
+def project_engineer_analytics(request, pk):
+    # Get the specific project being analyzed
+    project = ProjEngProject.objects.get(pk=pk)
+    
+    # Get latest progress for the specific project
+    latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+    current_progress_percentage = int(latest_progress.percentage_complete) if latest_progress else 0
+    last_update_date = latest_progress.date if latest_progress else None
+    last_update_description = latest_progress.description if latest_progress else "No updates yet."
+
+    # Determine status for display based on latest progress and end date for the specific project
+    current_status = project.status # Default to current status from DB
+    today = timezone.now().date()
+    if current_progress_percentage >= 99:
+        current_status = 'completed'
+    elif current_progress_percentage < 99 and project.end_date and project.end_date < today:
+        current_status = 'delayed'
+
+    # Get all projects assigned to the current project engineer for the table/list below
+    # This part remains to populate the table if needed on the same page
     assigned_projeng_projects = ProjEngProject.objects.filter(assigned_engineers=request.user)
+    
+    # Prepare data for the list of projects (similar to previous logic, but ensure latest progress is used)
+    projects_data_list = []
+    for proj in assigned_projeng_projects:
+         # Get latest progress for EACH project in the list
+        latest_proj_progress = ProjectProgress.objects.filter(project=proj).order_by('-date').first()
+        current_proj_progress_percentage = int(latest_proj_progress.percentage_complete) if latest_proj_progress else 0
+        
+        # Determine status for display for EACH project in the list
+        current_proj_status = proj.status # Default to current status from DB
+        if current_proj_progress_percentage >= 99:
+            current_proj_status = 'completed'
+        elif current_proj_progress_percentage < 99 and proj.end_date and proj.end_date < today:
+            current_proj_status = 'delayed'
 
-    projects_data = []
-    for projeng_project in assigned_projeng_projects:
-        print(f"DEBUG: Processing ProjEngProject ID: {projeng_project.id}, PRN: {projeng_project.prn}")
-        # Try to find the corresponding MonitoringProject using PRN
-        monitoring_project = MonitoringProject.objects.filter(prn=projeng_project.prn).first()
-
-        if monitoring_project:
-            print(f"DEBUG: Found corresponding MonitoringProject ID: {monitoring_project.id}, PRN: {monitoring_project.prn}")
-        else:
-            print(f"DEBUG: No corresponding MonitoringProject found for PRN: {projeng_project.prn}")
-
-        # Use data from ProjEngProject, supplement with MonitoringProject data if available
-        project_id = projeng_project.id # Use ProjEng Project ID for the link
-        project_name = projeng_project.name
-        project_description = projeng_project.description
-        project_barangay = projeng_project.barangay
-        project_status = projeng_project.status
-        project_start_date = projeng_project.start_date
-        project_end_date = projeng_project.end_date
-        project_prn = projeng_project.prn
-        project_budget = projeng_project.project_cost
-        project_location = getattr(projeng_project, 'location', '')
-        project_contractor = getattr(projeng_project, 'contractor', '')
-        project_remarks = getattr(projeng_project, 'remarks', '')
-        project_images = [] # Assuming images are linked to ProgressPhoto in ProjEng DB
-        project_assigned_to = ', '.join([user.get_full_name() or user.username for user in projeng_project.assigned_engineers.all()])
-
-        # Get latest progress from ProjEng DB
-        progress_updates = ProjectProgress.objects.filter(project=projeng_project).order_by('-date')
-        latest_progress = progress_updates.first()
-
-        # If a corresponding MonitoringProject exists, use its status or other preferred fields if needed
-        if monitoring_project:
-            project_status = monitoring_project.status # Prioritize status from Monitoring if needed
-            # You could prioritize other fields from monitoring_project here as well
-
-        projects_data.append({
-            'id': project_id, # This is the ProjEng Project ID now
-            'name': project_name,
-            'description': project_description,
-            'barangay': project_barangay,
-            'progress': latest_progress.percentage_complete if latest_progress else 0, # Use progress from ProjEng
-            'start_date': project_start_date.isoformat() if project_start_date else '',
-            'end_date': project_end_date.isoformat() if project_end_date else '',
-            'status': project_status,
-            'created_at': projeng_project.created_at.isoformat() if hasattr(projeng_project, 'created_at') and projeng_project.created_at else '',
-            'assigned_to': project_assigned_to,
-            'prn': project_prn,
-            'budget': project_budget,
-            'location': project_location,
-            'contractor': project_contractor,
-            'remarks': project_remarks,
-            'images': project_images,
-            'projeng_id': project_id, # Still include projeng_id for clarity
+        projects_data_list.append({
+            'id': proj.id,
+            'name': proj.name,
+            'prn': proj.prn,
+            'barangay': proj.barangay,
+            'progress': current_proj_progress_percentage,
+            'status': current_proj_status,
+            'start_date': proj.start_date.isoformat() if proj.start_date else '',
+            'end_date': proj.end_date.isoformat() if proj.end_date else '',
+            'projeng_id': proj.id,
         })
 
-        print(f"DEBUG: Added project to projects_data - ID: {project_id}, ProjEng ID: {project_id}")
-
-    # Recalculate counts based on the filtered projects_data list
-    total_projects = len(projects_data)
-    completed_projects = len([p for p in projects_data if p['status'] == 'completed'])
-    ongoing_projects = len([p for p in projects_data if p['status'] in ['ongoing', 'in_progress']]),
-    planned_projects = len([p for p in projects_data if p['status'] in ['planned', 'pending']]),
-    delayed_projects_count = len([p for p in projects_data if p['status'] == 'delayed']),
-
-    # Ensure single values for counts if they were tuples
-    if isinstance(ongoing_projects, tuple): ongoing_projects = ongoing_projects[0]
-    if isinstance(planned_projects, tuple): planned_projects = planned_projects[0]
-    if isinstance(delayed_projects_count, tuple): delayed_projects_count = delayed_projects_count[0]
+    # Recalculate counts based on the projects_data_list
+    total_projects_count = len(projects_data_list)
+    completed_projects_count = len([p for p in projects_data_list if p['status'] == 'completed'])
+    ongoing_projects_count = len([p for p in projects_data_list if p['status'] in ['ongoing', 'in_progress']])
+    planned_projects_count = len([p for p in projects_data_list if p['status'] in ['planned', 'pending']])
+    delayed_projects_count = len([p for p in projects_data_list if p['status'] == 'delayed'])
 
     context = {
-        'projects': projects_data,  # Pass the list, not a JSON string
+        'project': project, # Pass the specific project object
+        'current_progress_percentage': current_progress_percentage,
+        'last_update_date': last_update_date,
+        'last_update_description': last_update_description,
+        'current_status': current_status,
+        'projects': projects_data_list, # Pass the list of all assigned projects
         'user_role': 'project_engineer',
-        'total_projects': total_projects,
-        'completed_projects': completed_projects,
-        'ongoing_projects': ongoing_projects,
-        'planned_projects': planned_projects,
-        'delayed_projects_count': delayed_projects_count,
+        'total_projects': len(projects_data_list),
+        'completed_projects': len([p for p in projects_data_list if p['status'] == 'completed']),
+        'ongoing_projects': len([p for p in projects_data_list if p['status'] in ['ongoing', 'in_progress']]),
+        'planned_projects': len([p for p in projects_data_list if p['status'] in ['planned', 'pending']]),
+        'delayed_projects': len([p for p in projects_data_list if p['status'] == 'delayed'])
     }
 
     return render(request, 'projeng/project_analytics.html', context)
@@ -573,117 +613,205 @@ def project_engineer_analytics(request):
 def head_engineer_analytics(request):
     all_projects = MonitoringProject.objects.all()
     from projeng.models import ProjectProgress
-    flag_overdue_projects_as_delayed(all_projects, ProjectProgress)
     projects_data = []
     today = timezone.now().date()
+
     for project in all_projects:
-        # Check and update status to 'delayed' if overdue and not complete
-        is_overdue = hasattr(project, 'end_date') and project.end_date and project.end_date < today
-        is_not_completed = True # Default to True, refine based on project type and progress
+        # Get corresponding ProjEng project to check progress
+        projeng_project = ProjEngProject.objects.filter(prn=project.prn).first()
+        
+        # Determine status for display based on progress and end date
+        current_status = project.status # Default to current status from DB
+        if projeng_project:
+            # Get latest progress
+            latest_progress = ProjectProgress.objects.filter(project=projeng_project).order_by('-date').first()
+            current_progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            
+            if current_progress >= 99:
+                current_status = 'completed'
+            elif current_progress < 99 and project.end_date and project.end_date < today:
+                current_status = 'delayed'
+        
+        # Removed save logic from here to prevent recursion
+        # Status updates should be handled by add_progress_update and project_update_api
 
-        progress = getattr(project, 'progress', None)
-        if progress is None and hasattr(project, 'latest_progress'):
-            progress = project.latest_progress or 0
-
-        if progress is not None:
-            is_not_completed = progress < 100
-        elif hasattr(project, 'status') and project.status == 'completed':
-             is_not_completed = False
-
-        if is_overdue and is_not_completed and (hasattr(project, 'status') and project.status != 'delayed'):
-            project.status = 'delayed'
-            # Note: Saving here updates the database. Consider if this is desired on every page load.
-            try:
-                 project.save()
-                 print(f"DEBUG: Updated status of project {project.name} to delayed in head_engineer_analytics.")
-            except Exception as e:
-                 print(f"DEBUG: Failed to save project {project.name} in head_engineer_analytics: {e}")
-
-        status_raw = project.status if hasattr(project, 'status') else ''
+        # Rest of the existing code for project data collection
+        status_raw = current_status
         status_display = status_raw.replace('_', ' ').title()
+        
         try:
-            # Get all matching projects and take the first one
-            matching_projects = ProjEngProject.objects.filter(prn=project.prn)
-            if matching_projects.exists():
-                projeng_project = matching_projects.first()
+            # Modified this section to use projeng_project if found, otherwise use monitoring project data where possible
+            if projeng_project:
                 updates = []
-                total_progress = 0
-                for update in ProjectProgress.objects.filter(project=projeng_project):
-                    if hasattr(update, 'created_by') and update.created_by:
-                        engineer_name = update.created_by.get_full_name() or update.created_by.username or 'Unknown'
-                    else:
-                        engineer_name = 'Unknown'
-                    updates.append({
-                        'date': update.date.strftime('%Y-%m-%d'),
-                        'percentage_complete': update.percentage_complete,
-                        'description': update.description,
-                        'engineer': engineer_name,
-                        'photos': [photo.image.url for photo in ProgressPhoto.objects.filter(progress_update=update)],
-                    })
-                    total_progress += update.percentage_complete
+                total_progress = 0 # Calculate total progress for display in analytics, not cumulative
+                latest_progress_percentage = 0
+                latest_progress_description = ''
+                latest_progress_date = None
+
+                progress_updates_list = ProjectProgress.objects.filter(project=projeng_project).order_by('-date')
+                
+                if progress_updates_list.exists():
+                    latest_update = progress_updates_list.first()
+                    latest_progress_percentage = int(latest_update.percentage_complete)
+                    latest_progress_description = latest_update.description
+                    latest_progress_date = latest_update.date
+
+                    for update in progress_updates_list:
+                         if hasattr(update, 'created_by') and update.created_by:
+                             engineer_name = update.created_by.get_full_name() or update.created_by.username or 'Unknown'
+                         else:
+                             engineer_name = 'Unknown'
+                         # Try both 'photos' and 'progressphoto_set' for related photos
+                         try:
+                             photos_qs = getattr(update, 'photos', None)
+                             if photos_qs is None:
+                                 photos_qs = getattr(update, 'progressphoto_set', None)
+                             if photos_qs is not None:
+                                 photos = [photo.image.url for photo in photos_qs.all()]
+                             else:
+                                 photos = []
+                         except Exception:
+                             photos = []
+                         updates.append({
+                             'date': update.date.strftime('%Y-%m-%d'),
+                             'percentage_complete': update.percentage_complete,
+                             'description': update.description,
+                             'engineer': engineer_name,
+                             'photos': photos,
+                         })
+
+                # Use projeng_project data for cost and timeline if available
+                cost_entries_list = ProjectCost.objects.filter(project=projeng_project).order_by('date')
+                cost_entries_data = [{
+                    'date': cost.date.strftime('%Y-%m-%d'),
+                    'cost_type': cost.get_cost_type_display(),
+                    'description': cost.description,
+                    'amount': str(cost.amount),
+                    'receipt_url': cost.receipt.url if cost.receipt else None,
+                } for cost in cost_entries_list]
+                total_cost = cost_entries_list.aggregate(total=Sum('amount'))['total'] or 0
+                cost_by_type = cost_entries_list.values('cost_type').annotate(total=Sum('amount'))
+
+                # Recalculate budget utilization using ProjEng project cost
+                budget_utilization = (total_cost / projeng_project.project_cost * 100) if projeng_project.project_cost and projeng_project.project_cost > 0 else 0
+
+                # Use projeng_project dates for timeline
+                def safe_iso(val):
+                    import datetime
+                    if isinstance(val, str):
+                        return val
+                    if isinstance(val, (datetime.date, datetime.datetime)):
+                        return val.isoformat()
+                    return ''
+                timeline_data = {
+                     'start_date': safe_iso(projeng_project.start_date) if projeng_project.start_date else '',
+                     'end_date': safe_iso(projeng_project.end_date) if projeng_project.end_date else '',
+                     'days_elapsed': (timezone.now().date() - projeng_project.start_date).days if projeng_project.start_date else 0,
+                     'total_days': (projeng_project.end_date - projeng_project.start_date).days if projeng_project.start_date and projeng_project.end_date else 0,
+                 }
+                assigned_engineers_list = [e.get_full_name() or e.username for e in projeng_project.assigned_engineers.all()]
+
                 projects_data.append({
-                    'id': project.id,
-                    'name': project.name,
-                    'prn': project.prn,
-                    'barangay': project.barangay,
-                    'status': status_raw,
-                    'status_display': status_display,
-                    'assigned_to': [e.get_full_name() or e.username for e in projeng_project.assigned_engineers.all()],
-                    'progress_updates': updates,
-                    'total_progress': total_progress,
-                    'project_cost': project.project_cost,
-                    'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
-                    'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
-                    'cost_entries': [{
-                        'date': cost.date.strftime('%Y-%m-%d'),
-                        'cost_type': cost.get_cost_type_display(),
-                        'description': cost.description,
-                        'amount': str(cost.amount),
-                        'receipt_url': cost.receipt.url if cost.receipt else None,
-                    } for cost in ProjectCost.objects.filter(project=projeng_project).order_by('date')],
+                    'id': project.id, # Monitoring Project ID
+                    'name': project.name or '',
+                    'prn': project.prn or '',
+                    'barangay': project.barangay or '',
+                    'status': status_raw or '',
+                    'status_display': status_display or '',
+                    'assigned_to': assigned_engineers_list or [],
+                    'progress_updates': updates or [],
+                    'total_progress': latest_progress_percentage if 'latest_progress_percentage' in locals() and latest_progress_percentage is not None else 0,
+                    'latest_progress_description': latest_progress_description if 'latest_progress_description' in locals() else '',
+                    'latest_progress_date': latest_progress_date.strftime('%Y-%m-%d') if 'latest_progress_date' in locals() and latest_progress_date else '',
+                    'project_cost': projeng_project.project_cost if projeng_project and projeng_project.project_cost is not None else (project.project_cost if project.project_cost is not None else ''),
+                    'source_of_funds': projeng_project.source_of_funds if projeng_project and projeng_project.source_of_funds else (project.source_of_funds or ''),
+                    'start_date': timeline_data['start_date'],
+                    'end_date': timeline_data['end_date'],
+                    'cost_entries': cost_entries_data or [],
+                    'total_cost': total_cost if total_cost is not None else 0,
+                    'cost_by_type': list(cost_by_type) if cost_by_type else [],
+                    'budget_utilization': budget_utilization if budget_utilization is not None else 0,
+                    'days_elapsed': timeline_data['days_elapsed'],
+                    'total_days': timeline_data['total_days'],
+                    'projeng_id': projeng_project.id if projeng_project else '',
                 })
             else:
-                # Handle case where no matching project is found
+                # Handle case where no matching ProjEng project is found
+                # Use data from the Monitoring project, providing default values where ProjEng data would be
+                assigned_engineers_list = [e.get_full_name() or e.username for e in project.assigned_engineers.all()]
                 projects_data.append({
                     'id': project.id,
-                    'name': project.name,
-                    'prn': project.prn,
-                    'barangay': project.barangay,
-                    'status': status_raw,
-                    'status_display': status_display,
-                    'assigned_to': [],
+                    'name': project.name or '',
+                    'prn': project.prn or '',
+                    'barangay': project.barangay or '',
+                    'status': status_raw or '',
+                    'status_display': status_display or '',
+                    'assigned_to': assigned_engineers_list or [],
                     'progress_updates': [],
                     'total_progress': 0,
-                    'project_cost': project.project_cost,
-                    'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
-                    'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+                    'latest_progress_description': '',
+                    'latest_progress_date': '',
+                    'project_cost': project.project_cost if project.project_cost is not None else '',
+                    'source_of_funds': project.source_of_funds or '',
+                    'start_date': project.start_date.isoformat() if project.start_date else '',
+                    'end_date': project.end_date.isoformat() if project.end_date else '',
                     'cost_entries': [],
+                    'total_cost': 0,
+                    'cost_by_type': [],
+                    'budget_utilization': 0,
+                    'days_elapsed': (timezone.now().date() - project.start_date).days if project.start_date else 0,
+                    'total_days': (project.end_date - project.start_date).days if project.start_date and project.end_date else 0,
+                    'projeng_id': '',
                 })
         except Exception as e:
-            print(f"Error processing project {project.name}: {e}")
-            # Add project with minimal data in case of error
+            print(f"Error processing project {project.name} (Monitoring ID: {project.id}): {e}")
+            # Append minimal data to projects_data on error to avoid breaking the page
             projects_data.append({
-                'id': project.id,
-                'name': project.name,
-                'prn': project.prn,
-                'barangay': project.barangay,
-                'status': status_raw,
-                'status_display': status_display,
-                'assigned_to': [],
-                'progress_updates': [],
-                'total_progress': 0,
-                'project_cost': project.project_cost,
-                'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
-                'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
-                'cost_entries': [],
-            })
+                 'id': project.id,
+                 'name': project.name or '',
+                 'prn': project.prn or '',
+                 'barangay': project.barangay or '',
+                 'status': 'error',
+                 'status_display': 'Error Loading',
+                 'assigned_to': [],
+                 'progress_updates': [],
+                 'total_progress': 0,
+                 'latest_progress_description': '',
+                 'latest_progress_date': '',
+                 'project_cost': '',
+                 'source_of_funds': '',
+                 'start_date': project.start_date.isoformat() if project.start_date else '',
+                 'end_date': project.end_date.isoformat() if project.end_date else '',
+                 'cost_entries': [],
+                 'total_cost': 0,
+                 'cost_by_type': [],
+                 'budget_utilization': 0,
+                 'days_elapsed': (timezone.now().date() - project.start_date).days if project.start_date else 0,
+                 'total_days': (project.end_date - project.start_date).days if project.start_date and project.end_date else 0,
+                 'projeng_id': '',
+             })
+
+    # After building projects_data, recursively convert all Decimals
+    projects_data = safe_number(projects_data)
     context = {
         'projects': projects_data,
         'user_role': 'head_engineer',
+        'total_projects': len(projects_data),
+        'completed_projects': len([p for p in projects_data if p.get('status') == 'completed']),
+        'ongoing_projects': len([p for p in projects_data if p.get('status') in ['in_progress', 'ongoing']]),
+        'planned_projects': len([p for p in projects_data if p.get('status') in ['planned', 'pending']]),
+        'delayed_projects': len([p for p in projects_data if p.get('status') == 'delayed'])
     }
+
     print('Projects in analytics:')
     for p in projects_data:
-        print(f"Name: {p['name']}, Status: {p['status']}, Status Display: {p['status_display']}")
+        # Safely access dictionary keys
+        name = p.get('name', 'N/A')
+        status = p.get('status', 'N/A')
+        progress = p.get('total_progress', 'N/A') # Use total_progress for display in analytics
+        print(f"Name: {name}, Status: {status}, Progress: {progress}%")
+    
+    print("Projects data being sent to template:", projects_data)
     return render(request, 'monitoring/analytics.html', context)
 
 def project_detail(request, pk):
@@ -771,3 +899,28 @@ def head_engineer_project_detail(request, pk):
     except Exception as e:
         logging.error(f"Error in head_engineer_project_detail view for project {pk}: {e}")
         return HttpResponseServerError("An error occurred while loading project details.") 
+
+def safe_number(val):
+    if isinstance(val, Decimal):
+        return float(val)
+    elif isinstance(val, list):
+        return [safe_number(v) for v in val]
+    elif isinstance(val, dict):
+        return {k: safe_number(v) for k, v in val.items()}
+    return val 
+
+@user_passes_test(is_head_engineer, login_url='/accounts/login/')
+@require_GET
+def head_dashboard_card_data_api(request):
+    all_projects = MonitoringProject.objects.all()
+    status_counts = {}
+    for status_key, status_display in MonitoringProject.STATUS_CHOICES:
+        count = all_projects.filter(status=status_key).count()
+        status_counts[status_key] = count
+    total_projects = all_projects.count()
+    delayed_count = all_projects.filter(status='delayed').count()
+    return JsonResponse({
+        'total_projects': total_projects,
+        'status_counts': status_counts,
+        'delayed_count': delayed_count,
+    }) 

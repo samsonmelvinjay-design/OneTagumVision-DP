@@ -7,10 +7,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneTagumVision</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Leaflet and MarkerCluster CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <!-- Leaflet and MarkerCluster CSS (Local Files) -->
+    <link rel="stylesheet" href="{% static 'leaflet/leaflet.css' %}" />
+    <link rel="stylesheet" href="{% static 'leaflet-markercluster/MarkerCluster.css' %}" />
+    <link rel="stylesheet" href="{% static 'leaflet-markercluster/MarkerCluster.Default.css' %}" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom styles -->
 </head>
 <body class="bg-gray-100 text-gray-900 h-screen">
     <div class="flex h-screen">
@@ -67,6 +70,7 @@
                 </a>
 
                 {# Engineers Dropdown #}
+                {% if user|has_group:"Head Engineer" %}
                 <div class="relative w-full">
                     <button class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 w-full text-left focus:outline-none">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -81,6 +85,7 @@
                          {# Dynamic engineer links will be added here by JavaScript #}
                     </div>
                 </div>
+                {% endif %}
             </nav>
             <!-- Logout Button -->
             <div class="w-full px-4 mt-auto">
@@ -97,96 +102,154 @@
             {% block content %}{% endblock %}
         </main>
     </div>
-    <!-- Leaflet and MarkerCluster JS -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-    {% block extra_js %}{% endblock %}
-
+    <!-- Leaflet and MarkerCluster JS (Local Files) -->
+    <script src="{% static 'leaflet/leaflet.js' %}"></script>
+    <script src="{% static 'leaflet-markercluster/leaflet.markercluster.js' %}"></script>
+    {% block extra_js %}
     <script>
-        // JavaScript for Engineers dropdown
-        const engineersDropdownButton = document.querySelector('.relative.w-full > button');
-        const engineersDropdownContent = document.getElementById('engineers-dropdown-content');
-        let engineersLoaded = false;
+    if (typeof window.engineerModalSetup === 'undefined') {
+      window.engineerModalSetup = true;
+      // Engineer Projects Modal and logic (must be defined before dropdown JS)
+      // (Modal HTML remains outside the script)
 
-        if (engineersDropdownButton && engineersDropdownContent) {
-            console.log('Engineers dropdown elements found. Attaching event listener.');
-            // Use click to toggle dropdown and fetch data
-            engineersDropdownButton.addEventListener('click', function(event) {
-                event.preventDefault(); // Prevent default button behavior if it was a link
-                console.log('Engineers button clicked. Toggling dropdown visibility.');
-                engineersDropdownContent.classList.toggle('hidden'); // Toggle visibility
+      // Engineer modal logic
+      const engineerProjectsModal = document.getElementById('engineer-projects-modal');
+      const closeEngineerProjectsModal = document.getElementById('close-engineer-projects-modal');
+      const engineerModalTitle = document.getElementById('engineer-modal-title');
+      const engineerModalProjectList = document.getElementById('engineer-modal-project-list');
+      const engineerModalGraph = document.getElementById('engineer-modal-graph');
+      const engineerAvatar = document.getElementById('engineer-avatar');
+      let engineerChart = null;
 
-                // Fetch engineers only the first time the dropdown is opened
-                if (!engineersLoaded) {
-                    console.log('Engineers not yet loaded. Attempting to fetch...');
-                    fetch('{% url "get_project_engineers" %}')
-                        .then(response => {
-                            console.log('Fetch response received.', response);
-                            if (!response.ok) {
-                                console.error('Fetch failed with status:', response.status);
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            return response.json()
-                        })
-                        .then(data => {
-                            console.log('Engineers data received:', data);
-                            // Clear existing content (should be empty initially now)
-                            engineersDropdownContent.innerHTML = '';
-                            console.log('Cleared dropdown content before populating.');
-
-                            // Add engineer links
-                            if (data.length > 0) {
-                                data.forEach(engineer => {
-                                    const link = document.createElement('a');
-                                    link.href = '#';
-                                    link.classList.add('block', 'px-4', 'py-2', 'text-sm', 'text-gray-200', 'hover:bg-gray-700');
-                                    link.textContent = engineer.full_name || engineer.username;
-                                    link.setAttribute('data-id', engineer.id);
-                                    link.setAttribute('data-username', engineer.username);
-                                    link.setAttribute('data-full-name', engineer.full_name || engineer.username);
-                                    engineersDropdownContent.appendChild(link);
-                                    console.log(`Appended link for ${engineer.username}`);
-                                });
-
-                                // Add click listeners to the newly created engineer links
-                                engineersDropdownContent.querySelectorAll('a').forEach(engineerLink => {
-                                    engineerLink.addEventListener('click', function(e) {
-                                        e.preventDefault(); // Prevent the default link behavior
-                                        const engineerId = this.getAttribute('data-id');
-                                        const engineerUsername = this.getAttribute('data-username');
-                                        const engineerFullName = this.getAttribute('data-full-name');
-                                        
-                                        // Call the function to show the modal
-                                        showEngineerProjectsModal({ id: engineerId, username: engineerUsername, full_name: engineerFullName });
-                                        
-                                        // Optionally close the dropdown after clicking
-                                        engineersDropdownContent.classList.add('hidden');
-                                    });
-                                });
-
-                            } else {
-                                const noEngineers = document.createElement('span');
-                                noEngineers.classList.add('block', 'px-4', 'py-2', 'text-sm', 'text-gray-400');
-                                noEngineers.textContent = 'No engineers found';
-                                engineersDropdownContent.appendChild(noEngineers);
-                            }
-                            engineersLoaded = true;
-                        })
-                        .catch(error => {
-                            console.error('Error fetching engineers:', error);
-                            engineersDropdownContent.innerHTML = ''; // Clear existing
-                             const errorItem = document.createElement('span');
-                             errorItem.classList.add('block', 'px-4', 'py-2', 'text-sm', 'text-red-400');
-                             errorItem.textContent = 'Error loading engineers';
-                             engineersDropdownContent.appendChild(errorItem);
-                        });
+      function showEngineerProjectsModal(engineer) {
+        engineerModalTitle.textContent = `${engineer.full_name || engineer.username}'s Projects`;
+        const initials = (engineer.full_name || engineer.username).split(' ').map(n => n[0]).join('').toUpperCase();
+        engineerAvatar.textContent = initials;
+        engineerProjectsModal.classList.remove('hidden');
+        fetch(`/api/engineer-projects/${engineer.id}/`)
+          .then(res => res.json())
+          .then(data => {
+            const projects = data.projects || [];
+            engineerModalProjectList.innerHTML = '';
+            if (projects.length > 0) {
+              const projectsByStatus = projects.reduce((acc, project) => {
+                const status = project.status || 'Unknown';
+                if (!acc[status]) acc[status] = [];
+                acc[status].push(project);
+                return acc;
+              }, {});
+              const statusOrder = ['ongoing', 'in_progress', 'planned', 'pending', 'completed', 'delayed', 'cancelled', 'Unknown'];
+              let projectsHtml = '';
+              statusOrder.forEach(status => {
+                const projectsInStatus = projectsByStatus[status];
+                if (projectsInStatus && projectsInStatus.length > 0) {
+                  const statusDisplay = status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1);
+                  projectsHtml += `
+                    <div class="bg-white rounded-lg shadow px-4 py-3 border border-gray-200 flex items-center justify-between mb-3 mt-2">
+                      <div class="text-lg font-semibold text-blue-900">${statusDisplay}</div>
+                      <span class="text-lg font-bold text-gray-700">${projectsInStatus.length}</span>
+                    </div>
+                  `;
                 }
+              });
+              engineerModalProjectList.innerHTML = projectsHtml;
+            } else {
+              engineerModalProjectList.innerHTML = `
+                <div class="flex flex-col items-center py-8">
+                  <svg class="w-16 h-16 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <div class="text-gray-500">No projects assigned.</div>
+                </div>
+              `;
+            }
+            const statusCounts = data.status_counts || {};
+            const statuses = Object.keys(statusCounts);
+            const counts = statuses.map(s => statusCounts[s]);
+            if (engineerChart) engineerChart.destroy();
+            engineerChart = new Chart(engineerModalGraph, {
+              type: 'bar',
+              data: {
+                labels: statuses,
+                datasets: [{
+                  label: 'Projects by Status',
+                  data: counts,
+                  backgroundColor: ['#3B82F6', '#F59E42', '#10B981', '#FBBF24'],
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, precision: 0 } }
+              }
             });
-        }
-        console.log('Engineers dropdown script finished setup.');
-    </script>
+          });
+      }
+      if (closeEngineerProjectsModal) {
+        closeEngineerProjectsModal.addEventListener('click', () => {
+          engineerProjectsModal.classList.add('hidden');
+          if (engineerChart) engineerChart.destroy();
+        });
+      }
 
-    <!-- Engineer Projects Modal -->
+      // Engineers Dropdown JS (must come after modal logic)
+      document.addEventListener('DOMContentLoaded', function() {
+          const engineersDropdownButton = document.querySelector('.relative.w-full > button');
+          const engineersDropdownContent = document.getElementById('engineers-dropdown-content');
+          let engineersLoaded = false;
+
+          if (engineersDropdownButton && engineersDropdownContent) {
+              engineersDropdownButton.addEventListener('click', function(event) {
+                  event.preventDefault();
+                  engineersDropdownContent.classList.toggle('hidden');
+                  if (!engineersLoaded) {
+                      fetch('{% url "get_project_engineers" %}')
+                          .then(response => {
+                              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                              return response.json();
+                          })
+                          .then(data => {
+                              engineersDropdownContent.innerHTML = '';
+                              if (data.length > 0) {
+                                  data.forEach(engineer => {
+                                      const link = document.createElement('a');
+                                      link.href = '#';
+                                      link.classList.add('block', 'px-4', 'py-2', 'text-sm', 'text-gray-200', 'hover:bg-gray-700');
+                                      link.textContent = engineer.full_name || engineer.username;
+                                      link.setAttribute('data-id', engineer.id);
+                                      link.setAttribute('data-username', engineer.username);
+                                      link.setAttribute('data-full-name', engineer.full_name || engineer.username);
+                                      engineersDropdownContent.appendChild(link);
+                                      link.addEventListener('click', function(e) {
+                                          e.preventDefault();
+                                          showEngineerProjectsModal({
+                                              id: engineer.id,
+                                              username: engineer.username,
+                                              full_name: engineer.full_name || engineer.username
+                                          });
+                                          engineersDropdownContent.classList.add('hidden');
+                                      });
+                                  });
+                              } else {
+                                  const noEngineers = document.createElement('span');
+                                  noEngineers.classList.add('block', 'px-4', 'py-2', 'text-sm', 'text-gray-400');
+                                  noEngineers.textContent = 'No engineers found';
+                                  engineersDropdownContent.appendChild(noEngineers);
+                              }
+                              engineersLoaded = true;
+                          })
+                          .catch(error => {
+                              engineersDropdownContent.innerHTML = '';
+                              const errorItem = document.createElement('span');
+                              errorItem.classList.add('block', 'px-4', 'py-2', 'text-sm', 'text-red-400');
+                              errorItem.textContent = 'Error loading engineers';
+                              engineersDropdownContent.appendChild(errorItem);
+                          });
+                  }
+              });
+          }
+      });
+    }
+    </script>
+    <!-- Modal HTML remains outside the script -->
     <div id="engineer-projects-modal" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black bg-opacity-40 hidden">
       <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-0 relative mx-4 my-8 max-h-[90vh] overflow-y-auto animate-modal-scale">
         <div class="bg-blue-700 rounded-t-3xl px-8 py-6 flex items-center gap-4">
@@ -205,133 +268,6 @@
         </div>
       </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-    // Engineer modal logic
-    const engineerProjectsModal = document.getElementById('engineer-projects-modal');
-    const closeEngineerProjectsModal = document.getElementById('close-engineer-projects-modal');
-    const engineerModalTitle = document.getElementById('engineer-modal-title');
-    const engineerModalProjectList = document.getElementById('engineer-modal-project-list');
-    const engineerModalGraph = document.getElementById('engineer-modal-graph');
-    const engineerAvatar = document.getElementById('engineer-avatar');
-    let engineerChart = null;
-
-    function showEngineerProjectsModal(engineer) {
-      // Set modal title and avatar
-      engineerModalTitle.textContent = `${engineer.full_name || engineer.username}'s Projects`;
-      const initials = (engineer.full_name || engineer.username).split(' ').map(n => n[0]).join('').toUpperCase();
-      engineerAvatar.textContent = initials;
-      // Show modal
-      engineerProjectsModal.classList.remove('hidden');
-      // Fetch projects for this engineer
-      fetch(`/api/engineer-projects/${engineer.id}/`)
-        .then(res => res.json())
-        .then(data => {
-          // List projects
-          const projects = data.projects || [];
-          engineerModalProjectList.innerHTML = ''; // Clear existing list
-
-          if (projects.length > 0) {
-            // Group projects by status
-            const projectsByStatus = projects.reduce((acc, project) => {
-              const status = project.status || 'Unknown';
-              if (!acc[status]) {
-                acc[status] = [];
-              }
-              acc[status].push(project);
-              return acc;
-            }, {});
-
-            // Define a preferred order for statuses
-            const statusOrder = ['ongoing', 'in_progress', 'planned', 'pending', 'completed', 'delayed', 'cancelled', 'Unknown'];
-
-            // Generate HTML for status sections and project cards
-            let projectsHtml = '';
-            statusOrder.forEach(status => {
-              const projectsInStatus = projectsByStatus[status];
-              if (projectsInStatus && projectsInStatus.length > 0) {
-                // Add status heading (now as a card)
-                const statusDisplay = status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1);
-                projectsHtml += `
-                  <div class="bg-white rounded-lg shadow px-4 py-3 border border-gray-200 flex items-center justify-between mb-3 mt-2">
-                    <div class="text-lg font-semibold text-blue-900">${statusDisplay}</div>
-                    <span class="text-lg font-bold text-gray-700">${projectsInStatus.length}</span>
-                  </div>
-                `;
-              }
-            });
-
-            engineerModalProjectList.innerHTML = projectsHtml;
-
-          } else {
-            engineerModalProjectList.innerHTML = `
-              <div class="flex flex-col items-center py-8">
-                <svg class="w-16 h-16 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <div class="text-gray-500">No projects assigned.</div>
-              </div>
-            `;
-          }
-          // Render status graph
-          const statusCounts = data.status_counts || {};
-          const statuses = Object.keys(statusCounts);
-          const counts = statuses.map(s => statusCounts[s]);
-          if (engineerChart) engineerChart.destroy();
-          engineerChart = new Chart(engineerModalGraph, {
-            type: 'bar',
-            data: {
-              labels: statuses,
-              datasets: [{
-                label: 'Projects by Status',
-                data: counts,
-                backgroundColor: ['#3B82F6', '#F59E42', '#10B981', '#FBBF24'],
-              }]
-            },
-            options: {
-              responsive: true,
-              plugins: { legend: { display: false } },
-              scales: { y: { beginAtZero: true, precision: 0 } }
-            }
-          });
-        });
-    }
-
-    // Attach click handler to engineer links after they are loaded
-    function setupEngineerLinks() {
-      const links = document.querySelectorAll('#engineers-dropdown-content a');
-      links.forEach(link => {
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          const id = link.getAttribute('data-id');
-          const engineer = window.engineersData.find(e => String(e.id) === String(id));
-          if (engineer) showEngineerProjectsModal(engineer);
-        });
-      });
-    }
-    // Patch the dropdown fetch to save data and setup links
-    window.engineersData = [];
-    const engineersDropdownButton2 = document.querySelector('.relative.w-full > button');
-    const engineersDropdownContent2 = document.getElementById('engineers-dropdown-content');
-    if (engineersDropdownButton2 && engineersDropdownContent2) {
-      engineersDropdownButton2.addEventListener('click', function() {
-        setTimeout(() => {
-          // Save data if not already
-          if (engineersDropdownContent2.children.length) {
-            window.engineersData = Array.from(engineersDropdownContent2.children)
-              .filter(el => el.tagName === 'A')
-              .map(el => ({ username: el.textContent, full_name: el.textContent, id: el.getAttribute('data-id') }));
-          }
-          setupEngineerLinks();
-        }, 300);
-      });
-    }
-    // Close modal
-    if (closeEngineerProjectsModal) {
-      closeEngineerProjectsModal.addEventListener('click', () => {
-        engineerProjectsModal.classList.add('hidden');
-        if (engineerChart) engineerChart.destroy();
-      });
-    }
-    </script>
+    {% endblock %}
 </body>
 </html> 

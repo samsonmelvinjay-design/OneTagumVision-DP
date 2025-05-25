@@ -13,7 +13,7 @@
       <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
           <div>
               <div class="text-sm font-medium text-gray-500">Total Assigned Projects</div>
-              <div class="text-2xl font-bold text-indigo-600">{{ total_projects }}</div>
+              <div class="text-2xl font-bold text-indigo-600" id="card-total-projects">{{ total_projects }}</div>
           </div>
           <div class="p-2 bg-indigo-100 rounded-md">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -27,7 +27,7 @@
               <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
                   <div>
                       <div class="text-sm font-medium text-gray-500">{{ status }}</div>
-                      <div class="text-2xl font-bold text-gray-800">{{ count }}</div>
+                      <div class="text-2xl font-bold text-gray-800" id="card-{{ status|slugify }}">{{ count }}</div>
                   </div>
                   {# Add a relevant icon for each status if desired #}
                   <div class="p-2 bg-gray-100 rounded-md">
@@ -39,29 +39,6 @@
               </div>
           {% endif %}
       {% endfor %}
-  </div>
-
-  {# Delayed Projects List Section #}
-  <div class="bg-white rounded-xl shadow p-6 mb-8">
-    <h2 class="text-xl font-bold text-red-600 mb-4 flex items-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4H5.062a2 2 0 01-1.995-1.858L2.36 10.19A2 2 0 014.306 8h15.388a2 2 0 011.946 2.19l-1.607 8.008A2 2 0 0118.938 20H7.062z" /></svg>
-      Delayed Projects
-    </h2>
-    {% if delayed_projects and delayed_projects.count > 0 %}
-      <ul class="divide-y divide-gray-200">
-        {% for project in delayed_projects %}
-          <li class="py-3 flex flex-col md:flex-row md:items-center justify-between">
-            <div>
-              <span class="font-semibold text-gray-800">{{ project.name }}</span>
-              <span class="ml-2 text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-semibold">Delayed</span>
-              <span class="ml-4 text-gray-500 text-xs">Last Update: {{ project.last_update|date:"F j, Y"|default:"N/A" }}</span>
-            </div>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <div class="text-gray-600">No delayed projects assigned to you.</div>
-    {% endif %}
   </div>
 
   <!-- Two-column layout for Project List and Analytics -->
@@ -153,5 +130,20 @@
             });
         }
     });
+</script>
+<script>
+function updateDashboardCards() {
+    fetch('/projeng/dashboard/api/card-data/')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('card-total-projects').textContent = data.total_projects;
+            for (const [status, count] of Object.entries(data.status_counts)) {
+                const el = document.getElementById('card-' + status.replace(/_/g, '-').toLowerCase());
+                if (el) el.textContent = count;
+            }
+        });
+}
+updateDashboardCards();
+setInterval(updateDashboardCards, 30000);
 </script>
 {% endblock %} 

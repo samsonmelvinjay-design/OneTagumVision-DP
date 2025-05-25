@@ -230,9 +230,11 @@
 </style>
 
 {% block extra_js %}
+{{ block.super }}
+
 <script>
 // Utility functions
-const utils = {
+window.utils = window.utils || {
     getElement: (id) => document.getElementById(id),
     getElements: (selector) => document.querySelectorAll(selector),
     showElement: (element) => element?.classList.remove('hidden'),
@@ -255,13 +257,21 @@ const utils = {
 };
 
 // Store projects data
-window.projects = {{ projects|safe }};
+window.projects = (typeof window.projects !== 'undefined' && Array.isArray(window.projects)) ? window.projects : {{ projects|safe|default:'[]' }};
+if (!Array.isArray(window.projects)) window.projects = [];
+
+console.log("window.projects:", window.projects);
 
 // Modal functions
 function openProjectModal(id) {
+    console.log("openProjectModal called with id:", id);
+    if (!window.projects || !Array.isArray(window.projects)) window.projects = [];
+    console.log("window.projects inside openProjectModal:", window.projects);
     const modal = utils.getElement('project-modal');
     const content = utils.getElement('modal-content');
-    const project = window.projects.find(p => p.id === id);
+    const project = window.projects.find(p => p.id == id);
+    console.log("Found project:", project);
+    console.log("modal:", modal, "content:", content);
 
     if (!project || !modal || !content) return;
 
@@ -269,7 +279,7 @@ function openProjectModal(id) {
     const assignedEngineers = project.assigned_engineers ? project.assigned_engineers.join(', ') : '';
 
     let html = `
-        <h2 class="text-2xl font-bold mb-2">${project.name}</h2>
+        <h2 class="text-2xl font-bold mb-2">${project.name || ''}</h2>
         <div class="mb-2 text-gray-600">PRN: ${project.prn || ''}</div>
         <div class="mb-2 text-gray-600">Barangay: ${project.barangay || ''}</div>
         <div class="mb-2 text-gray-600">Status: ${project.status || ''}</div>
@@ -286,9 +296,9 @@ function openProjectModal(id) {
     if (project.progress_updates?.length > 0) {
         html += project.progress_updates.map((update, idx) => `
             <div class="border rounded-lg mb-3 p-3 bg-gray-50 cursor-pointer" onclick="toggleUpdateDetails('update-details-${idx}')">
-                <div class="font-semibold">${update.date} - ${update.percentage_complete}% <span class="text-xs text-gray-500">by ${update.engineer}</span></div>
+                <div class="font-semibold">${update.date || ''} - ${update.percentage_complete || 0}% <span class="text-xs text-gray-500">by ${update.engineer || ''}</span></div>
                 <div id="update-details-${idx}" class="mt-2 hidden">
-                    <div class="mb-2">${update.description}</div>
+                    <div class="mb-2">${update.description || ''}</div>
                     <div>
                         ${update.photos?.length > 0 ? update.photos.map(url => `<img src="${url}" style="max-width:80px; margin-right:6px; border-radius:4px; border:1px solid #ccc;">`).join('') : '<span class="text-gray-400">No photos</span>'}
                     </div>
@@ -426,17 +436,17 @@ function openViewCostsModal(id) {
     const modal = utils.getElement('cost-entry-modal');
     const costEntriesListDiv = utils.getElement('cost-entries-list');
     const projectNameElement = utils.getElement('cost-entry-project-name');
-    const project = window.projects.find(p => p.id === id);
+    const project = window.projects.find(p => p.id == id);
 
     if (!project || !modal || !costEntriesListDiv || !projectNameElement) return;
 
-    projectNameElement.textContent = project.name;
+    projectNameElement.textContent = project.name || '';
     costEntriesListDiv.innerHTML = '';
 
     if (project.cost_entries?.length > 0) {
         const costsHtml = project.cost_entries.map(cost => `
             <div class="border rounded-lg mb-3 p-3 bg-gray-50">
-                <div class="font-semibold">${cost.date} - ${cost.cost_type} - ${cost.amount}</div>
+                <div class="font-semibold">${cost.date || ''} - ${cost.cost_type || ''} - ${cost.amount || ''}</div>
                 <div class="mt-2 text-sm text-gray-700">${cost.description || ''}</div>
                 ${cost.receipt_url ? `<div class="mt-2"><a href="${cost.receipt_url}" target="_blank" class="text-blue-600 hover:underline">View Receipt</a></div>` : ''}
             </div>
@@ -453,6 +463,10 @@ function closeViewCostsModal() {
     const modal = utils.getElement('cost-entry-modal');
     if (modal) utils.hideElement(modal);
 }
+</script>
+<script id="projects-data" type="application/json">{{ projects|json_script:"projects-data" }}</script>
+<script>
+window.projects = JSON.parse(document.getElementById('projects-data').textContent);
 </script>
 {% endblock %}
 

@@ -1,14 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, HttpResponseBadRequest, HttpResponseServerError, HttpResponseNotAllowed
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 import json
 from django.contrib.gis.geos import GEOSGeometry
 from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
-from django.db.models import Sum, Avg, Count
+from django.db.models import Sum, Avg, Count, Max
 from django.template.loader import render_to_string, get_template
 import csv
 from datetime import datetime, timedelta
@@ -23,6 +24,11 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.forms.fields import DateField # Import DateField
 from .utils import flag_overdue_projects_as_delayed
+from django.views.decorators.http import require_GET
+from django.db import transaction
+import traceback
+from django.db.models import ProtectedError
+from django.contrib.auth.views import redirect_to_login
 
 def is_project_engineer(user):
     return user.is_authenticated and user.groups.filter(name='Project Engineer').exists()
@@ -33,40 +39,72 @@ def is_staff_or_superuser(user):
 def is_project_or_head_engineer(user):
     return user.is_authenticated and (user.groups.filter(name='Project Engineer').exists() or user.groups.filter(name='Head Engineer').exists())
 
+def is_head_engineer(user):
+    return user.is_authenticated and user.groups.filter(name='Head Engineer').exists()
+
 @user_passes_test(is_project_engineer, login_url='/accounts/login/')
 def dashboard(request):
     try:
+        from .models import Project, ProjectProgress
         # Get the 5 most recently assigned projects for the current user
         assigned_projects = Project.objects.filter(assigned_engineers=request.user).order_by('-pk')[:5]
 
         # Calculate status counts (based on all assigned projects, not just the top 5)
         all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
-
-        # Flag overdue, incomplete projects as delayed
-        try:
-            flag_overdue_projects_as_delayed(all_assigned_projects, ProjectProgress.objects)
-        except Exception as e:
-            print(f"Error in flag_overdue_projects_as_delayed: {str(e)}")
-
-        status_counts = {}
-        for status_key, status_display in Project.STATUS_CHOICES:
-            count = all_assigned_projects.filter(status=status_key).count()
-            status_counts[status_display] = count
-
-        total_projects = all_assigned_projects.count() # Total projects for ALL assigned projects
-        delayed_count = all_assigned_projects.filter(status='delayed').count() # Calculate delayed count
-        delayed_projects = all_assigned_projects.filter(status='delayed')  # Queryset for delayed projects
-
+        today = timezone.now().date()
+        status_counts = {'Planned': 0, 'In Progress': 0, 'Completed': 0, 'Delayed': 0}
+        delayed_projects = []
+        total_projects = all_assigned_projects.count()
+        for project in all_assigned_projects:
+            latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            # Dynamic status logic
+            status = project.status
+            if progress >= 99:
+                status = 'completed'
+            elif progress < 99 and project.end_date and project.end_date < today:
+                status = 'delayed'
+            elif status in ['in_progress', 'ongoing']:
+                status = 'in_progress'
+            elif status in ['planned', 'pending']:
+                status = 'planned'
+            # Count for cards (use display names)
+            if status == 'completed':
+                status_counts['Completed'] += 1
+            elif status == 'in_progress':
+                status_counts['In Progress'] += 1
+            elif status == 'delayed':
+                status_counts['Delayed'] += 1
+                delayed_projects.append(project)
+            elif status == 'planned':
+                status_counts['Planned'] += 1
+        projects_data = []
+        for project in assigned_projects:
+            latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            projects_data.append({
+                'id': project.id,
+                'name': project.name,
+                'progress': progress,
+                'barangay': project.barangay,
+                'status': project.status,
+                'description': project.description,
+                'project_cost': str(project.project_cost) if project.project_cost is not None else "",
+                'source_of_funds': project.source_of_funds,
+                'prn': project.prn,
+                'start_date': str(project.start_date) if project.start_date else "",
+                'end_date': str(project.end_date) if project.end_date else "",
+                'image': project.image.url if project.image else "",
+            })
         context = {
             'assigned_projects': assigned_projects, # Pass only the top 5 for display
             'total_projects': total_projects, # Pass total count for all
             'status_counts': status_counts, # Pass status counts for all
-            'delayed_count': delayed_count, # Pass delayed count
-            'delayed_projects': delayed_projects, # Pass delayed projects queryset
+            'delayed_count': status_counts['Delayed'], # Pass delayed count
+            'delayed_projects': delayed_projects, # Pass delayed projects list
+            'projects_data': projects_data,
         }
-
         print(f'Dashboard View Context: {context}') # Debugging line
-
         return render(request, 'projeng/dashboard.html', context)
     except Exception as e:
         print(f"Error in dashboard view: {str(e)}")
@@ -103,12 +141,8 @@ def projeng_map_view(request):
     # Prepare projects_data for the map, ensuring latitude and longitude are floats
     projects_data = []
     for p in projects_with_coords:
-        latest_progress = None
-        # Get latest progress for the project from ProjectProgress model
-        progress_update = ProjectProgress.objects.filter(project=p).order_by('-date').first()
-        if progress_update:
-            latest_progress = progress_update.percentage_complete
-
+        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
+        progress = int(latest_progress.percentage_complete) if latest_progress else 0
         projects_data.append({
             'id': p.id,
             'name': p.name,
@@ -123,7 +157,7 @@ def projeng_map_view(request):
             'start_date': str(p.start_date) if p.start_date else "",
             'end_date': str(p.end_date) if p.end_date else "",
             'image': p.image.url if p.image else "",
-            'progress': latest_progress if latest_progress is not None else 0, # Include progress
+            'progress': progress,
         })
 
     context = {
@@ -140,9 +174,29 @@ def upload_docs_view(request):
     
     delayed_count = assigned_projects.filter(status='delayed').count() # Calculate delayed count
 
+    projects_data = []
+    for project in assigned_projects:
+        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        projects_data.append({
+            'id': project.id,
+            'name': project.name,
+            'progress': progress,
+            'barangay': project.barangay,
+            'status': project.status,
+            'description': project.description,
+            'project_cost': str(project.project_cost) if project.project_cost is not None else "",
+            'source_of_funds': project.source_of_funds,
+            'prn': project.prn,
+            'start_date': str(project.start_date) if project.start_date else "",
+            'end_date': str(project.end_date) if project.end_date else "",
+            'image': project.image.url if project.image else "",
+        })
+
     context = {
         'assigned_projects': assigned_projects,
         'delayed_count': delayed_count, # Pass delayed count
+        'projects_data': projects_data,
     }
     
     return render(request, 'projeng/upload_docs.html', context)
@@ -212,6 +266,8 @@ def my_reports_view(request):
     # Convert the projects for the CURRENT page to a list of dictionaries for JSON serialization (for the modal)
     projects_list_for_modal = []
     for project in page_obj.object_list:
+        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+        progress = int(latest_progress.percentage_complete) if latest_progress else 0
         projects_list_for_modal.append({
             'id': project.id,
             'prn': project.prn or '',
@@ -224,6 +280,7 @@ def my_reports_view(request):
             'end_date': str(project.end_date) if project.end_date else '',
             'status': project.status or '',
             'status_display': project.get_status_display() or '',
+            'progress': progress,
         })
 
 
@@ -343,19 +400,18 @@ def save_layer(request):
 
 @user_passes_test(is_staff_or_superuser, login_url='/accounts/login/')
 def get_project_engineers(request):
+    if not (request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'error': 'Not authorized'}, status=403)
+        return redirect_to_login(request.get_full_path())
     try:
-        # Get the 'Project Engineer' group
         project_engineer_group = Group.objects.get(name='Project Engineer')
-        # Get all users in that group
         engineers = User.objects.filter(groups=project_engineer_group).order_by('username')
-        # Prepare data as a list of dictionaries
         engineers_data = [{'id': engineer.id, 'username': engineer.username, 'full_name': engineer.get_full_name() or engineer.username} for engineer in engineers]
         return JsonResponse(engineers_data, safe=False)
     except Group.DoesNotExist:
-        # If the group doesn't exist, return an empty list or an error
-        return JsonResponse([], safe=False) # Return empty list if group is missing
+        return JsonResponse([], safe=False)
     except Exception as e:
-        # Handle other potential errors
         return JsonResponse({'error': str(e)}, status=500)
 
 @user_passes_test(is_project_engineer, login_url='/accounts/login/')
@@ -363,12 +419,13 @@ def project_analytics(request, pk):
     try:
         project = Project.objects.get(pk=pk)
         if request.user not in project.assigned_engineers.all():
-            from django.core.exceptions import PermissionDenied
             raise PermissionDenied("You are not assigned to this project.")
         progress_updates = ProjectProgress.objects.filter(project=project).order_by('-date')
+        print(f"DEBUG: All progress updates for project {project.id} ({project.name}):")
+        for pu in progress_updates:
+            print(f"  id={pu.id}, date={pu.date}, percentage_complete={pu.percentage_complete}, description={pu.description}")
         latest_progress = progress_updates.first()
-        # Sum all percentage_complete values
-        total_progress = progress_updates.aggregate(total=Sum('percentage_complete'))['total'] or 0
+        total_progress = latest_progress.percentage_complete if latest_progress else 0
         costs = ProjectCost.objects.filter(project=project)
         total_cost = costs.aggregate(total=Sum('amount'))['total'] or 0
         cost_by_type = costs.values('cost_type').annotate(total=Sum('amount'))
@@ -390,14 +447,11 @@ def project_analytics(request, pk):
         }
         return render(request, 'projeng/project_management.html', context)
     except Project.DoesNotExist:
-        from django.http import Http404
         raise Http404("Project does not exist or you are not assigned to it.")
     except PermissionDenied:
-        from django.http import HttpResponseForbidden
         return HttpResponseForbidden("You are not assigned to view this project.")
     except Exception as e:
         logging.error(f"Error in project_analytics view: {e}")
-        from django.http import HttpResponseServerError
         return HttpResponseServerError("An error occurred while loading project analytics.")
 
 @user_passes_test(is_project_engineer, login_url='/accounts/login/')
@@ -450,20 +504,33 @@ def add_progress_update(request, pk):
             project = Project.objects.get(pk=pk)
             # Use request.POST and request.FILES for multipart/form-data
             date_str = request.POST.get('date')
-            date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else None
-            percentage_complete = request.POST.get('percentage_complete')
+            raw_percentage = request.POST.get('percentage_complete')
+            print(f"DEBUG: Raw percentage_complete value: {raw_percentage!r}")
+            try:
+                percentage_complete = int(raw_percentage)
+                if not (0 <= percentage_complete <= 100):
+                    raise ValueError("Percentage out of range")
+            except Exception as e:
+                logging.exception("Invalid percentage value")
+                return JsonResponse({'error': 'Invalid percentage value. Please enter a number between 0 and 100.'}, status=400)
             description = request.POST.get('description')
 
             print('Current user:', request.user, '| Authenticated:', request.user.is_authenticated)
 
             progress = ProjectProgress(
                 project=project,
-                date=date,
+                date=datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else None,
                 percentage_complete=percentage_complete,
                 description=description,
                 created_by=request.user
             )
             progress.save()
+            print(f"DEBUG: Saved ProjectProgress with id={progress.id}, percentage_complete={progress.percentage_complete}, project_id={project.id}")
+
+            # Update the parent project's progress field
+            project.progress = percentage_complete
+            project.save(update_fields=["progress"])
+            print(f"DEBUG: Updated Project id={project.id} progress to {project.progress}")
 
             # Handle multiple photo uploads
             uploaded_photos = request.FILES.getlist('photos')
@@ -472,6 +539,44 @@ def add_progress_update(request, pk):
                     progress_update=progress,
                     image=photo
                 )
+
+            # Check if progress is 99% or more and update project status if needed
+            if percentage_complete >= 99 and project.status != 'completed':
+                project.status = 'completed'
+                project.save(update_fields=["status"])
+                print(f"DEBUG: ProjEngProject {project.prn} status updated to completed.")
+                # Also update the corresponding monitoring project if it exists
+                try:
+                    from monitoring.models import Project as MonitoringProject
+                    monitoring_project = MonitoringProject.objects.get(
+                        name=project.name,
+                        barangay=project.barangay
+                    )
+                    monitoring_project.status = 'completed'
+                    monitoring_project.progress = percentage_complete
+                    monitoring_project.save(update_fields=["status", "progress"])
+                    print(f"DEBUG: MonitoringProject {monitoring_project.prn} status synced to completed.")
+                except MonitoringProject.DoesNotExist:
+                    print(f"DEBUG: No corresponding MonitoringProject found for {project.prn} ({project.name} in {project.barangay}).")
+                    pass  # No corresponding monitoring project found
+                except Exception as e:
+                    print(f"ERROR: Failed to sync MonitoringProject status for {project.prn}: {e}")
+            else:
+                # Also update the corresponding monitoring project progress if it exists
+                try:
+                    from monitoring.models import Project as MonitoringProject
+                    monitoring_project = MonitoringProject.objects.get(
+                        name=project.name,
+                        barangay=project.barangay
+                    )
+                    monitoring_project.progress = percentage_complete
+                    monitoring_project.save(update_fields=["progress"])
+                    print(f"DEBUG: MonitoringProject {monitoring_project.prn} progress synced to {percentage_complete}%.")
+                except MonitoringProject.DoesNotExist:
+                    print(f"DEBUG: No corresponding MonitoringProject found for {project.prn} ({project.name} in {project.barangay}).")
+                    pass  # No corresponding monitoring project found
+                except Exception as e:
+                    print(f"ERROR: Failed to sync MonitoringProject progress for {project.prn}: {e}")
 
             return JsonResponse({
                 'success': True,
@@ -539,38 +644,45 @@ def analytics_overview(request):
 
 @user_passes_test(is_project_engineer, login_url='/accounts/login/')
 def analytics_overview_data(request):
-    # Get the counts of projects by status for the logged-in engineer
-    status_counts = Project.objects.filter(assigned_engineers=request.user).values('status').annotate(count=Count('status'))
-
-    # Prepare data in a format suitable for Chart.js
-    # STATUS_CHOICES is a list of tuples like [('planned', 'Planned'), ...]
-    # We need to map the status keys to their display values and get counts.
-    status_labels = []
-    status_data = []
-    background_colors = []
-    border_colors = []
-
-    # Define color mapping for each status (excluding 'cancelled')
-    color_map = {
-        'planned': ('rgba(54, 162, 235, 0.6)', 'rgba(54, 162, 235, 1)'),      # Blue
-        'in_progress': ('rgba(255, 206, 86, 0.6)', 'rgba(255, 206, 86, 1)'), # Yellow
-        'completed': ('rgba(75, 192, 192, 0.6)', 'rgba(75, 192, 192, 1)'),   # Green
-        'delayed': ('rgba(135, 206, 250, 0.6)', 'rgba(135, 206, 250, 1)'),   # Light Blue
-    }
-
-    # Create a dictionary for easier lookup of counts by status key
-    counts_dict = {item['status']: item['count'] for item in status_counts}
-
-    # Populate labels and data based on the defined STATUS_CHOICES order, skipping 'cancelled'
-    for status_key, status_display in Project.STATUS_CHOICES:
-        if status_key == 'cancelled':
-            continue
-        status_labels.append(status_display)
-        status_data.append(counts_dict.get(status_key, 0))
-        bg, border = color_map.get(status_key, ('rgba(200,200,200,0.6)', 'rgba(200,200,200,1)'))
-        background_colors.append(bg)
-        border_colors.append(border)
-
+    from .models import Project, ProjectProgress
+    all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    today = timezone.now().date()
+    status_counts = {'planned': 0, 'in_progress': 0, 'completed': 0, 'delayed': 0}
+    for project in all_assigned_projects:
+        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        status = project.status
+        if progress >= 99:
+            status = 'completed'
+        elif progress < 99 and project.end_date and project.end_date < today:
+            status = 'delayed'
+        elif status in ['in_progress', 'ongoing']:
+            status = 'in_progress'
+        elif status in ['planned', 'pending']:
+            status = 'planned'
+        if status == 'completed':
+            status_counts['completed'] += 1
+        elif status == 'in_progress':
+            status_counts['in_progress'] += 1
+        elif status == 'delayed':
+            status_counts['delayed'] += 1
+        elif status == 'planned':
+            status_counts['planned'] += 1
+    # Prepare data for Chart.js
+    status_labels = ['Planned', 'In Progress', 'Completed', 'Delayed']
+    status_data = [status_counts['planned'], status_counts['in_progress'], status_counts['completed'], status_counts['delayed']]
+    background_colors = [
+        'rgba(54, 162, 235, 0.6)',      # Blue
+        'rgba(255, 206, 86, 0.6)',      # Yellow
+        'rgba(75, 192, 192, 0.6)',      # Green
+        'rgba(135, 206, 250, 0.6)',     # Light Blue
+    ]
+    border_colors = [
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+        'rgba(135, 206, 250, 1)',
+    ]
     chart_data = {
         'labels': status_labels,
         'datasets': [{
@@ -581,7 +693,6 @@ def analytics_overview_data(request):
             'borderWidth': 1
         }]
     }
-
     return JsonResponse(chart_data)
 
 @csrf_exempt
@@ -639,51 +750,6 @@ def upload_project_document(request, pk):
         else:
             return JsonResponse({'success': False, 'error': 'Missing file or name'}, status=400)
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
-
-# Monkey-patch or override Project.save to sync with MonitoringProject
-old_save = Project.save
-
-def synced_save(self, *args, **kwargs):
-    old_save(self, *args, **kwargs)  # Save ProjEngProject first
-    # Now sync to MonitoringProject
-    if self.prn:
-        monitoring_project, created = MonitoringProject.objects.get_or_create(
-            prn=self.prn,
-            defaults={
-                'name': self.name,
-                'description': self.description,
-                'barangay': self.barangay,
-                'project_cost': str(self.project_cost) if self.project_cost is not None else '',
-                'source_of_funds': self.source_of_funds,
-                'status': self.status,
-                'latitude': self.latitude or 0,
-                'longitude': self.longitude or 0,
-                'start_date': self.start_date,
-                'end_date': self.end_date,
-                'image': self.image,
-            }
-        )
-        if not created:
-            monitoring_project.name = self.name
-            monitoring_project.description = self.description
-            monitoring_project.barangay = self.barangay
-            monitoring_project.project_cost = str(self.project_cost) if self.project_cost is not None else ''
-            monitoring_project.source_of_funds = self.source_of_funds
-            monitoring_project.status = self.status
-            monitoring_project.latitude = self.latitude or 0
-            monitoring_project.longitude = self.longitude or 0
-            monitoring_project.start_date = self.start_date
-            monitoring_project.end_date = self.end_date
-            if self.image:
-                monitoring_project.image = self.image
-            monitoring_project.save()
-        # Sync assigned engineers
-        if hasattr(monitoring_project, 'assigned_engineers'):
-            monitoring_project.assigned_engineers.set(self.assigned_engineers.all())
-        else:
-            print('Warning: MonitoringProject has no assigned_engineers field')
-
-Project.save = synced_save 
 
 # Report Export Views
 @login_required
@@ -804,3 +870,117 @@ def export_reports_pdf(request):
 
     # If there were errors, return an error message
     return HttpResponse('We had some errors <pre>' + html + '</pre>', content_type='text/plain') 
+
+@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@require_GET
+def map_projects_api(request):
+    all_projects = Project.objects.filter(
+        assigned_engineers=request.user,
+        latitude__isnull=False,
+        longitude__isnull=False
+    )
+    projects_with_coords = [p for p in all_projects if p.latitude != '' and p.longitude != '']
+    projects_data = []
+    for p in projects_with_coords:
+        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
+        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        projects_data.append({
+            'id': p.id,
+            'name': p.name,
+            'latitude': float(p.latitude),
+            'longitude': float(p.longitude),
+            'barangay': p.barangay,
+            'status': p.status,
+            'description': p.description,
+            'project_cost': str(p.project_cost) if p.project_cost is not None else "",
+            'source_of_funds': p.source_of_funds,
+            'prn': p.prn,
+            'start_date': str(p.start_date) if p.start_date else "",
+            'end_date': str(p.end_date) if p.end_date else "",
+            'image': p.image.url if p.image else "",
+            'progress': progress,
+        })
+    return JsonResponse({'projects': projects_data}) 
+
+@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@require_GET
+def dashboard_card_data_api(request):
+    from .models import Project, ProjectProgress
+    all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    today = timezone.now().date()
+    status_counts = {'planned': 0, 'in_progress': 0, 'completed': 0, 'delayed': 0}
+    for project in all_assigned_projects:
+        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        status = project.status
+        if progress >= 99:
+            status = 'completed'
+        elif progress < 99 and project.end_date and project.end_date < today:
+            status = 'delayed'
+        elif status in ['in_progress', 'ongoing']:
+            status = 'in_progress'
+        elif status in ['planned', 'pending']:
+            status = 'planned'
+        if status == 'completed':
+            status_counts['completed'] += 1
+        elif status == 'in_progress':
+            status_counts['in_progress'] += 1
+        elif status == 'delayed':
+            status_counts['delayed'] += 1
+        elif status == 'planned':
+            status_counts['planned'] += 1
+    total_projects = all_assigned_projects.count()
+    delayed_count = status_counts['delayed']
+    return JsonResponse({
+        'total_projects': total_projects,
+        'status_counts': status_counts,
+        'delayed_count': delayed_count,
+    }) 
+
+@user_passes_test(is_head_engineer, login_url='/accounts/login/')
+@csrf_exempt
+@transaction.atomic
+def project_delete_api(request, pk):
+    print(f"DEBUG: Received delete request for project id: {pk}, method: {request.method}")
+    if request.method == 'POST' or request.method == 'DELETE':
+        try:
+            deleted = False
+            # Try MonitoringProject first
+            monitoring_project = MonitoringProject.objects.filter(pk=pk).first()
+            if monitoring_project:
+                prn = getattr(monitoring_project, 'prn', None)
+                name = getattr(monitoring_project, 'name', None)
+                barangay = getattr(monitoring_project, 'barangay', None)
+                monitoring_project.delete()
+                deleted = True
+                # Try to delete corresponding ProjEngProject
+                if prn:
+                    Project.objects.filter(prn=prn).delete()
+                elif name and barangay:
+                    Project.objects.filter(name=name, barangay=barangay).delete()
+            else:
+                # Try ProjEngProject
+                projeng_project = Project.objects.filter(pk=pk).first()
+                if projeng_project:
+                    prn = getattr(projeng_project, 'prn', None)
+                    name = getattr(projeng_project, 'name', None)
+                    barangay = getattr(projeng_project, 'barangay', None)
+                    projeng_project.delete()
+                    deleted = True
+                    # Try to delete corresponding MonitoringProject
+                    if prn:
+                        MonitoringProject.objects.filter(prn=prn).delete()
+                    elif name and barangay:
+                        MonitoringProject.objects.filter(name=name, barangay=barangay).delete()
+            if deleted:
+                print(f"DEBUG: Deleted project(s) with id {pk} and corresponding entries.")
+                return JsonResponse({'success': True})
+            else:
+                return JsonResponse({'success': False, 'error': 'Project not found'}, status=404)
+        except Exception as e:
+            print(f"DEBUG: Exception occurred: {e}")
+            import traceback; traceback.print_exc()
+            transaction.set_rollback(True)
+            return JsonResponse({'success': False, 'error': f'An unexpected error occurred: {str(e)}'}, status=500)
+    print("DEBUG: Method not allowed")
+    return HttpResponseNotAllowed(['POST', 'DELETE']) 
