@@ -7,6 +7,7 @@ urlpatterns = [
     path('map/', views.projeng_map_view, name='projeng_map'),
     path('upload-docs/', views.upload_docs_view, name='projeng_upload_docs'),
     path('my-reports/', views.my_reports_view, name='projeng_my_reports'),
+    path('notifications/', views.notifications_view, name='projeng_notifications'),
     
     # Report Export URLs
     path('my-reports/export/csv/', views.export_reports_csv, name='projeng_export_reports_csv'),

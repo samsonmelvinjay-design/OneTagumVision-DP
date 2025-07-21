@@ -1,4 +1,6 @@
 from django.utils import timezone
+from django.contrib.auth.models import User
+from .models import Notification
 
 def flag_overdue_projects_as_delayed(projects, progress_model):
     """
@@ -15,4 +17,14 @@ def flag_overdue_projects_as_delayed(projects, progress_model):
             latest_progress = progress_update.percentage_complete if progress_update else 0
             if latest_progress < 98:
                 project.status = 'delayed'
-                project.save() 
+                project.save()
+
+def notify_head_engineers(message):
+    head_engineers = User.objects.filter(groups__name='Head Engineer')
+    for user in head_engineers:
+        Notification.objects.create(recipient=user, message=message)
+
+def notify_admins(message):
+    admins = User.objects.filter(is_superuser=True)
+    for user in admins:
+        Notification.objects.create(recipient=user, message=message) 

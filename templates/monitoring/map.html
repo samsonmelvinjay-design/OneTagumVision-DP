@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
 <style>
 #map {
@@ -12,14 +13,55 @@
   pointer-events: none !important;
   display: none !important;
 }
+
+/* Ensure map remains interactive */
+#map {
+  z-index: 1 !important;
+}
+
+/* Modal should have higher z-index but not interfere with map */
+#details-modal {
+  z-index: 10000 !important;
+}
+
+/* Ensure map controls are above modal */
+.leaflet-control-container {
+  z-index: 10001 !important;
+}
+.legend {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+.legend h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+.legend i {
+  width: 18px;
+  height: 18px;
+  float: left;
+  margin-right: 8px;
+  opacity: 0.7;
+}
 </style>
 <div class="flex flex-col items-center w-full px-4 py-8 md:px-8 md:py-12">
     <div class="w-full max-w-6xl bg-white rounded-2xl shadow-lg">
         <div class="p-4 md:p-8">
-            <div class="flex flex-col md:flex-row gap-4 mb-6 items-center">
-                <input id="start-date-filter" type="date" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-auto" placeholder="Start Date" />
-                <input id="end-date-filter" type="date" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-auto" placeholder="End Date" />
-                <select id="barangay-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-auto">
+            <!-- Map Type Toggle -->
+            <div class="flex justify-center gap-2 mb-6">
+                <button id="btn-markers" class="px-6 py-3 rounded-lg font-semibold border border-gray-300 bg-blue-600 text-white transition text-lg">Markers View</button>
+                <button id="btn-choropleth" class="px-6 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition text-lg">Choropleth View</button>
+            </div>
+            
+            <!-- Filter Section - Centered and Adjusted Size (Hidden in Choropleth View) -->
+            <div id="filter-section" class="flex flex-col lg:flex-row gap-4 mb-6 justify-center items-center">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input id="start-date-filter" type="date" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-48 text-base" placeholder="Start Date" />
+                    <input id="end-date-filter" type="date" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-48 text-base" placeholder="End Date" />
+                </div>
+                <select id="barangay-filter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-56 text-base">
                     <option value="">All Barangays</option>
                     <option value="Apokon">Apokon</option>
                     <option value="Bincungan">Bincungan</option>
@@ -45,14 +87,14 @@
                     <option value="San Miguel">San Miguel</option>
                     <option value="Visayan Village">Visayan Village</option>
                 </select>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <button id="btn-completed" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-green-700 hover:bg-green-100 transition">Completed</button>
-                    <button id="btn-ongoing" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-blue-700 hover:bg-blue-100 transition">Ongoing</button>
-                    <button id="btn-planned" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-yellow-800 hover:bg-yellow-200 transition">Planned</button>
+                <div class="flex gap-3 w-full sm:w-auto">
+                    <button id="btn-completed" class="px-5 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-green-700 hover:bg-green-100 transition text-base">Completed</button>
+                    <button id="btn-ongoing" class="px-5 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-blue-700 hover:bg-blue-100 transition text-base">Ongoing</button>
+                    <button id="btn-planned" class="px-5 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-yellow-800 hover:bg-yellow-200 transition text-base">Planned</button>
                 </div>
             </div>
         </div>
-        <div id="map" style="height: 60vh; width: 100%; z-index: 1;"></div>
+        <div id="map" style="height: 60vh; width: 100%; z-index: 1; position: relative;"></div>
     </div>
 </div>
 {% endblock %}
@@ -112,21 +154,233 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    if (L.DomUtil.get('map') !== null) {
-        L.DomUtil.get('map')._leaflet_id = null;
+    // Check if Leaflet is loaded
+    if (typeof L === 'undefined') {
+        console.error('Leaflet is not loaded!');
+        return;
     }
-    const map = L.map('map').setView([7.4475, 125.8096], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
 
-    // Add marker cluster group
-    const markers = L.markerClusterGroup();
-    map.addLayer(markers);
+    // Global variables
+    let currentMapMode = 'markers'; // 'markers' or 'choropleth'
+    let map = null;
+    let markers = null;
+    let choroplethMap = null;
+    let statusFilter = '';
+    let isFullscreen = false;
+    let fullscreenButton = null;
+
+    // Initialize map
+    function initMap() {
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) {
+            console.error('Map container not found!');
+            return;
+        }
+        
+        if (L.DomUtil.get('map') !== null) {
+            L.DomUtil.get('map')._leaflet_id = null;
+        }
+        
+        map = L.map('map').setView([7.4475, 125.8096], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add marker cluster group
+        markers = L.markerClusterGroup();
+        map.addLayer(markers);
+        
+        // Add fullscreen control
+        addFullscreenControl();
+        
+        console.log('Map initialized successfully');
+    }
+
+    // Fullscreen functionality
+    function addFullscreenControl() {
+        try {
+            // Create fullscreen button
+            const FullscreenControl = L.Control.extend({
+            options: {
+                position: 'topright'
+            },
+            
+            onAdd: function(map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                container.style.backgroundColor = 'white';
+                container.style.border = '2px solid rgba(0,0,0,0.2)';
+                container.style.borderRadius = '4px';
+                container.style.cursor = 'pointer';
+                container.style.width = '36px';
+                container.style.height = '36px';
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.justifyContent = 'center';
+                container.style.fontSize = '18px';
+                container.style.fontWeight = 'bold';
+                container.style.color = '#333';
+                
+                container.innerHTML = '⛶';
+                container.title = 'Toggle Fullscreen';
+                
+                container.onclick = function() {
+                    toggleFullscreen();
+                };
+                
+                return container;
+            }
+        });
+        
+        fullscreenButton = new FullscreenControl();
+        fullscreenButton.addTo(map);
+        } catch (error) {
+            console.error('Error adding fullscreen control:', error);
+        }
+    }
+
+        function toggleFullscreen() {
+        try {
+            const mapContainer = document.getElementById('map');
+            if (!mapContainer) {
+                console.error('Map container not found');
+                return;
+            }
+            
+            const mainContent = document.querySelector('.flex-1'); // Main white content area
+            const sidebar = document.querySelector('.bg-gray-900'); // Left sidebar
+            const controls = document.querySelector('.p-4'); // Top controls
+            
+            if (!isFullscreen) {
+                // Enter fullscreen - expand to fill entire viewport
+                mapContainer.style.position = 'fixed';
+                mapContainer.style.top = '0';
+                mapContainer.style.left = '0';
+                mapContainer.style.width = '100vw';
+                mapContainer.style.height = '100vh';
+                mapContainer.style.zIndex = '9999';
+                mapContainer.style.backgroundColor = 'white';
+                
+                // Hide sidebar
+                if (sidebar) {
+                    sidebar.style.display = 'none';
+                }
+                
+                // Move controls to fullscreen view
+                if (controls) {
+                    controls.style.position = 'fixed';
+                    controls.style.top = '10px';
+                    controls.style.left = '10px';
+                    controls.style.right = '10px';
+                    controls.style.zIndex = '10000';
+                    controls.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                    controls.style.borderRadius = '8px';
+                    controls.style.padding = '15px';
+                    controls.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                    controls.style.backdropFilter = 'blur(10px)';
+                }
+                
+                // Update button
+                if (fullscreenButton && fullscreenButton.getContainer) {
+                    fullscreenButton.getContainer().innerHTML = '⛶';
+                    fullscreenButton.getContainer().title = 'Exit Fullscreen';
+                }
+                
+                isFullscreen = true;
+                
+                // Invalidate map size after a short delay
+                setTimeout(() => {
+                    if (map) {
+                        map.invalidateSize();
+                        if (map.getBounds) {
+                            map.fitBounds(map.getBounds());
+                        }
+                    }
+                }, 100);
+                
+            } else {
+                // Exit fullscreen
+                mapContainer.style.position = 'relative';
+                mapContainer.style.top = '';
+                mapContainer.style.left = '';
+                mapContainer.style.width = '100%';
+                mapContainer.style.height = '60vh';
+                mapContainer.style.zIndex = '1';
+                mapContainer.style.backgroundColor = '';
+                
+                // Show sidebar again
+                if (sidebar) {
+                    sidebar.style.display = 'flex';
+                }
+                
+                // Restore controls to original position
+                if (controls) {
+                    controls.style.position = '';
+                    controls.style.top = '';
+                    controls.style.left = '';
+                    controls.style.right = '';
+                    controls.style.zIndex = '';
+                    controls.style.backgroundColor = '';
+                    controls.style.borderRadius = '';
+                    controls.style.padding = '';
+                    controls.style.boxShadow = '';
+                    controls.style.backdropFilter = '';
+                }
+                
+                // Update button
+                if (fullscreenButton && fullscreenButton.getContainer) {
+                    fullscreenButton.getContainer().innerHTML = '⛶';
+                    fullscreenButton.getContainer().title = 'Toggle Fullscreen';
+                }
+                
+                isFullscreen = false;
+                
+                // Invalidate map size after a short delay
+                setTimeout(() => {
+                    if (map) {
+                        map.invalidateSize();
+                    }
+                }, 100);
+            }
+        } catch (error) {
+            console.error('Error in toggleFullscreen:', error);
+            // Reset to normal state if error occurs
+            isFullscreen = false;
+            if (map) {
+                map.invalidateSize();
+            }
+        }
+    }
+
+    // Handle ESC key to exit fullscreen
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isFullscreen) {
+            toggleFullscreen();
+        }
+    });
+
+    // Initialize the map
+    initMap();
+    
+    // Set initial filter visibility (show filters for markers view by default)
+    const filterSection = document.getElementById('filter-section');
+    if (filterSection) {
+        filterSection.style.display = 'flex';
+    }
 
     // Use projects data from json_script tag
-    window.projects = JSON.parse(document.getElementById('projects-data').textContent);
-    console.log('Initialized window.projects:', window.projects);
+    const projectsDataElement = document.getElementById('projects-data');
+    if (projectsDataElement) {
+        try {
+            window.projects = JSON.parse(projectsDataElement.textContent);
+            console.log('Initialized window.projects:', window.projects);
+        } catch (e) {
+            console.error('Error parsing projects data:', e);
+            window.projects = [];
+        }
+    } else {
+        console.error('Projects data element not found');
+        window.projects = [];
+    }
 
     // Function to create custom marker icon
     function createMarkerIcon(status) {
@@ -141,11 +395,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Filtering state
-    let statusFilter = '';
-
     // Add markers to map
     function renderMarkers() {
+        console.log('renderMarkers called');
+        if (!markers) {
+            console.error('Markers not initialized');
+            return;
+        }
+        
+        if (!window.projects || window.projects.length === 0) {
+            console.error('No projects data available');
+            return;
+        }
+        
+        console.log('Projects data:', window.projects);
+        
         markers.clearLayers();
         const barangay = barangayFilter.value;
         const startDate = startDateFilter.value;
@@ -224,6 +488,204 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Switch between map modes
+    function switchToMarkers() {
+        console.log('Switching to markers view');
+        currentMapMode = 'markers';
+        
+        // Clear choropleth if exists
+        if (choroplethMap) {
+            try {
+                // Use the cleanup method to properly remove all choropleth elements
+                choroplethMap.cleanup();
+            } catch (e) {
+                console.log('Error clearing choropleth:', e);
+            }
+            choroplethMap = null;
+        }
+        
+        // Ensure map is properly initialized
+        if (!map || !map._loaded) {
+            console.log('Reinitializing map for markers');
+            if (map) {
+                try {
+                    map.remove();
+                } catch (e) {
+                    console.log('Error removing old map:', e);
+                }
+            }
+            initMap();
+        }
+        
+        // Ensure markers are initialized
+        if (!markers) {
+            console.log('Reinitializing markers');
+            markers = L.markerClusterGroup();
+            map.addLayer(markers);
+        }
+        
+        // Render markers
+        renderMarkers();
+        
+        // Ensure map interactions are enabled
+        try {
+            if (map) {
+                map.invalidateSize();
+                // Only enable interactions if they exist
+                if (map.dragging && typeof map.dragging.enable === 'function') {
+                    map.dragging.enable();
+                }
+                if (map.touchZoom && typeof map.touchZoom.enable === 'function') {
+                    map.touchZoom.enable();
+                }
+                if (map.doubleClickZoom && typeof map.doubleClickZoom.enable === 'function') {
+                    map.doubleClickZoom.enable();
+                }
+                if (map.scrollWheelZoom && typeof map.scrollWheelZoom.enable === 'function') {
+                    map.scrollWheelZoom.enable();
+                }
+                if (map.boxZoom && typeof map.boxZoom.enable === 'function') {
+                    map.boxZoom.enable();
+                }
+                if (map.keyboard && typeof map.keyboard.enable === 'function') {
+                    map.keyboard.enable();
+                }
+                if (map.tap && typeof map.tap.enable === 'function') {
+                    map.tap.enable();
+                }
+                console.log('Map interactions enabled for markers view');
+            }
+        } catch (e) {
+            console.log('Error enabling map interactions:', e);
+        }
+        
+        // Ensure fullscreen button is available in markers view
+        if (!fullscreenButton) {
+            addFullscreenControl();
+        }
+        
+        // Show filter section for markers view
+        const filterSection = document.getElementById('filter-section');
+        if (filterSection) {
+            filterSection.style.display = 'flex';
+        }
+        
+        // Update UI
+        document.getElementById('btn-markers').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('btn-markers').classList.remove('bg-gray-50', 'text-gray-700');
+        document.getElementById('btn-choropleth').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('btn-choropleth').classList.add('bg-gray-50', 'text-gray-700');
+    }
+
+    function switchToChoropleth() {
+        console.log('Switching to choropleth view');
+        currentMapMode = 'choropleth';
+        
+        // Clear markers if exists
+        if (markers) {
+            try {
+                map.removeLayer(markers);
+            } catch (e) {
+                console.log('Error removing markers:', e);
+            }
+            markers = null;
+        }
+        
+        // Ensure map is properly initialized
+        if (!map || !map._loaded) {
+            console.log('Reinitializing map for choropleth');
+            if (map) {
+                try {
+                    map.remove();
+                } catch (e) {
+                    console.log('Error removing old map:', e);
+                }
+            }
+            initMap();
+        }
+        
+        // Initialize choropleth map
+        if (!choroplethMap) {
+            if (typeof SimpleChoropleth === 'undefined') {
+                console.error('SimpleChoropleth class is not loaded!');
+                // Load the script if not already loaded
+                loadChoroplethScript();
+                // Try again after a short delay
+                setTimeout(() => {
+                    if (typeof SimpleChoropleth !== 'undefined') {
+                        choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
+                        choroplethMap.initialize();
+                    } else {
+                        console.error('SimpleChoropleth class still not available after loading script');
+                    }
+                }, 500);
+                return;
+            }
+            try {
+                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
+                choroplethMap.initialize();
+                console.log('Choropleth map initialized successfully');
+            } catch (e) {
+                console.error('Error initializing choropleth map:', e);
+            }
+        }
+        
+        // Ensure map interactions are enabled for choropleth
+        try {
+            if (map) {
+                map.invalidateSize();
+                // Only enable interactions if they exist
+                if (map.dragging && typeof map.dragging.enable === 'function') {
+                    map.dragging.enable();
+                }
+                if (map.touchZoom && typeof map.touchZoom.enable === 'function') {
+                    map.touchZoom.enable();
+                }
+                if (map.doubleClickZoom && typeof map.doubleClickZoom.enable === 'function') {
+                    map.doubleClickZoom.enable();
+                }
+                if (map.scrollWheelZoom && typeof map.scrollWheelZoom.enable === 'function') {
+                    map.scrollWheelZoom.enable();
+                }
+                if (map.boxZoom && typeof map.boxZoom.enable === 'function') {
+                    map.boxZoom.enable();
+                }
+                if (map.keyboard && typeof map.keyboard.enable === 'function') {
+                    map.keyboard.enable();
+                }
+                if (map.tap && typeof map.tap.enable === 'function') {
+                    map.tap.enable();
+                }
+                console.log('Map interactions enabled for choropleth view');
+            }
+        } catch (e) {
+            console.log('Error enabling map interactions:', e);
+        }
+        
+        // Ensure fullscreen button is available in choropleth view
+        if (!fullscreenButton) {
+            addFullscreenControl();
+        }
+        
+        // Hide filter section for choropleth view
+        const filterSection = document.getElementById('filter-section');
+        if (filterSection) {
+            filterSection.style.display = 'none';
+        }
+        
+        // Update UI
+        document.getElementById('btn-choropleth').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('btn-choropleth').classList.remove('bg-gray-50', 'text-gray-700');
+        document.getElementById('btn-markers').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('btn-markers').classList.add('bg-gray-50', 'text-gray-700');
+    }
+
+    // Map mode toggle event listeners
+    document.getElementById('btn-markers').addEventListener('click', switchToMarkers);
+    document.getElementById('btn-choropleth').addEventListener('click', switchToChoropleth);
+
+
+
     // Filter controls
     const barangayFilter = document.getElementById('barangay-filter');
     const btnCompleted = document.getElementById('btn-completed');
@@ -255,7 +717,10 @@ document.addEventListener('DOMContentLoaded', function() {
             btnPlanned.classList.add('bg-yellow-600', 'text-white');
             btnPlanned.classList.remove('bg-gray-50', 'text-yellow-800');
         }
-        renderMarkers();
+        
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
     }
 
     btnCompleted.addEventListener('click', function() {
@@ -267,21 +732,63 @@ document.addEventListener('DOMContentLoaded', function() {
     btnPlanned.addEventListener('click', function() {
         setStatusFilter('planned');
     });
-    barangayFilter.addEventListener('change', renderMarkers);
+    barangayFilter.addEventListener('change', function() {
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    });
 
     // Add date filter logic in JS
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
 
-    startDateFilter.addEventListener('change', renderMarkers);
-    endDateFilter.addEventListener('change', renderMarkers);
+    startDateFilter.addEventListener('change', function() {
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    });
+    endDateFilter.addEventListener('change', function() {
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    });
 
-    // Initial render
-    renderMarkers();
+            // Initial render
+        setTimeout(() => {
+            console.log('Starting initial render - map:', map, 'markers:', markers);
+            if (map && markers) {
+                renderMarkers();
+                console.log('Initial render completed successfully');
+            } else {
+                console.error('Map or markers not initialized for initial render');
+                // Try to reinitialize if needed
+                if (!map) {
+                    console.log('Reinitializing map');
+                    initMap();
+                }
+                if (!markers && map) {
+                    console.log('Reinitializing markers');
+                    markers = L.markerClusterGroup();
+                    map.addLayer(markers);
+                }
+                if (map && markers) {
+                    console.log('Retrying render after reinitialization');
+                    renderMarkers();
+                }
+            }
+        }, 100);
 
     // Handle window resize
     window.addEventListener('resize', () => {
-        map.invalidateSize();
+        if (map) {
+            map.invalidateSize();
+            // If in fullscreen, ensure map fills the viewport
+            if (isFullscreen) {
+                const mapContainer = document.getElementById('map');
+                mapContainer.style.width = '100vw';
+                mapContainer.style.height = '100vh';
+            }
+        }
     });
 
     // Define closeDetailsModalFunc globally
@@ -293,10 +800,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Wait for the transition to complete before hiding the element completely
             setTimeout(() => {
                 detailsModal.style.display = 'none';
-                // Invalidate main map size after modal is completely hidden
-                const mainMap = L.DomUtil.get('map')._leaflet_id ? L.DomUtil.get('map') : null; // Get existing map instance
-                if (mainMap) {
-                    mainMap.invalidateSize();
+                // Restore map interactions
+                if (map && map.dragging) {
+                    map.invalidateSize();
+                    // Re-enable map dragging
+                    map.dragging.enable();
+                    map.touchZoom.enable();
+                    map.doubleClickZoom.enable();
+                    map.scrollWheelZoom.enable();
+                    map.boxZoom.enable();
+                    map.keyboard.enable();
+                    map.tap.enable();
                 }
             }, 300); // Match the CSS transition duration (0.3s)
         }
@@ -315,8 +829,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.closeDetailsModalFunc();
             }
         });
+        
+        // Prevent modal from interfering with map interactions
+        detailsModalElement.addEventListener('click', function(e) {
+            if (e.target === detailsModalElement) {
+                e.stopPropagation();
+            }
+        });
     }
-}); // End DOMContentLoaded
+    }); // End DOMContentLoaded
+
+// Load choropleth script after Leaflet is available
+function loadChoroplethScript() {
+    if (typeof L !== 'undefined') {
+        const script = document.createElement('script');
+        script.src = "{% static 'js/simple_choropleth.js' %}";
+        script.onload = function() {
+            console.log('Choropleth script loaded successfully');
+        };
+        script.onerror = function() {
+            console.error('Failed to load choropleth script');
+        };
+        document.head.appendChild(script);
+    } else {
+        console.error('Leaflet not available for choropleth map');
+    }
+}
+
+// Load script immediately
+loadChoroplethScript();
 
 // Include the openDetailsModal function (copy from project_list.html)
 window.openDetailsModal = function(id) {
@@ -330,6 +871,17 @@ window.openDetailsModal = function(id) {
     if (!detailsModal) {
         console.error('Details modal element not found!');
         return; // Stop if modal not found
+    }
+
+    // Temporarily disable map interactions while modal is open
+    if (map && map.dragging) {
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        map.tap.disable();
     }
 
     // Show the modal overlay and content using opacity and pointer-events

@@ -1,0 +1,614 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+#map {
+  width: 100% !important;
+  height: 60vh !important;
+  min-height: 300px;
+  max-width: 100vw;
+  pointer-events: auto !important;
+}
+#details-modal[style*="opacity: 0"] {
+  pointer-events: none !important;
+  display: none !important;
+}
+.legend {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+.legend h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+.legend i {
+  width: 18px;
+  height: 18px;
+  float: left;
+  margin-right: 8px;
+  opacity: 0.7;
+}
+.map-controls {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  margin-bottom: 10px;
+}
+</style>
+
+<div class="flex flex-col items-center w-full px-4 py-8 md:px-8 md:py-12">
+    <div class="w-full max-w-6xl bg-white rounded-2xl shadow-lg">
+        <div class="p-4 md:p-8">
+            <!-- Map Type Toggle -->
+            <div class="flex gap-2 mb-4">
+                <button id="btn-markers" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-blue-600 text-white transition">Markers View</button>
+                <button id="btn-choropleth" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition">Choropleth View</button>
+            </div>
+            
+            <!-- Choropleth Controls (Initially Hidden) -->
+            <div id="choropleth-controls" class="hidden mb-4">
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <select id="choropleth-metric" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="total_projects">Total Projects</option>
+                        <option value="completed_projects">Completed Projects</option>
+                        <option value="ongoing_projects">Ongoing Projects</option>
+                        <option value="planned_projects">Planned Projects</option>
+                        <option value="avg_progress">Average Progress (%)</option>
+                        <option value="total_cost">Total Cost (₱)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Original Filter Controls -->
+            <div class="flex flex-col md:flex-row gap-4 mb-6 items-center">
+                <input id="start-date-filter" type="date" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-auto" placeholder="Start Date" />
+                <input id="end-date-filter" type="date" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-auto" placeholder="End Date" />
+                <select id="barangay-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-auto">
+                    <option value="">All Barangays</option>
+                    <option value="Apokon">Apokon</option>
+                    <option value="Bincungan">Bincungan</option>
+                    <option value="Busaon">Busaon</option>
+                    <option value="Canocotan">Canocotan</option>
+                    <option value="Cuambogan">Cuambogan</option>
+                    <option value="La Filipina">La Filipina</option>
+                    <option value="Liboganon">Liboganon</option>
+                    <option value="Madaum">Madaum</option>
+                    <option value="Magdum">Magdum</option>
+                    <option value="Magugpo North">Magugpo North</option>
+                    <option value="Magugpo South">Magugpo South</option>
+                    <option value="Magugpo East">Magugpo East</option>
+                    <option value="Magugpo West">Magugpo West</option>
+                    <option value="Magugpo Poblacion">Magugpo Poblacion</option>
+                    <option value="Mankilam">Mankilam</option>
+                    <option value="New Balamban">New Balamban</option>
+                    <option value="Nueva Fuerza">Nueva Fuerza</option>
+                    <option value="Pagsabangan">Pagsabangan</option>
+                    <option value="Pandapan">Pandapan</option>
+                    <option value="San Agustin">San Agustin</option>
+                    <option value="San Isidro">San Isidro</option>
+                    <option value="San Miguel">San Miguel</option>
+                    <option value="Visayan Village">Visayan Village</option>
+                </select>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button id="btn-completed" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-green-700 hover:bg-green-100 transition">Completed</button>
+                    <button id="btn-ongoing" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-blue-700 hover:bg-blue-100 transition">Ongoing</button>
+                    <button id="btn-planned" class="px-4 py-2 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-yellow-800 hover:bg-yellow-200 transition">Planned</button>
+                </div>
+            </div>
+        </div>
+        <div id="map" style="height: 60vh; width: 100%; z-index: 1;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ projects_data|json_script:"projects-data" }}
+
+<!-- View Details Modal (Initially hidden) -->
+<div id="details-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-40" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out; position: fixed; z-index: 10000;">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-0 relative mx-4 my-8 max-h-[90vh] overflow-y-auto animate-modal-scale" style="position: relative; z-index: 10000; pointer-events: auto;">
+        <button id="close-details-modal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+        <div class="flex flex-col items-center px-8 pt-8 pb-4">
+            <img id="details-image" class="w-40 h-40 object-cover object-center rounded-2xl mb-4 bg-gray-100 border-2 border-gray-200 shadow aspect-square" alt="Project image" />
+            <div class="w-full">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-2xl font-extrabold text-blue-900" id="details-title">Project Details</span>
+                    <span id="details-status"></span>
+                </div>
+                <div class="text-lg font-bold text-gray-800 mb-1" id="details-name"></div>
+                <div class="text-sm text-gray-500 mb-2" id="details-prn"></div>
+            </div>
+        </div>
+        <div class="px-8 pb-8">
+            <div>
+            <div class="mb-4">
+                <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Project Info</div>
+                <div class="mb-2"><span class="font-semibold">Description:</span> <span id="details-description"></span></div>
+            </div>
+            <div class="mb-4">
+                <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Location</div>
+                <div class="mb-2"><span class="font-semibold">Barangay:</span> <span id="details-barangay"></span></div>
+                <div class="mb-2 flex gap-4"><span class="font-semibold">Latitude:</span> <span id="details-latitude"></span> <span class="font-semibold">Longitude:</span> <span id="details-longitude"></span></div>
+                <div class="mb-2"><div id="details-map" class="w-full h-40 rounded-lg border border-gray-200 leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0"></div></div>
+            </div>
+            <div class="mb-4">
+                <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Financial</div>
+                <div class="mb-2"><span class="font-semibold">Project Cost:</span> <span id="details-cost"></span></div>
+                <div class="mb-2"><span class="font-semibold">Source of Funds:</span> <span id="details-funds"></span></div>
+            </div>
+            <!-- Project Progress (Visible only for Ongoing projects with progress) -->
+            <div id="details-progress-section" class="mb-4 hidden">
+                <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Progress</div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                    <div id="details-progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <div id="details-progress-text" class="text-sm text-gray-600 mt-1">0%</div>
+            </div>
+            <!-- Assigned Engineers -->
+            <div class="mb-4">
+                <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Assigned Engineer(s)</div>
+                <div id="details-assigned-engineers" class="text-sm text-gray-600"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include choropleth map script -->
+<script src="{% static 'js/choropleth_map.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Global variables
+    let currentMapMode = 'markers'; // 'markers' or 'choropleth'
+    let map = null;
+    let markers = null;
+    let choroplethMap = null;
+    let statusFilter = '';
+
+    // Initialize map
+    function initMap() {
+        if (L.DomUtil.get('map') !== null) {
+            L.DomUtil.get('map')._leaflet_id = null;
+        }
+        
+        map = L.map('map').setView([7.4475, 125.8096], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add marker cluster group
+        markers = L.markerClusterGroup();
+        map.addLayer(markers);
+    }
+
+    // Initialize the map
+    initMap();
+
+    // Use projects data from json_script tag
+    window.projects = JSON.parse(document.getElementById('projects-data').textContent);
+    console.log('Initialized window.projects:', window.projects);
+
+    // Function to create custom marker icon
+    function createMarkerIcon(status) {
+        let iconUrl = '/static/img/Planned.png'; // default
+        if (status === 'completed') iconUrl = '/static/img/Completed.png';
+        else if (status === 'ongoing' || status === 'in_progress') iconUrl = '/static/img/inprogress.png';
+        return L.icon({
+            iconUrl: iconUrl,
+            iconSize: [40, 48],
+            iconAnchor: [20, 48],
+            popupAnchor: [0, -48]
+        });
+    }
+
+    // Add markers to map
+    function renderMarkers() {
+        if (!markers) return;
+        
+        markers.clearLayers();
+        const barangay = barangayFilter.value;
+        const startDate = startDateFilter.value;
+        const endDate = endDateFilter.value;
+        
+        console.log('Rendering markers with filters: Status=', statusFilter, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
+        
+        window.projects.forEach(project => {
+            console.log('Processing project:', project.id, project.name, 'Status:', project.status, 'Barangay:', project.barangay, 'Coords:', project.latitude, project.longitude);
+            let statusMatch = false;
+            let projectStatus = (project.status || '').toLowerCase();
+            if (!statusFilter) {
+                statusMatch = true;
+            } else if (statusFilter === 'ongoing') {
+                statusMatch = (projectStatus === 'ongoing' || projectStatus === 'in_progress');
+            } else if (statusFilter === 'planned') {
+                statusMatch = (projectStatus === 'planned' || projectStatus === 'pending');
+            } else {
+                statusMatch = projectStatus === statusFilter;
+            }
+            const barangayMatch = !barangay || (project.barangay && project.barangay.toLowerCase() === barangay.toLowerCase());
+            // Date filter logic
+            let dateMatch = true;
+            if (startDate && project.start_date) {
+                dateMatch = dateMatch && (project.start_date >= startDate);
+            }
+            if (endDate && project.end_date) {
+                dateMatch = dateMatch && (project.end_date <= endDate);
+            }
+            // Validate coordinates as numbers
+            const hasValidCoords = project.latitude && !isNaN(parseFloat(project.latitude)) && project.longitude && !isNaN(parseFloat(project.longitude));
+
+            console.log('Project', project.id, 'Filters - StatusMatch:', statusMatch, 'BarangayMatch:', barangayMatch, 'DateMatch:', dateMatch, 'HasValidCoords:', hasValidCoords);
+
+            if (statusMatch && barangayMatch && dateMatch && hasValidCoords && project.status) {
+                const marker = L.marker([parseFloat(project.latitude), parseFloat(project.longitude)], {
+                    icon: createMarkerIcon(project.status)
+                });
+                console.log('Adding marker for project ID:', project.id);
+                
+                // Use project.total_progress for the popup progress bar
+                const displayProgress = project.progress !== undefined ? project.progress : 0;
+
+                marker.bindPopup(`
+                    <div class="p-3 min-w-[220px]">
+                        <div class="font-bold text-xl text-blue-900 mb-1">${project.name}</div>
+                        <div class="text-sm text-gray-700 mb-2">${project.description || ''}</div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2 py-1 text-xs rounded-full font-semibold shadow-sm
+                                ${(projectStatus === 'ongoing' || projectStatus === 'in_progress') ? 'bg-blue-100 text-blue-800' : 
+                                  projectStatus === 'completed' ? 'bg-green-100 text-green-700' : 
+                                  (projectStatus === 'planned' || projectStatus === 'pending') ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-800'}">
+                                ${project.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : ''}
+                            </span>
+                            <span class="text-xs text-gray-500">${project.barangay || ''}</span>
+                        </div>
+                        <!-- Delayed Project Badge -->
+                        ${(projectStatus === 'ongoing' || projectStatus === 'in_progress') && project.end_date && displayProgress !== undefined &&
+                            (new Date(project.end_date) < new Date()) && parseInt(displayProgress, 10) < 100 ?
+                            `<div class='mt-1 mb-2'><span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Delayed Project</span></div>` : ''}
+                        <div class="border-t border-gray-200 my-2"></div>
+                        <div class="text-xs text-gray-500 mb-1">
+                            <span class="block"><span class='font-semibold'>Lat:</span> ${project.latitude}, <span class='font-semibold'>Lng:</span> ${project.longitude}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mb-2">
+                             <span class="block"><span class='font-semibold'>Progress:</span> ${displayProgress}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                             <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${displayProgress}%"></div>
+                        </div>
+                        <button onclick="window.openDetailsModal(${project.id})" class="mt-2 text-blue-600 hover:text-blue-800 text-sm font-semibold">View Details</button>
+                    </div>
+                `);
+                markers.addLayer(marker);
+            } else {
+                 console.log('Skipping marker for project', project.id, project.name, '- Failed filters or missing valid coordinates.');
+            }
+        });
+    }
+
+    // Switch between map modes
+    function switchToMarkers() {
+        currentMapMode = 'markers';
+        
+        // Clear choropleth if exists
+        if (choroplethMap) {
+            choroplethMap = null;
+        }
+        
+        // Reinitialize map for markers
+        if (map) {
+            map.remove();
+        }
+        initMap();
+        renderMarkers();
+        
+        // Update UI
+        document.getElementById('btn-markers').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('btn-markers').classList.remove('bg-gray-50', 'text-gray-700');
+        document.getElementById('btn-choropleth').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('btn-choropleth').classList.add('bg-gray-50', 'text-gray-700');
+        document.getElementById('choropleth-controls').classList.add('hidden');
+    }
+
+    function switchToChoropleth() {
+        currentMapMode = 'choropleth';
+        
+        // Clear markers if exists
+        if (markers) {
+            map.removeLayer(markers);
+            markers = null;
+        }
+        
+        // Initialize choropleth map
+        if (!choroplethMap) {
+            choroplethMap = new ChoroplethMap('map', window.projects);
+        }
+        
+        // Update UI
+        document.getElementById('btn-choropleth').classList.add('bg-blue-600', 'text-white');
+        document.getElementById('btn-choropleth').classList.remove('bg-gray-50', 'text-gray-700');
+        document.getElementById('btn-markers').classList.remove('bg-blue-600', 'text-white');
+        document.getElementById('btn-markers').classList.add('bg-gray-50', 'text-gray-700');
+        document.getElementById('choropleth-controls').classList.remove('hidden');
+    }
+
+    // Map mode toggle event listeners
+    document.getElementById('btn-markers').addEventListener('click', switchToMarkers);
+    document.getElementById('btn-choropleth').addEventListener('click', switchToChoropleth);
+
+    // Choropleth metric change listener
+    document.getElementById('choropleth-metric').addEventListener('change', function() {
+        if (choroplethMap && currentMapMode === 'choropleth') {
+            choroplethMap.updateChoropleth(this.value);
+        }
+    });
+
+    // Filter controls
+    const barangayFilter = document.getElementById('barangay-filter');
+    const btnCompleted = document.getElementById('btn-completed');
+    const btnOngoing = document.getElementById('btn-ongoing');
+    const btnPlanned = document.getElementById('btn-planned');
+
+    function setStatusFilter(status) {
+        // Toggle: if clicking the same status, clear filter
+        if (statusFilter === status.toLowerCase()) {
+            statusFilter = '';
+        } else {
+            statusFilter = status.toLowerCase();
+        }
+        // Reset all button styles
+        btnCompleted.classList.remove('bg-green-600', 'text-white');
+        btnOngoing.classList.remove('bg-blue-600', 'text-white');
+        btnPlanned.classList.remove('bg-yellow-600', 'text-white');
+        btnCompleted.classList.add('bg-gray-50', 'text-green-700');
+        btnOngoing.classList.add('bg-gray-50', 'text-blue-700');
+        btnPlanned.classList.add('bg-gray-50', 'text-yellow-800');
+        // Highlight active
+        if (statusFilter === 'completed') {
+            btnCompleted.classList.add('bg-green-600', 'text-white');
+            btnCompleted.classList.remove('bg-gray-50', 'text-green-700');
+        } else if (statusFilter === 'ongoing') {
+            btnOngoing.classList.add('bg-blue-600', 'text-white');
+            btnOngoing.classList.remove('bg-gray-50', 'text-blue-700');
+        } else if (statusFilter === 'planned') {
+            btnPlanned.classList.add('bg-yellow-600', 'text-white');
+            btnPlanned.classList.remove('bg-gray-50', 'text-yellow-800');
+        }
+        
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    }
+
+    btnCompleted.addEventListener('click', function() {
+        setStatusFilter('completed');
+    });
+    btnOngoing.addEventListener('click', function() {
+        setStatusFilter('ongoing');
+    });
+    btnPlanned.addEventListener('click', function() {
+        setStatusFilter('planned');
+    });
+    barangayFilter.addEventListener('change', function() {
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    });
+
+    // Add date filter logic in JS
+    const startDateFilter = document.getElementById('start-date-filter');
+    const endDateFilter = document.getElementById('end-date-filter');
+
+    startDateFilter.addEventListener('change', function() {
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    });
+    endDateFilter.addEventListener('change', function() {
+        if (currentMapMode === 'markers') {
+            renderMarkers();
+        }
+    });
+
+    // Initial render
+    renderMarkers();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (map) {
+            map.invalidateSize();
+        }
+    });
+
+    // Define closeDetailsModalFunc globally
+    window.closeDetailsModalFunc = function() {
+        const detailsModal = document.getElementById('details-modal');
+        if (detailsModal) {
+            detailsModal.style.opacity = '0';
+            detailsModal.style.pointerEvents = 'none';
+            // Wait for the transition to complete before hiding the element completely
+            setTimeout(() => {
+                detailsModal.style.display = 'none';
+                // Invalidate main map size after modal is completely hidden
+                const mainMap = L.DomUtil.get('map')._leaflet_id ? L.DomUtil.get('map') : null; // Get existing map instance
+                if (mainMap) {
+                    mainMap.invalidateSize();
+                }
+            }, 300); // Match the CSS transition duration (0.3s)
+        }
+    };
+
+    // Ensure close button and outside click listeners are set up after DOM is ready
+    const closeDetailsModalButton = document.getElementById('close-details-modal');
+    if (closeDetailsModalButton) {
+        closeDetailsModalButton.addEventListener('click', window.closeDetailsModalFunc);
+    }
+
+    const detailsModalElement = document.getElementById('details-modal');
+    if (detailsModalElement) {
+        detailsModalElement.addEventListener('mousedown', function(e) {
+            if (e.target === detailsModalElement) {
+                window.closeDetailsModalFunc();
+            }
+        });
+    }
+}); // End DOMContentLoaded
+
+// Include the openDetailsModal function (copy from project_list.html)
+window.openDetailsModal = function(id) {
+    console.log('openDetailsModal called with ID:', id);
+
+    // Find the modal element
+    let detailsModal = document.getElementById('details-modal');
+
+    console.log('Details Modal Element:', detailsModal);
+
+    if (!detailsModal) {
+        console.error('Details modal element not found!');
+        return; // Stop if modal not found
+    }
+
+    // Show the modal overlay and content using opacity and pointer-events
+    detailsModal.style.opacity = '1';
+    detailsModal.style.display = 'flex'; // Keep display flex for centering
+
+    const detailsImage = document.getElementById('details-image');
+    const detailsTitle = document.getElementById('details-title');
+    const detailsStatus = document.getElementById('details-status');
+    const detailsName = document.getElementById('details-name');
+    const detailsPrn = document.getElementById('details-prn');
+    const detailsBarangay = document.getElementById('details-barangay');
+    const detailsCost = document.getElementById('details-cost');
+    const detailsFunds = document.getElementById('details-funds');
+    const detailsDescription = document.getElementById('details-description');
+    const detailsLatitude = document.getElementById('details-latitude');
+    const detailsLongitude = document.getElementById('details-longitude');
+    const detailsStartDate = document.getElementById('details-start-date');
+    const detailsEndDate = document.getElementById('details-end-date');
+    const detailsMapDiv = document.getElementById('details-map');
+    const assignedEngineersElement = document.getElementById('details-assigned-engineers');
+    const progressSection = document.getElementById('details-progress-section');
+    const progressBar = document.getElementById('details-progress-bar');
+    const progressText = document.getElementById('details-progress-text');
+
+    const project = window.projects.find(p => String(p.id) === String(id));
+    console.log('Found project:', project);
+
+    if (project) {
+        // Populate modal content
+        if (detailsTitle) detailsTitle.textContent = project.name || '';
+        let delayedBadge = '';
+        // Use project.progress for delayed badge check
+        const currentProgress = project.progress !== undefined ? parseInt(project.progress, 10) : 0; // Use project.progress here
+
+        if ((project.status === 'ongoing' || project.status === 'in_progress') && project.end_date && !isNaN(currentProgress) &&
+            (new Date(project.end_date) < new Date()) && currentProgress < 100) {
+            delayedBadge = '<span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold ml-2">Delayed Project</span>';
+        }
+        if (detailsStatus) detailsStatus.innerHTML = getStatusBadge(project.status || '') + delayedBadge;
+        if (detailsName) detailsName.textContent = project.name || '';
+        if (detailsPrn) detailsPrn.textContent = `PRN#: ${project.prn || ''}`;
+        if (detailsBarangay) detailsBarangay.textContent = project.barangay || '';
+        if (detailsCost) detailsCost.textContent = project.project_cost || '';
+        if (detailsFunds) detailsFunds.textContent = project.source_of_funds || '';
+        if (detailsDescription) detailsDescription.textContent = project.description || 'No description';
+        if (detailsLatitude) detailsLatitude.textContent = project.latitude || '';
+        if (detailsLongitude) detailsLongitude.textContent = project.longitude || '';
+        if (detailsStartDate) detailsStartDate.textContent = project.start_date || '';
+        if (detailsEndDate) detailsEndDate.textContent = project.end_date || '';
+
+        // Display assigned engineers
+        if (assignedEngineersElement) {
+            if (project.assigned_engineers && project.assigned_engineers.length > 0) {
+                assignedEngineersElement.textContent = project.assigned_engineers.join(', ');
+            } else {
+                assignedEngineersElement.textContent = 'None assigned';
+            }
+        }
+
+        // Display progress bar
+        if (progressSection && progressBar && progressText) {
+             // Use project.progress for the modal progress bar
+             const modalProgressValue = project.progress !== undefined ? parseInt(project.progress, 10) : null;
+             if ((project.status === 'ongoing' || project.status === 'in_progress') && modalProgressValue !== null && !isNaN(modalProgressValue) && modalProgressValue >= 0 && modalProgressValue <= 100) {
+                progressSection.classList.remove('hidden');
+                progressBar.style.width = modalProgressValue + '%';
+                progressText.textContent = modalProgressValue + '% Complete';
+            } else {
+                progressSection.classList.add('hidden');
+            }
+        }
+
+        // Handle image
+        if (detailsImage) {
+            if (project.image) {
+                detailsImage.src = project.image;
+                detailsImage.classList.remove('hidden');
+            } else {
+                detailsImage.src = '';
+                detailsImage.classList.add('hidden');
+            }
+        }
+
+        // Handle map in modal
+        if (detailsMapDiv) {
+            // Small delay before initializing the map to ensure modal is visible and map container has dimensions
+            setTimeout(() => {
+                if (window.detailsMap) {
+                    window.detailsMap.remove();
+                }
+                // Use the potentially string latitude/longitude from project data, attempt to parse as float
+                const detailMapLat = parseFloat(project.latitude);
+                const detailMapLng = parseFloat(project.longitude);
+
+                if (!isNaN(detailMapLat) && !isNaN(detailMapLng)) {
+                    // Fix for Leaflet map container reuse error
+                    if (L.DomUtil.get('details-map')) {
+                       L.DomUtil.get('details-map')._leaflet_id = null;
+                    }
+                    window.detailsMap = L.map('details-map').setView([detailMapLat, detailMapLng], 15);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(window.detailsMap);
+                    L.marker([detailMapLat, detailMapLng]).addTo(window.detailsMap);
+                    setTimeout(() => { window.detailsMap.invalidateSize(); }, 350);
+                    // Explicitly set a lower z-index for the inner map to ensure modal content is above it
+                    const innerMapElement = document.getElementById('details-map');
+                    if (innerMapElement) {
+                        innerMapElement.style.zIndex = '-1';
+                    }
+                } else {
+                    detailsMapDiv.innerHTML = '<div class="text-gray-400 text-center py-8">No location set</div>';
+                }
+            }, 100); // Small delay
+        }
+
+    } else {
+        console.error('Project data not found for id: ' + id);
+        alert('Project data not found.');
+    }
+};
+
+// Include the getStatusBadge function (copy from project_list.html)
+function getStatusBadge(status) {
+    if (status === 'completed') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Completed</span>';
+    } else if (status === 'in_progress' || status === 'ongoing') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-semibold">Ongoing</span>';
+    } else if (status === 'planned' || status === 'pending') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">Planned</span>';
+    } else {
+        return status;
+    }
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return dateStr;
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+</script>
+{% endblock %} 

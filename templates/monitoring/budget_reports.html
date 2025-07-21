@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 bg-gray-100 min-h-screen">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold text-gray-800">Budget Reports</h1>
+    <div class="flex gap-2">
+      <a href="?export=csv" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow transition-colors">Export CSV</a>
+      <a href="?export=excel" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow transition-colors">Export Excel</a>
+      <a href="?export=pdf" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded shadow transition-colors">Export PDF</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow p-6 mb-8 overflow-x-auto">
+    <table class="w-full min-w-[900px] divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Project</th>
+          <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Barangay</th>
+          <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Budget</th>
+          <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Spent</th>
+          <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Remaining</th>
+          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Utilization</th>
+          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Over/Under</th>
+          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Cost Breakdown</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for p in project_data %}
+        <tr>
+          <td class="px-3 py-3 font-semibold text-blue-900">{{ p.name }}</td>
+          <td class="px-3 py-3">{{ p.barangay }}</td>
+          <td class="px-3 py-3 text-right">₱{{ p.budget|floatformat:2 }}</td>
+          <td class="px-3 py-3 text-right">₱{{ p.spent|floatformat:2 }}</td>
+          <td class="px-3 py-3 text-right">₱{{ p.remaining|floatformat:2 }}</td>
+          <td class="px-3 py-3 text-center">{{ p.utilization|floatformat:1 }}%</td>
+          <td class="px-3 py-3 text-center">
+            {% if p.over_under == 'Over' %}
+              <span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Over</span>
+            {% else %}
+              <span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Under</span>
+            {% endif %}
+          </td>
+          <td class="px-3 py-3 text-center">{{ p.status|title }}</td>
+          <td class="px-3 py-3 text-center">
+            {% for c in p.cost_breakdown %}
+              <div>{{ c.cost_type|title }}: ₱{{ c.total|floatformat:2 }}</div>
+            {% empty %}
+              <div class="text-gray-400">No costs</div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center py-6 text-gray-400">No projects found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="bg-white rounded-xl shadow p-6">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Budget Utilization per Project</h2>
+      <canvas id="budgetUtilizationChart"></canvas>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Over/Under Budget Status</h2>
+      <canvas id="overUnderChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Budget Utilization Bar Chart
+    const projNames = {{ project_names|safe }};
+    const utilizations = {{ utilizations|safe }};
+    const ctxUtil = document.getElementById('budgetUtilizationChart').getContext('2d');
+    new Chart(ctxUtil, {
+      type: 'bar',
+      data: {
+        labels: projNames,
+        datasets: [{
+          label: 'Utilization %',
+          data: utilizations,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 150 } }
+      }
+    });
+
+    // Over/Under Budget Pie Chart
+    const overCount = {{ over_count }};
+    const underCount = {{ under_count }};
+    const ctxOU = document.getElementById('overUnderChart').getContext('2d');
+    new Chart(ctxOU, {
+      type: 'pie',
+      data: {
+        labels: ['Over Budget', 'Under Budget'],
+        datasets: [{
+          data: [overCount, underCount],
+          backgroundColor: [
+            'rgba(239, 68, 68, 0.7)',
+            'rgba(34, 197, 94, 0.7)'
+          ],
+          borderColor: [
+            'rgba(239, 68, 68, 1)',
+            'rgba(34, 197, 94, 1)'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  });
+</script>
+{% endblock %} 

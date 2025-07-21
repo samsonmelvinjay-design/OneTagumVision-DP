@@ -3,10 +3,11 @@ from django.contrib.auth.decorators import user_passes_test
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, HttpResponseBadRequest, HttpResponseServerError, HttpResponseNotAllowed
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 import json
 from django.contrib.gis.geos import GEOSGeometry
-from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument
+from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument, Notification
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from django.db.models import Sum, Avg, Count, Max
@@ -23,7 +24,7 @@ from xhtml2pdf import pisa
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.forms.fields import DateField # Import DateField
-from .utils import flag_overdue_projects_as_delayed
+from .utils import flag_overdue_projects_as_delayed, notify_head_engineers, notify_admins
 from django.views.decorators.http import require_GET
 from django.db import transaction
 import traceback
@@ -542,9 +543,34 @@ def add_progress_update(request, pk):
 
             print('Current user:', request.user, '| Authenticated:', request.user.is_authenticated)
 
+            # Always use today's date for progress update
+            from datetime import date
+            progress_date = date.today()
+
+            # Timeline validation: ensure progress is within the timeline (with 10% buffer)
+            if project.start_date and project.end_date:
+                total_days = (project.end_date - project.start_date).days
+                elapsed_days = (progress_date - project.start_date).days
+                if total_days > 0 and elapsed_days >= 0:
+                    elapsed_percent = (elapsed_days / total_days) * 100
+                    allowed_progress = elapsed_percent + 10  # 10% buffer
+                    if percentage_complete > allowed_progress:
+                        return JsonResponse({'error': f'Progress ({percentage_complete}%) exceeds what is reasonable for the current timeline (allowed up to {allowed_progress:.1f}%).'}, status=400)
+
+            # Audit log for progress update
+            import logging
+            audit_logger = logging.getLogger('project_audit')
+            if not audit_logger.handlers:
+                handler = logging.FileHandler('project_audit.log')
+                formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+                handler.setFormatter(formatter)
+                audit_logger.addHandler(handler)
+                audit_logger.setLevel(logging.INFO)
+            audit_logger.info(f"User {request.user.username} updated progress for project {project.id} ({project.name}) to {percentage_complete}% on {progress_date}")
+
             progress = ProjectProgress(
                 project=project,
-                date=datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else None,
+                date=progress_date,
                 percentage_complete=percentage_complete,
                 description=description,
                 created_by=request.user
@@ -602,6 +628,9 @@ def add_progress_update(request, pk):
                     pass  # No corresponding monitoring project found
                 except Exception as e:
                     print(f"ERROR: Failed to sync MonitoringProject progress for {project.prn}: {e}")
+
+            notify_head_engineers(f"Progress for project '{project.name}' updated to {percentage_complete}% by {request.user.username}")
+            notify_admins(f"Progress for project '{project.name}' updated to {percentage_complete}% by {request.user.username}")
 
             return JsonResponse({
                 'success': True,
@@ -1009,3 +1038,46 @@ def project_delete_api(request, pk):
             return JsonResponse({'success': False, 'error': f'An unexpected error occurred: {str(e)}'}, status=500)
     print("DEBUG: Method not allowed")
     return HttpResponseNotAllowed(['POST', 'DELETE']) 
+
+@login_required
+def notifications_view(request):
+    """View for Head Engineers and Admins to manage their notifications"""
+    if not (request.user.groups.filter(name='Head Engineer').exists() or request.user.is_superuser):
+        messages.error(request, "You don't have permission to view notifications.")
+        return redirect('projeng:dashboard')
+    
+    notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        notification_id = request.POST.get('notification_id')
+        
+        if action == 'mark_read' and notification_id:
+            try:
+                notification = Notification.objects.get(id=notification_id, recipient=request.user)
+                notification.is_read = True
+                notification.save()
+                return JsonResponse({'success': True})
+            except Notification.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Notification not found'})
+        
+        elif action == 'mark_all_read':
+            notifications.update(is_read=True)
+            messages.success(request, "All notifications marked as read.")
+            return redirect('projeng:notifications')
+        
+        elif action == 'delete' and notification_id:
+            try:
+                notification = Notification.objects.get(id=notification_id, recipient=request.user)
+                notification.delete()
+                return JsonResponse({'success': True})
+            except Notification.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Notification not found'})
+    
+    unread_count = notifications.filter(is_read=False).count()
+    
+    context = {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    }
+    return render(request, 'projeng/notifications.html', context) 

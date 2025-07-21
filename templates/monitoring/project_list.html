@@ -32,6 +32,13 @@
                     <option value="San Miguel" {% if request.GET.barangay == 'San Miguel' %}selected{% endif %}>San Miguel</option>
                     <option value="Visayan Village" {% if request.GET.barangay == 'Visayan Village' %}selected{% endif %}>Visayan Village</option>
                 </select>
+                <label for="duration-filter" class="font-semibold text-gray-700">Duration:</label>
+                <select id="duration-filter" name="duration" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" onchange="this.form.submit()">
+                    <option value="" {% if not request.GET.duration %}selected{% endif %}>All</option>
+                    <option value="lt6" {% if request.GET.duration == 'lt6' %}selected{% endif %}>< 6 months</option>
+                    <option value="6to12" {% if request.GET.duration == '6to12' %}selected{% endif %}>6-12 months</option>
+                    <option value="gt12" {% if request.GET.duration == 'gt12' %}selected{% endif %}>> 1 year</option>
+                </select>
             </form>
         </div>
         <button id="add-project-btn" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-6 py-2 rounded-lg shadow transition w-full md:w-auto">Add Project</button>
@@ -195,9 +202,17 @@
                             Set Map Location
                         </button>
                         <label class="font-semibold text-gray-700">Start Date</label>
+                        {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
                         <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        {% else %}
+                        <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required disabled />
+                        {% endif %}
                         <label class="font-semibold text-gray-700">End Date</label>
+                        {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
                         <input type="date" name="end_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        {% else %}
+                        <input type="date" name="end_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required disabled />
+                        {% endif %}
                         <label class="font-semibold text-gray-700">Image</label>
                         <input type="file" name="image" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" id="image-input" />
                     </div>

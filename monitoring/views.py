@@ -14,15 +14,16 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.conf import settings
 from django.db import transaction, models
-from django.db.models import OuterRef, Max, Subquery, IntegerField, Q, Sum, Exists
+from django.db.models import OuterRef, Max, Subquery, IntegerField, Q, Sum, Exists, Count, F, FloatField, ExpressionWrapper
 from itertools import chain
 from django.utils import timezone
 import logging
-from projeng.utils import flag_overdue_projects_as_delayed
+from projeng.utils import flag_overdue_projects_as_delayed, notify_head_engineers, notify_admins
 from decimal import Decimal
 from django.views.decorators.http import require_GET
 import traceback
 from django.db.models import ProtectedError
+from django.db.models import Sum, F, FloatField, ExpressionWrapper, Q
 
 def is_head_engineer(user):
     return user.is_authenticated and user.groups.filter(name='Head Engineer').exists()
@@ -75,6 +76,19 @@ def dashboard(request):
             planned_count += 1
     project_count = all_projects.count()
     recent_projects = all_projects.order_by('-created_at')[:5]
+
+    # Collaborative project analytics
+    collaborative_projects = all_projects.annotate(num_engineers=Count('assigned_engineers')).filter(num_engineers__gt=1)
+    collab_by_barangay = {}
+    collab_by_status = {}
+    for proj in collaborative_projects:
+        # Barangay
+        bgy = proj.barangay or 'Unknown'
+        collab_by_barangay[bgy] = collab_by_barangay.get(bgy, 0) + 1
+        # Status
+        stat = proj.status or 'Unknown'
+        collab_by_status[stat] = collab_by_status.get(stat, 0) + 1
+
     return render(request, 'monitoring/dashboard.html', {
         'project_count': project_count,
         'completed_count': completed_count,
@@ -82,6 +96,9 @@ def dashboard(request):
         'delayed_count': delayed_count,
         'planned_count': planned_count,
         'recent_projects': recent_projects,
+        'collaborative_projects': collaborative_projects,
+        'collab_by_barangay': collab_by_barangay,
+        'collab_by_status': collab_by_status,
     })
 
 def project_to_dict(project):
@@ -197,6 +214,21 @@ def project_list(request):
         barangay = request.GET.get('barangay')
         if barangay:
             combined_projects = [p for p in combined_projects if p.barangay == barangay] # Filtering list in Python after fetching - could optimize with DB filter
+
+        # Apply duration filter if selected
+        duration = request.GET.get('duration')
+        if duration:
+            filtered = []
+            for p in combined_projects:
+                if p.start_date and p.end_date:
+                    months = (p.end_date.year - p.start_date.year) * 12 + (p.end_date.month - p.start_date.month)
+                    if (
+                        (duration == 'lt6' and months < 6) or
+                        (duration == '6to12' and 6 <= months <= 12) or
+                        (duration == 'gt12' and months > 12)
+                    ):
+                        filtered.append(p)
+            combined_projects = filtered
 
         # Note: Sorting already done by order_by in DB query
 
@@ -924,3 +956,253 @@ def head_dashboard_card_data_api(request):
         'status_counts': status_counts,
         'delayed_count': delayed_count,
     }) 
+
+@user_passes_test(is_head_engineer, login_url='/accounts/login/')
+def barangay_geojson_view(request):
+    """Serve GeoJSON data for barangay boundaries"""
+    import json
+    import os
+    from django.http import JsonResponse
+    
+    # Path to the GeoJSON file
+    geojson_path = os.path.join(settings.BASE_DIR, 'static', 'data', 'tagum_barangays.geojson')
+    
+    print(f"Looking for GeoJSON file at: {geojson_path}")
+    print(f"File exists: {os.path.exists(geojson_path)}")
+    
+    try:
+        with open(geojson_path, 'r', encoding='utf-8') as f:
+            geojson_data = json.load(f)
+        
+        # If this is a single barangay file (like Pagsabangan), add the name property
+        if 'name' in geojson_data and geojson_data['name'] == 'pagsabangan':
+            for feature in geojson_data.get('features', []):
+                if 'properties' in feature and 'name' not in feature['properties']:
+                    feature['properties']['name'] = 'Pagsabangan'
+        
+        print(f"Successfully loaded GeoJSON data with {len(geojson_data.get('features', []))} features")
+        return JsonResponse(geojson_data)
+    except FileNotFoundError:
+        print(f"GeoJSON file not found at: {geojson_path}")
+        return JsonResponse({'error': 'GeoJSON file not found'}, status=404)
+    except Exception as e:
+        print(f"Error loading GeoJSON: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500) 
+
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
+def budget_reports(request):
+    from projeng.models import Project as ProjEngProject, ProjectCost
+    user = request.user
+    
+    # Check if this is an export request
+    export_format = request.GET.get('export')
+    if export_format in ['csv', 'excel', 'pdf']:
+        return export_budget_report(request, export_format)
+    
+    # Head Engineers see all, Project Engineers see only assigned
+    if user.groups.filter(name='Head Engineer').exists() or user.is_superuser:
+        projects = ProjEngProject.objects.all()
+    else:
+        projects = ProjEngProject.objects.filter(assigned_engineers=user)
+
+    # Annotate budget/spending/utilization
+    project_data = []
+    for project in projects:
+        costs = ProjectCost.objects.filter(project=project)
+        total_spent = costs.aggregate(total=Sum('amount'))['total'] or 0
+        budget = project.project_cost or 0
+        remaining = budget - total_spent
+        utilization = (total_spent / budget * 100) if budget else 0
+        over_under = 'Over' if total_spent > budget else 'Under'
+        # Cost breakdown by type
+        cost_breakdown = costs.values('cost_type').annotate(total=Sum('amount'))
+        project_data.append({
+            'id': project.id,
+            'name': project.name,
+            'barangay': project.barangay,
+            'budget': budget,
+            'spent': total_spent,
+            'remaining': remaining,
+            'utilization': utilization,
+            'over_under': over_under,
+            'status': project.status,
+            'cost_breakdown': list(cost_breakdown),
+        })
+
+    # For charts: budget utilization per project, cost breakdown, over/under status, trends
+    project_names = [p['name'] for p in project_data]
+    utilizations = [p['utilization'] for p in project_data]
+    over_count = sum(1 for p in project_data if p['over_under'] == 'Over')
+    under_count = sum(1 for p in project_data if p['over_under'] == 'Under')
+    context = {
+        'project_data': project_data,
+        'is_head_engineer': user.groups.filter(name='Head Engineer').exists() or user.is_superuser,
+        'project_names': project_names,
+        'utilizations': utilizations,
+        'over_count': over_count,
+        'under_count': under_count,
+    }
+    return render(request, 'monitoring/budget_reports.html', context)
+
+def export_budget_report(request, format_type):
+    """Export budget report in CSV, Excel, or PDF format"""
+    from projeng.models import Project as ProjEngProject, ProjectCost
+    user = request.user
+    
+    # Head Engineers see all, Project Engineers see only assigned
+    if user.groups.filter(name='Head Engineer').exists() or user.is_superuser:
+        projects = ProjEngProject.objects.all()
+    else:
+        projects = ProjEngProject.objects.filter(assigned_engineers=user)
+
+    # Prepare data
+    project_data = []
+    for project in projects:
+        costs = ProjectCost.objects.filter(project=project)
+        total_spent = costs.aggregate(total=Sum('amount'))['total'] or 0
+        budget = project.project_cost or 0
+        remaining = budget - total_spent
+        utilization = (total_spent / budget * 100) if budget else 0
+        over_under = 'Over' if total_spent > budget else 'Under'
+        
+        # Cost breakdown by type
+        cost_breakdown = costs.values('cost_type').annotate(total=Sum('amount'))
+        cost_breakdown_str = ', '.join([f"{item['cost_type']}: ₱{item['total']:,.2f}" for item in cost_breakdown]) if cost_breakdown else 'No costs'
+        
+        project_data.append({
+            'Project Name': project.name,
+            'PRN': project.prn or 'N/A',
+            'Barangay': project.barangay or 'N/A',
+            'Budget': f"₱{budget:,.2f}",
+            'Spent': f"₱{total_spent:,.2f}",
+            'Remaining': f"₱{remaining:,.2f}",
+            'Utilization (%)': f"{utilization:.1f}%",
+            'Over/Under': over_under,
+            'Status': project.status.replace('_', ' ').title(),
+            'Cost Breakdown': cost_breakdown_str,
+            'Start Date': project.start_date.strftime('%Y-%m-%d') if project.start_date else 'N/A',
+            'End Date': project.end_date.strftime('%Y-%m-%d') if project.end_date else 'N/A',
+        })
+
+    if format_type == 'csv':
+        return export_budget_csv(project_data)
+    elif format_type == 'excel':
+        return export_budget_excel(project_data)
+    elif format_type == 'pdf':
+        return export_budget_pdf(project_data)
+    else:
+        return HttpResponseBadRequest("Invalid export format")
+
+def export_budget_csv(project_data):
+    """Export budget report as CSV"""
+    import csv
+    from io import StringIO
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="budget_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    if not project_data:
+        response.write("No data available")
+        return response
+    
+    writer = csv.DictWriter(response, fieldnames=project_data[0].keys())
+    writer.writeheader()
+    writer.writerows(project_data)
+    
+    return response
+
+def export_budget_excel(project_data):
+    """Export budget report as Excel"""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+    
+    if not project_data:
+        response = HttpResponse("No data available", content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="budget_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.txt"'
+        return response
+    
+    # Create workbook and worksheet
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Budget Report"
+    
+    # Define styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Write headers
+    headers = list(project_data[0].keys())
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+    
+    # Write data
+    for row, data in enumerate(project_data, 2):
+        for col, header in enumerate(headers, 1):
+            ws.cell(row=row, column=col, value=data[header])
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Save to BytesIO
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="budget_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+    
+    return response
+
+def export_budget_pdf(project_data):
+    """Export budget report as PDF"""
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from io import BytesIO
+    
+    if not project_data:
+        response = HttpResponse("No data available", content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="budget_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.txt"'
+        return response
+    
+    # Prepare context for PDF template
+    context = {
+        'project_data': project_data,
+        'report_date': timezone.now().strftime('%B %d, %Y'),
+        'total_projects': len(project_data),
+        'total_budget': sum(float(p['Budget'].replace('₱', '').replace(',', '')) for p in project_data if p['Budget'] != '₱0.00'),
+        'total_spent': sum(float(p['Spent'].replace('₱', '').replace(',', '')) for p in project_data if p['Spent'] != '₱0.00'),
+        'over_budget_count': sum(1 for p in project_data if p['Over/Under'] == 'Over'),
+        'under_budget_count': sum(1 for p in project_data if p['Over/Under'] == 'Under'),
+    }
+    
+    # Render template
+    template = get_template('monitoring/budget_report_pdf.html')
+    html = template.render(context)
+    
+    # Create PDF
+    buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=buffer)
+    
+    if pisa_status.err:
+        return HttpResponse('PDF generation failed', content_type='text/plain')
+    
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="budget_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    return response 

@@ -7,18 +7,16 @@ def dual_login(request):
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
-        role = request.POST['role']
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            # Role-based group check
-            if role == 'head' and user.groups.filter(name='Head Engineer').exists():
+            if user.groups.filter(name='Head Engineer').exists():
                 login(request, user)
                 return redirect('/dashboard/')
-            elif role == 'projeng' and user.groups.filter(name='Project Engineer').exists():
+            elif user.groups.filter(name='Project Engineer').exists():
                 login(request, user)
                 return redirect('/projeng/dashboard/')
             else:
-                error = 'You do not have permission to log in as the selected role.'
+                error = 'You do not have permission to access the system.'
         else:
             error = 'Invalid username or password.'
     return render(request, 'registration/dual_login.html', {'error': error})
