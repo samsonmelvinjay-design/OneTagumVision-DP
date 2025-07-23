@@ -4,7 +4,8 @@
 {% block content %}
 <div class="container mx-auto p-6">
     <!-- Header without Export Button -->
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <a href="{% url 'projeng_my_projects' %}" class="inline-block px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold rounded-lg shadow hover:from-gray-500 hover:to-gray-700 transition duration-200" title="Back to My Projects">&larr; Back to My Projects</a>
         <h1 class="text-3xl font-bold text-gray-900">Project Analytics</h1>
         {# Removed the Export Report link expecting a single project PK #}
     </div>
@@ -132,77 +133,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${project.end_date ? new Date(project.end_date).toLocaleDateString() : ''}
                 </td>
                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                     <a href="/projeng/projects/${project.projeng_id}/detail/" class="text-blue-600 hover:text-blue-900">View/Manage</a>
+                     <a href="/projeng/projects/${project.projeng_id}/detail/" class="text-blue-600 hover:text-blue-900" title="View/Manage Project">View/Manage</a>
                  </td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
-    function filterAndRenderTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const selectedBarangay = filterBarangay.value.toLowerCase();
-        const filteredProjects = projectsData.filter(project => {
-            const projectName = project.name ? project.name.toLowerCase() : '';
-            const barangay = project.barangay ? project.barangay.toLowerCase() : '';
-            const matchesSearch = projectName.includes(searchTerm);
-            const matchesBarangay = !selectedBarangay || barangay === selectedBarangay;
-            return matchesSearch && matchesBarangay;
-        });
-        renderTable(filteredProjects);
-    }
-    searchInput.addEventListener('input', filterAndRenderTable);
-    filterBarangay.addEventListener('change', filterAndRenderTable);
-    filterAndRenderTable();
-    const uniqueBarangays = [...new Set(projectsData.map(p => p.barangay).filter(b => b))].sort();
-    uniqueBarangays.forEach(barangay => {
-        const option = document.createElement('option');
-        option.value = barangay;
-        option.textContent = barangay;
-        filterBarangay.appendChild(option);
-    });
-    const statusCounts = projectsData.reduce((acc, project) => {
-        acc[project.status] = (acc[project.status] || 0) + 1;
-        return acc;
-    }, {});
-    const statusLabels = ['planned', 'in_progress', 'completed', 'delayed'];
-    const chartData = statusLabels.map(status => statusCounts[status] || 0);
-    const ctx = document.getElementById('projectStatusChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: statusLabels.map(label => label.charAt(0).toUpperCase() + label.slice(1).replace('_', ' ')),
-            datasets: [{
-                label: 'Number of Projects',
-                data: chartData,
-                backgroundColor: [
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                    'rgba(255, 99, 132, 0.6)'
-                ],
-                borderColor: [
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(255, 99, 132, 1)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    stepSize: 1
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            }
-        }
-    });
-});
-</script>
-{% endblock %} 
+            `

@@ -31,7 +31,7 @@
         <aside class="w-64 bg-gray-900 text-gray-100 flex flex-col items-center py-8 h-full">
             <!-- Logo/Icon -->
             <div class="mb-8">
-                <a href="{% url 'projeng_dashboard' %}" class="flex flex-col items-center group">
+                <a href="{% url 'projeng:projeng_dashboard' %}" class="flex flex-col items-center group">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto group-hover:scale-110 transition-transform text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-2a2 2 0 012-2h2a2 2 0 012 2v2m4 0v-4a2 2 0 012-2h2a2 2 0 012 2v4m-6 0V5a2 2 0 012-2h2a2 2 0 012 2v16" />
                     </svg>
@@ -40,38 +40,33 @@
             </div>
             <!-- Navigation -->
             <nav class="flex flex-col gap-4 w-full px-4 flex-grow">
-                <a href="{% url 'projeng_dashboard' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_dashboard' %}bg-gray-800{% endif %}">
+                <a href="{% url 'projeng:projeng_dashboard' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_dashboard' %}bg-gray-800{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6m-6 0H7m6 0v6m0 0H7m6 0h6" /></svg>
                     Dashboard
                 </a>
-                <a href="{% url 'projeng_my_projects' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_my_projects' %}bg-gray-800{% endif %}">
+                <a href="{% url 'projeng:projeng_my_projects' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_my_projects' %}bg-gray-800{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                     My Projects
                 </a>
-                <a href="{% url 'projeng_map' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_map' %}bg-gray-800{% endif %}">
+                <a href="{% url 'projeng:projeng_map' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_map' %}bg-gray-800{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     Project Map
                 </a>
-                <a href="{% url 'projeng_upload_docs' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_upload_docs' %}bg-gray-800{% endif %}">
+                <a href="{% url 'projeng:projeng_upload_docs' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_upload_docs' %}bg-gray-800{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                     Upload Documents
                 </a>
-                <a href="{% url 'projeng_my_reports' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_my_reports' %}bg-gray-800{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 018 0v2m-4-4V7m0 0V3m0 4a4 4 0 00-4 4v4" /></svg>
-                    My Reports
-                </a>
-                {% if user|has_group:"Head Engineer" or user.is_superuser %}
                 <a href="{% url 'projeng:projeng_notifications' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_notifications' %}bg-gray-800{% endif %}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                     Notifications
                     {% if unread_notifications_count > 0 %}
                     <span class="bg-red-500 text-white text-xs rounded-full px-2 py-1 ml-auto">{{ unread_notifications_count }}</span>
                     {% endif %}
                 </a>
-                {% endif %}
+                <a href="{% url 'projeng:projeng_my_reports' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'projeng_my_reports' %}bg-gray-800{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 018 0v2m-4-4V7m0 0V3m0 4a4 4 0 00-4 4v4" /></svg>
+                    My Reports
+                </a>
                 {# Insert All Projects Analytics link for Head Engineers (after My Reports) #}
                 {% if user|has_group:"Head Engineer" %}
                 <a href="{% url 'head_engineer_analytics' %}" class="text-gray-300 hover:bg-gray-700 hover:text-white group flex items-center px-2 py-2 text-base font-medium rounded-md">

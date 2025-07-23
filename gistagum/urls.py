@@ -16,7 +16,7 @@ urlpatterns = [
     path('accounts/logout/', custom_logout, name='logout'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('api/engineer-projects/<int:engineer_id>/', engineer_projects_api, name='engineer_projects_api'),
-    path('projeng/', include('projeng.urls')),
+    path('projeng/', include(('projeng.urls', 'projeng'), namespace='projeng')),
     path('', include('monitoring.urls')),
 ]
 

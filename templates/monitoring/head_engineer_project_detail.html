@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto my-8 p-6 bg-white rounded shadow">
+    <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold">Project Timeline Report: {{ project.name }}</h1>
+        <div>
+            <a href="{% url 'export_project_timeline_pdf' project.pk %}" target="_blank" class="inline-block px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition duration-200 mr-2">
+                Export as PDF
+            </a>
+            <a href="{% url 'head_engineer_analytics' %}"
+               class="inline-block px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold rounded-lg shadow hover:from-gray-500 hover:to-gray-700 transition duration-200">
+                &larr; Back to All Projects Analytics
+            </a>
+        </div>
+    </div>
+    <hr class="mb-4">
+
+    <div class="mb-4">
+        <strong>PRN:</strong> {{ project.prn }}<br>
+        <strong>Barangay:</strong> {{ project.barangay }}<br>
+        <strong>Status:</strong> {{ project.status|title }}<br>
+        <strong>Start Date:</strong> {{ timeline_data.start_date }}<br>
+        <strong>End Date:</strong> {{ timeline_data.end_date }}<br>
+        <strong>Assigned Engineers:</strong>
+        {% if projeng_project %}
+            {{ projeng_project.assigned_engineers.all|join:", " }}
+        {% else %}
+            N/A
+        {% endif %}<br>
+        <strong>Project Cost:</strong> ₱{{ project.project_cost|default:"0"|floatformat:2 }}<br>
+        <strong>Source of Funds:</strong> {{ project.source_of_funds }}
+    </div>
+
+    <h2 class="text-xl font-semibold mt-6 mb-2">Progress Updates</h2>
+    <table class="min-w-full table-auto border mb-4">
+        <thead>
+            <tr class="bg-gray-100">
+                <th class="border px-2 py-1">Date</th>
+                <th class="border px-2 py-1">%</th>
+                <th class="border px-2 py-1">Description</th>
+                <th class="border px-2 py-1">Engineer</th>
+                <th class="border px-2 py-1">Photos</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if progress_updates %}
+            {% for update in progress_updates %}
+            <tr>
+                <td class="border px-2 py-1">{{ update.date }}</td>
+                <td class="border px-2 py-1">{{ update.percentage_complete }}</td>
+                <td class="border px-2 py-1">{{ update.description }}</td>
+                <td class="border px-2 py-1">
+                    {% if update.created_by %}
+                        {{ update.created_by.get_full_name|default:update.created_by.username }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td class="border px-2 py-1">
+                    {% if update.photos.all %}
+                        {% for photo in update.photos.all %}
+                            <a href="{{ photo.image.url }}" target="_blank">[img]</a>
+                        {% endfor %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr><td colspan="5" class="text-center border px-2 py-1">No progress updates available for this project.</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    <h2 class="text-xl font-semibold mt-6 mb-2">Cost Entries</h2>
+    <table class="min-w-full table-auto border mb-4">
+        <thead>
+            <tr class="bg-gray-100">
+                <th class="border px-2 py-1">Date</th>
+                <th class="border px-2 py-1">Type</th>
+                <th class="border px-2 py-1">Description</th>
+                <th class="border px-2 py-1">Amount</th>
+                <th class="border px-2 py-1">Receipt</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if costs %}
+            {% for cost in costs %}
+            <tr>
+                <td class="border px-2 py-1">{{ cost.date }}</td>
+                <td class="border px-2 py-1">{{ cost.get_cost_type_display }}</td>
+                <td class="border px-2 py-1">{{ cost.description }}</td>
+                <td class="border px-2 py-1">₱{{ cost.amount|floatformat:2 }}</td>
+                <td class="border px-2 py-1">
+                    {% if cost.receipt %}
+                        <a href="{{ cost.receipt.url }}" target="_blank">[file]</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr><td colspan="5" class="text-center border px-2 py-1">No cost entries available for this project.</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    <h2 class="text-xl font-semibold mt-6 mb-2">Analytics & Summary</h2>
+    <ul class="mb-4">
+        <li>- Total Progress: {{ latest_progress.percentage_complete|default:'0' }}%</li>
+        <li>- Total Cost Spent: ₱{{ total_cost|floatformat:2 }}</li>
+        <li>- Budget Utilization: {{ budget_utilization|floatformat:2 }}%</li>
+        <li>- Days Elapsed: {{ timeline_data.days_elapsed }} / {{ timeline_data.total_days }}</li>
+    </ul>
+
+    <!-- Optional: Add charts or photo gallery here -->
+</div>
+{% endblock %} 

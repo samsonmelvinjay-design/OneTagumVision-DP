@@ -1,0 +1,68 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Government Lot 1",
+        "description": "Barangay Hall",
+        "barangay": "San Miguel",
+        "center": [125.7575, 7.4265]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [125.755, 7.425],
+            [125.755, 7.428],
+            [125.760, 7.428],
+            [125.760, 7.425],
+            [125.755, 7.425]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Government Lot 2",
+        "description": "Public School",
+        "barangay": "Canocotan",
+        "center": [125.7955, 7.4115]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [125.793, 7.410],
+            [125.793, 7.413],
+            [125.798, 7.413],
+            [125.798, 7.410],
+            [125.793, 7.410]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Government Lot 3",
+        "description": "Health Center",
+        "barangay": "Apokon",
+        "center": [125.8215, 7.4435]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [125.819, 7.442],
+            [125.819, 7.445],
+            [125.824, 7.445],
+            [125.824, 7.442],
+            [125.819, 7.442]
+          ]
+        ]
+      }
+    }
+  ]
+} 

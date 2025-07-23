@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-8">Finance Manager Dashboard</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-white rounded-xl shadow p-6" style="height: 400px;">
+            <h3 class="text-lg font-semibold mb-2">Top 10 Projects by Budget</h3>
+            <canvas id="barChart" style="height: 320px !important;"></canvas>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6" style="height: 400px;">
+            <h3 class="text-lg font-semibold mb-2">Spending by Cost Type</h3>
+            <canvas id="pieChart" style="height: 320px !important;"></canvas>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6" style="height: 400px;">
+            <h3 class="text-lg font-semibold mb-2">Cumulative Spending Over Time</h3>
+            <canvas id="lineChart" style="height: 320px !important;"></canvas>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6" style="height: 400px;">
+            <h3 class="text-lg font-semibold mb-2">Budget Utilization</h3>
+            <canvas id="doughnutChart" style="height: 320px !important;"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const projectNames = {{ project_names|safe }};
+const projectBudgets = {{ project_budgets|safe }};
+const projectSpent = {{ project_spent|safe }};
+const costByType = {{ cost_by_type|safe }};
+const months = {{ months|safe }};
+const cumulative = {{ cumulative|safe }};
+const utilizationData = {{ utilization_data|safe }};
+
+// Bar Chart: Top 10 Projects by Budget
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+    type: 'bar',
+    data: {
+        labels: projectNames,
+        datasets: [
+            {
+                label: 'Budget',
+                data: projectBudgets,
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            },
+            {
+                label: 'Spent',
+                data: projectSpent,
+                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// Pie Chart: Spending by Cost Type
+const pieCtx = document.getElementById('pieChart').getContext('2d');
+const costTypeLabels = Object.keys(costByType);
+const costTypeData = Object.values(costByType);
+new Chart(pieCtx, {
+    type: 'pie',
+    data: {
+        labels: costTypeLabels,
+        datasets: [{
+            data: costTypeData,
+            backgroundColor: [
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(251, 191, 36, 0.7)',
+                'rgba(34, 197, 94, 0.7)',
+                'rgba(239, 68, 68, 0.7)'
+            ],
+            borderColor: [
+                'rgba(59, 130, 246, 1)',
+                'rgba(251, 191, 36, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(239, 68, 68, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+
+// Line Chart: Cumulative Spending Over Time
+const lineCtx = document.getElementById('lineChart').getContext('2d');
+new Chart(lineCtx, {
+    type: 'line',
+    data: {
+        labels: months,
+        datasets: [{
+            label: 'Cumulative Spending',
+            data: cumulative,
+            fill: true,
+            borderColor: 'rgba(59, 130, 246, 1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// Doughnut Chart: Budget Utilization
+const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+new Chart(doughnutCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Spent', 'Remaining'],
+        datasets: [{
+            data: utilizationData,
+            backgroundColor: [
+                'rgba(34, 197, 94, 0.7)',
+                'rgba(251, 191, 36, 0.7)'
+            ],
+            borderColor: [
+                'rgba(34, 197, 94, 1)',
+                'rgba(251, 191, 36, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+</script>
+{% endblock %} 

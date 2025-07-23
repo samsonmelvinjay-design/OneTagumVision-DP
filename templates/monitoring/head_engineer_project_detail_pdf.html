@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Project Timeline Report - {{ project.name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #222; }
+        h1 { color: #222; font-size: 22px; margin-bottom: 10px; }
+        h2 { color: #333; font-size: 16px; margin-top: 24px; margin-bottom: 8px; }
+        .section { margin-bottom: 18px; }
+        .summary-list { list-style: none; padding: 0; margin: 0; }
+        .summary-list li { margin-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        th, td { border: 1px solid #bbb; padding: 6px 8px; text-align: left; font-size: 12px; }
+        th { background: #f0f0f0; font-weight: bold; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .no-data { color: #888; text-align: center; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>Project Timeline Report: {{ project.name }}</h1>
+    <div class="section">
+        <ul class="summary-list">
+            <li><strong>PRN:</strong> {{ project.prn }}</li>
+            <li><strong>Barangay:</strong> {{ project.barangay }}</li>
+            <li><strong>Status:</strong> {{ project.status|title }}</li>
+            <li><strong>Start Date:</strong> {{ timeline_data.start_date }}</li>
+            <li><strong>End Date:</strong> {{ timeline_data.end_date }}</li>
+            <li><strong>Assigned Engineers:</strong> {% if projeng_project %}{{ projeng_project.assigned_engineers.all|join:", " }}{% else %}N/A{% endif %}</li>
+            <li><strong>Project Cost:</strong> ₱{{ project.project_cost|default:"0"|floatformat:2 }}</li>
+            <li><strong>Source of Funds:</strong> {{ project.source_of_funds }}</li>
+        </ul>
+    </div>
+
+    <h2>Progress Updates</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>%</th>
+                <th>Description</th>
+                <th>Engineer</th>
+                <th>Photos</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if progress_updates %}
+            {% for update in progress_updates %}
+            <tr>
+                <td>{{ update.date }}</td>
+                <td class="center">{{ update.percentage_complete }}</td>
+                <td>{{ update.description }}</td>
+                <td>{% if update.created_by %}{{ update.created_by.get_full_name|default:update.created_by.username }}{% else %}N/A{% endif %}</td>
+                <td class="center">
+                    {% if update.photos.all %}
+                        {% for photo in update.photos.all %}
+                            [img]
+                        {% endfor %}
+                    {% else %}-{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr><td colspan="5" class="no-data">No progress updates available for this project.</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    <h2>Cost Entries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Receipt</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if costs %}
+            {% for cost in costs %}
+            <tr>
+                <td>{{ cost.date }}</td>
+                <td>{{ cost.get_cost_type_display }}</td>
+                <td>{{ cost.description }}</td>
+                <td class="right">₱{{ cost.amount|floatformat:2 }}</td>
+                <td class="center">{% if cost.receipt %}[file]{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr><td colspan="5" class="no-data">No cost entries available for this project.</td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+
+    <h2>Analytics & Summary</h2>
+    <ul class="summary-list">
+        <li>- Total Progress: {{ latest_progress.percentage_complete|default:'0' }}%</li>
+        <li>- Total Cost Spent: ₱{{ total_cost|floatformat:2 }}</li>
+        <li>- Budget Utilization: {{ budget_utilization|floatformat:2 }}%</li>
+        <li>- Days Elapsed: {{ timeline_data.days_elapsed }} / {{ timeline_data.total_days }}</li>
+    </ul>
+</body>
+</html> 

@@ -86,7 +86,7 @@
                                 <div class="text-sm text-gray-900">{{ project.barangay|default:'N/A' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <a href="{% url 'projeng_project_detail' project.id %}" class="text-blue-600 hover:text-blue-900">View/Manage Reports</a>
+                                <a href="{% url 'projeng:projeng_project_detail' project.id %}" class="text-blue-600 hover:text-blue-900">View/Manage Reports</a>
                             </td>
                         </tr>
                     {% empty %}
@@ -168,9 +168,9 @@
 
                         <div id="export-dropdown-menu" class="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden" role="menu" aria-orientation="vertical" aria-labelledby="export-dropdown-button">
                             <div class="py-1" role="none">
-                                <a href="{% url 'projeng_export_reports_csv' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-csv">Export CSV</a>
-                                <a href="{% url 'projeng_export_reports_excel' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-excel">Export Excel</a>
-                                <a href="{% url 'projeng_export_reports_pdf' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-pdf">Export PDF</a>
+                                <a href="{% url 'projeng:projeng_export_reports_csv' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-csv">Export CSV</a>
+                                <a href="{% url 'projeng:projeng_export_reports_excel' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-excel">Export Excel</a>
+                                <a href="{% url 'projeng:projeng_export_reports_pdf' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-pdf">Export PDF</a>
                             </div>
                         </div>
                     </div>

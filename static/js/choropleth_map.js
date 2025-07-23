@@ -151,6 +151,98 @@ class ChoroplethMap {
             }
         }).addTo(this.map);
 
+        // Add a simple marker for debugging
+        L.marker([7.4265, 125.7575]).addTo(this.map).bindPopup('Test Marker');
+
+        // Add a polygon and fit map to its bounds
+        const testPolygonLatLng = [
+          [7.425, 125.755],
+          [7.428, 125.755],
+          [7.428, 125.760],
+          [7.425, 125.760]
+        ];
+        const poly = L.polygon(testPolygonLatLng, {
+          color: 'magenta',
+          fillColor: 'lime',
+          fillOpacity: 1.0,
+          weight: 8
+        }).addTo(this.map).bindPopup('FitBounds Polygon');
+        this.map.fitBounds(poly.getBounds());
+        console.log('Test polygon added and fitBounds called.');
+
+        // Add a simple polygon for debugging
+        L.polygon([
+          [7.425, 125.755],
+          [7.428, 125.755],
+          [7.428, 125.760],
+          [7.425, 125.760]
+        ], {
+          color: 'red',
+          fillColor: 'orange',
+          fillOpacity: 0.8,
+          weight: 4
+        }).addTo(this.map).bindPopup('Test Polygon [lat, lng]');
+
+        // Add another test polygon in Apokon (east Tagum City)
+        L.polygon([
+          [7.444, 125.820],
+          [7.447, 125.820],
+          [7.447, 125.825],
+          [7.444, 125.825]
+        ], {
+          color: 'blue',
+          fillColor: 'cyan',
+          fillOpacity: 0.8,
+          weight: 4
+        }).addTo(this.map).bindPopup('Test Polygon Apokon [lat, lng]');
+
+        // Add a polygon with [lng, lat] order (should NOT appear if Leaflet expects [lat, lng])
+        L.polygon([
+          [125.755, 7.425],
+          [125.755, 7.428],
+          [125.760, 7.428],
+          [125.760, 7.425]
+        ], {
+          color: 'green',
+          fillColor: 'yellow',
+          fillOpacity: 0.8,
+          weight: 4
+        }).addTo(this.map).bindPopup('Test Polygon [lng, lat]');
+
+        // Add government properties GeoJSON layer
+        fetch('/static/data/gov_properties_sample.geojson')
+          .then(response => response.json())
+          .then(data => {
+            L.geoJSON(data, {
+              style: function (feature) {
+                return {
+                  color: '#8e24aa',      // Violet border
+                  fillColor: '#ce93d8',  // Light violet fill
+                  fillOpacity: 0.95,     // More opaque
+                  weight: 6              // Thicker border
+                };
+              },
+              onEachFeature: function (feature, layer) {
+                let props = feature.properties;
+                layer.bindPopup(
+                  `<strong>${props.name}</strong><br/>
+                   ${props.description}<br/>
+                   Barangay: ${props.barangay}`
+                );
+                // Ensure this layer is always in front
+                layer.on('add', function() { layer.bringToFront(); });
+                // Add a marker at the center for debugging
+                if (props.center) {
+                  L.marker([props.center[1], props.center[0]], {
+                    title: props.name,
+                    alt: props.name,
+                    riseOnHover: true
+                  }).addTo(layer._map || layer._leaflet_id && L.DomUtil.get(layer._leaflet_id));
+                }
+              }
+            }).addTo(this.map);
+          });
+
         // Add legend
         this.addLegend(colors, min, max, metric);
     }

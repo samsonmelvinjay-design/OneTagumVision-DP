@@ -190,7 +190,9 @@
                             <option value="completed">Completed</option>
                         </select>
                         <label class="font-semibold text-gray-700">Assigned Engineers</label>
-                        {{ form.assigned_engineers }}
+                        <select name="assigned_engineers" id="assigned-engineers-select" class="rounded-lg border border-gray-300 px-4 py-2 w-full" multiple required style="height: 120px; min-width: 200px;">
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
                     </div>
                     <div class="flex flex-col gap-4">
                         <label class="font-semibold text-gray-700">Latitude</label>
@@ -320,6 +322,9 @@
 {{ block.super }}
 {{ projects_data|json_script:"projects-data" }}
 <script>
+window.currentUsername = "{{ request.user.username|escapejs }}";
+</script>
+<script>
 var projectsDataElement = document.getElementById('projects-data');
 if (projectsDataElement) {
     try {
@@ -373,6 +378,7 @@ const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const successToast = document.getElementById('success-toast');
 const modalBarangaySelect = document.getElementById('modal-barangay-select');
+const assignedEngineersSelect = document.getElementById('assigned-engineers-select');
 
 function showToast(message) {
     if (successToast) {
@@ -398,14 +404,48 @@ function hideModal() {
     projectForm.reset();
     editProjectId = null;
     projectForm.setAttribute('data-mode', 'add');
+    // Clear assigned engineers options
+    assignedEngineersSelect.innerHTML = '';
 }
 window.closeProjectModal = hideModal;
+
+function populateEngineers() {
+    fetch('/projeng/api/engineers/')
+        .then(response => response.json())
+        .then(engineers => {
+            assignedEngineersSelect.innerHTML = '';
+            if (engineers.error) {
+                const option = document.createElement('option');
+                option.textContent = 'No engineers available or not authorized';
+                assignedEngineersSelect.appendChild(option);
+                assignedEngineersSelect.disabled = true;
+                return;
+            }
+            assignedEngineersSelect.disabled = false;
+            // Exclude the current user from the options (robust)
+            const currentUsername = (window.currentUsername || '').trim().toLowerCase();
+            console.log('Current user:', currentUsername);
+            engineers.forEach(engineer => {
+                const engineerUsername = (engineer.username || '').trim().toLowerCase();
+                console.log('Comparing:', engineerUsername, 'vs', currentUsername);
+                if (engineerUsername === currentUsername) return;
+                const option = document.createElement('option');
+                option.value = engineer.id;
+                option.textContent = engineer.full_name || engineer.username;
+                assignedEngineersSelect.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error('Failed to fetch engineers:', err);
+        });
+}
 
 if (addProjectBtn) {
     addProjectBtn.addEventListener('click', function() {
         editProjectId = null;
         projectForm.setAttribute('data-mode', 'add');
         if (imageInput) imageInput.required = true;
+        populateEngineers();
         showModal();
     });
 }
@@ -713,6 +753,16 @@ window.openEditModal = function(id) {
             assignedEngineersField.options[i].selected = project.assigned_engineers && project.assigned_engineers.includes(assignedEngineersField.options[i].value);
         }
     }
+    // Populate assigned engineers options for the edit modal
+    assignedEngineersSelect.innerHTML = ''; // Clear existing options
+    const engineers = window.projects.map(p => p.assigned_engineers || []).flat();
+    const uniqueEngineers = [...new Set(engineers)];
+    uniqueEngineers.forEach(engineer => {
+        const option = document.createElement('option');
+        option.value = engineer;
+        option.textContent = engineer;
+        assignedEngineersSelect.appendChild(option);
+    });
     showModal();
 };
 </script>

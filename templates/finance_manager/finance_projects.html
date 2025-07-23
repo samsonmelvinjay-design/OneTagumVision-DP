@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">Projects</h1>
+    <form method="get" class="flex flex-col md:flex-row gap-4 mb-6">
+        <div>
+            <label for="barangay" class="block text-sm font-medium text-gray-700">Barangay</label>
+            <select name="barangay" id="barangay" class="rounded border-gray-300 px-3 py-2" onchange="this.form.submit()">
+                <option value="">All</option>
+                {% for b in all_barangays %}
+                <option value="{{ b }}" {% if selected_barangay == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+            <select name="status" id="status" class="rounded border-gray-300 px-3 py-2" onchange="this.form.submit()">
+                <option value="">All</option>
+                {% for s in all_statuses %}
+                <option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ s|title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+    <h2 class="text-xl font-semibold mb-4">Project Financials</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white rounded shadow">
+            <thead>
+                <tr>
+                    <th class="px-4 py-2">Project</th>
+                    <th class="px-4 py-2">Barangay</th>
+                    <th class="px-4 py-2">Budget</th>
+                    <th class="px-4 py-2">Spent</th>
+                    <th class="px-4 py-2">Remaining</th>
+                    <th class="px-4 py-2">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proj in project_financials %}
+                <tr>
+                    <td class="px-4 py-2">{{ proj.name }}</td>
+                    <td class="px-4 py-2">{{ proj.barangay }}</td>
+                    <td class="px-4 py-2">₱{{ proj.budget|floatformat:2 }}</td>
+                    <td class="px-4 py-2">₱{{ proj.spent|floatformat:2 }}</td>
+                    <td class="px-4 py-2">₱{{ proj.remaining|floatformat:2 }}</td>
+                    <td class="px-4 py-2">{{ proj.status|title }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center py-4 text-gray-400">No projects found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 

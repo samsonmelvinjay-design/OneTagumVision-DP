@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">Project Financial Details</h1>
+    <div class="bg-white rounded-xl shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-2">{{ project.name }}</h2>
+        <div class="mb-2"><span class="font-semibold">Barangay:</span> {{ project.barangay }}</div>
+        <div class="mb-2"><span class="font-semibold">Approved Budget:</span> ₱{{ project.project_cost|floatformat:2 }}</div>
+        <div class="mb-2"><span class="font-semibold">Total Spent:</span> ₱{{ total_spent|floatformat:2 }}</div>
+        <div class="mb-2"><span class="font-semibold">Remaining:</span> ₱{{ remaining|floatformat:2 }}</div>
+        <div class="mb-2"><span class="font-semibold">Status:</span>
+            {% if total_spent > project.project_cost %}
+                <span class="text-red-700 font-bold">Over Budget</span>
+            {% elif total_spent == project.project_cost %}
+                <span class="text-green-700 font-bold">Within Budget</span>
+            {% else %}
+                <span class="text-yellow-600 font-bold">Under Budget</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow p-6">
+            <h3 class="text-lg font-semibold mb-2">Cost Breakdown by Type</h3>
+            <ul>
+                {% for type, amount in cost_by_type.items %}
+                <li><span class="font-semibold">{{ type }}:</span> ₱{{ amount|floatformat:2 }}</li>
+                {% empty %}
+                <li>No costs recorded.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <h3 class="text-lg font-semibold mb-2">All Cost Entries</h3>
+        <table class="min-w-full bg-white rounded shadow">
+            <thead>
+                <tr>
+                    <th class="px-4 py-2">Date</th>
+                    <th class="px-4 py-2">Type</th>
+                    <th class="px-4 py-2">Description</th>
+                    <th class="px-4 py-2">Amount</th>
+                    <th class="px-4 py-2">Receipt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cost in costs %}
+                <tr>
+                    <td class="px-4 py-2">{{ cost.date }}</td>
+                    <td class="px-4 py-2">{{ cost.get_cost_type_display }}</td>
+                    <td class="px-4 py-2">{{ cost.description }}</td>
+                    <td class="px-4 py-2">₱{{ cost.amount|floatformat:2 }}</td>
+                    <td class="px-4 py-2">
+                        {% if cost.receipt %}
+                        <a href="{{ cost.receipt.url }}" target="_blank" class="text-blue-600 underline">View</a>
+                        {% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-4 text-gray-400">No cost entries found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-6">
+        <a href="{% url 'finance_cost_management' %}" class="text-blue-600 underline">&larr; Back to Finance Management</a>
+    </div>
+</div>
+{% endblock %} 

@@ -101,9 +101,29 @@
                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <select id="filter-barangay" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">All Barangays</option>
-                        {% for project in projects %}
-                            <option value="{{ project.barangay }}">{{ project.barangay }}</option>
-                        {% endfor %}
+                        <option value="Apokon">Apokon</option>
+                        <option value="Bincungan">Bincungan</option>
+                        <option value="Busaon">Busaon</option>
+                        <option value="Canocotan">Canocotan</option>
+                        <option value="Cuambogan">Cuambogan</option>
+                        <option value="La Filipina">La Filipina</option>
+                        <option value="Liboganon">Liboganon</option>
+                        <option value="Madaum">Madaum</option>
+                        <option value="Magdum">Magdum</option>
+                        <option value="Magugpo East">Magugpo East</option>
+                        <option value="Magugpo North">Magugpo North</option>
+                        <option value="Magugpo Poblacion">Magugpo Poblacion</option>
+                        <option value="Magugpo South">Magugpo South</option>
+                        <option value="Magugpo West">Magugpo West</option>
+                        <option value="Mankilam">Mankilam</option>
+                        <option value="New Balamban">New Balamban</option>
+                        <option value="Nueva Fuerza">Nueva Fuerza</option>
+                        <option value="Pagsabangan">Pagsabangan</option>
+                        <option value="Pandapan">Pandapan</option>
+                        <option value="San Agustin">San Agustin</option>
+                        <option value="San Isidro">San Isidro</option>
+                        <option value="San Miguel">San Miguel</option>
+                        <option value="Visayan Village">Visayan Village</option>
                     </select>
                 </div>
             </div>
@@ -163,12 +183,21 @@
                         </td>
                         {% endif %}
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="javascript:void(0);" onclick="openProjectModal({{ project.id }})" class="text-blue-600 hover:text-blue-900">View</a>
-                            {% if user_role == 'project_engineer' %}
-                                <a href="{% url 'project_update' project.id %}" class="ml-4 text-green-600 hover:text-green-900">Update</a>
-                            {% endif %}
                             {% if user_role == 'head_engineer' %}
-                            <a href="javascript:void(0);" onclick="openViewCostsModal({{ project.id }})" class="ml-4 text-purple-600 hover:text-purple-900">View Costs</a>
+                                {% if project.id %}
+                                    <a href="{% url 'monitoring_project_detail' project.id %}"
+                                       class="inline-block px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-lg shadow hover:from-blue-600 hover:to-indigo-700 transition duration-200">
+                                       <svg class="inline w-5 h-5 mr-1 -mt-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6" />
+                                       </svg>
+                                       Timeline Report
+                                    </a>
+                                {% else %}
+                                    <span class="text-gray-400">No detail</span>
+                                {% endif %}
+                            {% elif user_role == 'project_engineer' %}
+                                <a href="javascript:void(0);" onclick="openProjectModal({{ project.id }})" class="text-blue-600 hover:text-blue-900">View</a>
+                                <a href="{% url 'project_update' project.id %}" class="ml-4 text-green-600 hover:text-green-900">Update</a>
                             {% endif %}
                         </td>
                     </tr>
@@ -379,13 +408,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function filterTable() {
             const searchTerm = searchInput?.value.toLowerCase() || '';
-            const selectedBarangay = filterBarangay?.value.toLowerCase() || '';
+            const selectedBarangay = (filterBarangay?.value || '').toLowerCase().trim();
 
             for (let row of rows) {
                 if (!row.cells[0] || !row.cells[1]) continue;
                 
                 const projectName = row.cells[0].textContent.toLowerCase();
-                const barangay = row.cells[1].textContent.toLowerCase();
+                const barangay = (row.cells[1].textContent || '').toLowerCase().trim();
                 
                 const matchesSearch = projectName.includes(searchTerm);
                 const matchesBarangay = !selectedBarangay || barangay === selectedBarangay;

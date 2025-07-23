@@ -1,21 +1,36 @@
 {% extends 'projeng_base.html' %}
 {% block content %}
 <div class="container mx-auto p-6">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">My Projects</h1>
+    <div class="flex items-center justify-between mb-4">
+        <a href="{% url 'projeng:projeng_dashboard' %}" class="inline-block px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold rounded-lg shadow hover:from-gray-500 hover:to-gray-700 transition duration-200" title="Back to Dashboard">&larr; Back to Dashboard</a>
+        <h1 class="text-3xl font-bold text-gray-900">My Projects</h1>
+    </div>
+    <div class="mb-4">
+        <input type="text" id="search-projects" placeholder="Search projects..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-1/2">
+    </div>
     <div class="space-y-4">
         {% for project in projects %}
             <div class="bg-white rounded-xl shadow flex flex-col md:flex-row md:items-center justify-between px-6 py-4 gap-4">
                 <div>
-                    <div class="text-lg font-semibold text-gray-800">{{ project.title }}</div>
+                    <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
                     <div class="text-sm text-gray-500">{{ project.status }} • Last Update: {{ project.last_update }}</div>
                     <div class="text-sm text-gray-600 mt-1">{{ project.description }}</div>
                     <div class="text-sm text-gray-500">Dates: {{ project.start_date }} to {{ project.end_date }}</div>
                 </div>
-                <a href="{% url 'projeng_project_detail' project.pk %}" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition inline-block">View Details</a>
+                <a href="{% url 'projeng:projeng_project_detail' project.pk %}" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition inline-block" title="View project details">View Details</a>
             </div>
         {% empty %}
             <p>No projects assigned yet.</p>
         {% endfor %}
     </div>
 </div>
-{% endblock %} 
+{% endblock %}
+<script>
+document.getElementById('search-projects').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    document.querySelectorAll('.project-card').forEach(card => {
+        const name = card.querySelector('.text-lg').textContent.toLowerCase();
+        card.style.display = name.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script> 

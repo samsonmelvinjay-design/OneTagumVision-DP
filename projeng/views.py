@@ -43,15 +43,17 @@ def is_project_or_head_engineer(user):
 def is_head_engineer(user):
     return user.is_authenticated and user.groups.filter(name='Head Engineer').exists()
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def dashboard(request):
     try:
         from .models import Project, ProjectProgress
-        # Get the 5 most recently assigned projects for the current user
-        assigned_projects = Project.objects.filter(assigned_engineers=request.user).order_by('-pk')[:5]
-
-        # Calculate status counts (based on all assigned projects, not just the top 5)
-        all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+        if is_head_engineer(request.user):
+            assigned_projects = Project.objects.all().order_by('-pk')[:5]
+            all_assigned_projects = Project.objects.all()
+        else:
+            assigned_projects = Project.objects.filter(assigned_engineers=request.user).order_by('-pk')[:5]
+            all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+        print("DEBUG: assigned_projects for user", request.user.username, ":", list(assigned_projects))
         today = timezone.now().date()
         status_counts = {'Planned': 0, 'In Progress': 0, 'Completed': 0, 'Delayed': 0}
         delayed_projects = []
@@ -59,7 +61,6 @@ def dashboard(request):
         for project in all_assigned_projects:
             latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
             progress = int(latest_progress.percentage_complete) if latest_progress else 0
-            # Dynamic status logic
             status = project.status
             if progress >= 99:
                 status = 'completed'
@@ -69,7 +70,6 @@ def dashboard(request):
                 status = 'in_progress'
             elif status in ['planned', 'pending']:
                 status = 'planned'
-            # Count for cards (use display names)
             if status == 'completed':
                 status_counts['Completed'] += 1
             elif status == 'in_progress':
@@ -98,11 +98,11 @@ def dashboard(request):
                 'image': project.image.url if project.image else "",
             })
         context = {
-            'assigned_projects': assigned_projects, # Pass only the top 5 for display
-            'total_projects': total_projects, # Pass total count for all
-            'status_counts': status_counts, # Pass status counts for all
-            'delayed_count': status_counts['Delayed'], # Pass delayed count
-            'delayed_projects': delayed_projects, # Pass delayed projects list
+            'assigned_projects': assigned_projects,
+            'total_projects': total_projects,
+            'status_counts': status_counts,
+            'delayed_count': status_counts['Delayed'],
+            'delayed_projects': delayed_projects,
             'projects_data': projects_data,
         }
         print(f'Dashboard View Context: {context}') # Debugging line
@@ -112,34 +112,32 @@ def dashboard(request):
         raise
 
 # Placeholder views for new sidebar links
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def my_projects_view(request):
-    # Get projects where the current user is in the assigned_engineers field
-    projects = Project.objects.filter(assigned_engineers=request.user)
-    delayed_count = projects.filter(status='delayed').count() # Calculate delayed count
+    if is_head_engineer(request.user):
+        projects = Project.objects.all()
+    else:
+        projects = Project.objects.filter(assigned_engineers=request.user)
+    delayed_count = projects.filter(status='delayed').count()
     return render(request, 'projeng/my_projects.html', {'projects': projects, 'delayed_count': delayed_count})
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def projeng_map_view(request):
-    # Get all layers for the current user
-    layers = Layer.objects.filter(created_by=request.user)
-    
-    # Get assigned projects from ProjEngProject that have coordinates
-    all_projects = Project.objects.filter(
-        assigned_engineers=request.user,
-        latitude__isnull=False,
-        longitude__isnull=False
-    )
-
-    delayed_count = Project.objects.filter(assigned_engineers=request.user, status='delayed').count() # Calculate delayed count
-
-    # Filter out projects with empty strings in latitude or longitude in Python
+    if is_head_engineer(request.user):
+        layers = Layer.objects.all()
+        all_projects = Project.objects.filter(latitude__isnull=False, longitude__isnull=False)
+    else:
+        layers = Layer.objects.filter(created_by=request.user)
+        all_projects = Project.objects.filter(
+            assigned_engineers=request.user,
+            latitude__isnull=False,
+            longitude__isnull=False
+        )
+    delayed_count = all_projects.filter(status='delayed').count()
     projects_with_coords = []
     for project in all_projects:
         if project.latitude != '' and project.longitude != '':
             projects_with_coords.append(project)
-
-    # Prepare projects_data for the map, ensuring latitude and longitude are floats
     projects_data = []
     for p in projects_with_coords:
         latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
@@ -160,21 +158,20 @@ def projeng_map_view(request):
             'image': p.image.url if p.image else "",
             'progress': progress,
         })
-
     context = {
         'layers': layers,
         'projects_data': projects_data,
-        'delayed_count': delayed_count, # Pass delayed count
+        'delayed_count': delayed_count,
     }
     return render(request, 'projeng/projeng_map.html', context)
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def upload_docs_view(request):
-    # Get projects assigned to the current user
-    assigned_projects = Project.objects.filter(assigned_engineers=request.user)
-    
-    delayed_count = assigned_projects.filter(status='delayed').count() # Calculate delayed count
-
+    if is_head_engineer(request.user):
+        assigned_projects = Project.objects.all()
+    else:
+        assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    delayed_count = assigned_projects.filter(status='delayed').count()
     projects_data = []
     for project in assigned_projects:
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
@@ -193,103 +190,54 @@ def upload_docs_view(request):
             'end_date': str(project.end_date) if project.end_date else "",
             'image': project.image.url if project.image else "",
         })
-
     context = {
         'assigned_projects': assigned_projects,
-        'delayed_count': delayed_count, # Pass delayed count
+        'delayed_count': delayed_count,
         'projects_data': projects_data,
     }
     
     return render(request, 'projeng/upload_docs.html', context)
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def my_reports_view(request):
-    # Get projects where the current user is in the assigned_engineers field
-    assigned_projects = Project.objects.filter(assigned_engineers=request.user)
-
-    # Calculate delayed count for ALL assigned projects (before filtering)
-    # This is usually what's desired for a persistent counter
-    all_assigned_projects_count = Project.objects.filter(assigned_engineers=request.user).count()
-    delayed_count = Project.objects.filter(assigned_engineers=request.user, status='delayed').count()
-
-    # --- Filtering Logic ---
+    if is_head_engineer(request.user):
+        assigned_projects = Project.objects.all()
+    else:
+        assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    delayed_count = assigned_projects.filter(status='delayed').count()
     barangay_filter = request.GET.get('barangay')
     status_filter = request.GET.get('status')
     start_date_filter = request.GET.get('start_date')
     end_date_filter = request.GET.get('end_date')
-
     if barangay_filter:
         assigned_projects = assigned_projects.filter(barangay=barangay_filter)
     if status_filter:
         assigned_projects = assigned_projects.filter(status=status_filter)
     if start_date_filter:
         try:
-            # Attempt to parse the date. Use a lenient format for user input.
             start_date = datetime.strptime(start_date_filter, '%Y-%m-%d').date()
             assigned_projects = assigned_projects.filter(start_date__gte=start_date)
         except ValueError:
-            # Handle invalid date format if necessary, maybe add an error message to context
-            pass # Or log the error
+            pass
     if end_date_filter:
         try:
-            # Attempt to parse the date
             end_date = datetime.strptime(end_date_filter, '%Y-%m-%d').date()
             assigned_projects = assigned_projects.filter(end_date__lte=end_date)
         except ValueError:
-            # Handle invalid date format
-            pass # Or log the error
-    # --- End Filtering Logic ---
-
-    # Calculate status counts on the filtered projects
+            pass
     status_counts = {}
     for status_key, status_display in Project.STATUS_CHOICES:
-        # Filter counts based on the current applied filters
         count_query = assigned_projects.filter(status=status_key)
-
         count = count_query.count()
         status_counts[status_display] = count
-
-
-    total_projects = assigned_projects.count() # Total projects AFTER filtering
-
-    # Get distinct barangays for filtering from the original assigned projects
-    # This ensures all possible barangays are listed, even if no projects are currently shown for a barangay due to other filters.
-    # all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
-    # barangays = all_assigned_projects.values_list('barangay', flat=True).distinct().exclude(barangay__isnull=True).exclude(barangay__exact='').order_by('barangay')
+    total_projects = assigned_projects.count()
     barangays = [
-        "Apokon",
-        "Bincungan",
-        "Busaon",
-        "Canocotan",
-        "Cuambogan",
-        "La Filipina",
-        "Liboganon",
-        "Madaum",
-        "Magdum",
-        "Magugpo East",
-        "Magugpo North",
-        "Magugpo Poblacion",
-        "Magugpo South",
-        "Magugpo West",
-        "Mankilam",
-        "New Balamban",
-        "Nueva Fuerza",
-        "Pagsabangan",
-        "Pandapan",
-        "San Agustin",
-        "San Isidro",
-        "San Miguel",
-        "Visayan Village"
+        "Apokon", "Bincungan", "Busaon", "Canocotan", "Cuambogan", "La Filipina", "Liboganon", "Madaum", "Magdum", "Magugpo East", "Magugpo North", "Magugpo Poblacion", "Magugpo South", "Magugpo West", "Mankilam", "New Balamban", "Nueva Fuerza", "Pagsabangan", "Pandapan", "San Agustin", "San Isidro", "San Miguel", "Visayan Village"
     ]
-    statuses = Project.STATUS_CHOICES # Use defined status choices
-
-    # --- Pagination Logic ---
-    paginator = Paginator(assigned_projects, 10) # Show 10 projects per page
+    statuses = Project.STATUS_CHOICES
+    paginator = Paginator(assigned_projects, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    # --- End Pagination Logic ---
-
-    # Convert the projects for the CURRENT page to a list of dictionaries for JSON serialization (for the modal)
     projects_list_for_modal = []
     for project in page_obj.object_list:
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
@@ -308,20 +256,18 @@ def my_reports_view(request):
             'status_display': project.get_status_display() or '',
             'progress': progress,
         })
-
-
     context = {
-        'page_obj': page_obj, # Pass the Page object for pagination
-        'projects_data': projects_list_for_modal, # Pass the list of dictionaries for the modal
-        'total_projects': total_projects, # Total projects AFTER filtering
-        'status_counts': status_counts, # Status counts AFTER filtering
-        'barangays': barangays, # All distinct barangays for filter dropdown
-        'statuses': statuses, # All status choices for filter dropdown
-        'selected_barangay': barangay_filter, # Pass selected filter values to template
+        'page_obj': page_obj,
+        'projects_data': projects_list_for_modal,
+        'total_projects': total_projects,
+        'status_counts': status_counts,
+        'barangays': barangays,
+        'statuses': statuses,
+        'selected_barangay': barangay_filter,
         'selected_status': status_filter,
         'selected_start_date': start_date_filter,
         'selected_end_date': end_date_filter,
-        'delayed_count': delayed_count, # Pass delayed count
+        'delayed_count': delayed_count,
     }
     return render(request, 'projeng/my_reports.html', context)
 
@@ -426,13 +372,20 @@ def save_layer(request):
 
 @user_passes_test(is_staff_or_superuser, login_url='/accounts/login/')
 def get_project_engineers(request):
-    if not (request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)):
+    # Allow staff, superuser, and head engineers
+    if not (request.user.is_authenticated and (
+        request.user.is_staff or
+        request.user.is_superuser or
+        request.user.groups.filter(name='Head Engineer').exists()
+    )):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'error': 'Not authorized'}, status=403)
         return redirect_to_login(request.get_full_path())
     try:
         project_engineer_group = Group.objects.get(name='Project Engineer')
-        engineers = User.objects.filter(groups=project_engineer_group).order_by('username')
+        head_engineer_group = Group.objects.get(name='Head Engineer')
+        engineers = User.objects.filter(groups=project_engineer_group)
+        engineers = engineers.exclude(groups=head_engineer_group).exclude(is_superuser=True).order_by('username')
         engineers_data = [{'id': engineer.id, 'username': engineer.username, 'full_name': engineer.get_full_name() or engineer.username} for engineer in engineers]
         return JsonResponse(engineers_data, safe=False)
     except Group.DoesNotExist:
@@ -470,6 +423,7 @@ def project_analytics(request, pk):
             'cost_by_type': cost_by_type,
             'budget_utilization': budget_utilization,
             'timeline_data': timeline_data,
+            'today': timezone.now().date(),
         }
         return render(request, 'projeng/project_management.html', context)
     except Project.DoesNotExist:
@@ -691,18 +645,20 @@ def add_cost_entry(request, pk):
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def analytics_overview(request):
-    # Placeholder for general analytics overview
     return render(request, 'projeng/analytics_overview.html')
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def analytics_overview_data(request):
     from .models import Project, ProjectProgress
-    all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    if is_head_engineer(request.user):
+        all_projects = Project.objects.all()
+    else:
+        all_projects = Project.objects.filter(assigned_engineers=request.user)
     today = timezone.now().date()
     status_counts = {'planned': 0, 'in_progress': 0, 'completed': 0, 'delayed': 0}
-    for project in all_assigned_projects:
+    for project in all_projects:
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
         progress = int(latest_progress.percentage_complete) if latest_progress else 0
         status = project.status
@@ -722,14 +678,13 @@ def analytics_overview_data(request):
             status_counts['delayed'] += 1
         elif status == 'planned':
             status_counts['planned'] += 1
-    # Prepare data for Chart.js
     status_labels = ['Planned', 'In Progress', 'Completed', 'Delayed']
     status_data = [status_counts['planned'], status_counts['in_progress'], status_counts['completed'], status_counts['delayed']]
     background_colors = [
-        'rgba(54, 162, 235, 0.6)',      # Blue
-        'rgba(255, 206, 86, 0.6)',      # Yellow
-        'rgba(75, 192, 192, 0.6)',      # Green
-        'rgba(135, 206, 250, 0.6)',     # Light Blue
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(135, 206, 250, 0.6)',
     ]
     border_colors = [
         'rgba(54, 162, 235, 1)',
@@ -1041,17 +996,22 @@ def project_delete_api(request, pk):
 
 @login_required
 def notifications_view(request):
-    """View for Head Engineers and Admins to manage their notifications"""
-    if not (request.user.groups.filter(name='Head Engineer').exists() or request.user.is_superuser):
+    """View for all Project Engineers, Head Engineers, and Admins to manage their notifications"""
+    # Allow all users in Project Engineer, Head Engineer, or is_superuser
+    if not (
+        request.user.groups.filter(name='Project Engineer').exists() or
+        request.user.groups.filter(name='Head Engineer').exists() or
+        request.user.is_superuser
+    ):
         messages.error(request, "You don't have permission to view notifications.")
-        return redirect('projeng:dashboard')
-    
+        return redirect('projeng:projeng_dashboard')
+
     notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
-    
+
     if request.method == 'POST':
         action = request.POST.get('action')
         notification_id = request.POST.get('notification_id')
-        
+
         if action == 'mark_read' and notification_id:
             try:
                 notification = Notification.objects.get(id=notification_id, recipient=request.user)
@@ -1060,12 +1020,12 @@ def notifications_view(request):
                 return JsonResponse({'success': True})
             except Notification.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Notification not found'})
-        
+
         elif action == 'mark_all_read':
             notifications.update(is_read=True)
             messages.success(request, "All notifications marked as read.")
-            return redirect('projeng:notifications')
-        
+            return redirect('projeng:projeng_notifications')
+
         elif action == 'delete' and notification_id:
             try:
                 notification = Notification.objects.get(id=notification_id, recipient=request.user)
@@ -1073,9 +1033,9 @@ def notifications_view(request):
                 return JsonResponse({'success': True})
             except Notification.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Notification not found'})
-    
+
     unread_count = notifications.filter(is_read=False).count()
-    
+
     context = {
         'notifications': notifications,
         'unread_count': unread_count,

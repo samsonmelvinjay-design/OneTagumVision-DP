@@ -38,6 +38,28 @@
             </div>
             <!-- Navigation -->
             <nav class="flex flex-col gap-4 w-full px-4 flex-grow">
+                {% if user|has_group:"Finance Manager" %}
+                <a href="{% url 'finance_dashboard' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6m-6 0H7m6 0v6m0 0H7m6 0h6" /></svg>
+                    Finance Dashboard
+                </a>
+                <a href="{% url 'finance_projects' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" /></svg>
+                    Projects
+                </a>
+                <a href="{% url 'finance_cost_management' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m-7-7h14" /></svg>
+                    Finance Management
+                </a>
+                <a href="{% url 'budget_reports' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m-7-7h14" /></svg>
+                    Budget Reports
+                </a>
+                <a href="{% url 'finance_notifications' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    Notifications
+                </a>
+                {% else %}
                 <a href="{% url 'dashboard' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'dashboard' %}bg-gray-800{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6m-6 0H7m6 0v6m0 0H7m6 0h6" /></svg>
                     Dashboard
@@ -74,6 +96,10 @@
                     </svg>
                     Budget Reports
                 </a>
+                <a href="{% url 'finance_notifications' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    Notifications
+                </a>
 
                 {# Engineers Dropdown #}
                 {% if user|has_group:"Head Engineer" %}
@@ -92,38 +118,6 @@
                     </div>
                 </div>
                 {% endif %}
-
-                {% if user|has_group:"Head Engineer" or user.is_superuser %}
-                <div class="relative w-full">
-                  <button id="notification-bell" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 w-full text-left focus:outline-none relative">
-                    <svg class="h-7 w-7 text-yellow-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span class="font-semibold">Notifications</span>
-                    {% if notifications and notifications|length > 0 %}
-                    <span class="absolute top-1 right-4 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">{{ notifications|length }}</span>
-                    {% endif %}
-                  </button>
-                  <div id="notification-panel" class="fixed left-72 top-8 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10000] hidden animate-fade-in">
-                    <div class="flex items-center justify-between p-4 border-b font-bold text-gray-700 bg-gray-50 rounded-t-xl">
-                      <span class="flex items-center gap-2">
-                        <svg class="h-5 w-5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                        Notifications
-                      </span>
-                      <button id="close-notification-panel" class="text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none">&times;</button>
-                    </div>
-                    <ul class="max-h-80 overflow-y-auto divide-y divide-gray-100">
-                      {% for n in notifications|slice:':5' %}
-                      <li class="p-4 hover:bg-yellow-50 transition border-b last:border-b-0">
-                        <div class="text-gray-800 text-sm">{{ n.message }}</div>
-                        <div class="text-xs text-gray-400 mt-1">{{ n.created_at|date:'M d, Y H:i' }}</div>
-                      </li>
-                      {% empty %}
-                      <li class="p-4 text-gray-500">No notifications.</li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                </div>
                 {% endif %}
             </nav>
             <!-- Logout Button -->
@@ -284,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
             engineersDropdownContent.innerHTML = '';
             if (engineers.length > 0) {
               engineers.forEach(engineer => {
+                if (engineer.username === "headeng") return; // Skip headeng
                 const link = document.createElement('a');
                 link.href = 'javascript:void(0);';
                 link.className = 'block px-4 py-2 text-sm text-gray-100 hover:bg-gray-700';

@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">Finance Management</h1>
+    <!-- Summary Analytics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow p-6">
+            <div class="text-gray-600">Total Projects</div>
+            <div class="text-2xl font-bold text-blue-700">{{ total_projects|default:'0' }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6">
+            <div class="text-gray-600">Over Budget</div>
+            <div class="text-2xl font-bold text-red-700">{{ over_budget_count|default:'0' }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6">
+            <div class="text-gray-600">Within Budget</div>
+            <div class="text-2xl font-bold text-green-700">{{ within_budget_count|default:'0' }}</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6">
+            <div class="text-gray-600">Under Budget</div>
+            <div class="text-2xl font-bold text-yellow-600">{{ under_budget_count|default:'0' }}</div>
+        </div>
+    </div>
+    <!-- Filters -->
+    <form method="get" class="flex flex-col md:flex-row gap-4 mb-6">
+        <div>
+            <label for="prn" class="block text-sm font-medium text-gray-700">PRN ID No#</label>
+            <input type="text" name="prn" id="prn" class="rounded border-gray-300 px-3 py-2" placeholder="Enter PRN ID No#" value="{{ selected_prn }}">
+        </div>
+        <div>
+            <label for="barangay" class="block text-sm font-medium text-gray-700">Barangay</label>
+            <select name="barangay" id="barangay" class="rounded border-gray-300 px-3 py-2">
+                <option value="">All</option>
+                {% for b in all_barangays %}
+                <option value="{{ b }}" {% if selected_barangay == b %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="budget_status" class="block text-sm font-medium text-gray-700">Budget Status</label>
+            <select name="budget_status" id="budget_status" class="rounded border-gray-300 px-3 py-2">
+                <option value="">All</option>
+                <option value="over" {% if selected_budget_status == 'over' %}selected{% endif %}>Over Budget</option>
+                <option value="within" {% if selected_budget_status == 'within' %}selected{% endif %}>Within Budget</option>
+                <option value="under" {% if selected_budget_status == 'under' %}selected{% endif %}>Under Budget</option>
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
+        </div>
+    </form>
+    <!-- Project Financial Overview Table -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white rounded shadow">
+            <thead>
+                <tr>
+                    <th class="px-4 py-2">Project</th>
+                    <th class="px-4 py-2">Barangay</th>
+                    <th class="px-4 py-2">Approved Budget</th>
+                    <th class="px-4 py-2">Total Spent</th>
+                    <th class="px-4 py-2">Remaining</th>
+                    <th class="px-4 py-2">Status</th>
+                    <th class="px-4 py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proj in project_financials %}
+                <tr>
+                    <td class="px-4 py-2">{{ proj.name }}</td>
+                    <td class="px-4 py-2">{{ proj.barangay }}</td>
+                    <td class="px-4 py-2">₱{{ proj.budget|floatformat:2 }}</td>
+                    <td class="px-4 py-2">₱{{ proj.spent|floatformat:2 }}</td>
+                    <td class="px-4 py-2">₱{{ proj.remaining|floatformat:2 }}</td>
+                    <td class="px-4 py-2">
+                        {% if proj.budget_status == 'over' %}
+                            <span class="text-red-700 font-bold">Over Budget</span>
+                        {% elif proj.budget_status == 'within' %}
+                            <span class="text-green-700 font-bold">Within Budget</span>
+                        {% elif proj.budget_status == 'under' %}
+                            <span class="text-yellow-600 font-bold">Under Budget</span>
+                        {% else %}
+                            <span class="text-gray-500">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2">
+                        <a href="{% url 'finance_project_detail' proj.id %}" class="text-blue-600 underline">View Details</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center py-4 text-gray-400">No projects found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 

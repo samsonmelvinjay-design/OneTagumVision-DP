@@ -3,10 +3,22 @@
 <div class="container mx-auto px-4 py-8 bg-gray-100 min-h-screen">
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-3xl font-bold text-gray-800">Budget Reports</h1>
-    <div class="flex gap-2">
-      <a href="?export=csv" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow transition-colors">Export CSV</a>
-      <a href="?export=excel" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow transition-colors">Export Excel</a>
-      <a href="?export=pdf" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded shadow transition-colors">Export PDF</a>
+    <div class="flex justify-end mb-6">
+      <div class="relative inline-block text-left">
+        <button id="export-dropdown-btn" type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" aria-haspopup="true" aria-expanded="true">
+          Export
+          <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+        <div id="export-dropdown-menu" class="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50" role="menu" aria-orientation="vertical" aria-labelledby="export-dropdown-btn">
+          <div class="py-1" role="none">
+            <a href="?export=csv" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Export CSV</a>
+            <a href="?export=excel" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Export Excel</a>
+            <a href="?export=pdf" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">Export PDF</a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -14,6 +26,7 @@
     <table class="w-full min-w-[900px] divide-y divide-gray-200 text-sm">
       <thead class="bg-gray-50">
         <tr>
+          <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">PRN #</th>
           <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Project</th>
           <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Barangay</th>
           <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Budget</th>
@@ -28,6 +41,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {% for p in project_data %}
         <tr>
+          <td class="px-3 py-3">{{ p.prn }}</td>
           <td class="px-3 py-3 font-semibold text-blue-900">{{ p.name }}</td>
           <td class="px-3 py-3">{{ p.barangay }}</td>
           <td class="px-3 py-3 text-right">₱{{ p.budget|floatformat:2 }}</td>
@@ -60,13 +74,13 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    <div class="bg-white rounded-xl shadow p-6">
+    <div class="bg-white rounded-xl shadow p-6 h-80 flex flex-col">
       <h2 class="text-xl font-bold text-gray-800 mb-4">Budget Utilization per Project</h2>
-      <canvas id="budgetUtilizationChart"></canvas>
+      <canvas id="budgetUtilizationChart" class="flex-1"></canvas>
     </div>
-    <div class="bg-white rounded-xl shadow p-6">
+    <div class="bg-white rounded-xl shadow p-6 h-80 flex flex-col">
       <h2 class="text-xl font-bold text-gray-800 mb-4">Over/Under Budget Status</h2>
-      <canvas id="overUnderChart"></canvas>
+      <canvas id="overUnderChart" class="flex-1"></canvas>
     </div>
   </div>
 </div>
@@ -124,6 +138,16 @@
         maintainAspectRatio: false,
         plugins: { legend: { position: 'bottom' } }
       }
+    });
+
+    const btn = document.getElementById('export-dropdown-btn');
+    const menu = document.getElementById('export-dropdown-menu');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      menu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', function() {
+      menu.classList.add('hidden');
     });
   });
 </script>

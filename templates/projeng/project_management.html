@@ -3,7 +3,10 @@
 
 {% block content %}
 <div class="container mx-auto p-6">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">Project Details: {{ project.name }}</h1>
+    <div class="flex items-center justify-between mb-4">
+        <a href="{% url 'projeng_my_projects' %}" class="inline-block px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold rounded-lg shadow hover:from-gray-500 hover:to-gray-700 transition duration-200" title="Back to My Projects">&larr; Back to My Projects</a>
+        <h1 class="text-3xl font-bold text-gray-900">Project Details: {{ project.name }}</h1>
+    </div>
 
     <!-- Basic Information and Location/Financials -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -83,32 +86,32 @@
                 <form id="progressForm" enctype="multipart/form-data" method="post" action="{% url 'projeng_add_progress_update' project.pk %}">
                     {% csrf_token %}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                         <div>
-                             <label for="progress-date" class="block text-sm font-medium text-gray-700">Date</label>
-                             <input type="date" id="progress-date" name="date" required 
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                         <div class="flex items-end h-full">
+                             <span class="block text-sm font-medium text-gray-700">Date:</span>
+                             <span class="ml-2 text-gray-600">{{ today|date:'F j, Y' }} (today)</span>
                          </div>
                          <div>
                              <label for="percentage_complete" class="block text-sm font-medium text-gray-700">Percentage Complete (%)</label>
-                             <input type="number" id="percentage_complete" name="percentage_complete" min="0" max="100" required 
+                             <input type="number" id="percentage_complete" name="percentage_complete" min="0" max="100" required placeholder="0-100" 
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                          </div>
                     </div>
                     <div class="mb-4">
                         <label for="progress-description" class="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea id="progress-description" name="description" rows="3" required 
+                        <textarea id="progress-description" name="description" rows="3" required placeholder="Describe progress..." 
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                     </div>
                      <div class="mb-4">
                          <label for="progress-photo" class="block text-sm font-medium text-gray-700">Photo</label>
-                         <input type="file" id="progress-photo" name="photos" accept="image/*" multiple
+                         <input type="file" id="progress-photo" name="photos" accept="image/*" multiple title="Upload progress photos"
                                 class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
                                 file:rounded-full file:border-0
                                 file:text-sm file:font-semibold
                                 file:bg-blue-50 file:text-blue-700
                                 hover:file:bg-blue-100">
                      </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center" title="Add Progress Update">
+                        <span id="progress-loading-spinner" class="hidden mr-2"><svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></span>
                         Add Update
                     </button>
                 </form>
@@ -197,7 +200,7 @@
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                      <div>
                          <label for="cost-date" class="block text-sm font-medium text-gray-700">Date</label>
-                         <input type="date" id="cost-date" name="date" required 
+                         <input type="date" id="cost-date" name="date" required placeholder="Select date" 
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                      </div>
                      <div>
@@ -213,13 +216,13 @@
                  </div>
                  <div class="mb-4">
                      <label for="cost-description" class="block text-sm font-medium text-gray-700">Description</label>
-                     <textarea id="cost-description" name="description" rows="2" required 
+                     <textarea id="cost-description" name="description" rows="2" required placeholder="Describe the cost entry..." 
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                  </div>
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                      <div>
                          <label for="cost-amount" class="block text-sm font-medium text-gray-700">Amount</label>
-                         <input type="number" id="cost-amount" name="amount" step="0.01" min="0" required 
+                         <input type="number" id="cost-amount" name="amount" step="0.01" min="0" required placeholder="Enter amount" 
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                      </div>
                      <div>
@@ -232,11 +235,13 @@
                                 hover:file:bg-green-100">
                      </div>
                  </div>
-                 <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                 <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center" title="Add Cost Entry">
+                     <span id="cost-loading-spinner" class="hidden mr-2"><svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></span>
                      Add Cost Entry
                  </button>
              </form>
              <div id="cost-success-message" style="display:none;" class="text-green-600 font-bold mt-2"></div>
+             <div id="cost-error-message" style="display:none;" class="text-red-600 font-bold mt-2"></div>
          </div>
      </div>
 
@@ -247,17 +252,19 @@
             {% csrf_token %}
             <div class="mb-4">
                 <label for="document-file" class="block text-sm font-medium text-gray-700">Select Document</label>
-                <input type="file" id="document-file" name="file" required class="mt-1 block w-full">
+                <input type="file" id="document-file" name="file" required class="mt-1 block w-full" placeholder="Select a file">
             </div>
             <div class="mb-4">
                 <label for="document-name" class="block text-sm font-medium text-gray-700">Document Name</label>
-                <input type="text" id="document-name" name="name" required class="mt-1 block w-full">
+                <input type="text" id="document-name" name="name" required class="mt-1 block w-full" placeholder="Enter document name">
             </div>
-            <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center" title="Upload Document">
+                <span id="document-loading-spinner" class="hidden mr-2"><svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></span>
                 Upload Document
             </button>
         </form>
         <div id="document-success-message" style="display:none;" class="text-green-600 font-bold mt-2"></div>
+        <div id="document-error-message" style="display:none;" class="text-red-600 font-bold mt-2"></div>
         <ul id="document-list" class="mt-4">
             {% for doc in project.documents.all %}
                 <li>
@@ -279,6 +286,7 @@
         // Cost form handling
         const costForm = document.getElementById('costForm');
         const costSuccessMsg = document.getElementById('cost-success-message');
+        const costErrorMsg = document.getElementById('cost-error-message');
 
         if (costForm) {
             costForm.addEventListener('submit', function(e) {
@@ -300,11 +308,16 @@
                         costForm.reset();
                         setTimeout(() => { costSuccessMsg.style.display = 'none'; }, 3000);
                     } else {
-                        alert(data.error || 'Failed to add cost entry.');
+                        costErrorMsg.textContent = data.error || 'Failed to add cost entry.';
+                        costErrorMsg.style.display = 'block';
                     }
                 })
                 .catch(() => {
-                    alert('An error occurred. Please try again.');
+                    costErrorMsg.textContent = 'An error occurred. Please try again.';
+                    costErrorMsg.style.display = 'block';
+                })
+                .finally(() => {
+                    document.getElementById('cost-loading-spinner').classList.add('hidden');
                 });
             });
         }
@@ -312,6 +325,7 @@
         // Document form handling
         const documentForm = document.getElementById('documentForm');
         const documentSuccessMsg = document.getElementById('document-success-message');
+        const documentErrorMsg = document.getElementById('document-error-message');
         const documentList = document.getElementById('document-list');
 
         if (documentForm) {
@@ -350,11 +364,16 @@
                         
                         setTimeout(() => { documentSuccessMsg.style.display = 'none'; }, 3000);
                     } else {
-                        alert(data.error || 'Failed to upload document.');
+                        documentErrorMsg.textContent = data.error || 'Failed to upload document.';
+                        documentErrorMsg.style.display = 'block';
                     }
                 })
                 .catch(() => {
-                    alert('An error occurred. Please try again.');
+                    documentErrorMsg.textContent = 'An error occurred. Please try again.';
+                    documentErrorMsg.style.display = 'block';
+                })
+                .finally(() => {
+                    document.getElementById('document-loading-spinner').classList.add('hidden');
                 });
             });
         }
@@ -393,6 +412,9 @@
                 .catch(() => {
                     progressErrorMsg.textContent = 'An error occurred. Please try again.';
                     progressErrorMsg.style.display = 'block';
+                })
+                .finally(() => {
+                    document.getElementById('progress-loading-spinner').classList.add('hidden');
                 });
             });
         }

@@ -9,7 +9,10 @@ def dual_login(request):
         password = request.POST['password']
         user = authenticate(request, username=username, password=password)
         if user is not None:
-            if user.groups.filter(name='Head Engineer').exists():
+            if user.groups.filter(name='Finance Manager').exists():
+                login(request, user)
+                return redirect('/finance/dashboard/')
+            elif user.groups.filter(name='Head Engineer').exists():
                 login(request, user)
                 return redirect('/dashboard/')
             elif user.groups.filter(name='Project Engineer').exists():
