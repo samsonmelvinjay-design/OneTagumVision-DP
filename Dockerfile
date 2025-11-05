@@ -30,6 +30,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Collect static files at build time via Render buildCommand (in render.yaml)
 
 # Run Gunicorn by default (Render will override with $PORT)
-CMD ["gunicorn", "gistagum.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn gistagum.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]
 
 

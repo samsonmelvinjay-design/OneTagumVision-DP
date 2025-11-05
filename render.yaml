@@ -19,16 +19,14 @@ services:
         value: gistagum-web.onrender.com
       - key: CSRF_TRUSTED_ORIGINS
         value: https://gistagum-web.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gistagum-db
+          property: connectionString
     disk:
       name: media
       mountPath: /app/media
       sizeGB: 2
-    buildCommand: |
-      pip install -r requirements.txt
-      python manage.py collectstatic --noinput
-      python manage.py migrate --noinput
-    startCommand: |
-      gunicorn gistagum.wsgi:application --bind 0.0.0.0:$PORT
 
 databases:
   - name: gistagum-db
