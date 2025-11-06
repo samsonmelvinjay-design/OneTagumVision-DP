@@ -189,20 +189,32 @@ CACHES = {
     }
 }
 
-# If Redis is available in production, use it
+# If Redis/Valkey is available in production, use it
+# Note: Valkey is Redis-compatible, so REDIS_URL works for both
 REDIS_URL = os.environ.get('REDIS_URL', None)
 if REDIS_URL and not DEBUG:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            },
-            'KEY_PREFIX': 'gistagum',
-            'TIMEOUT': 300,  # 5 minutes default timeout
+    try:
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'SSL_CERT_REQS': None,  # For DigitalOcean SSL connections
+                },
+                'KEY_PREFIX': 'gistagum',
+                'TIMEOUT': 300,  # 5 minutes default timeout
+            }
         }
-    }
+    except Exception as e:
+        # If Redis/Valkey connection fails, fall back to in-memory cache
+        print(f"Warning: Redis/Valkey connection failed: {e}. Using in-memory cache.")
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'unique-snowflake',
+            }
+        }
 
 
 # WhiteNoise Configuration for Better Performance

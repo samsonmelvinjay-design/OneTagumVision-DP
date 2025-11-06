@@ -14,4 +14,5 @@ tzdata==2025.2
 django-extensions
 whitenoise==6.7.0
 dj-database-url==2.2.0
+django-redis==5.4.0  # For Redis caching (optional - only needed if you add Redis)
 # GDAL==3.10.*  # Commented out - not needed (django.contrib.gis is disabled in settings.py)

@@ -48,6 +48,10 @@ services:
     scope: RUN_AND_BUILD_TIME
     value: ${gistagum-db.DATABASE_URL}
     type: SECRET
+  - key: REDIS_URL
+    scope: RUN_AND_BUILD_TIME
+    value: redis://default:YOUR_PASSWORD@YOUR_HOST:YOUR_PORT
+    type: SECRET
   health_check:
     http_path: /health/
     initial_delay_seconds: 30
