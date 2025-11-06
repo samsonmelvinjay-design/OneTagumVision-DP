@@ -7,6 +7,7 @@ from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 import logging
 
@@ -43,12 +44,15 @@ def secure_home(request):
     # This view ensures proper authentication and cache control
     return redirect('/admin/')  # Redirect to admin or your main dashboard
 
+@csrf_exempt
 def health_check(request):
     """
     Simple health check endpoint for load balancers and monitoring
     Returns 200 OK if the app is running
     This endpoint should not require database access or authentication
+    Bypasses all middleware checks for reliability
     """
+    # Return a simple response - middleware will skip processing for /health/
     return HttpResponse("OK", status=200, content_type="text/plain")
 
 def redirect_to_login(request):

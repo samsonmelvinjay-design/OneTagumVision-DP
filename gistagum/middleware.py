@@ -19,6 +19,10 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         """
         Add security headers to prevent caching and back button access
         """
+        # Skip health check endpoint - it needs to work without any middleware interference
+        if request.path == '/health/' or request.path == '/health':
+            return response
+        
         # Add cache control headers to prevent back button access
         response['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
         response['Pragma'] = 'no-cache'
@@ -47,6 +51,10 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         """
         Check session validity and handle logout scenarios
         """
+        # Skip health check endpoint - don't process requests to it
+        if request.path == '/health/' or request.path == '/health':
+            return None
+        
         # If user is not authenticated but has session data, clear it
         if not request.user.is_authenticated and request.session:
             # Clear session data for unauthenticated users
