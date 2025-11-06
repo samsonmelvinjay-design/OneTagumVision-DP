@@ -41,5 +41,6 @@ services:
     type: SECRET
   health_check:
     http_path: /health/
+    initial_delay_seconds: 90
   routes:
   - path: /
