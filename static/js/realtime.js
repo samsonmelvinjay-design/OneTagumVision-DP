@@ -185,8 +185,10 @@ class RealtimeManager {
 window.realtimeManager = new RealtimeManager();
 
 /**
- * Notification Handler
+ * Notification Handler - Professional, non-intrusive
  */
+let lastNotificationId = null;
+
 function setupRealtimeNotifications() {
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
@@ -195,32 +197,45 @@ function setupRealtimeNotifications() {
 
     window.realtimeManager.connectNotifications((data) => {
         if (data.type === 'notification') {
-            // Update notification count
+            // Only show notifications for NEW notifications (not on every page load)
+            const isNewNotification = data.notification && data.notification.id !== lastNotificationId;
+            
+            // Update notification count silently
             if (notificationCount) {
-                notificationCount.textContent = data.unread_count;
-                notificationCount.classList.remove('hidden');
+                const currentCount = parseInt(notificationCount.textContent) || 0;
+                const newCount = data.unread_count || 0;
                 
-                if (data.unread_count === 0) {
+                notificationCount.textContent = newCount;
+                
+                if (newCount === 0) {
                     notificationCount.classList.add('hidden');
                 } else {
-                    // Add animation
-                    notificationCount.classList.add('animate-pulse');
-                    setTimeout(() => {
-                        notificationCount.classList.remove('animate-pulse');
-                    }, 1000);
+                    notificationCount.classList.remove('hidden');
+                    
+                    // Only animate if count increased (new notification)
+                    if (newCount > currentCount && isNewNotification) {
+                        notificationCount.classList.add('animate-pulse');
+                        setTimeout(() => {
+                            notificationCount.classList.remove('animate-pulse');
+                        }, 2000);
+                    }
                 }
             }
 
-            // Show browser notification if permission granted
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('New Notification', {
+            // Only show browser notification for NEW notifications (not on page load)
+            if (isNewNotification && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('OneTagumVision', {
                     body: data.notification.message,
-                    icon: '/static/img/tagum.jpg'
+                    icon: '/static/img/tagum.jpg',
+                    tag: `notification-${data.notification.id}`, // Prevent duplicate notifications
+                    requireInteraction: false
                 });
             }
 
-            // Show toast notification
-            showToastNotification(data.notification.message);
+            // Update last notification ID
+            if (data.notification && data.notification.id) {
+                lastNotificationId = data.notification.id;
+            }
         }
     });
 }
@@ -356,26 +371,13 @@ function updateProjectStatus(data) {
 }
 
 /**
- * Helper: Show toast notification
+ * Helper: Show toast notification (removed - too intrusive)
+ * Notifications are now handled silently via badge count only
  */
 function showToastNotification(message) {
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fade-in';
-    toast.innerHTML = `
-        <div class="flex items-center gap-3">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span>${message}</span>
-        </div>
-    `;
-    document.body.appendChild(toast);
-
-    // Remove after 5 seconds
-    setTimeout(() => {
-        toast.remove();
-    }, 5000);
+    // Disabled - notifications are now handled professionally via badge count only
+    // Users can check notifications page for details
+    return;
 }
 
 /**

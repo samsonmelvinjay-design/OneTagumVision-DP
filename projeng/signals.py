@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from .models import Project, ProjectProgress, ProjectCost, ProjectDocument, Notification
 from monitoring.models import Project as MonitoringProject
-from .utils import notify_head_engineers, notify_admins
+from .utils import notify_head_engineers, notify_admins, notify_finance_managers, notify_head_engineers_and_finance
 
 @receiver(post_save, sender=Project)
 def sync_projeng_to_monitoring(sender, instance, **kwargs):
@@ -51,44 +51,40 @@ def sync_projeng_to_monitoring(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Project)
 def notify_project_updates(sender, instance, created, **kwargs):
-    """Notify Head Engineers and Admins about project updates"""
+    """Notify Head Engineers, Finance Managers, and Admins about project updates"""
     if created:
         message = f"New project created: {instance.name} (PRN: {instance.prn or 'N/A'}) by {instance.created_by.get_full_name() or instance.created_by.username}"
-        notify_head_engineers(message)
+        notify_head_engineers_and_finance(message)
         notify_admins(message)
     else:
-        # For updates, we'll notify about any save operation
-        message = f"Project updated: {instance.name} (PRN: {instance.prn or 'N/A'}) by {instance.created_by.get_full_name() or instance.created_by.username}"
-        notify_head_engineers(message)
-        notify_admins(message)
+        # Only notify on significant updates (status change, cost change, etc.)
+        # Skip notifications for routine saves to reduce noise
+        if hasattr(instance, '_notify_update'):
+            message = f"Project updated: {instance.name} (PRN: {instance.prn or 'N/A'}) by {instance.created_by.get_full_name() or instance.created_by.username}"
+            notify_head_engineers_and_finance(message)
+            notify_admins(message)
 
 @receiver(post_save, sender=ProjectProgress)
 def notify_progress_updates(sender, instance, created, **kwargs):
-    """Notify Head Engineers and Admins about progress updates"""
+    """Notify Head Engineers and Finance Managers about progress updates"""
     if created:
-        message = f"Progress update added: {instance.project.name} - {instance.percentage_complete}% complete on {instance.date} by {instance.created_by.get_full_name() or instance.created_by.username}"
-        notify_head_engineers(message)
+        message = f"Progress update: {instance.project.name} - {instance.percentage_complete}% complete on {instance.date.strftime('%B %d, %Y')} by {instance.created_by.get_full_name() or instance.created_by.username}"
+        notify_head_engineers_and_finance(message)
         notify_admins(message)
-    else:
-        message = f"Progress update modified: {instance.project.name} - {instance.percentage_complete}% complete on {instance.date} by {instance.created_by.get_full_name() or instance.created_by.username}"
-        notify_head_engineers(message)
-        notify_admins(message)
+    # Skip notifications for progress modifications to reduce noise
 
 @receiver(post_save, sender=ProjectCost)
 def notify_cost_updates(sender, instance, created, **kwargs):
-    """Notify Head Engineers and Admins about cost updates"""
+    """Notify Head Engineers and Finance Managers about cost updates"""
     if created:
-        message = f"Cost entry added: {instance.project.name} - {instance.get_cost_type_display()} cost of {instance.amount} on {instance.date} by {instance.created_by.get_full_name() or instance.created_by.username}"
-        notify_head_engineers(message)
+        message = f"Cost entry: {instance.project.name} - {instance.get_cost_type_display()} ₱{instance.amount:,.2f} on {instance.date.strftime('%B %d, %Y')} by {instance.created_by.get_full_name() or instance.created_by.username}"
+        notify_head_engineers_and_finance(message)
         notify_admins(message)
-    else:
-        message = f"Cost entry modified: {instance.project.name} - {instance.get_cost_type_display()} cost of {instance.amount} on {instance.date} by {instance.created_by.get_full_name() or instance.created_by.username}"
-        notify_head_engineers(message)
-        notify_admins(message)
+    # Skip notifications for cost modifications to reduce noise
 
 @receiver(post_save, sender=ProjectDocument)
 def notify_document_uploads(sender, instance, created, **kwargs):
-    """Notify Head Engineers and Admins about document uploads"""
+    """Notify Head Engineers about document uploads"""
     if created:
         message = f"Document uploaded: {instance.name} for project {instance.project.name} by {instance.uploaded_by.get_full_name() if instance.uploaded_by else 'Unknown user'}"
         notify_head_engineers(message)
