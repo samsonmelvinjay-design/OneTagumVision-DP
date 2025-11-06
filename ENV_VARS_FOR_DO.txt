@@ -16,14 +16,19 @@ ALLOWED_HOSTS=*.ondigitalocean.app
 # CSRF Trusted Origins (update with your actual domain after deployment)
 CSRF_TRUSTED_ORIGINS=https://*.ondigitalocean.app
 
-# Database URL (paste your Neon connection string here)
-# Format: postgresql://username:password@host.neon.tech/dbname?sslmode=require
-DATABASE_URL=<PASTE_YOUR_NEON_CONNECTION_STRING_HERE>
+# Database URL (AUTO-SET by DigitalOcean from .do/app.yaml)
+# The DATABASE_URL is automatically configured from the database resource
+# Format: postgresql://username:password@host:port/dbname?sslmode=require
+# You don't need to set this manually - it's handled by .do/app.yaml
+DATABASE_URL=${gistagum-db.DATABASE_URL}
 
 # Instructions:
-# 1. Copy each line above (except comments)
-# 2. In DigitalOcean App Platform, go to your app → Settings → Environment Variables
-# 3. Add each variable one by one
-# 4. For DATABASE_URL, replace <PASTE_YOUR_NEON_CONNECTION_STRING_HERE> with your actual Neon URL
-# 5. After deployment, update ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS with your actual domain
+# 1. Your .do/app.yaml file is already configured with all these variables!
+# 2. You ONLY need to set DJANGO_SECRET_KEY manually:
+#    - In DigitalOcean App Platform, go to your app → Settings → Environment Variables
+#    - Find DJANGO_SECRET_KEY (it will show as needing a value)
+#    - Click Edit/Set Value and paste your generated secret key
+#    - Make sure it's marked as SECRET type
+# 3. All other variables are already set in .do/app.yaml
+# 4. After deployment, update ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS if you add a custom domain
 
