@@ -14,4 +14,4 @@ tzdata==2025.2
 django-extensions
 whitenoise==6.7.0
 dj-database-url==2.2.0
-GDAL==3.10.*
+# GDAL==3.10.*  # Commented out - not needed (django.contrib.gis is disabled in settings.py)

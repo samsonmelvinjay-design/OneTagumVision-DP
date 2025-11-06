@@ -14,6 +14,24 @@ $LOCAL_DB_USER = "postgres"
 $LOCAL_DB_HOST = "localhost"
 $LOCAL_DB_PORT = "5432"
 
+# Use PostgreSQL 18 pg_dump to match server version 18.0
+$PGDUMP = "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+
+# Check if PostgreSQL 18 pg_dump exists
+if (-not (Test-Path $PGDUMP)) {
+    Write-Host "✗ PostgreSQL 18 pg_dump not found at: $PGDUMP" -ForegroundColor Red
+    Write-Host "  Trying to find it..." -ForegroundColor Yellow
+    $foundDump = Get-ChildItem "C:\Program Files\PostgreSQL" -Recurse -Filter pg_dump.exe -ErrorAction SilentlyContinue | Where-Object { $_.VersionInfo.FileVersion -like "18.*" } | Select-Object -First 1
+    if ($foundDump) {
+        $PGDUMP = $foundDump.FullName
+        Write-Host "  ✓ Found: $PGDUMP" -ForegroundColor Green
+    } else {
+        Write-Host "  ✗ Could not find PostgreSQL 18 pg_dump" -ForegroundColor Red
+        Write-Host "  Please install PostgreSQL 18 or use: .\export_database.ps1" -ForegroundColor Yellow
+        exit 1
+    }
+}
+
 Write-Host "Enter your local PostgreSQL password:" -ForegroundColor Yellow
 $LOCAL_PASSWORD = Read-Host -AsSecureString
 $LOCAL_PASSWORD_PLAIN = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
@@ -24,10 +42,11 @@ $BACKUP_FILE = "gistagum_cloud_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss').sql"
 
 Write-Host ""
 Write-Host "Exporting database to: $BACKUP_FILE" -ForegroundColor Yellow
+Write-Host "Using: $PGDUMP" -ForegroundColor Gray
 $env:PGPASSWORD = $LOCAL_PASSWORD_PLAIN
 
 try {
-    pg_dump -h $LOCAL_DB_HOST -p $LOCAL_DB_PORT -U $LOCAL_DB_USER -d $LOCAL_DB_NAME -F p -f $BACKUP_FILE
+    & $PGDUMP -h $LOCAL_DB_HOST -p $LOCAL_DB_PORT -U $LOCAL_DB_USER -d $LOCAL_DB_NAME -F p -f $BACKUP_FILE
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✓ Database exported successfully!" -ForegroundColor Green

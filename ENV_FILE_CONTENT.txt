@@ -1,0 +1,50 @@
+# Your .env File Content
+# Copy this content to create your .env file manually
+# The .env file is gitignored for security
+
+==========================================
+COPY THE CONTENT BELOW TO YOUR .env FILE
+==========================================
+
+# Django Environment Variables for Local Development
+# This file is for local development only
+# DO NOT commit this file to Git (it's in .gitignore)
+
+# Django Settings
+DJANGO_SETTINGS_MODULE=gistagum.settings
+
+# Secret Key (Generated for local development)
+# IMPORTANT: Generate a new one for production!
+DJANGO_SECRET_KEY=mpt$x=!26)ur3v!dstn@!&_e=dz*t(h(rqw=ahhb4xg_stcpq-
+
+# Debug Mode (true for local development, false for production)
+DEBUG=true
+
+# Allowed Hosts (for local development)
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+
+# CSRF Trusted Origins (for local development)
+CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+
+# Database URL (Optional - if not set, uses local PostgreSQL from settings.py)
+# For local development, you can leave this empty and use the database config in settings.py
+# Or uncomment and set your local database connection string:
+# DATABASE_URL=postgresql://postgres:0613@localhost:5432/gistagumnew
+
+# Note: If DATABASE_URL is not set, the app will use the local PostgreSQL database
+# configured in settings.py (gistagumnew database on localhost)
+
+==========================================
+HOW TO USE:
+==========================================
+
+1. Create a file named .env in your project root
+2. Copy the content above (between the === lines)
+3. Paste it into your .env file
+4. Save the file
+
+Your .env file is now ready for local development!
+
+For DigitalOcean deployment, you don't need this file - 
+environment variables are set in the DigitalOcean dashboard.
+
