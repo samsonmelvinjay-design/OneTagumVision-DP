@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import login_required, user_passes_test
 from projeng.models import Project, ProjectCost
 from django.db.models import Sum
 from collections import defaultdict
