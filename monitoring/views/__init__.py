@@ -323,66 +323,66 @@ def project_delete_api(request, pk):
     
     with transaction.atomic():
         try:
-        project_name = None
-        project_prn = None
-        assigned_engineers = []
-        
-        # Try to find the project in either model
-        projeng_project = ProjEngProject.objects.filter(pk=pk).first()
-        monitoring_project = MonitoringProject.objects.filter(pk=pk).first()
-        
-        if projeng_project:
-            # Get project details before deletion
-            project_name = projeng_project.name
-            project_prn = projeng_project.prn
-            assigned_engineers = list(projeng_project.assigned_engineers.all())
+            project_name = None
+            project_prn = None
+            assigned_engineers = []
             
-            # Delete the project (this will cascade to related objects)
-            projeng_project.delete()
+            # Try to find the project in either model
+            projeng_project = ProjEngProject.objects.filter(pk=pk).first()
+            monitoring_project = MonitoringProject.objects.filter(pk=pk).first()
             
-            # Also delete from monitoring if it exists
-            if project_prn:
-                MonitoringProject.objects.filter(prn=project_prn).delete()
-            else:
-                MonitoringProject.objects.filter(name=project_name).delete()
+            if projeng_project:
+                # Get project details before deletion
+                project_name = projeng_project.name
+                project_prn = projeng_project.prn
+                assigned_engineers = list(projeng_project.assigned_engineers.all())
                 
-        elif monitoring_project:
-            # Get project details before deletion
-            project_name = monitoring_project.name
-            project_prn = monitoring_project.prn
+                # Delete the project (this will cascade to related objects)
+                projeng_project.delete()
+                
+                # Also delete from monitoring if it exists
+                if project_prn:
+                    MonitoringProject.objects.filter(prn=project_prn).delete()
+                else:
+                    MonitoringProject.objects.filter(name=project_name).delete()
+                    
+            elif monitoring_project:
+                # Get project details before deletion
+                project_name = monitoring_project.name
+                project_prn = monitoring_project.prn
+                
+                # Try to find corresponding projeng project to get assigned engineers
+                if project_prn:
+                    projeng_project = ProjEngProject.objects.filter(prn=project_prn).first()
+                    if projeng_project:
+                        assigned_engineers = list(projeng_project.assigned_engineers.all())
+                        projeng_project.delete()
+                
+                # Delete from monitoring
+                monitoring_project.delete()
+            else:
+                return JsonResponse({'success': False, 'error': 'Project not found'}, status=404)
             
-            # Try to find corresponding projeng project to get assigned engineers
-            if project_prn:
-                projeng_project = ProjEngProject.objects.filter(prn=project_prn).first()
-                if projeng_project:
-                    assigned_engineers = list(projeng_project.assigned_engineers.all())
-                    projeng_project.delete()
+            # Notify all relevant users about the deletion
+            deleter_name = request.user.get_full_name() or request.user.username
+            project_display = f"{project_name}" + (f" (PRN: {project_prn})" if project_prn else "")
             
-            # Delete from monitoring
-            monitoring_project.delete()
-        else:
-            return JsonResponse({'success': False, 'error': 'Project not found'}, status=404)
-        
-        # Notify all relevant users about the deletion
-        deleter_name = request.user.get_full_name() or request.user.username
-        project_display = f"{project_name}" + (f" (PRN: {project_prn})" if project_prn else "")
-        
-        # Notify Head Engineers and Admins
-        message = f"Project '{project_display}' has been deleted by {deleter_name}"
-        notify_head_engineers(message)
-        notify_admins(message)
-        
-        # Notify Finance Managers
-        notify_finance_managers(message)
-        
-        # Notify assigned Project Engineers
-        for engineer in assigned_engineers:
-            from projeng.models import Notification
-            Notification.objects.create(
-                recipient=engineer,
-                message=f"Project '{project_display}' that you were assigned to has been deleted by {deleter_name}"
-            )
-        
+            # Notify Head Engineers and Admins
+            message = f"Project '{project_display}' has been deleted by {deleter_name}"
+            notify_head_engineers(message)
+            notify_admins(message)
+            
+            # Notify Finance Managers
+            notify_finance_managers(message)
+            
+            # Notify assigned Project Engineers
+            for engineer in assigned_engineers:
+                from projeng.models import Notification
+                Notification.objects.create(
+                    recipient=engineer,
+                    message=f"Project '{project_display}' that you were assigned to has been deleted by {deleter_name}"
+                )
+            
             return JsonResponse({
                 'success': True,
                 'message': f'Project "{project_name}" deleted successfully'
