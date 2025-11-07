@@ -307,8 +307,95 @@ def budget_reports(request):
 def project_update_api(request, pk):
     return HttpResponse("project_update_api placeholder")
 
+@login_required
+@head_engineer_required
+@transaction.atomic
 def project_delete_api(request, pk):
-    return HttpResponse("project_delete_api placeholder")
+    """Delete a project and notify all relevant users"""
+    from django.db import transaction
+    from django.http import JsonResponse, HttpResponseNotAllowed
+    from projeng.models import Project as ProjEngProject
+    from monitoring.models import Project as MonitoringProject
+    from projeng.utils import notify_head_engineers, notify_admins, notify_finance_managers
+    from django.contrib.auth.models import User
+    
+    if request.method != 'POST' and request.method != 'DELETE':
+        return HttpResponseNotAllowed(['POST', 'DELETE'])
+    
+    try:
+        project_name = None
+        project_prn = None
+        assigned_engineers = []
+        
+        # Try to find the project in either model
+        projeng_project = ProjEngProject.objects.filter(pk=pk).first()
+        monitoring_project = MonitoringProject.objects.filter(pk=pk).first()
+        
+        if projeng_project:
+            # Get project details before deletion
+            project_name = projeng_project.name
+            project_prn = projeng_project.prn
+            assigned_engineers = list(projeng_project.assigned_engineers.all())
+            
+            # Delete the project (this will cascade to related objects)
+            projeng_project.delete()
+            
+            # Also delete from monitoring if it exists
+            if project_prn:
+                MonitoringProject.objects.filter(prn=project_prn).delete()
+            else:
+                MonitoringProject.objects.filter(name=project_name).delete()
+                
+        elif monitoring_project:
+            # Get project details before deletion
+            project_name = monitoring_project.name
+            project_prn = monitoring_project.prn
+            
+            # Try to find corresponding projeng project to get assigned engineers
+            if project_prn:
+                projeng_project = ProjEngProject.objects.filter(prn=project_prn).first()
+                if projeng_project:
+                    assigned_engineers = list(projeng_project.assigned_engineers.all())
+                    projeng_project.delete()
+            
+            # Delete from monitoring
+            monitoring_project.delete()
+        else:
+            return JsonResponse({'success': False, 'error': 'Project not found'}, status=404)
+        
+        # Notify all relevant users about the deletion
+        deleter_name = request.user.get_full_name() or request.user.username
+        project_display = f"{project_name}" + (f" (PRN: {project_prn})" if project_prn else "")
+        
+        # Notify Head Engineers and Admins
+        message = f"Project '{project_display}' has been deleted by {deleter_name}"
+        notify_head_engineers(message)
+        notify_admins(message)
+        
+        # Notify Finance Managers
+        notify_finance_managers(message)
+        
+        # Notify assigned Project Engineers
+        for engineer in assigned_engineers:
+            from projeng.models import Notification
+            Notification.objects.create(
+                recipient=engineer,
+                message=f"Project '{project_display}' that you were assigned to has been deleted by {deleter_name}"
+            )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Project "{project_name}" deleted successfully'
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        transaction.set_rollback(True)
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred while deleting the project: {str(e)}'
+        }, status=500)
 
 def delayed_projects(request):
     return HttpResponse("delayed_projects placeholder")

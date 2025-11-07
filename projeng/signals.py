@@ -188,4 +188,31 @@ def notify_document_deletion(sender, instance, **kwargs):
     """Notify Head Engineers and Admins about document deletion"""
     message = f"Document deleted: {instance.name} for project {instance.project.name} by {instance.uploaded_by.get_full_name() if instance.uploaded_by else 'Unknown user'}"
     notify_head_engineers(message)
-    notify_admins(message) 
+    notify_admins(message)
+
+@receiver(post_delete, sender=Project)
+def notify_project_deletion(sender, instance, **kwargs):
+    """Notify all relevant users when a project is deleted"""
+    from django.contrib.auth.models import User
+    
+    project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+    
+    # Get the user who deleted (try to get from request context if available)
+    # Note: In post_delete signal, we can't access request directly
+    # The deletion notification will be handled in the view instead
+    # This signal is a backup in case project is deleted elsewhere
+    
+    # Notify Head Engineers and Admins
+    message = f"Project '{project_display}' has been deleted"
+    notify_head_engineers(message)
+    notify_admins(message)
+    
+    # Notify Finance Managers
+    notify_finance_managers(message)
+    
+    # Notify assigned Project Engineers
+    for engineer in instance.assigned_engineers.all():
+        Notification.objects.create(
+            recipient=engineer,
+            message=f"Project '{project_display}' that you were assigned to has been deleted"
+        ) 
