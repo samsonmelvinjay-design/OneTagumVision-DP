@@ -267,16 +267,16 @@ def notify_project_deletion(sender, instance, **kwargs):
     # Notify Finance Managers
     notify_finance_managers(message)
     
-            # Notify assigned Project Engineers
-            for engineer in instance.assigned_engineers.all():
-                Notification.objects.create(
-                    recipient=engineer,
-                    message=f"Project '{project_display}' that you were assigned to has been deleted"
-                )
-            
-            # Phase 3: Also broadcast via WebSocket (parallel to SSE)
-            if WEBSOCKET_AVAILABLE:
-                try:
-                    broadcast_project_deleted(instance.name, instance.prn)
-                except Exception as e:
-                    print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+    # Notify assigned Project Engineers
+    for engineer in instance.assigned_engineers.all():
+        Notification.objects.create(
+            recipient=engineer,
+            message=f"Project '{project_display}' that you were assigned to has been deleted"
+        )
+    
+    # Phase 3: Also broadcast via WebSocket (parallel to SSE)
+    if WEBSOCKET_AVAILABLE:
+        try:
+            broadcast_project_deleted(instance.name, instance.prn)
+        except Exception as e:
+            print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
