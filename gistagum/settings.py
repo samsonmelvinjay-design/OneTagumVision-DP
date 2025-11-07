@@ -297,6 +297,29 @@ if DATABASE_URL and not DEBUG:
 # Celery Configuration for Background Tasks
 REDIS_URL = os.environ.get('REDIS_URL', None)
 if REDIS_URL:
+    # SSL Configuration for Redis/Valkey (rediss://)
+    # DigitalOcean Valkey uses SSL, so we need to configure SSL options
+    import ssl
+    
+    if REDIS_URL.startswith('rediss://'):
+        # For rediss:// URLs, Celery requires ssl_cert_reqs in connection options
+        CELERY_BROKER_CONNECTION_OPTIONS = {
+            'ssl_cert_reqs': ssl.CERT_NONE,  # DigitalOcean Valkey doesn't require cert verification
+            'ssl_ca_certs': None,
+            'ssl_certfile': None,
+            'ssl_keyfile': None,
+        }
+        CELERY_RESULT_BACKEND_CONNECTION_OPTIONS = {
+            'ssl_cert_reqs': ssl.CERT_NONE,
+            'ssl_ca_certs': None,
+            'ssl_certfile': None,
+            'ssl_keyfile': None,
+        }
+    else:
+        # For non-SSL Redis connections
+        CELERY_BROKER_CONNECTION_OPTIONS = {}
+        CELERY_RESULT_BACKEND_CONNECTION_OPTIONS = {}
+    
     # Use Redis/Valkey as Celery broker and result backend
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
@@ -309,23 +332,6 @@ if REDIS_URL:
     CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
     CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prevents worker from hoarding tasks
     CELERY_TASK_ACKS_LATE = True  # Tasks acknowledged after completion
-    
-    # SSL Configuration for Redis/Valkey (rediss://)
-    # DigitalOcean Valkey uses SSL, so we need to configure SSL options
-    if REDIS_URL.startswith('rediss://'):
-        import ssl
-        CELERY_BROKER_USE_SSL = {
-            'ssl_cert_reqs': ssl.CERT_NONE,  # DigitalOcean Valkey doesn't require cert verification
-            'ssl_ca_certs': None,
-            'ssl_certfile': None,
-            'ssl_keyfile': None,
-        }
-        CELERY_REDIS_BACKEND_USE_SSL = {
-            'ssl_cert_reqs': ssl.CERT_NONE,
-            'ssl_ca_certs': None,
-            'ssl_certfile': None,
-            'ssl_keyfile': None,
-        }
 else:
     # Fallback: Use database as broker (not recommended for production, but works)
     CELERY_BROKER_URL = 'db+postgresql://'  # Will use DATABASE_URL
