@@ -573,31 +573,46 @@ if (confirmDeleteBtn) {
                 .find(row => row.startsWith('csrftoken='))
                 ?.split('=')[1];
 
-            fetch(`/projects/${deleteProjectId}/api/delete/`, { 
+            fetch(`/dashboard/projects/${deleteProjectId}/api/delete/`, { 
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrftoken,
                     'Content-Type': 'application/json'
                 }
             })
-                .then(res => res.json())
+                .then(res => {
+                    // Check if response is JSON
+                    const contentType = res.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return res.json();
+                    } else {
+                        // If not JSON, it might be an error page
+                        return res.text().then(text => {
+                            throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}`);
+                        });
+                    }
+                })
                 .then(data => {
                     if (data.success) {
                         // Remove the row from the table
                         const row = document.querySelector(`tr[data-project-id='${deleteProjectId}']`);
                         if (row) {
-                            row.remove();
-                            renumberProjectRows();
+                            row.style.transition = 'opacity 0.3s';
+                            row.style.opacity = '0';
+                            setTimeout(() => {
+                                row.remove();
+                                renumberProjectRows();
+                            }, 300);
                         }
                         showToast('Project deleted successfully!');
                     } else {
-                        alert('Delete failed.');
+                        alert(data.error || 'Delete failed.');
                     }
                     window.closeDeleteModalFunc();
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while deleting the project.');
+                    alert('An error occurred while deleting the project: ' + (error.message || 'Unknown error'));
                     window.closeDeleteModalFunc();
                 });
         }
