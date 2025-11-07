@@ -303,9 +303,15 @@ if REDIS_URL and REDIS_URL.strip() and not REDIS_URL.startswith('redis://default
     
     # CRITICAL FIX: Append ssl_cert_reqs to URL if it's rediss:// and not already present
     # This must be done BEFORE setting CELERY_BROKER_URL and CELERY_RESULT_BACKEND
-    if REDIS_URL.startswith('rediss://') and 'ssl_cert_reqs' not in REDIS_URL:
-        separator = '&' if '?' in REDIS_URL else '?'
-        REDIS_URL = f"{REDIS_URL}{separator}ssl_cert_reqs=none"
+    # Celery REQUIRES this parameter in the URL itself, not just in connection options
+    if REDIS_URL.startswith('rediss://'):
+        if 'ssl_cert_reqs' not in REDIS_URL:
+            separator = '&' if '?' in REDIS_URL else '?'
+            # Use 'none' to match CERT_NONE (or 'required' for CERT_REQUIRED)
+            # Using 'none' is safer for DigitalOcean Valkey
+            REDIS_URL = f"{REDIS_URL}{separator}ssl_cert_reqs=none"
+        # Also ensure the URL is properly formatted
+        print(f"DEBUG: REDIS_URL after modification: {REDIS_URL[:50]}...")  # Log first 50 chars for debugging
     
     # Use Redis/Valkey as Celery broker and result backend
     # The URL now includes ssl_cert_reqs=none which Celery requires
@@ -313,15 +319,19 @@ if REDIS_URL and REDIS_URL.strip() and not REDIS_URL.startswith('redis://default
     CELERY_RESULT_BACKEND = REDIS_URL
     
     # Also configure SSL options directly (backup method)
+    # IMPORTANT: These should match what's in the URL parameter
+    # If URL has ssl_cert_reqs=none, use CERT_NONE here
     if REDIS_URL.startswith('rediss://'):
+        # Match the URL parameter - if URL says 'none', use CERT_NONE
+        cert_reqs = ssl.CERT_NONE if 'ssl_cert_reqs=none' in REDIS_URL else ssl.CERT_REQUIRED
         CELERY_BROKER_CONNECTION_OPTIONS = {
-            'ssl_cert_reqs': ssl.CERT_REQUIRED,  # DigitalOcean Valkey doesn't require cert verification
+            'ssl_cert_reqs': cert_reqs,
             'ssl_ca_certs': None,
             'ssl_certfile': None,
             'ssl_keyfile': None,
         }
         CELERY_RESULT_BACKEND_CONNECTION_OPTIONS = {
-            'ssl_cert_reqs': ssl.CERT_REQUIRED,
+            'ssl_cert_reqs': cert_reqs,
             'ssl_ca_certs': None,
             'ssl_certfile': None,
             'ssl_keyfile': None,
