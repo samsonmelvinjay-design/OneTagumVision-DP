@@ -23,14 +23,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
+# Copy and make startup script executable
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Environment
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=gistagum.settings
 
 # Cloud platforms (DigitalOcean, Railway, Render, etc.) will provide PORT environment variable
-# Run migrations, collect static files, then start Gunicorn
-# Check if DATABASE_URL is set before running migrations
-CMD ["sh", "-c", "echo 'Starting application...' && if [ -z \"$DATABASE_URL\" ]; then echo 'ERROR: DATABASE_URL environment variable is not set!' && exit 1; fi && echo 'Running migrations...' && python manage.py migrate --noinput && echo 'Collecting static files...' && python manage.py collectstatic --noinput && echo 'Starting Gunicorn with optimized config...' && exec gunicorn gistagum.wsgi:application --config gunicorn_config.py"]
+# The startup script will detect if we should run as web service or worker
+# For web service: runs migrations, collects static files, starts Gunicorn
+# For worker: runs the command from run_command (Celery)
+CMD ["/app/start.sh"]
 
 
