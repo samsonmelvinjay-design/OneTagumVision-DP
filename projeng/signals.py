@@ -194,7 +194,23 @@ def notify_cost_updates(sender, instance, created, **kwargs):
         except (ValueError, TypeError):
             formatted_amount = f"₱{instance.amount}"
         
-        message = f"Cost entry added: {instance.project.name} - {instance.get_cost_type_display()} {formatted_amount} on {instance.date.strftime('%B %d, %Y')} by {creator_name}"
+        # Safely format date - handle both string and date object
+        try:
+            if isinstance(instance.date, str):
+                # If date is a string, try to parse and format it
+                from datetime import datetime
+                try:
+                    date_obj = datetime.strptime(instance.date, '%Y-%m-%d').date()
+                    date_str = date_obj.strftime('%B %d, %Y')
+                except (ValueError, AttributeError):
+                    date_str = instance.date  # Fallback to string
+            else:
+                # If date is a date object, format it
+                date_str = instance.date.strftime('%B %d, %Y')
+        except (AttributeError, ValueError):
+            date_str = str(instance.date)  # Fallback to string representation
+        
+        message = f"Cost entry added: {instance.project.name} - {instance.get_cost_type_display()} {formatted_amount} on {date_str} by {creator_name}"
         # Notify head engineers when finance managers or project engineers add costs
         notify_head_engineers(message)
         notify_admins(message)

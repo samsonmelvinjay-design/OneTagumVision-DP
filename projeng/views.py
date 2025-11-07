@@ -665,13 +665,37 @@ def add_cost_entry(request, pk):
             except (ValueError, InvalidOperation):
                 return JsonResponse({'error': 'Invalid amount format'}, status=400)
 
-            # Validate date
+            # Validate and parse date
             if not date:
                 return JsonResponse({'error': 'Date is required'}, status=400)
+            
+            # Parse date string to date object
+            # Handle different date formats: YYYY-MM-DD, MM/DD/YYYY, etc.
+            from datetime import datetime
+            try:
+                # Try common date formats
+                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
+                parsed_date = None
+                for fmt in date_formats:
+                    try:
+                        parsed_date = datetime.strptime(date, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                
+                if not parsed_date:
+                    # If no format matches, try Django's date parser
+                    from django.utils.dateparse import parse_date
+                    parsed_date = parse_date(date)
+                    
+                if not parsed_date:
+                    return JsonResponse({'error': 'Invalid date format. Please use YYYY-MM-DD or MM/DD/YYYY'}, status=400)
+            except (ValueError, TypeError) as e:
+                return JsonResponse({'error': f'Invalid date format: {str(e)}'}, status=400)
 
             cost = ProjectCost(
                 project=project,
-                date=date,
+                date=parsed_date,
                 cost_type=cost_type,
                 description=description,
                 amount=amount,
