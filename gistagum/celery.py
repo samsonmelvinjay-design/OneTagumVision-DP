@@ -20,8 +20,16 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # This must be done AFTER config_from_object to override settings
 REDIS_URL = os.environ.get('REDIS_URL', None)
 if REDIS_URL and REDIS_URL.startswith('rediss://'):
-    # Configure SSL options for Celery Redis backend
-    # For Celery 5.x, we need to set broker_connection_ssl and result_backend_transport_options
+    # Method 1: Append ssl_cert_reqs to URL (most reliable for Celery 5.x)
+    if 'ssl_cert_reqs' not in REDIS_URL:
+        # Add ssl_cert_reqs parameter to URL
+        separator = '&' if '?' in REDIS_URL else '?'
+        REDIS_URL = f"{REDIS_URL}{separator}ssl_cert_reqs=none"
+        # Update broker and result backend URLs
+        app.conf.broker_url = REDIS_URL
+        app.conf.result_backend = REDIS_URL
+    
+    # Method 2: Also configure SSL options directly (backup method)
     ssl_options = {
         'ssl_cert_reqs': ssl.CERT_NONE,  # DigitalOcean Valkey doesn't require cert verification
         'ssl_ca_certs': None,
@@ -40,7 +48,7 @@ if REDIS_URL and REDIS_URL.startswith('rediss://'):
         'ssl_keyfile': None,
     }
     
-    # Also set connection options (alternative method)
+    # Also set connection options
     app.conf.broker_connection_retry_on_startup = True
 
 # Load task modules from all registered Django apps.
