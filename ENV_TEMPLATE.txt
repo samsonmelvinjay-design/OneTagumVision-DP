@@ -1,0 +1,37 @@
+# Environment Variables Template
+# Copy this to .env file (never commit .env to git!)
+
+# Django Settings
+DJANGO_SECRET_KEY=your-secret-key-here-generate-with-python-manage.py-shell
+DEBUG=false
+ALLOWED_HOSTS=localhost,127.0.0.1,*.ondigitalocean.app,yourdomain.com
+CSRF_TRUSTED_ORIGINS=https://*.ondigitalocean.app,https://yourdomain.com
+
+# Database
+DATABASE_URL=postgresql://user:password@host:port/dbname?sslmode=require
+
+# Redis/Valkey (Optional - for caching and Celery)
+REDIS_URL=rediss://default:password@host:port?ssl_cert_reqs=none
+
+# Email Configuration (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=true
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+
+# Error Tracking (Optional - Sentry)
+SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+ENVIRONMENT=production
+
+# Celery (Optional)
+CELERY_WORKER=false
+
+# Logging
+LOG_LEVEL=info
+
+# Gunicorn (Optional - overrides gunicorn_config.py)
+GUNICORN_WORKERS=3
+PORT=8000
+
