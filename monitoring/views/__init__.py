@@ -244,7 +244,15 @@ def reports(request):
     }
     return render(request, 'monitoring/reports.html', context)
 
+@login_required
 def budget_reports(request):
+    from django.shortcuts import redirect
+    from django.contrib import messages
+    # Redirect Project Engineers - they don't have access to budget reports
+    if is_project_engineer(request.user) and not (is_head_engineer(request.user) or is_finance_manager(request.user)):
+        messages.error(request, "You don't have permission to access budget reports.")
+        return redirect('/projeng/dashboard/')
+    
     from projeng.models import Project, ProjectCost
     from collections import defaultdict
     # Role-based queryset
