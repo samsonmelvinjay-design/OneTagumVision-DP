@@ -170,9 +170,26 @@ def notify_progress_updates(sender, instance, created, **kwargs):
         # Phase 3: Also broadcast via WebSocket (parallel to SSE)
         if WEBSOCKET_AVAILABLE:
             try:
+                # Safely handle date - it might be a string or date object
+                date_value = None
+                if instance.date:
+                    if isinstance(instance.date, str):
+                        # If date is a string, try to parse it
+                        try:
+                            from datetime import datetime
+                            date_value = datetime.strptime(instance.date, '%Y-%m-%d').date().isoformat()
+                        except (ValueError, AttributeError):
+                            date_value = str(instance.date)
+                    else:
+                        # If date is a date object, use isoformat
+                        try:
+                            date_value = instance.date.isoformat()
+                        except AttributeError:
+                            date_value = str(instance.date)
+                
                 broadcast_progress_update(instance.project, {
                     'percentage_complete': instance.percentage_complete,
-                    'date': instance.date.isoformat() if instance.date else None,
+                    'date': date_value,
                     'created_by': creator_name,
                 })
             except Exception as e:
@@ -218,11 +235,28 @@ def notify_cost_updates(sender, instance, created, **kwargs):
         # Phase 3: Also broadcast via WebSocket (parallel to SSE)
         if WEBSOCKET_AVAILABLE:
             try:
+                # Safely handle date - it might be a string or date object
+                date_value = None
+                if instance.date:
+                    if isinstance(instance.date, str):
+                        # If date is a string, try to parse it
+                        try:
+                            from datetime import datetime
+                            date_value = datetime.strptime(instance.date, '%Y-%m-%d').date().isoformat()
+                        except (ValueError, AttributeError):
+                            date_value = str(instance.date)
+                    else:
+                        # If date is a date object, use isoformat
+                        try:
+                            date_value = instance.date.isoformat()
+                        except AttributeError:
+                            date_value = str(instance.date)
+                
                 broadcast_cost_update(instance.project, {
                     'amount': float(instance.amount),
                     'formatted_amount': formatted_amount,
                     'cost_type': instance.get_cost_type_display(),
-                    'date': instance.date.isoformat() if instance.date else None,
+                    'date': date_value,
                     'created_by': creator_name,
                 })
             except Exception as e:
