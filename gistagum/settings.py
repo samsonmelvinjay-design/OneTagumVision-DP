@@ -77,23 +77,36 @@ WSGI_APPLICATION = 'gistagum.wsgi.application'
 # Database
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
-if DATABASE_URL:
+# Handle empty or invalid DATABASE_URL gracefully
+if DATABASE_URL and DATABASE_URL.strip():
     # Use Postgres when DATABASE_URL is provided (production/staging)
-    if dj_database_url:
-        DATABASES = {
-            'default': dj_database_url.config(default=DATABASE_URL)
-        }
-    else:
-        tmp = urlparse(DATABASE_URL)
+    try:
+        if dj_database_url:
+            DATABASES = {
+                'default': dj_database_url.config(default=DATABASE_URL)
+            }
+        else:
+            tmp = urlparse(DATABASE_URL)
+            DATABASES = {
+                'default': {
+                    'ENGINE': 'django.db.backends.postgresql',
+                    'NAME': tmp.path.lstrip('/') or 'postgres',
+                    'USER': tmp.username or 'postgres',
+                    'PASSWORD': tmp.password or '',
+                    'HOST': tmp.hostname or 'localhost',
+                    'PORT': tmp.port or 5432,
+                    'OPTIONS': dict(parse_qsl(tmp.query)) if tmp.query else {},
+                }
+            }
+    except (ValueError, Exception) as e:
+        # If DATABASE_URL is invalid/empty, fall back to SQLite
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Invalid DATABASE_URL: {e}. Falling back to SQLite.")
         DATABASES = {
             'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': tmp.path.lstrip('/') or 'postgres',
-                'USER': tmp.username or 'postgres',
-                'PASSWORD': tmp.password or '',
-                'HOST': tmp.hostname or 'localhost',
-                'PORT': tmp.port or 5432,
-                'OPTIONS': dict(parse_qsl(tmp.query)) if tmp.query else {},
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
 else:
