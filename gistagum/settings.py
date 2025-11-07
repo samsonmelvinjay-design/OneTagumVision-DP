@@ -334,7 +334,7 @@ REDIS_URL = os.environ.get('REDIS_URL', '').strip()
 REDIS_CONFIG = None
 REDIS_SSL_CONFIG = None
 
-if REDIS_URL and REDIS_URL and not REDIS_URL.startswith('redis://default:YOUR_PASSWORD'):
+if REDIS_URL and not REDIS_URL.startswith('redis://default:YOUR_PASSWORD'):
     # Determine if this is a secure (SSL) or plain connection
     is_secure = REDIS_URL.startswith('rediss://')
     
