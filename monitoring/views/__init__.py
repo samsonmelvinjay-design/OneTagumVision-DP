@@ -22,6 +22,18 @@ from django.conf import settings
 from collections import Counter, defaultdict
 from monitoring.forms import ProjectForm
 
+# Import centralized access control functions (MUST be before views that use them)
+from gistagum.access_control import (
+    is_head_engineer, 
+    is_finance_manager, 
+    is_project_engineer,
+    is_project_or_head_engineer,
+    is_finance_or_head_engineer,
+    head_engineer_required,
+    prevent_project_engineer_access,
+    get_user_dashboard_url
+)
+
 def home(request):
     """
     Redirect to login page - no direct access to home
