@@ -17,7 +17,22 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'insecure-dev-key')
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if os.environ.get('CSRF_TRUSTED_ORIGINS') else []
+# Clean up ALLOWED_HOSTS - remove empty strings
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
+
+# CSRF Trusted Origins - critical for multi-user access
+csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(',') if origin.strip()]
+else:
+    # Default: allow all origins from ALLOWED_HOSTS (for development)
+    # In production, set CSRF_TRUSTED_ORIGINS explicitly
+    CSRF_TRUSTED_ORIGINS = []
+    for host in ALLOWED_HOSTS:
+        if host and host not in ['localhost', '127.0.0.1', '0.0.0.0']:
+            # Add both http and https versions
+            CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+            CSRF_TRUSTED_ORIGINS.append(f'http://{host}')
 
 # Application definition
 INSTALLED_APPS = [
@@ -178,13 +193,24 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True  # Redirect HTTP to HTTPS
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     CSRF_COOKIE_SECURE = True  # Only send CSRF cookie over HTTPS
+else:
+    # In development, allow HTTP for CSRF cookies
+    CSRF_COOKIE_SECURE = False
 
-# Session Security
+# Session Security - Configured for multi-user support
 SESSION_COOKIE_SECURE = not DEBUG  # True in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 1800  # 30 minutes
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Allow sessions to persist across browser restarts for better UX
+SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request to prevent expiration issues
+
+# CSRF Cookie Settings - Critical for multi-user access
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to access CSRF token (needed for AJAX)
+CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests from same site
+CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF (better for multiple users)
+
+# Session Backend - Use database sessions for better multi-user support
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Database-backed sessions (default, but explicit)
 
 # Cache Control for Security
 CACHE_CONTROL_SECURE = True
