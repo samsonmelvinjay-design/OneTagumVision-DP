@@ -229,9 +229,13 @@ def finance_notifications(request):
         elif action == 'delete_all':
             try:
                 deleted_count = notifications.delete()[0]
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True, 'message': f'{deleted_count} notifications deleted'})
                 messages.success(request, f"All {deleted_count} notifications deleted.")
                 return redirect('finance_notifications')
             except Exception as e:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': str(e)})
                 messages.error(request, f"Error deleting notifications: {str(e)}")
                 return redirect('finance_notifications')
 

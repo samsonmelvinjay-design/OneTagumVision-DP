@@ -79,6 +79,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Delete all notifications
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to delete ALL notifications? This action cannot be undone.')) {
+                return;
+            }
+            
+            // Disable button to prevent double-click
+            this.disabled = true;
+            this.textContent = 'Deleting...';
+            
+            const formData = new FormData();
+            formData.append('action', 'delete_all');
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch('{% url "finance_notifications" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Reload page to show empty state
+                    window.location.reload();
+                } else {
+                    throw new Error(data.error || 'Failed to delete all notifications');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete all notifications. Please try again.');
+                this.disabled = false;
+                this.textContent = 'Delete All';
+            });
+        });
+    }
+
     // Mark individual notification as read
     document.querySelectorAll('.mark-read-btn').forEach(btn => {
         btn.addEventListener('click', function() {
