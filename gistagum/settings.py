@@ -296,13 +296,24 @@ if DATABASE_URL and not DEBUG:
 
 # Celery Configuration for Background Tasks
 REDIS_URL = os.environ.get('REDIS_URL', None)
-if REDIS_URL:
+if REDIS_URL and REDIS_URL.strip() and not REDIS_URL.startswith('redis://default:YOUR_PASSWORD'):
     # SSL Configuration for Redis/Valkey (rediss://)
     # DigitalOcean Valkey uses SSL, so we need to configure SSL options
     import ssl
     
+    # CRITICAL FIX: Append ssl_cert_reqs to URL if it's rediss:// and not already present
+    # This must be done BEFORE setting CELERY_BROKER_URL and CELERY_RESULT_BACKEND
+    if REDIS_URL.startswith('rediss://') and 'ssl_cert_reqs' not in REDIS_URL:
+        separator = '&' if '?' in REDIS_URL else '?'
+        REDIS_URL = f"{REDIS_URL}{separator}ssl_cert_reqs=none"
+    
+    # Use Redis/Valkey as Celery broker and result backend
+    # The URL now includes ssl_cert_reqs=none which Celery requires
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
+    
+    # Also configure SSL options directly (backup method)
     if REDIS_URL.startswith('rediss://'):
-        # For rediss:// URLs, Celery requires ssl_cert_reqs in connection options
         CELERY_BROKER_CONNECTION_OPTIONS = {
             'ssl_cert_reqs': ssl.CERT_NONE,  # DigitalOcean Valkey doesn't require cert verification
             'ssl_ca_certs': None,
@@ -319,10 +330,6 @@ if REDIS_URL:
         # For non-SSL Redis connections
         CELERY_BROKER_CONNECTION_OPTIONS = {}
         CELERY_RESULT_BACKEND_CONNECTION_OPTIONS = {}
-    
-    # Use Redis/Valkey as Celery broker and result backend
-    CELERY_BROKER_URL = REDIS_URL
-    CELERY_RESULT_BACKEND = REDIS_URL
     CELERY_ACCEPT_CONTENT = ['json']
     CELERY_TASK_SERIALIZER = 'json'
     CELERY_RESULT_SERIALIZER = 'json'
