@@ -125,15 +125,8 @@ def sse_dashboard_updates(request):
                         'type': 'dashboard_update',
                         'status_counts': status_counts,
                         'total_projects': all_projects.count(),
-                        'recent_updates': [
-                            {
-                                'id': p.id,
-                                'name': p.name,
-                                'status': p.status,
-                                'updated_at': (p.updated_at if hasattr(p, 'updated_at') else p.created_at).isoformat()
-                            }
-                            for p in recent_projects[:5]
-                        ]
+                        # Removed 'recent_updates' - was causing persistent banners
+                        # Notifications are handled via the notification badge only
                     }
                     yield f"data: {json.dumps(data)}\n\n"
                     last_update_time = timezone.now()

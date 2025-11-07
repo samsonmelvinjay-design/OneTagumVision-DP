@@ -192,17 +192,36 @@ def notify_document_deletion(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Project)
 def notify_project_deletion(sender, instance, **kwargs):
-    """Notify all relevant users when a project is deleted"""
+    """
+    Notify all relevant users when a project is deleted.
+    
+    NOTE: This signal may create duplicate notifications if the view also creates them.
+    The view (monitoring/views/__init__.py project_delete_api) handles notifications
+    with better context (deleter name). This signal is kept as a backup for deletions
+    that happen outside the view (e.g., admin panel, bulk delete).
+    
+    To prevent duplicates, we check if notifications were already created by checking
+    for recent notifications with similar messages.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
     from django.contrib.auth.models import User
     
     project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
     
-    # Get the user who deleted (try to get from request context if available)
-    # Note: In post_delete signal, we can't access request directly
-    # The deletion notification will be handled in the view instead
-    # This signal is a backup in case project is deleted elsewhere
+    # Check if notifications were already created (likely by the view)
+    # Look for notifications created in the last 5 seconds with similar content
+    recent_time = timezone.now() - timedelta(seconds=5)
+    existing_notifications = Notification.objects.filter(
+        message__icontains=project_display,
+        created_at__gte=recent_time
+    ).exists()
     
-    # Notify Head Engineers and Admins
+    # If notifications already exist, skip creating duplicates
+    if existing_notifications:
+        return
+    
+    # Notify Head Engineers and Admins (only if not already notified)
     message = f"Project '{project_display}' has been deleted"
     notify_head_engineers(message)
     notify_admins(message)

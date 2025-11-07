@@ -256,6 +256,7 @@ function setupRealtimeNotifications() {
             }
 
             // Only show browser notification for NEW notifications (not on page load or already shown)
+            // This ensures notifications only "pop once" per new notification
             if (isNewNotification && 'Notification' in window && Notification.permission === 'granted') {
                 new Notification('OneTagumVision', {
                     body: data.notification.message,
@@ -264,7 +265,7 @@ function setupRealtimeNotifications() {
                     requireInteraction: false
                 });
                 
-                // Mark as shown
+                // Mark as shown immediately to prevent re-showing on page navigation
                 addShownNotificationId(notificationId);
             }
 
