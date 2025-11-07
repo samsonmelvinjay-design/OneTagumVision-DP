@@ -5,16 +5,17 @@ from django.db.models import Sum
 from collections import defaultdict
 from django.db.models.functions import TruncMonth
 
-def is_finance_manager(user):
-    return user.is_authenticated and user.groups.filter(name='Finance Manager').exists()
+# Import centralized access control functions
+from gistagum.access_control import (
+    is_finance_manager,
+    is_head_engineer,
+    is_finance_or_head_engineer,
+    finance_manager_required,
+    get_user_dashboard_url
+)
 
-def is_head_engineer(user):
-    return user.is_authenticated and user.groups.filter(name='Head Engineer').exists()
-
-def is_finance_or_head_engineer(user):
-    return is_finance_manager(user) or is_head_engineer(user)
-
-@user_passes_test(is_finance_or_head_engineer, login_url='/accounts/login/')
+@login_required
+@finance_manager_required
 def finance_dashboard(request):
     projects = Project.objects.all()
     total_budget = projects.aggregate(total=Sum('project_cost'))['total'] or 0
@@ -68,7 +69,8 @@ def finance_dashboard(request):
     }
     return render(request, 'finance_manager/finance_dashboard.html', context)
 
-@user_passes_test(is_finance_or_head_engineer, login_url='/accounts/login/')
+@login_required
+@finance_manager_required
 def finance_projects(request):
     # Filters
     barangay_filter = request.GET.get('barangay')
@@ -121,7 +123,8 @@ def finance_projects(request):
     }
     return render(request, 'finance_manager/finance_projects.html', context)
 
-@user_passes_test(is_finance_or_head_engineer, login_url='/accounts/login/')
+@login_required
+@finance_manager_required
 def finance_cost_management(request):
     # Filters
     prn_filter = request.GET.get('prn')
@@ -186,7 +189,8 @@ def finance_cost_management(request):
     }
     return render(request, 'finance_manager/finance_cost_management.html', context)
 
-@user_passes_test(is_finance_or_head_engineer, login_url='/accounts/login/')
+@login_required
+@finance_manager_required
 def finance_notifications(request):
     """View for Finance Managers and Head Engineers to manage their notifications"""
     from projeng.models import Notification
@@ -230,7 +234,8 @@ def finance_notifications(request):
     }
     return render(request, 'finance_manager/finance_notifications.html', context)
 
-@user_passes_test(is_finance_or_head_engineer, login_url='/accounts/login/')
+@login_required
+@finance_manager_required
 def finance_project_detail(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     costs = ProjectCost.objects.filter(project=project).order_by('-date')

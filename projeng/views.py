@@ -35,17 +35,19 @@ import traceback
 from django.db.models import ProtectedError
 from django.contrib.auth.views import redirect_to_login
 
-def is_project_engineer(user):
-    return user.is_authenticated and user.groups.filter(name='Project Engineer').exists()
+# Import centralized access control functions
+from gistagum.access_control import (
+    is_project_engineer,
+    is_head_engineer,
+    is_project_or_head_engineer,
+    is_finance_manager,
+    is_finance_or_head_engineer,
+    project_engineer_required,
+    get_user_dashboard_url
+)
 
 def is_staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
-
-def is_project_or_head_engineer(user):
-    return user.is_authenticated and (user.groups.filter(name='Project Engineer').exists() or user.groups.filter(name='Head Engineer').exists())
-
-def is_head_engineer(user):
-    return user.is_authenticated and user.groups.filter(name='Head Engineer').exists()
 
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def dashboard(request):
