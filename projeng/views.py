@@ -644,13 +644,28 @@ def add_progress_update(request, pk):
 def add_cost_entry(request, pk):
     if request.method == 'POST':
         try:
+            from decimal import Decimal, InvalidOperation
+            
             project = Project.objects.get(pk=pk)
             # Use request.POST and request.FILES for multipart/form-data
             date = request.POST.get('date')
             cost_type = request.POST.get('cost_type')
             description = request.POST.get('description')
-            amount = request.POST.get('amount')
+            amount_str = request.POST.get('amount')
             receipt = request.FILES.get('receipt')
+
+            # Validate and convert amount to Decimal
+            if not amount_str:
+                return JsonResponse({'error': 'Amount is required'}, status=400)
+            
+            try:
+                amount = Decimal(str(amount_str))
+            except (ValueError, InvalidOperation):
+                return JsonResponse({'error': 'Invalid amount format'}, status=400)
+
+            # Validate date
+            if not date:
+                return JsonResponse({'error': 'Date is required'}, status=400)
 
             cost = ProjectCost(
                 project=project,
@@ -668,7 +683,7 @@ def add_cost_entry(request, pk):
                 'success': True,
                 'message': 'Cost entry added successfully',
                 'cost': {
-                    'date': cost.date,
+                    'date': str(cost.date),
                     'cost_type': cost.get_cost_type_display(),
                     'description': cost.description,
                     'amount': str(cost.amount),
@@ -677,6 +692,8 @@ def add_cost_entry(request, pk):
         except Project.DoesNotExist:
             return JsonResponse({'error': 'Project not found'}, status=404)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 

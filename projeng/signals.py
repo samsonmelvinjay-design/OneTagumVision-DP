@@ -135,7 +135,17 @@ def notify_cost_updates(sender, instance, created, **kwargs):
     """Notify Head Engineers and Finance Managers about cost updates"""
     if created:
         creator_name = instance.created_by.get_full_name() or instance.created_by.username if instance.created_by else 'Unknown'
-        message = f"Cost entry added: {instance.project.name} - {instance.get_cost_type_display()} ₱{instance.amount:,.2f} on {instance.date.strftime('%B %d, %Y')} by {creator_name}"
+        # Safely format amount - convert to float if it's a Decimal or string
+        try:
+            if isinstance(instance.amount, str):
+                amount_value = float(instance.amount)
+            else:
+                amount_value = float(instance.amount)
+            formatted_amount = f"₱{amount_value:,.2f}"
+        except (ValueError, TypeError):
+            formatted_amount = f"₱{instance.amount}"
+        
+        message = f"Cost entry added: {instance.project.name} - {instance.get_cost_type_display()} {formatted_amount} on {instance.date.strftime('%B %d, %Y')} by {creator_name}"
         # Notify head engineers when finance managers or project engineers add costs
         notify_head_engineers(message)
         notify_admins(message)
