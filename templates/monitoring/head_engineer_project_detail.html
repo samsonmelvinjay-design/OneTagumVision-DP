@@ -22,8 +22,10 @@
         <strong>Start Date:</strong> {{ timeline_data.start_date }}<br>
         <strong>End Date:</strong> {{ timeline_data.end_date }}<br>
         <strong>Assigned Engineers:</strong>
-        {% if projeng_project %}
-            {{ projeng_project.assigned_engineers.all|join:", " }}
+        {% if projeng_project and projeng_project.assigned_engineers.all %}
+            {% for engineer in projeng_project.assigned_engineers.all %}
+                {{ engineer.get_full_name|default:engineer.username }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
         {% else %}
             N/A
         {% endif %}<br>

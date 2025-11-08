@@ -103,6 +103,18 @@
             <span class="info-label">Total Spent:</span>
             <span>₱{{ total_cost|floatformat:2 }}</span>
         </div>
+        <div class="info-row">
+            <span class="info-label">Assigned Engineers:</span>
+            <span>
+                {% if projeng_project and projeng_project.assigned_engineers.all %}
+                    {% for engineer in projeng_project.assigned_engineers.all %}
+                        {{ engineer.get_full_name|default:engineer.username }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </span>
+        </div>
     </div>
     
     <h2>Progress Updates</h2>
@@ -113,6 +125,7 @@
                 <th>Date</th>
                 <th>Percentage Complete</th>
                 <th>Description</th>
+                <th>Engineer</th>
             </tr>
         </thead>
         <tbody>
@@ -121,6 +134,13 @@
                 <td>{{ update.date|date:"Y-m-d" }}</td>
                 <td>{{ update.percentage_complete }}%</td>
                 <td>{{ update.description }}</td>
+                <td>
+                    {% if update.created_by %}
+                        {{ update.created_by.get_full_name|default:update.created_by.username }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

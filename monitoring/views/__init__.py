@@ -500,8 +500,8 @@ def head_engineer_project_detail(request, pk):
         project = Project.objects.get(pk=pk)
     except Project.DoesNotExist:
         return HttpResponse('Project not found.', status=404)
-    # Get all progress updates
-    progress_updates = ProjectProgress.objects.filter(project=project).order_by('date')
+    # Get all progress updates - order by date and id to avoid duplicates and ensure consistent ordering
+    progress_updates = ProjectProgress.objects.filter(project=project).order_by('date', 'id').distinct()
     assigned_to = list(project.assigned_engineers.values_list('username', flat=True))
     # Get all cost entries
     costs = ProjectCost.objects.filter(project=project).order_by('date')
@@ -517,6 +517,7 @@ def head_engineer_project_detail(request, pk):
     }
     context = {
         'project': project,
+        'projeng_project': project,  # Pass project as projeng_project for template compatibility
         'progress_updates': progress_updates,
         'assigned_to': assigned_to,
         'costs': costs,
@@ -540,14 +541,35 @@ def barangay_geojson_view(request):
 
 def export_project_timeline_pdf(request, pk):
     """Export project timeline as PDF"""
+    from projeng.models import Project as ProjEngProject, ProjectProgress as ProjEngProjectProgress
     try:
-        project = Project.objects.get(pk=pk)
+        # Try to get project from projeng first (since head_engineer_project_detail uses projeng Project)
+        try:
+            project = ProjEngProject.objects.get(pk=pk)
+            projeng_project = project
+        except ProjEngProject.DoesNotExist:
+            # Fallback to monitoring project
+            project = Project.objects.get(pk=pk)
+            projeng_project = None
+            if project.prn:
+                try:
+                    projeng_project = ProjEngProject.objects.get(prn=project.prn)
+                except ProjEngProject.DoesNotExist:
+                    pass
     except Project.DoesNotExist:
         return HttpResponse('Project not found.', status=404)
     
-    # Get all progress updates
-    progress_updates = ProjectProgress.objects.filter(project=project).order_by('date')
-    costs = ProjectCost.objects.filter(project=project).order_by('date')
+    # Get all progress updates - order by date and id to avoid duplicates
+    if projeng_project:
+        progress_updates = ProjEngProjectProgress.objects.filter(project=projeng_project).order_by('date', 'id').distinct()
+    else:
+        progress_updates = []
+    
+    # Get costs - try from projeng project first, then monitoring project
+    if projeng_project:
+        costs = ProjectCost.objects.filter(project=projeng_project).order_by('date')
+    else:
+        costs = ProjectCost.objects.filter(project=project).order_by('date') if hasattr(project, 'projectcost_set') else []
     
     # If xhtml2pdf is unavailable, return a friendly message
     if pisa is None:
@@ -558,6 +580,7 @@ def export_project_timeline_pdf(request, pk):
     template = get_template(template_path)
     context = {
         'project': project,
+        'projeng_project': projeng_project,
         'progress_updates': progress_updates,
         'costs': costs,
         'total_cost': sum([float(c.amount) for c in costs]) if costs else 0,
