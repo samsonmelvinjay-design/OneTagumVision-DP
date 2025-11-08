@@ -509,6 +509,9 @@ def notify_project_deletion(sender, instance, **kwargs):
         except Exception as e:
             print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
 
+# Track if we've already updated notifications for a project to prevent duplicates
+_notification_update_flags = {}
+
 @receiver(m2m_changed, sender=Project.assigned_engineers.through)
 def notify_engineer_assignment(sender, instance, action, pk_set, **kwargs):
     """
@@ -552,9 +555,18 @@ def notify_engineer_assignment(sender, instance, action, pk_set, **kwargs):
         
         # If project was just created (within last 30 seconds), update head engineer notifications
         # to show assigned engineers
+        # Use a flag to prevent multiple updates if signal fires multiple times
         project_created_recently = instance.created_at and (timezone.now() - instance.created_at).total_seconds() < 30
         
         if project_created_recently:
+            # Check if we've already updated notifications for this project
+            update_key = f"project_{instance.id}_notifications_updated"
+            if update_key in _notification_update_flags:
+                # Check if the flag is still valid (within 30 seconds)
+                flag_time = _notification_update_flags[update_key]
+                if (timezone.now() - flag_time).total_seconds() < 30:
+                    # Already updated recently, skip to avoid duplicates
+                    return
             # Get all currently assigned engineers
             all_assigned_engineers = instance.assigned_engineers.all()
             engineer_names = []
@@ -575,17 +587,37 @@ def notify_engineer_assignment(sender, instance, action, pk_set, **kwargs):
             else:
                 updated_message = f"New project created: {project_display} by {creator_name} - No engineers assigned"
             
-            # Update or create notifications for head engineers and admins
-            # Find recent notifications about this project creation and update them
+            # Delete ALL recent notifications about this project creation to avoid duplicates
+            # Delete notifications that match the project creation pattern (with or without engineers)
             from .utils import notify_head_engineers, notify_admins
             
-            # Delete old "No engineers assigned" notifications for this project
-            old_message_pattern = f"New project created: {project_display} by {creator_name} - No engineers assigned"
+            # Get head engineers and admins
+            head_engineers = User.objects.filter(groups__name='Head Engineer')
+            admins = User.objects.filter(is_superuser=True)
+            all_recipients = list(head_engineers) + list(admins)
+            
+            # Delete any existing notifications about this project creation for these users
+            # This prevents duplicates when the signal fires multiple times
+            project_creation_pattern = f"New project created: {project_display} by {creator_name}"
             Notification.objects.filter(
-                message=old_message_pattern,
-                created_at__gte=instance.created_at - timedelta(seconds=5)
+                recipient__in=all_recipients,
+                message__startswith=project_creation_pattern,
+                created_at__gte=instance.created_at - timedelta(seconds=10)
             ).delete()
             
             # Create updated notification with engineer names
-            notify_head_engineers(updated_message, check_duplicates=False)
-            notify_admins(updated_message, check_duplicates=False)
+            # Use check_duplicates=True as a safety measure
+            notify_head_engineers(updated_message, check_duplicates=True)
+            notify_admins(updated_message, check_duplicates=True)
+            
+            # Set flag to prevent duplicate updates
+            _notification_update_flags[update_key] = timezone.now()
+            
+            # Clean up old flags (older than 1 minute)
+            current_time = timezone.now()
+            keys_to_remove = [
+                key for key, flag_time in _notification_update_flags.items()
+                if (current_time - flag_time).total_seconds() > 60
+            ]
+            for key in keys_to_remove:
+                del _notification_update_flags[key]
