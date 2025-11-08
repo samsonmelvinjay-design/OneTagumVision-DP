@@ -387,7 +387,7 @@ def project_delete_api(request, pk):
             for engineer in assigned_engineers:
                 # Check for duplicates before creating notification
                 engineer_duplicate = Notification.objects.filter(
-                    recipient=engineer,
+                    Q(recipient=engineer) &
                     Q(message__icontains=project_display) &
                     Q(message__icontains="that you were assigned to has been deleted") &
                     Q(created_at__gte=recent_time)

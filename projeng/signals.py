@@ -397,7 +397,7 @@ def notify_project_deletion(sender, instance, **kwargs):
     for engineer in instance.assigned_engineers.all():
         # Check for duplicates for each engineer
         engineer_duplicate = Notification.objects.filter(
-            recipient=engineer,
+            Q(recipient=engineer) &
             Q(message__icontains=project_display) &
             Q(message__icontains="that you were assigned to has been deleted") &
             Q(created_at__gte=recent_time)
