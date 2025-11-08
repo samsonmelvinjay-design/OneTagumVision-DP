@@ -50,38 +50,38 @@
             <div class="divide-y divide-gray-200" id="notifications-list">
                 {% for item in notifications_with_projects %}
                 {% with notification=item.notification project_id=item.project_id %}
-                {% if notification.message|slice:":18" == "New project created" %}
-                    {% with is_clickable=False %}
-                {% else %}
-                    {% with is_clickable=project_id|yesno:"True,False" %}
-                {% endif %}
-                <div class="p-4 hover:bg-gray-50 transition-colors {% if not notification.is_read %}bg-blue-50 border-l-4 border-blue-500{% endif %}" 
-                     data-notification-id="{{ notification.id }}">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1 {% if is_clickable %}cursor-pointer{% endif %}" 
-                             {% if is_clickable %}onclick="window.location.href='{% url 'monitoring_project_detail' project_id %}';"{% endif %}>
-                            <p class="text-gray-800 {% if not notification.is_read %}font-semibold{% endif %} {% if is_clickable %}hover:text-blue-600{% endif %}">
-                                {{ notification.message }}
-                            </p>
-                            <p class="text-sm text-gray-500 mt-1">
-                                {{ notification.created_at|date:"M d, Y g:i A" }}
-                            </p>
-                        </div>
-                        <div class="flex space-x-2 ml-4" onclick="event.stopPropagation();">
-                            {% if not notification.is_read and not is_clickable %}
-                            <button class="mark-read-btn text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors" 
-                                    data-notification-id="{{ notification.id }}">
-                                Mark Read
-                            </button>
-                            {% endif %}
-                            <button class="delete-notification-btn text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors" 
-                                    data-notification-id="{{ notification.id }}">
-                                Delete
-                            </button>
+                    {% if notification.message|slice:":18" == "New project created" %}
+                        {% with is_clickable=False %}
+                    {% else %}
+                        {% with is_clickable=project_id %}
+                    {% endif %}
+                    <div class="p-4 hover:bg-gray-50 transition-colors {% if not notification.is_read %}bg-blue-50 border-l-4 border-blue-500{% endif %}" 
+                         data-notification-id="{{ notification.id }}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 {% if is_clickable %}cursor-pointer{% endif %}" 
+                                 {% if is_clickable %}onclick="window.location.href='{% url 'monitoring_project_detail' project_id %}';"{% endif %}>
+                                <p class="text-gray-800 {% if not notification.is_read %}font-semibold{% endif %} {% if is_clickable %}hover:text-blue-600{% endif %}">
+                                    {{ notification.message }}
+                                </p>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    {{ notification.created_at|date:"M d, Y g:i A" }}
+                                </p>
+                            </div>
+                            <div class="flex space-x-2 ml-4" onclick="event.stopPropagation();">
+                                {% if not notification.is_read and not is_clickable %}
+                                <button class="mark-read-btn text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors" 
+                                        data-notification-id="{{ notification.id }}">
+                                    Mark Read
+                                </button>
+                                {% endif %}
+                                <button class="delete-notification-btn text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors" 
+                                        data-notification-id="{{ notification.id }}">
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {% endwith %}
+                    {% endwith %}
                 {% endwith %}
                 {% endfor %}
             </div>
