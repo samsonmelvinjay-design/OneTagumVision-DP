@@ -979,7 +979,15 @@ def head_engineer_notifications(request):
     from projeng.utils import get_project_from_notification
     notifications_with_projects = []
     for notification in page_obj:
-        project_id = get_project_from_notification(notification.message)
+        project_id = None
+        try:
+            if notification.message:
+                project_id = get_project_from_notification(notification.message)
+        except Exception as e:
+            # Log error but don't break the page
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting project from notification {notification.id}: {str(e)}")
         notifications_with_projects.append({
             'notification': notification,
             'project_id': project_id
