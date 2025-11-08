@@ -387,6 +387,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial unread count update
     updateUnreadCount();
     
+    // Update sidebar notification badge when page loads
+    function updateSidebarBadge() {
+        const sidebarBadge = document.getElementById('notification-count');
+        
+        if (sidebarBadge) {
+            // Use the unread count from the server (from template context)
+            const unreadCount = {{ unread_count|default:0 }};
+            
+            // Update sidebar badge
+            sidebarBadge.textContent = unreadCount;
+            if (unreadCount === 0) {
+                sidebarBadge.classList.add('hidden');
+            } else {
+                sidebarBadge.classList.remove('hidden');
+            }
+        }
+    }
+    
+    // Update sidebar badge on page load (immediately sync with server count)
+    updateSidebarBadge();
+    
+    // Also update sidebar badge whenever unread count changes
+    const originalUpdateUnreadCount = updateUnreadCount;
+    updateUnreadCount = function() {
+        originalUpdateUnreadCount();
+        updateSidebarBadge();
+    };
+    
     // Real-time notification list updates
     function addNotificationToList(notificationData) {
         const notificationsList = document.getElementById('notifications-list');
@@ -592,8 +620,21 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // Update unread count
+        // Update unread count (this will also update sidebar badge)
         updateUnreadCount();
+    }
+    
+    // Function to update sidebar badge from realtime updates
+    function updateSidebarBadgeFromRealtime(unreadCount) {
+        const sidebarBadge = document.getElementById('notification-count');
+        if (sidebarBadge) {
+            sidebarBadge.textContent = unreadCount;
+            if (unreadCount === 0) {
+                sidebarBadge.classList.add('hidden');
+            } else {
+                sidebarBadge.classList.remove('hidden');
+            }
+        }
     }
     
     // Helper function to escape HTML
@@ -619,13 +660,21 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Connect to notifications and update list
         window.realtimeManager.connectNotifications((data) => {
-            if (data.type === 'notification' && data.notification) {
-                const notificationId = data.notification.id;
-                const notificationsList = document.getElementById('notifications-list');
-                if (notificationsList) {
-                    const existingNotification = notificationsList.querySelector(`[data-notification-id="${notificationId}"]`);
-                    if (!existingNotification) {
-                        addNotificationToList(data.notification);
+            if (data.type === 'notification') {
+                // Update sidebar badge from realtime count
+                if (data.unread_count !== undefined) {
+                    updateSidebarBadgeFromRealtime(data.unread_count);
+                }
+                
+                // Add notification to list if it's a new notification
+                if (data.notification) {
+                    const notificationId = data.notification.id;
+                    const notificationsList = document.getElementById('notifications-list');
+                    if (notificationsList) {
+                        const existingNotification = notificationsList.querySelector(`[data-notification-id="${notificationId}"]`);
+                        if (!existingNotification) {
+                            addNotificationToList(data.notification);
+                        }
                     }
                 }
             }
