@@ -289,6 +289,16 @@ function setupRealtimeNotifications() {
                 }
             }
 
+            // Show toast notification for NEW notifications
+            if (isNewNotification && notificationMessage) {
+                showToastNotification(notificationMessage);
+                
+                // Mark as shown immediately to prevent re-showing on page navigation
+                if (notificationId) {
+                    addShownNotificationId(notificationId);
+                }
+            }
+
             // Only show browser notification for NEW notifications (not on page load or already shown)
             // This ensures notifications only "pop once" per new notification
             if (isNewNotification && 'Notification' in window && Notification.permission === 'granted') {
@@ -298,11 +308,6 @@ function setupRealtimeNotifications() {
                     tag: `notification-${notificationId}`, // Prevent duplicate notifications
                     requireInteraction: false
                 });
-                
-                // Mark as shown immediately to prevent re-showing on page navigation
-                if (notificationId) {
-                    addShownNotificationId(notificationId);
-                }
             }
 
             // Update last notification ID
@@ -426,13 +431,46 @@ function updateProjectStatus(data) {
 }
 
 /**
- * Helper: Show toast notification (removed - too intrusive)
- * Notifications are now handled silently via badge count only
+ * Helper: Show toast notification
+ * Shows a blue pop-up notification in the upper right corner
  */
 function showToastNotification(message) {
-    // Disabled - notifications are now handled professionally via badge count only
-    // Users can check notifications page for details
-    return;
+    const toastContainer = document.getElementById('toast-notification');
+    const toastMessage = document.getElementById('toast-message');
+    const toastClose = document.getElementById('toast-close');
+    
+    if (!toastContainer || !toastMessage) {
+        return; // Toast elements not found
+    }
+    
+    // Set message
+    toastMessage.textContent = message;
+    
+    // Show toast
+    toastContainer.classList.remove('hidden');
+    
+    // Auto-hide after 5 seconds
+    const autoHide = setTimeout(() => {
+        hideToastNotification();
+    }, 5000);
+    
+    // Close button handler
+    if (toastClose) {
+        toastClose.onclick = () => {
+            clearTimeout(autoHide);
+            hideToastNotification();
+        };
+    }
+}
+
+/**
+ * Hide toast notification
+ */
+function hideToastNotification() {
+    const toastContainer = document.getElementById('toast-notification');
+    if (toastContainer) {
+        toastContainer.classList.add('hidden');
+    }
 }
 
 /**
