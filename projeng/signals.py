@@ -23,6 +23,13 @@ except ImportError:
     WEBSOCKET_AVAILABLE = False
     print("⚠️  WebSocket broadcasting not available (SSE still works)")
 
+def format_project_display(project):
+    """Helper function to format project display name consistently"""
+    project_name = project.name.strip() if project.name else "Unnamed Project"
+    if project.prn:
+        return f"{project_name} (PRN: {project.prn})"
+    return project_name
+
 @receiver(post_save, sender=Project)
 def sync_projeng_to_monitoring(sender, instance, **kwargs):
     print(f"SIGNAL: sync_projeng_to_monitoring called for Project id={instance.id}, prn={instance.prn}")
@@ -98,7 +105,9 @@ def notify_project_updates(sender, instance, created, **kwargs):
     if created:
         # New project created
         creator_name = instance.created_by.get_full_name() or instance.created_by.username if instance.created_by else 'Unknown'
-        project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+        
+        # Build project display name - ensure it's not empty
+        project_display = format_project_display(instance)
         
         # Get assigned engineer names
         assigned_engineers = instance.assigned_engineers.all()
@@ -151,7 +160,7 @@ def notify_project_updates(sender, instance, created, **kwargs):
                 if not assigner_name:
                     assigner_name = 'Unknown'
                 
-                project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+                project_display = format_project_display(instance)
                 
                 # Notify newly assigned engineers (only them, not head engineers)
                 from django.contrib.auth.models import User
@@ -171,7 +180,7 @@ def notify_project_updates(sender, instance, created, **kwargs):
             if not updater_name:
                 updater_name = 'Unknown'
             
-            project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+            project_display = format_project_display(instance)
             
             # Check if status changed
             if old_state.get('status') != instance.status:
@@ -233,7 +242,7 @@ def notify_project_updates(sender, instance, created, **kwargs):
                 updater_name = instance.created_by.get_full_name() or instance.created_by.username
             if not updater_name:
                 updater_name = 'Unknown'
-            project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+            project_display = format_project_display(instance)
             message = f"Project updated: {project_display} by {updater_name}"
             notify_head_engineers(message)
             notify_admins(message)
@@ -448,7 +457,7 @@ def notify_project_deletion(sender, instance, **kwargs):
     from datetime import timedelta
     from django.contrib.auth.models import User
     
-    project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+    project_display = format_project_display(instance)
     
     # Check if notifications were already created (likely by the view)
     # Look for notifications created in the last 10 seconds with similar content
@@ -513,7 +522,7 @@ def notify_engineer_assignment(sender, instance, action, pk_set, **kwargs):
         if not assigner_name:
             assigner_name = 'Unknown'
         
-        project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+        project_display = format_project_display(instance)
         
         # Notify newly assigned engineers (only them, not head engineers)
         # Check for duplicates to avoid double notifications
