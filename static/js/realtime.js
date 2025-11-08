@@ -25,10 +25,12 @@ class RealtimeManager {
         }
 
         if (this.eventSources.notifications) {
+            console.log('✅ Notifications SSE already connected');
             return; // Already connected
         }
 
         const url = '/projeng/api/realtime/notifications/';
+        console.log('🔌 Connecting to notifications SSE:', url);
         this._connectSSE('notifications', url);
     }
 
