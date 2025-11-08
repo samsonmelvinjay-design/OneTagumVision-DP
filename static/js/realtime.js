@@ -560,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         setupRealtimeNotifications();
     } else {
-        // Setup notifications on all pages
+        // Setup notifications on all pages (including notifications page)
         setupRealtimeNotifications();
     }
     

@@ -94,7 +94,7 @@ def sse_notifications(request):
                 
                 # Send heartbeat every 30 seconds
                 yield f": heartbeat\n\n"
-                time.sleep(5)  # Check every 5 seconds (less frequent to reduce load)
+                time.sleep(2)  # Check every 2 seconds for faster real-time updates
                 
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
