@@ -227,6 +227,26 @@ function setupRealtimeNotifications() {
 
     window.realtimeManager.connectNotifications((data) => {
         if (data.type === 'notification') {
+            // Update notification count silently (always update count)
+            if (notificationCount) {
+                const currentCount = parseInt(notificationCount.textContent) || 0;
+                const newCount = data.unread_count || 0;
+                
+                notificationCount.textContent = newCount;
+                
+                if (newCount === 0) {
+                    notificationCount.classList.add('hidden');
+                } else {
+                    notificationCount.classList.remove('hidden');
+                }
+            }
+            
+            // Only process notification details if a notification object is present
+            // This prevents showing old notifications when only count is sent
+            if (!data.notification) {
+                return; // Only count update, no notification to show
+            }
+            
             // Check if this notification has already been shown (across page navigations)
             const notificationId = data.notification ? data.notification.id : null;
             const notificationMessage = data.notification ? data.notification.message : null;
@@ -257,25 +277,15 @@ function setupRealtimeNotifications() {
                                      notificationId !== lastNotificationId && 
                                      !hasBeenShown && !messageShown;
             
-            // Update notification count silently (always update count, but don't show banner for old notifications)
-            if (notificationCount) {
+            // Only animate badge if count increased and it's a new notification
+            if (notificationCount && isNewNotification) {
                 const currentCount = parseInt(notificationCount.textContent) || 0;
                 const newCount = data.unread_count || 0;
-                
-                notificationCount.textContent = newCount;
-                
-                if (newCount === 0) {
-                    notificationCount.classList.add('hidden');
-                } else {
-                    notificationCount.classList.remove('hidden');
-                    
-                    // Only animate if count increased (new notification)
-                    if (newCount > currentCount && isNewNotification) {
-                        notificationCount.classList.add('animate-pulse');
-                        setTimeout(() => {
-                            notificationCount.classList.remove('animate-pulse');
-                        }, 2000);
-                    }
+                if (newCount > currentCount) {
+                    notificationCount.classList.add('animate-pulse');
+                    setTimeout(() => {
+                        notificationCount.classList.remove('animate-pulse');
+                    }, 2000);
                 }
             }
 

@@ -23,6 +23,23 @@ def sse_notifications(request):
     def event_stream():
         last_notification_id = None
         last_unread_count = None
+        connection_start_time = timezone.now()  # Track when connection was established
+        
+        # Send initial unread count without notification details (to avoid showing old notifications)
+        try:
+            initial_unread_count = Notification.objects.filter(
+                recipient=request.user,
+                is_read=False
+            ).count()
+            last_unread_count = initial_unread_count
+            # Send only count, no notification details on initial connection
+            data = {
+                'type': 'notification',
+                'unread_count': initial_unread_count
+            }
+            yield f"data: {json.dumps(data)}\n\n"
+        except:
+            pass
         
         while True:
             try:
@@ -37,14 +54,16 @@ def sse_notifications(request):
                     last_unread_count = unread_count
                     
                     # Get latest notification if there are unread ones
+                    # Only get notifications created AFTER the connection was established
                     latest = None
                     if unread_count > 0:
                         latest = Notification.objects.filter(
                             recipient=request.user,
-                            is_read=False
+                            is_read=False,
+                            created_at__gte=connection_start_time  # Only notifications created after connection
                         ).order_by('-created_at').first()
                     
-                    # Only send notification data if it's a NEW notification
+                    # Only send notification data if it's a NEW notification created after connection
                     if latest and latest.id != last_notification_id:
                         last_notification_id = latest.id
                         data = {
@@ -62,6 +81,14 @@ def sse_notifications(request):
                         data = {
                             'type': 'notification',
                             'unread_count': 0
+                        }
+                        yield f"data: {json.dumps(data)}\n\n"
+                    else:
+                        # Count changed but no new notification (might have been read)
+                        # Just send count update
+                        data = {
+                            'type': 'notification',
+                            'unread_count': unread_count
                         }
                         yield f"data: {json.dumps(data)}\n\n"
                 
