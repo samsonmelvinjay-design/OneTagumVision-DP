@@ -564,9 +564,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup real-time features based on page
     const path = window.location.pathname;
     
+    // ALWAYS setup notifications for ALL users on ALL pages
+    // This ensures real-time updates work for:
+    // - Head Engineers
+    // - Finance Managers  
+    // - Project Engineers
+    // - Admins
+    setupRealtimeNotifications();
+    
     if (path.includes('dashboard') || path === '/') {
         setupRealtimeDashboard();
-        setupRealtimeNotifications();
     } else if (path.includes('projects')) {
         const projectIdMatch = path.match(/projects\/(\d+)/);
         if (projectIdMatch) {
@@ -574,10 +581,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             setupRealtimeProjects();
         }
-        setupRealtimeNotifications();
-    } else {
-        // Setup notifications on all pages (including notifications page)
-        setupRealtimeNotifications();
     }
     
     // Test toast notification on page load (for debugging)
