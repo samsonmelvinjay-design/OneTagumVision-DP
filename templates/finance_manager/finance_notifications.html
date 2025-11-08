@@ -49,17 +49,18 @@
         <div class="bg-white rounded-lg shadow-md overflow-hidden">
             <div class="divide-y divide-gray-200">
                 {% for notification in notifications %}
-                {% with project_id=None %}
-                    {% comment %} Notifications will be made clickable via JavaScript using the API {% endcomment %}
+                {% comment %} Check if notification is about a project {% endcomment %}
+                {% with is_project_notification=False %}
                     {% if "cost entry" in notification.message|lower or "progress for project" in notification.message|lower or "new project created" in notification.message|lower %}
-                        {% with project_id=1 %}{% endwith %}
+                        {% with is_project_notification=True %}{% endwith %}
                     {% endif %}
                 {% endwith %}
-                <div class="p-4 hover:bg-gray-50 transition-colors {% if not notification.is_read %}bg-blue-50 border-l-4 border-blue-500{% endif %}" 
-                     data-notification-id="{{ notification.id }}">
+                <div class="p-4 hover:bg-gray-50 transition-colors {% if not notification.is_read %}bg-blue-50 border-l-4 border-blue-500{% endif %} notification-item" 
+                     data-notification-id="{{ notification.id }}"
+                     data-notification-message="{{ notification.message|escapejs }}"
+                     data-is-project-notification="{% if 'cost entry' in notification.message|lower or 'progress for project' in notification.message|lower or 'new project created' in notification.message|lower %}true{% else %}false{% endif %}">
                     <div class="flex justify-between items-start">
-                        <div class="flex-1 {% if project_id %}cursor-pointer hover:text-blue-600{% endif %}" 
-                             {% if project_id %}onclick="fetchProjectIdAndRedirect('{{ notification.message|escapejs }}', {{ notification.id }})"{% endif %}>
+                        <div class="flex-1 notification-content">
                             <p class="text-gray-800 {% if not notification.is_read %}font-semibold{% endif %}">
                                 {{ notification.message }}
                             </p>
@@ -68,7 +69,7 @@
                             </p>
                         </div>
                         <div class="flex space-x-2 ml-4" onclick="event.stopPropagation();">
-                            {% if not notification.is_read and not project_id %}
+                            {% if not notification.is_read %}
                             <button class="mark-read-btn text-blue-600 hover:text-blue-800 text-sm font-medium" 
                                     data-notification-id="{{ notification.id }}">
                                 Mark Read
@@ -509,6 +510,28 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup after a short delay to ensure realtimeManager is initialized
     setTimeout(setupNotificationListUpdates, 500);
+    
+    // Make existing notifications clickable
+    document.querySelectorAll('.notification-item').forEach(item => {
+        const isProjectNotification = item.dataset.isProjectNotification === 'true';
+        if (isProjectNotification) {
+            const notificationMessage = item.dataset.notificationMessage;
+            const notificationId = item.dataset.notificationId;
+            const contentDiv = item.querySelector('.notification-content');
+            if (contentDiv) {
+                contentDiv.style.cursor = 'pointer';
+                contentDiv.classList.add('hover:text-blue-600');
+                contentDiv.addEventListener('click', function() {
+                    fetchProjectIdAndRedirect(notificationMessage, notificationId);
+                });
+                // Hide "Mark Read" button for clickable notifications
+                const markReadBtn = item.querySelector('.mark-read-btn');
+                if (markReadBtn) {
+                    markReadBtn.style.display = 'none';
+                }
+            }
+        }
+    });
     
     // Function to fetch project ID from notification message and redirect
     async function fetchProjectIdAndRedirect(notificationMessage, notificationId) {
