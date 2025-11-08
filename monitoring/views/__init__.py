@@ -375,13 +375,28 @@ def project_delete_api(request, pk):
             # Notify Finance Managers
             notify_finance_managers(message)
             
-            # Notify assigned Project Engineers
+            # Notify assigned Project Engineers (with duplicate check)
+            from projeng.models import Notification
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            engineer_message = f"Project '{project_display}' that you were assigned to has been deleted by {deleter_name}"
+            recent_time = timezone.now() - timedelta(seconds=10)
+            
             for engineer in assigned_engineers:
-                from projeng.models import Notification
-                Notification.objects.create(
+                # Check for duplicates before creating notification
+                engineer_duplicate = Notification.objects.filter(
                     recipient=engineer,
-                    message=f"Project '{project_display}' that you were assigned to has been deleted by {deleter_name}"
-                )
+                    message__icontains=project_display,
+                    message__icontains="that you were assigned to has been deleted",
+                    created_at__gte=recent_time
+                ).exists()
+                
+                if not engineer_duplicate:
+                    Notification.objects.create(
+                        recipient=engineer,
+                        message=engineer_message
+                    )
             
             # Phase 3: Also broadcast via WebSocket (parallel to SSE)
             try:

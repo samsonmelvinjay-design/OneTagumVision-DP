@@ -281,6 +281,9 @@ def notify_progress_deletion(sender, instance, **kwargs):
 @receiver(post_delete, sender=ProjectCost)
 def notify_cost_deletion(sender, instance, **kwargs):
     """Notify Head Engineers and Admins about cost deletion"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
     # Safely format amount
     try:
         if isinstance(instance.amount, str):
@@ -291,16 +294,61 @@ def notify_cost_deletion(sender, instance, **kwargs):
     except (ValueError, TypeError):
         formatted_amount = f"₱{instance.amount}"
     
-    message = f"Cost entry deleted: {instance.project.name} - {instance.get_cost_type_display()} cost of {formatted_amount} on {instance.date} by {instance.created_by.get_full_name() or instance.created_by.username}"
-    notify_head_engineers(message)
-    notify_admins(message)
+    # Format date safely
+    try:
+        if isinstance(instance.date, str):
+            date_str = instance.date
+        else:
+            date_str = str(instance.date)
+    except:
+        date_str = str(instance.date)
+    
+    message = f"Cost entry deleted: {instance.project.name} - {instance.get_cost_type_display()} cost of {formatted_amount} on {date_str} by {instance.created_by.get_full_name() or instance.created_by.username}"
+    
+    # Check for duplicates before creating notifications
+    # Look for similar notifications created in the last 10 seconds
+    recent_time = timezone.now() - timedelta(seconds=10)
+    project_name = instance.project.name
+    
+    # Check if a similar notification already exists
+    # Use Q objects to check for messages containing key identifiers
+    from django.db.models import Q
+    existing_notifications = Notification.objects.filter(
+        Q(message__icontains=f"Cost entry deleted: {project_name}") &
+        Q(message__icontains=formatted_amount) &
+        Q(created_at__gte=recent_time)
+    ).exists()
+    
+    # Only create notifications if no duplicates exist
+    if not existing_notifications:
+        notify_head_engineers(message)
+        notify_admins(message)
 
 @receiver(post_delete, sender=ProjectDocument)
 def notify_document_deletion(sender, instance, **kwargs):
     """Notify Head Engineers and Admins about document deletion"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
     message = f"Document deleted: {instance.name} for project {instance.project.name} by {instance.uploaded_by.get_full_name() if instance.uploaded_by else 'Unknown user'}"
-    notify_head_engineers(message)
-    notify_admins(message)
+    
+    # Check for duplicates before creating notifications
+    # Look for similar notifications created in the last 10 seconds
+    recent_time = timezone.now() - timedelta(seconds=10)
+    document_name = instance.name
+    project_name = instance.project.name
+    
+    # Check if a similar notification already exists
+    existing_notifications = Notification.objects.filter(
+        message__icontains=f"Document deleted: {document_name}",
+        message__icontains=f"for project {project_name}",
+        created_at__gte=recent_time
+    ).exists()
+    
+    # Only create notifications if no duplicates exist
+    if not existing_notifications:
+        notify_head_engineers(message)
+        notify_admins(message)
 
 @receiver(post_delete, sender=Project)
 def notify_project_deletion(sender, instance, **kwargs):
@@ -322,10 +370,12 @@ def notify_project_deletion(sender, instance, **kwargs):
     project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
     
     # Check if notifications were already created (likely by the view)
-    # Look for notifications created in the last 5 seconds with similar content
-    recent_time = timezone.now() - timedelta(seconds=5)
+    # Look for notifications created in the last 10 seconds with similar content
+    # Check for both "has been deleted" and "has been deleted by" patterns
+    recent_time = timezone.now() - timedelta(seconds=10)
     existing_notifications = Notification.objects.filter(
         message__icontains=project_display,
+        message__icontains="has been deleted",
         created_at__gte=recent_time
     ).exists()
     
@@ -341,12 +391,22 @@ def notify_project_deletion(sender, instance, **kwargs):
     # Notify Finance Managers
     notify_finance_managers(message)
     
-    # Notify assigned Project Engineers
+    # Notify assigned Project Engineers (with duplicate check)
+    engineer_message = f"Project '{project_display}' that you were assigned to has been deleted"
     for engineer in instance.assigned_engineers.all():
-        Notification.objects.create(
+        # Check for duplicates for each engineer
+        engineer_duplicate = Notification.objects.filter(
             recipient=engineer,
-            message=f"Project '{project_display}' that you were assigned to has been deleted"
-        )
+            message__icontains=project_display,
+            message__icontains="that you were assigned to has been deleted",
+            created_at__gte=recent_time
+        ).exists()
+        
+        if not engineer_duplicate:
+            Notification.objects.create(
+                recipient=engineer,
+                message=engineer_message
+            )
     
     # Phase 3: Also broadcast via WebSocket (parallel to SSE)
     if WEBSOCKET_AVAILABLE:
