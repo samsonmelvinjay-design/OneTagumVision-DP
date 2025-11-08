@@ -152,36 +152,59 @@ def project_list(request):
     
     # Duration filter (based on project duration calculated from start_date and end_date)
     if duration_filter:
-        from datetime import timedelta
-        from django.db.models import F, ExpressionWrapper, IntegerField
-        
         # Filter projects that have both start and end dates
         projects_with_dates = projects.filter(
             start_date__isnull=False,
             end_date__isnull=False
         )
         
-        # Calculate duration in days using Django ORM
-        duration_days = ExpressionWrapper(
-            F('end_date') - F('start_date'),
-            output_field=IntegerField()
-        )
+        # Use database-agnostic approach with extra() for date difference calculation
+        # This works with PostgreSQL, MySQL, and SQLite
+        from django.db import connection
+        db_vendor = connection.vendor
         
         if duration_filter == 'lt6':
             # Less than 6 months: duration < 180 days
-            projects = projects_with_dates.annotate(
-                duration=duration_days
-            ).filter(duration__lt=180)
+            if db_vendor == 'postgresql':
+                projects = projects_with_dates.extra(
+                    where=["EXTRACT(EPOCH FROM (end_date - start_date)) / 86400 < 180"]
+                )
+            elif db_vendor == 'sqlite':
+                projects = projects_with_dates.extra(
+                    where=["(julianday(end_date) - julianday(start_date)) < 180"]
+                )
+            else:  # MySQL
+                projects = projects_with_dates.extra(
+                    where=["DATEDIFF(end_date, start_date) < 180"]
+                )
         elif duration_filter == '6to12':
             # 6-12 months: 180 <= duration <= 365 days
-            projects = projects_with_dates.annotate(
-                duration=duration_days
-            ).filter(duration__gte=180, duration__lte=365)
+            if db_vendor == 'postgresql':
+                projects = projects_with_dates.extra(
+                    where=["EXTRACT(EPOCH FROM (end_date - start_date)) / 86400 >= 180 AND EXTRACT(EPOCH FROM (end_date - start_date)) / 86400 <= 365"]
+                )
+            elif db_vendor == 'sqlite':
+                projects = projects_with_dates.extra(
+                    where=["(julianday(end_date) - julianday(start_date)) >= 180 AND (julianday(end_date) - julianday(start_date)) <= 365"]
+                )
+            else:  # MySQL
+                projects = projects_with_dates.extra(
+                    where=["DATEDIFF(end_date, start_date) >= 180 AND DATEDIFF(end_date, start_date) <= 365"]
+                )
         elif duration_filter == 'gt12':
             # Greater than 1 year: duration > 365 days
-            projects = projects_with_dates.annotate(
-                duration=duration_days
-            ).filter(duration__gt=365)
+            if db_vendor == 'postgresql':
+                projects = projects_with_dates.extra(
+                    where=["EXTRACT(EPOCH FROM (end_date - start_date)) / 86400 > 365"]
+                )
+            elif db_vendor == 'sqlite':
+                projects = projects_with_dates.extra(
+                    where=["(julianday(end_date) - julianday(start_date)) > 365"]
+                )
+            else:  # MySQL
+                projects = projects_with_dates.extra(
+                    where=["DATEDIFF(end_date, start_date) > 365"]
+                )
     
     # Order by created_at descending
     projects = projects.order_by('-created_at')
