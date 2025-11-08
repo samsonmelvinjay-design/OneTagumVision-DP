@@ -229,11 +229,35 @@ function setupRealtimeNotifications() {
         if (data.type === 'notification') {
             // Check if this notification has already been shown (across page navigations)
             const notificationId = data.notification ? data.notification.id : null;
+            const notificationMessage = data.notification ? data.notification.message : null;
+            
+            // Check if this exact notification has been shown before (by ID or by message content)
+            const hasBeenShown = notificationId ? hasNotificationBeenShown(notificationId) : false;
+            
+            // Also check by message content to prevent duplicates even if ID is missing
+            let messageShown = false;
+            if (notificationMessage) {
+                try {
+                    const shownMessages = JSON.parse(sessionStorage.getItem('shownNotificationMessages') || '[]');
+                    messageShown = shownMessages.includes(notificationMessage);
+                    if (!messageShown && notificationMessage) {
+                        shownMessages.push(notificationMessage);
+                        // Keep only last 20 messages to prevent storage bloat
+                        if (shownMessages.length > 20) {
+                            shownMessages.shift();
+                        }
+                        sessionStorage.setItem('shownNotificationMessages', JSON.stringify(shownMessages));
+                    }
+                } catch (e) {
+                    console.error('Error checking shown messages:', e);
+                }
+            }
+            
             const isNewNotification = notificationId && 
                                      notificationId !== lastNotificationId && 
-                                     !hasNotificationBeenShown(notificationId);
+                                     !hasBeenShown && !messageShown;
             
-            // Update notification count silently
+            // Update notification count silently (always update count, but don't show banner for old notifications)
             if (notificationCount) {
                 const currentCount = parseInt(notificationCount.textContent) || 0;
                 const newCount = data.unread_count || 0;
@@ -259,14 +283,16 @@ function setupRealtimeNotifications() {
             // This ensures notifications only "pop once" per new notification
             if (isNewNotification && 'Notification' in window && Notification.permission === 'granted') {
                 new Notification('OneTagumVision', {
-                    body: data.notification.message,
+                    body: notificationMessage,
                     icon: '/static/img/tagum.jpg',
                     tag: `notification-${notificationId}`, // Prevent duplicate notifications
                     requireInteraction: false
                 });
                 
                 // Mark as shown immediately to prevent re-showing on page navigation
-                addShownNotificationId(notificationId);
+                if (notificationId) {
+                    addShownNotificationId(notificationId);
+                }
             }
 
             // Update last notification ID
