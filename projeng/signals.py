@@ -100,8 +100,21 @@ def notify_project_updates(sender, instance, created, **kwargs):
         creator_name = instance.created_by.get_full_name() or instance.created_by.username if instance.created_by else 'Unknown'
         project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
         
+        # Get assigned engineer names
+        assigned_engineers = instance.assigned_engineers.all()
+        engineer_names = []
+        for engineer in assigned_engineers:
+            engineer_name = engineer.get_full_name() or engineer.username
+            engineer_names.append(engineer_name)
+        
+        # Build notification message with assigned engineers
+        if engineer_names:
+            engineers_text = ", ".join(engineer_names)
+            message = f"New project created: {project_display} by {creator_name} - Assigned to: {engineers_text}"
+        else:
+            message = f"New project created: {project_display} by {creator_name} - No engineers assigned"
+        
         # Notify Head Engineers and Admins about project creation
-        message = f"New project created: {project_display} by {creator_name}"
         notify_head_engineers(message)
         notify_admins(message)
         
