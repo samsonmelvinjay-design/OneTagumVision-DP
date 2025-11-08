@@ -1,4 +1,5 @@
 from django.db.models.signals import pre_save, post_save, post_delete
+from django.db.models import Q
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from .models import Project, ProjectProgress, ProjectCost, ProjectDocument, Notification
@@ -312,7 +313,6 @@ def notify_cost_deletion(sender, instance, **kwargs):
     
     # Check if a similar notification already exists
     # Use Q objects to check for messages containing key identifiers
-    from django.db.models import Q
     existing_notifications = Notification.objects.filter(
         Q(message__icontains=f"Cost entry deleted: {project_name}") &
         Q(message__icontains=formatted_amount) &
@@ -339,10 +339,11 @@ def notify_document_deletion(sender, instance, **kwargs):
     project_name = instance.project.name
     
     # Check if a similar notification already exists
+    # Use Q objects to combine multiple conditions on the same field
     existing_notifications = Notification.objects.filter(
-        message__icontains=f"Document deleted: {document_name}",
-        message__icontains=f"for project {project_name}",
-        created_at__gte=recent_time
+        Q(message__icontains=f"Document deleted: {document_name}") &
+        Q(message__icontains=f"for project {project_name}") &
+        Q(created_at__gte=recent_time)
     ).exists()
     
     # Only create notifications if no duplicates exist
@@ -374,9 +375,9 @@ def notify_project_deletion(sender, instance, **kwargs):
     # Check for both "has been deleted" and "has been deleted by" patterns
     recent_time = timezone.now() - timedelta(seconds=10)
     existing_notifications = Notification.objects.filter(
-        message__icontains=project_display,
-        message__icontains="has been deleted",
-        created_at__gte=recent_time
+        Q(message__icontains=project_display) &
+        Q(message__icontains="has been deleted") &
+        Q(created_at__gte=recent_time)
     ).exists()
     
     # If notifications already exist, skip creating duplicates
@@ -397,9 +398,9 @@ def notify_project_deletion(sender, instance, **kwargs):
         # Check for duplicates for each engineer
         engineer_duplicate = Notification.objects.filter(
             recipient=engineer,
-            message__icontains=project_display,
-            message__icontains="that you were assigned to has been deleted",
-            created_at__gte=recent_time
+            Q(message__icontains=project_display) &
+            Q(message__icontains="that you were assigned to has been deleted") &
+            Q(created_at__gte=recent_time)
         ).exists()
         
         if not engineer_duplicate:

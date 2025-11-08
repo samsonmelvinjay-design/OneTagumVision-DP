@@ -383,13 +383,14 @@ def project_delete_api(request, pk):
             engineer_message = f"Project '{project_display}' that you were assigned to has been deleted by {deleter_name}"
             recent_time = timezone.now() - timedelta(seconds=10)
             
+            from django.db.models import Q
             for engineer in assigned_engineers:
                 # Check for duplicates before creating notification
                 engineer_duplicate = Notification.objects.filter(
                     recipient=engineer,
-                    message__icontains=project_display,
-                    message__icontains="that you were assigned to has been deleted",
-                    created_at__gte=recent_time
+                    Q(message__icontains=project_display) &
+                    Q(message__icontains="that you were assigned to has been deleted") &
+                    Q(created_at__gte=recent_time)
                 ).exists()
                 
                 if not engineer_duplicate:
