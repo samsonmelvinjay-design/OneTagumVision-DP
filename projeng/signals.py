@@ -80,6 +80,11 @@ def store_old_project_state(sender, instance, **kwargs):
                 'status': old_instance.status,
                 'project_cost': old_instance.project_cost,
                 'assigned_engineers': set(old_instance.assigned_engineers.values_list('id', flat=True)),
+                'description': old_instance.description,
+                'start_date': old_instance.start_date,
+                'end_date': old_instance.end_date,
+                'name': old_instance.name,
+                'barangay': old_instance.barangay,
             }
         except Project.DoesNotExist:
             pass
@@ -146,18 +151,20 @@ def notify_project_updates(sender, instance, created, **kwargs):
                     )
         
         if old_state:
+            # Get the user who made the update (try to get from request if available)
+            updater_name = getattr(instance, '_updated_by_username', None)
+            if not updater_name and instance.created_by:
+                updater_name = instance.created_by.get_full_name() or instance.created_by.username
+            if not updater_name:
+                updater_name = 'Unknown'
+            
+            project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+            
             # Check if status changed
             if old_state.get('status') != instance.status:
-                # Get the user who made the update (try to get from request if available)
-                updater_name = getattr(instance, '_updated_by_username', None)
-                if not updater_name and instance.created_by:
-                    updater_name = instance.created_by.get_full_name() or instance.created_by.username
-                if not updater_name:
-                    updater_name = 'Unknown'
-                
                 old_status_display = dict(Project.STATUS_CHOICES).get(old_state.get('status'), old_state.get('status', 'Unknown'))
                 new_status_display = instance.get_status_display()
-                message = f"Project status updated: {instance.name} (PRN: {instance.prn or 'N/A'}) changed from '{old_status_display}' to '{new_status_display}' by {updater_name}"
+                message = f"Project status updated: {project_display} changed from '{old_status_display}' to '{new_status_display}' by {updater_name}"
                 notify_head_engineers(message)
                 notify_admins(message)
                 
@@ -169,15 +176,9 @@ def notify_project_updates(sender, instance, created, **kwargs):
                         print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
             # Check if cost changed significantly
             elif old_state.get('project_cost') != instance.project_cost and instance.project_cost:
-                updater_name = getattr(instance, '_updated_by_username', None)
-                if not updater_name and instance.created_by:
-                    updater_name = instance.created_by.get_full_name() or instance.created_by.username
-                if not updater_name:
-                    updater_name = 'Unknown'
-                
                 old_cost = old_state.get('project_cost') or 0
                 new_cost = instance.project_cost or 0
-                message = f"Project budget updated: {instance.name} (PRN: {instance.prn or 'N/A'}) changed from ₱{old_cost:,.2f} to ₱{new_cost:,.2f} by {updater_name}"
+                message = f"Project budget updated: {project_display} changed from ₱{old_cost:,.2f} to ₱{new_cost:,.2f} by {updater_name}"
                 notify_head_engineers(message)
                 notify_admins(message)
                 
@@ -187,6 +188,31 @@ def notify_project_updates(sender, instance, created, **kwargs):
                         broadcast_project_updated(instance, changes={'project_cost': {'old': old_cost, 'new': new_cost}})
                     except Exception as e:
                         print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+            # Check if description changed
+            elif old_state.get('description') != instance.description:
+                message = f"Project description updated: {project_display} by {updater_name}"
+                notify_head_engineers(message)
+                notify_admins(message)
+            # Check if dates changed
+            elif old_state.get('start_date') != instance.start_date or old_state.get('end_date') != instance.end_date:
+                date_changes = []
+                if old_state.get('start_date') != instance.start_date:
+                    date_changes.append(f"start date from {old_state.get('start_date') or 'N/A'} to {instance.start_date or 'N/A'}")
+                if old_state.get('end_date') != instance.end_date:
+                    date_changes.append(f"end date from {old_state.get('end_date') or 'N/A'} to {instance.end_date or 'N/A'}")
+                message = f"Project dates updated: {project_display} - {', '.join(date_changes)} by {updater_name}"
+                notify_head_engineers(message)
+                notify_admins(message)
+            # Check if name or location changed
+            elif old_state.get('name') != instance.name or old_state.get('barangay') != instance.barangay:
+                changes = []
+                if old_state.get('name') != instance.name:
+                    changes.append(f"name from '{old_state.get('name')}' to '{instance.name}'")
+                if old_state.get('barangay') != instance.barangay:
+                    changes.append(f"location from '{old_state.get('barangay') or 'N/A'}' to '{instance.barangay or 'N/A'}'")
+                message = f"Project information updated: {project_display} - {', '.join(changes)} by {updater_name}"
+                notify_head_engineers(message)
+                notify_admins(message)
         # If explicit notification flag is set, notify
         elif hasattr(instance, '_notify_update') and instance._notify_update:
             updater_name = getattr(instance, '_updated_by_username', None)
@@ -194,7 +220,8 @@ def notify_project_updates(sender, instance, created, **kwargs):
                 updater_name = instance.created_by.get_full_name() or instance.created_by.username
             if not updater_name:
                 updater_name = 'Unknown'
-            message = f"Project updated: {instance.name} (PRN: {instance.prn or 'N/A'}) by {updater_name}"
+            project_display = f"{instance.name}" + (f" (PRN: {instance.prn})" if instance.prn else "")
+            message = f"Project updated: {project_display} by {updater_name}"
             notify_head_engineers(message)
             notify_admins(message)
 

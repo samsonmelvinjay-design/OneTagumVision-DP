@@ -571,6 +571,8 @@ def add_progress_update(request, pk):
 
             # Update the parent project's progress field
             project.progress = percentage_complete
+            # Store who made the update for notification purposes
+            project._updated_by_username = request.user.get_full_name() or request.user.username
             project.save(update_fields=["progress"])
             print(f"DEBUG: Updated Project id={project.id} progress to {project.progress}")
 
