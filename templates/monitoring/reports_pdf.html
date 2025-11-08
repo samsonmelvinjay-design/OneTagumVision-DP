@@ -268,24 +268,8 @@
             <div class="summary-card">
                 <div class="card">
                     <div class="card-title">Top Location</div>
-                    <div class="card-value ongoing">
-                        {% if barangay_map %}
-                            {% for barangay, count in barangay_map.items|dictsortreversed:1|slice:":1 %}
-                            {{ barangay }}
-                            {% endfor %}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </div>
-                    <div class="card-subtitle">
-                        {% if barangay_map %}
-                            {% for barangay, count in barangay_map.items|dictsortreversed:1|slice:":1 %}
-                            {{ count }} project{{ count|pluralize }}
-                            {% endfor %}
-                        {% else %}
-                            No data
-                        {% endif %}
-                    </div>
+                    <div class="card-value ongoing">{{ top_barangay_name }}</div>
+                    <div class="card-subtitle">{{ top_barangay_count }} project{{ top_barangay_count|pluralize }}</div>
                 </div>
             </div>
             <div class="summary-card">
@@ -346,9 +330,9 @@
                     <td class="text-center">
                         {% if project.status == 'completed' %}
                             <span class="status-badge status-completed">Completed</span>
-                        {% elif project.status in 'in_progress,ongoing' %}
+                        {% elif project.status == 'in_progress' or project.status == 'ongoing' %}
                             <span class="status-badge status-ongoing">Ongoing</span>
-                        {% elif project.status in 'planned,pending' %}
+                        {% elif project.status == 'planned' or project.status == 'pending' %}
                             <span class="status-badge status-planned">Planned</span>
                         {% elif project.status == 'delayed' %}
                             <span class="status-badge status-delayed">Delayed</span>
