@@ -97,7 +97,7 @@ class RealtimeManager {
         };
 
         eventSource.onopen = () => {
-            console.log(`SSE connected: ${key}`);
+            console.log(`✅ SSE connected: ${key}`, url);
             this.isConnected = true;
             this.reconnectAttempts = 0;
         };
