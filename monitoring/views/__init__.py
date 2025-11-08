@@ -823,6 +823,8 @@ def export_reports_excel(request):
 @login_required
 def export_reports_pdf(request):
     """Export monitoring reports as PDF"""
+    from collections import defaultdict
+    
     # Role-based queryset
     if is_head_engineer(request.user) or is_finance_manager(request.user):
         projects = Project.objects.all()
@@ -831,6 +833,49 @@ def export_reports_pdf(request):
     else:
         projects = Project.objects.none()
     
+    # Calculate summary statistics
+    total_projects = projects.count()
+    status_map = defaultdict(int)
+    barangay_map = defaultdict(int)
+    total_budget = 0
+    
+    for p in projects:
+        # Status counts
+        status = p.status
+        if status in ['in_progress', 'ongoing']:
+            status_map['Ongoing'] += 1
+        elif status in ['planned', 'pending']:
+            status_map['Planned'] += 1
+        elif status == 'completed':
+            status_map['Completed'] += 1
+        elif status == 'delayed':
+            status_map['Delayed'] += 1
+        else:
+            status_map[status.title()] += 1
+        
+        # Barangay counts
+        if p.barangay:
+            barangay_map[p.barangay] += 1
+        
+        # Budget totals
+        if p.project_cost:
+            total_budget += float(p.project_cost)
+    
+    completed_count = status_map.get('Completed', 0)
+    ongoing_count = status_map.get('Ongoing', 0)
+    planned_count = status_map.get('Planned', 0)
+    delayed_count = status_map.get('Delayed', 0)
+    
+    # Get top barangay
+    top_barangay = None
+    top_barangay_count = 0
+    if barangay_map:
+        top_barangay = max(barangay_map.items(), key=lambda x: x[1])
+        top_barangay_name = top_barangay[0]
+        top_barangay_count = top_barangay[1]
+    else:
+        top_barangay_name = "N/A"
+    
     # If xhtml2pdf is unavailable, return a friendly message
     if pisa is None:
         return HttpResponse('PDF export is temporarily unavailable (missing xhtml2pdf/reportlab).', content_type='text/plain')
@@ -838,7 +883,21 @@ def export_reports_pdf(request):
     # Render the HTML template for the PDF
     template_path = 'monitoring/reports_pdf.html'
     template = get_template(template_path)
-    context = {'projects': projects}
+    context = {
+        'projects': projects,
+        'total_projects': total_projects,
+        'completed_count': completed_count,
+        'ongoing_count': ongoing_count,
+        'planned_count': planned_count,
+        'delayed_count': delayed_count,
+        'total_budget': total_budget,
+        'status_map': dict(status_map),
+        'barangay_map': dict(barangay_map),
+        'top_barangay_name': top_barangay_name,
+        'top_barangay_count': top_barangay_count,
+        'generated_by': request.user.get_full_name() or request.user.username,
+        'generated_at': timezone.now(),
+    }
     html = template.render(context)
     
     # Create a PDF
