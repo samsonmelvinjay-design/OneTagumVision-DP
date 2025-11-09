@@ -491,17 +491,30 @@ function updateProjectStatus(data) {
  * Shows a blue pop-up notification in the upper right corner
  */
 function showToastNotification(message) {
+    console.log('🎯 showToastNotification called with message:', message);
     const toastContainer = document.getElementById('toast-notification');
     const toastMessage = document.getElementById('toast-message');
     const toastClose = document.getElementById('toast-close');
     
-    if (!toastContainer || !toastMessage) {
-        console.warn('Toast notification elements not found. Make sure toast-notification and toast-message IDs exist in the template.');
-        return; // Toast elements not found
+    if (!toastContainer) {
+        console.error('❌ Toast container not found! ID: toast-notification');
+        return;
     }
+    if (!toastMessage) {
+        console.error('❌ Toast message element not found! ID: toast-message');
+        return;
+    }
+    
+    console.log('✅ Toast elements found, showing notification...');
     
     // Set message
     toastMessage.textContent = message || 'New notification';
+    
+    // Ensure container is positioned correctly
+    toastContainer.style.position = 'fixed';
+    toastContainer.style.top = '1rem';
+    toastContainer.style.right = '1rem';
+    toastContainer.style.zIndex = '9999';
     
     // Hide any existing toast first
     toastContainer.classList.add('hidden');
@@ -511,9 +524,11 @@ function showToastNotification(message) {
     
     // Show toast
     toastContainer.classList.remove('hidden');
+    console.log('✅ Toast notification shown');
     
     // Auto-hide after 5 seconds
     const autoHide = setTimeout(() => {
+        console.log('⏰ Auto-hiding toast notification');
         hideToastNotification();
     }, 5000);
     
@@ -529,6 +544,7 @@ function showToastNotification(message) {
         toastClose.parentNode.replaceChild(newCloseBtn, toastClose);
         
         newCloseBtn.onclick = () => {
+            console.log('🖱️ Toast close button clicked');
             if (toastContainer._autoHideTimeout) {
                 clearTimeout(toastContainer._autoHideTimeout);
             }
