@@ -83,10 +83,19 @@ def engineer_list(request):
 @head_engineer_required
 def engineer_create(request):
     """Create a new Project Engineer account"""
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if request.method == 'POST':
         form = EngineerCreateForm(request.POST)
         if form.is_valid():
             engineer = form.save()
+            if is_ajax:
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Engineer account "{engineer.username}" has been created successfully!',
+                    'redirect_url': f'/dashboard/engineers/{engineer.id}/'
+                })
             messages.success(request, f'Engineer account "{engineer.username}" has been created successfully!')
             return redirect('engineer_detail', engineer_id=engineer.id)
     else:
@@ -96,6 +105,14 @@ def engineer_create(request):
         'form': form,
         'title': 'Create New Engineer Account',
     }
+    
+    # If AJAX request, return just the form content (modal version)
+    if is_ajax:
+        from django.template.loader import render_to_string
+        form_html = render_to_string('monitoring/engineers/engineer_create_modal.html', context, request=request)
+        from django.http import HttpResponse
+        return HttpResponse(form_html)
+    
     return render(request, 'monitoring/engineers/engineer_create.html', context)
 
 
@@ -160,14 +177,21 @@ def engineer_detail(request, engineer_id):
 def engineer_edit(request, engineer_id):
     """Edit an existing Project Engineer account"""
     engineer = get_object_or_404(User, id=engineer_id)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     # Verify this is a Project Engineer
     if engineer.is_superuser or engineer.groups.filter(name='Head Engineer').exists():
+        if is_ajax:
+            from django.http import JsonResponse
+            return JsonResponse({'success': False, 'error': 'This user is not a Project Engineer.'}, status=400)
         messages.error(request, 'This user is not a Project Engineer.')
         return redirect('engineer_list')
 
     # Prevent Head Engineers from editing themselves (they should use admin)
     if engineer == request.user:
+        if is_ajax:
+            from django.http import JsonResponse
+            return JsonResponse({'success': False, 'error': 'You cannot edit your own account from this page.'}, status=400)
         messages.warning(request, 'You cannot edit your own account from this page.')
         return redirect('engineer_detail', engineer_id=engineer.id)
 
@@ -175,6 +199,13 @@ def engineer_edit(request, engineer_id):
         form = EngineerEditForm(request.POST, instance=engineer)
         if form.is_valid():
             form.save()
+            if is_ajax:
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Engineer account "{engineer.username}" has been updated successfully!',
+                    'redirect_url': request.META.get('HTTP_REFERER', f'/dashboard/engineers/{engineer.id}/')
+                })
             messages.success(request, f'Engineer account "{engineer.username}" has been updated successfully!')
             return redirect('engineer_detail', engineer_id=engineer.id)
     else:
@@ -185,6 +216,14 @@ def engineer_edit(request, engineer_id):
         'engineer': engineer,
         'title': f'Edit Engineer: {engineer.get_full_name() or engineer.username}',
     }
+    
+    # If AJAX request, return just the form content (modal version)
+    if is_ajax:
+        from django.template.loader import render_to_string
+        form_html = render_to_string('monitoring/engineers/engineer_edit_modal.html', context, request=request)
+        from django.http import HttpResponse
+        return HttpResponse(form_html)
+    
     return render(request, 'monitoring/engineers/engineer_edit.html', context)
 
 

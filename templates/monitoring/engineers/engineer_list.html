@@ -7,9 +7,9 @@
             <h1 class="text-3xl font-bold text-gray-900">Engineer Management</h1>
             <p class="text-gray-600 mt-1">Manage Project Engineer accounts and assignments</p>
         </div>
-        <a href="{% url 'engineer_create' %}" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-6 py-2 rounded-lg shadow transition w-full md:w-auto">
+        <button id="add-engineer-btn" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-6 py-2 rounded-lg shadow transition w-full md:w-auto">
             + Add New Engineer
-        </a>
+        </button>
     </div>
 
     <!-- Search and Filter -->
@@ -108,7 +108,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <a href="{% url 'engineer_detail' engineer.id %}" class="text-blue-600 hover:text-blue-900">View</a>
-                        <a href="{% url 'engineer_edit' engineer.id %}" class="text-yellow-600 hover:text-yellow-900">Edit</a>
+                        <button onclick="openEditEngineerModal({{ engineer.id }})" class="text-yellow-600 hover:text-yellow-900">Edit</button>
                         {% if engineer.is_active %}
                             <a href="{% url 'engineer_deactivate' engineer.id %}" 
                                class="text-red-600 hover:text-red-900"
@@ -182,12 +182,355 @@
         {% else %}
         <div class="text-center py-12">
             <p class="text-gray-500 text-lg">No engineers found.</p>
-            <a href="{% url 'engineer_create' %}" class="mt-4 inline-block bg-blue-700 hover:bg-blue-800 text-white font-semibold px-6 py-2 rounded-lg shadow transition">
+            <button id="add-engineer-btn-empty" class="mt-4 inline-block bg-blue-700 hover:bg-blue-800 text-white font-semibold px-6 py-2 rounded-lg shadow transition">
                 Add Your First Engineer
-            </a>
+            </button>
         </div>
         {% endif %}
     </div>
 </div>
+
+<!-- Create Engineer Modal -->
+<div id="create-engineer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto hidden" style="opacity: 0; transition: opacity 0.3s;">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-0 relative mx-4 my-4 max-h-[95vh] overflow-y-auto" style="transform: scale(0.95); transition: transform 0.3s;">
+        <button id="close-create-modal" class="absolute top-6 right-6 z-30 w-12 h-12 flex items-center justify-center bg-blue-700 text-white text-3xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
+        <div id="create-engineer-modal-content" class="p-8">
+            <!-- Content will be loaded via AJAX -->
+            <div class="text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Engineer Modal -->
+<div id="edit-engineer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto hidden" style="opacity: 0; transition: opacity 0.3s;">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-0 relative mx-4 my-4 max-h-[95vh] overflow-y-auto" style="transform: scale(0.95); transition: transform 0.3s;">
+        <button id="close-edit-modal" class="absolute top-6 right-6 z-30 w-12 h-12 flex items-center justify-center bg-blue-700 text-white text-3xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
+        <div id="edit-engineer-modal-content" class="p-8">
+            <!-- Content will be loaded via AJAX -->
+            <div class="text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modal handling functions
+function showCreateEngineerModal() {
+    const modal = document.getElementById('create-engineer-modal');
+    const modalContent = modal?.querySelector('.bg-white');
+    if (modal && modalContent) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        
+        // Trigger animation
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            modalContent.style.transform = 'scale(1)';
+        }, 10);
+        
+        // Load form via AJAX
+        loadCreateEngineerForm();
+    }
+}
+
+function hideCreateEngineerModal() {
+    const modal = document.getElementById('create-engineer-modal');
+    const modalContent = modal?.querySelector('.bg-white');
+    if (modal && modalContent) {
+        modal.style.opacity = '0';
+        modalContent.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }, 300);
+    }
+}
+
+function showEditEngineerModal(engineerId) {
+    const modal = document.getElementById('edit-engineer-modal');
+    const modalContent = modal?.querySelector('.bg-white');
+    if (modal && modalContent) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        
+        // Trigger animation
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            modalContent.style.transform = 'scale(1)';
+        }, 10);
+        
+        // Load form via AJAX
+        loadEditEngineerForm(engineerId);
+    }
+}
+
+function hideEditEngineerModal() {
+    const modal = document.getElementById('edit-engineer-modal');
+    const modalContent = modal?.querySelector('.bg-white');
+    if (modal && modalContent) {
+        modal.style.opacity = '0';
+        modalContent.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }, 300);
+    }
+}
+
+function loadCreateEngineerForm() {
+    const content = document.getElementById('create-engineer-modal-content');
+    content.innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div><p class="mt-4 text-gray-600">Loading...</p></div>';
+    
+    fetch('{% url "engineer_create" %}', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.text())
+        .then(html => {
+            content.innerHTML = html;
+            
+            // Attach form submission handler
+            const form = content.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', handleCreateEngineerSubmit);
+            }
+            
+            // Attach cancel button handler
+            const cancelBtn = content.querySelector('#cancel-create-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', hideCreateEngineerModal);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading create form:', error);
+            content.innerHTML = '<div class="text-center py-8 text-red-600">Error loading form. Please try again.</div>';
+        });
+}
+
+function loadEditEngineerForm(engineerId) {
+    const content = document.getElementById('edit-engineer-modal-content');
+    content.innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div><p class="mt-4 text-gray-600">Loading...</p></div>';
+    
+    fetch(`/dashboard/engineers/${engineerId}/edit/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.text())
+        .then(html => {
+            content.innerHTML = html;
+            
+            // Attach form submission handler
+            const form = content.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    handleEditEngineerSubmit(e, engineerId);
+                });
+            }
+            
+            // Attach cancel button handler
+            const cancelBtn = content.querySelector('#cancel-edit-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', hideEditEngineerModal);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading edit form:', error);
+            content.innerHTML = '<div class="text-center py-8 text-red-600">Error loading form. Please try again.</div>';
+        });
+}
+
+function handleCreateEngineerSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating...';
+    
+    fetch('{% url "engineer_create" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            // JSON response (success)
+            return response.json().then(data => {
+                if (data.success) {
+                    // Success - redirect to detail page
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert(data.error || 'Error creating engineer.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        } else {
+            // HTML response (form with errors)
+            return response.text().then(html => {
+                const content = document.getElementById('create-engineer-modal-content');
+                content.innerHTML = html;
+                
+                // Re-attach form handler
+                const newForm = content.querySelector('form');
+                if (newForm) {
+                    newForm.addEventListener('submit', handleCreateEngineerSubmit);
+                }
+                
+                // Re-attach cancel button
+                const cancelBtn = content.querySelector('#cancel-create-btn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', hideCreateEngineerModal);
+                }
+                
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting form:', error);
+        alert('Error creating engineer. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+}
+
+function handleEditEngineerSubmit(e, engineerId) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+    
+    fetch(`/dashboard/engineers/${engineerId}/edit/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            // JSON response (success)
+            return response.json().then(data => {
+                if (data.success) {
+                    // Success - reload page
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Error updating engineer.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        } else {
+            // HTML response (form with errors)
+            return response.text().then(html => {
+                const content = document.getElementById('edit-engineer-modal-content');
+                content.innerHTML = html;
+                
+                // Re-attach form handler
+                const newForm = content.querySelector('form');
+                if (newForm) {
+                    newForm.addEventListener('submit', function(e) {
+                        handleEditEngineerSubmit(e, engineerId);
+                    });
+                }
+                
+                // Re-attach cancel button
+                const cancelBtn = content.querySelector('#cancel-edit-btn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', hideEditEngineerModal);
+                }
+                
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting form:', error);
+        alert('Error updating engineer. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-engineer-btn');
+    const addBtnEmpty = document.getElementById('add-engineer-btn-empty');
+    const closeCreateBtn = document.getElementById('close-create-modal');
+    const closeEditBtn = document.getElementById('close-edit-modal');
+    
+    if (addBtn) {
+        addBtn.addEventListener('click', showCreateEngineerModal);
+    }
+    if (addBtnEmpty) {
+        addBtnEmpty.addEventListener('click', showCreateEngineerModal);
+    }
+    if (closeCreateBtn) {
+        closeCreateBtn.addEventListener('click', hideCreateEngineerModal);
+    }
+    if (closeEditBtn) {
+        closeEditBtn.addEventListener('click', hideEditEngineerModal);
+    }
+    
+    // Close modal when clicking outside
+    const createModal = document.getElementById('create-engineer-modal');
+    const editModal = document.getElementById('edit-engineer-modal');
+    
+    if (createModal) {
+        createModal.addEventListener('click', function(e) {
+            if (e.target === createModal) {
+                hideCreateEngineerModal();
+            }
+        });
+    }
+    
+    if (editModal) {
+        editModal.addEventListener('click', function(e) {
+            if (e.target === editModal) {
+                hideEditEngineerModal();
+            }
+        });
+    }
+    
+    // Close modals on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const createModal = document.getElementById('create-engineer-modal');
+            const editModal = document.getElementById('edit-engineer-modal');
+            if (createModal && !createModal.classList.contains('hidden')) {
+                hideCreateEngineerModal();
+            }
+            if (editModal && !editModal.classList.contains('hidden')) {
+                hideEditEngineerModal();
+            }
+        }
+    });
+});
+
+// Make function globally available
+window.openEditEngineerModal = showEditEngineerModal;
+window.hideCreateEngineerModal = hideCreateEngineerModal;
+window.hideEditEngineerModal = hideEditEngineerModal;
+</script>
 {% endblock %}
 
