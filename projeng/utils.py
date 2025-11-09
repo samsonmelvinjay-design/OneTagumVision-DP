@@ -173,9 +173,8 @@ def get_project_from_notification(notification_message):
     except Exception as e:
         logger.warning(f"Error searching in monitoring Project model: {e}")
     
-    # If not found in either model, return None
-    logger.warning(f"Could not find project in either projeng or monitoring models")
-    return None
+    # If the main pattern didn't match, continue to other patterns below
+    # (Pattern 1, 2, 3, etc. for other notification types)
     
     # Pattern 1: "Progress for project 'ProjectName' updated..." (for other notification types)
     # Note: This is handled by the helper function above, but keeping for other patterns
