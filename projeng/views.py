@@ -134,8 +134,70 @@ def my_projects_view(request):
         projects = Project.objects.all()
     else:
         projects = Project.objects.filter(assigned_engineers=request.user)
+    
     delayed_count = projects.filter(status='delayed').count()
-    return render(request, 'projeng/my_projects.html', {'projects': projects, 'delayed_count': delayed_count})
+    
+    # Prefetch related data efficiently to get latest update times
+    from django.db.models import Prefetch
+    projects = projects.select_related('created_by').prefetch_related('assigned_engineers')
+    
+    # Prefetch latest entries from each related model for efficient access
+    projects = projects.prefetch_related(
+        Prefetch(
+            'progress_updates',
+            queryset=ProjectProgress.objects.order_by('-created_at')[:1],
+            to_attr='latest_progress'
+        ),
+        Prefetch(
+            'costs',
+            queryset=ProjectCost.objects.order_by('-created_at')[:1],
+            to_attr='latest_cost'
+        ),
+        Prefetch(
+            'documents',
+            queryset=ProjectDocument.objects.order_by('-uploaded_at')[:1],
+            to_attr='latest_document'
+        )
+    )
+    
+    # Calculate the most recent update time for each project
+    projects_with_updates = []
+    for project in projects:
+        # Collect all possible update timestamps
+        last_updates = []
+        
+        # Project's own updated_at (always available)
+        last_updates.append(project.updated_at)
+        
+        # Add latest progress update time if it exists
+        if hasattr(project, 'latest_progress') and project.latest_progress:
+            latest_prog = project.latest_progress[0] if project.latest_progress else None
+            if latest_prog and latest_prog.created_at:
+                last_updates.append(latest_prog.created_at)
+        
+        # Add latest cost entry time if it exists
+        if hasattr(project, 'latest_cost') and project.latest_cost:
+            latest_cst = project.latest_cost[0] if project.latest_cost else None
+            if latest_cst and latest_cst.created_at:
+                last_updates.append(latest_cst.created_at)
+        
+        # Add latest document upload time if it exists
+        if hasattr(project, 'latest_document') and project.latest_document:
+            latest_doc = project.latest_document[0] if project.latest_document else None
+            if latest_doc and latest_doc.uploaded_at:
+                last_updates.append(latest_doc.uploaded_at)
+        
+        # Get the most recent update (max of all timestamps)
+        last_update = max(last_updates) if last_updates else None
+        
+        # Add calculated_last_update to project for template access
+        project.calculated_last_update = last_update
+        projects_with_updates.append(project)
+    
+    return render(request, 'projeng/my_projects.html', {
+        'projects': projects_with_updates,
+        'delayed_count': delayed_count
+    })
 
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def projeng_map_view(request):

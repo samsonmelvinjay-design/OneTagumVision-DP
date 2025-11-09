@@ -13,7 +13,7 @@
             <div class="project-card bg-white rounded-xl shadow flex flex-col md:flex-row md:items-center justify-between px-6 py-4 gap-4" data-project-id="{{ project.id }}">
                 <div>
                     <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
-                    <div class="text-sm text-gray-500">{{ project.status }} • Last Update: {{ project.last_update|default:"None" }}</div>
+                    <div class="text-sm text-gray-500">{{ project.status }} • Last Update: {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</div>
                     <div class="text-sm text-gray-600 mt-1">{{ project.description|default:"No description" }}</div>
                     <div class="text-sm text-gray-500">Dates: {{ project.start_date|date:"M. d, Y"|default:"N/A" }} to {{ project.end_date|date:"M. d, Y"|default:"N/A" }}</div>
                 </div>
@@ -87,7 +87,21 @@ function updateProjectCard(card, projectData) {
     
     if (nameEl) nameEl.textContent = projectData.name || 'Unnamed Project';
     if (statusEl) {
-        statusEl.textContent = `${projectData.status || 'unknown'} • Last Update: ${new Date(projectData.updated_at).toLocaleString()}`;
+        const lastUpdate = projectData.calculated_last_update || projectData.updated_at;
+        let lastUpdateText = 'Never';
+        if (lastUpdate) {
+            const updateDate = new Date(lastUpdate);
+            lastUpdateText = updateDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            }) + ' at ' + updateDate.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+        }
+        statusEl.textContent = `${projectData.status || 'unknown'} • Last Update: ${lastUpdateText}`;
     }
 }
 
@@ -110,14 +124,27 @@ function addProjectToList(projectData) {
     projectCard.style.opacity = '0';
     projectCard.style.transform = 'translateY(-10px)';
     
-    const formattedDate = projectData.updated_at ? new Date(projectData.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+    const lastUpdate = projectData.calculated_last_update || projectData.updated_at;
+    let lastUpdateText = 'Never';
+    if (lastUpdate) {
+        const updateDate = new Date(lastUpdate);
+        lastUpdateText = updateDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+        }) + ' at ' + updateDate.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+        });
+    }
     const startDate = projectData.start_date ? new Date(projectData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
     const endDate = projectData.end_date ? new Date(projectData.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
     
     projectCard.innerHTML = `
         <div>
             <div class="text-lg font-semibold text-gray-800">${escapeHtml(projectData.name || 'Unnamed Project')}</div>
-            <div class="text-sm text-gray-500">${projectData.status || 'unknown'} • Last Update: ${formattedDate}</div>
+            <div class="text-sm text-gray-500">${projectData.status || 'unknown'} • Last Update: ${lastUpdateText}</div>
             <div class="text-sm text-gray-600 mt-1">${escapeHtml(projectData.description || 'No description')}</div>
             <div class="text-sm text-gray-500">Dates: ${startDate} to ${endDate}</div>
         </div>
