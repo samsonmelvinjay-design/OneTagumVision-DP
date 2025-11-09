@@ -1193,7 +1193,12 @@ def get_project_from_notification_api(request):
     import urllib.parse
     message = urllib.parse.unquote(message)
     
-    logger.info(f"API request to get project from notification: {message[:200]}...")
+    # Also handle unicode escapes in URL-encoded message
+    message = message.replace('\\u0027', "'").replace('\\u0022', '"')
+    
+    logger.info(f"API request to get project from notification (decoded): {message[:200]}...")
+    
+    # Get project ID
     project_id = get_project_from_notification(message)
     logger.info(f"API response: project_id={project_id}")
     
@@ -1201,8 +1206,20 @@ def get_project_from_notification_api(request):
         logger.warning(f"Could not find project for message: {message[:200]}")
         # Try to list some projects for debugging
         from .models import Project
-        sample_projects = Project.objects.all()[:5]
-        logger.info(f"Sample projects in database: {[(p.id, p.name, p.prn) for p in sample_projects]}")
+        sample_projects = Project.objects.all()[:10]
+        logger.info(f"Sample projects in database (first 10):")
+        for p in sample_projects:
+            logger.info(f"  - ID: {p.id}, Name: '{p.name}', PRN: '{p.prn}'")
+        
+        # Also try to find projects with similar PRNs
+        import re
+        prn_match = re.search(r"PRN[:\s]*([A-Z0-9\s]+)", message, re.IGNORECASE)
+        if prn_match:
+            extracted_prn = prn_match.group(1).strip()
+            logger.info(f"Searching for projects with PRN containing '{extracted_prn}'...")
+            similar_projects = Project.objects.filter(prn__icontains=extracted_prn)[:5]
+            for p in similar_projects:
+                logger.info(f"  - Found similar: ID: {p.id}, Name: '{p.name}', PRN: '{p.prn}'")
     
     return JsonResponse({'project_id': project_id})
 

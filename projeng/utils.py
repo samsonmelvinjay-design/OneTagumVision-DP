@@ -79,10 +79,16 @@ def get_project_from_notification(notification_message):
     logger = logging.getLogger(__name__)
     
     # Decode unicode escapes (e.g., \u0027 -> ')
+    # Handle both string and bytes
     try:
-        notification_message = codecs.decode(notification_message, 'unicode_escape')
-    except:
-        pass
+        if isinstance(notification_message, bytes):
+            notification_message = notification_message.decode('utf-8')
+        # Replace unicode escape sequences
+        notification_message = notification_message.encode('utf-8').decode('unicode_escape')
+    except Exception as e:
+        logger.warning(f"Error decoding unicode escapes: {e}")
+        # Try manual replacement as fallback
+        notification_message = notification_message.replace('\\u0027', "'").replace('\\u0022', '"')
     
     logger.info(f"Processing notification message: {notification_message[:200]}")
     
