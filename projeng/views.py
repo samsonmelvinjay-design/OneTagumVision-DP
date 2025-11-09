@@ -561,6 +561,20 @@ def project_analytics(request, pk):
         total_cost = costs.aggregate(total=Sum('amount'))['total'] or 0
         cost_by_type = costs.values('cost_type').annotate(total=Sum('amount'))
         budget_utilization = (total_cost / project.project_cost * 100) if project.project_cost else 0
+        # Calculate budget remaining
+        budget_remaining = (project.project_cost - total_cost) if project.project_cost else None
+        # Determine budget status for color coding
+        budget_status = 'good'  # default
+        if budget_remaining is not None:
+            # Convert to float for comparison
+            budget_remaining_float = float(budget_remaining)
+            project_cost_float = float(project.project_cost) if project.project_cost else 0
+            if budget_remaining_float < 0:
+                budget_status = 'over'  # Over budget (red)
+            elif project_cost_float > 0 and budget_remaining_float < (project_cost_float * 0.1):
+                budget_status = 'warning'  # Less than 10% remaining (orange)
+            else:
+                budget_status = 'good'  # Within budget (blue)
         timeline_data = {
             'start_date': project.start_date,
             'end_date': project.end_date,
@@ -574,6 +588,8 @@ def project_analytics(request, pk):
             'total_cost': total_cost,
             'cost_by_type': cost_by_type,
             'budget_utilization': budget_utilization,
+            'budget_remaining': budget_remaining,
+            'budget_status': budget_status,
             'timeline_data': timeline_data,
             'today': timezone.now().date(),
         }

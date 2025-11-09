@@ -165,6 +165,16 @@
                          <span class="text-gray-600">Budget</span>
                          <span class="text-xl text-gray-700">₱{{ project.project_cost|floatformat:2 }}</span>
                      </div>
+                     <div class="flex justify-between items-center mb-2">
+                         <span class="text-gray-600">Budget Remaining</span>
+                         {% if budget_status == 'over' %}
+                             <span class="text-xl font-semibold text-red-600">₱{{ budget_remaining|floatformat:2 }}</span>
+                         {% elif budget_status == 'warning' %}
+                             <span class="text-xl font-semibold text-orange-600">₱{{ budget_remaining|floatformat:2 }}</span>
+                         {% else %}
+                             <span class="text-xl font-semibold text-blue-600">₱{{ budget_remaining|floatformat:2 }}</span>
+                         {% endif %}
+                     </div>
                      <div class="w-full bg-gray-200 rounded-full h-4">
                          <div class="h-4 rounded-full {% if budget_utilization > 100 %}bg-red-600{% else %}bg-green-600{% endif %}" style="width: {{ budget_utilization }}%"></div>
                      </div>
