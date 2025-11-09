@@ -12,8 +12,19 @@
         {% for project in projects %}
             <div class="project-card bg-white rounded-xl shadow flex flex-col md:flex-row md:items-center justify-between px-6 py-4 gap-4" data-project-id="{{ project.id }}">
                 <div>
-                    <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
-                    <div class="text-sm text-gray-500">{{ project.status }} • Last Update: {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
+                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full 
+                            {% if project.status == 'completed' %}bg-green-100 text-green-800
+                            {% elif project.status == 'in_progress' %}bg-blue-100 text-blue-800
+                            {% elif project.status == 'planned' %}bg-yellow-100 text-yellow-800
+                            {% elif project.status == 'delayed' %}bg-red-100 text-red-800
+                            {% elif project.status == 'cancelled' %}bg-gray-300 text-gray-700
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ project.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-500">Last Update: {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</div>
                     <div class="text-sm text-gray-600 mt-1">{{ project.description|default:"No description" }}</div>
                     <div class="text-sm text-gray-500">Dates: {{ project.start_date|date:"M. d, Y"|default:"N/A" }} to {{ project.end_date|date:"M. d, Y"|default:"N/A" }}</div>
                 </div>
@@ -30,7 +41,8 @@
 document.getElementById('search-projects').addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
     document.querySelectorAll('.project-card').forEach(card => {
-        const name = card.querySelector('.text-lg').textContent.toLowerCase();
+        const nameEl = card.querySelector('.text-lg');
+        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
         card.style.display = name.includes(searchTerm) ? '' : 'none';
     });
 });
@@ -80,13 +92,67 @@ function addOrUpdateProjectInList(projectData) {
     }
 }
 
+// Helper function to get status badge HTML
+function getStatusBadgeHTML(status, statusDisplay) {
+    const statusLower = (status || '').toLowerCase();
+    let badgeClass = 'bg-gray-100 text-gray-800';
+    
+    if (statusLower === 'completed') {
+        badgeClass = 'bg-green-100 text-green-800';
+    } else if (statusLower === 'in_progress') {
+        badgeClass = 'bg-blue-100 text-blue-800';
+    } else if (statusLower === 'planned') {
+        badgeClass = 'bg-yellow-100 text-yellow-800';
+    } else if (statusLower === 'delayed') {
+        badgeClass = 'bg-red-100 text-red-800';
+    } else if (statusLower === 'cancelled') {
+        badgeClass = 'bg-gray-300 text-gray-700';
+    }
+    
+    const displayText = statusDisplay || status || 'Unknown';
+    return `<span class="inline-block px-3 py-1 text-xs font-semibold rounded-full ${badgeClass}">${escapeHtml(displayText)}</span>`;
+}
+
 // Update existing project card
 function updateProjectCard(card, projectData) {
-    const nameEl = card.querySelector('.text-lg');
-    const statusEl = card.querySelector('.text-sm.text-gray-500');
+    // Find name container (new structure with badge)
+    const nameContainer = card.querySelector('.flex.items-center.gap-3');
     
-    if (nameEl) nameEl.textContent = projectData.name || 'Unnamed Project';
-    if (statusEl) {
+    if (nameContainer) {
+        // New structure: update name and badge
+        const nameEl = nameContainer.querySelector('.text-lg');
+        const badgeEl = nameContainer.querySelector('span.inline-block.rounded-full');
+        
+        if (nameEl) nameEl.textContent = projectData.name || 'Unnamed Project';
+        
+        // Update status badge
+        const statusDisplay = projectData.status_display || projectData.get_status_display || projectData.status;
+        const badgeHTML = getStatusBadgeHTML(projectData.status, statusDisplay);
+        
+        if (badgeEl) {
+            badgeEl.outerHTML = badgeHTML;
+        } else {
+            // If badge doesn't exist, create it
+            nameContainer.insertAdjacentHTML('beforeend', badgeHTML);
+        }
+    } else {
+        // Fallback: old structure - update name directly
+        const nameEl = card.querySelector('.text-lg');
+        if (nameEl) nameEl.textContent = projectData.name || 'Unnamed Project';
+    }
+    
+    // Update last update text
+    const statusContainers = card.querySelectorAll('.text-sm.text-gray-500');
+    let statusContainer = null;
+    
+    // Find the container that starts with "Last Update:"
+    statusContainers.forEach(container => {
+        if (container.textContent.includes('Last Update:')) {
+            statusContainer = container;
+        }
+    });
+    
+    if (statusContainer) {
         const lastUpdate = projectData.calculated_last_update || projectData.updated_at;
         let lastUpdateText = 'Never';
         if (lastUpdate) {
@@ -101,7 +167,7 @@ function updateProjectCard(card, projectData) {
                 hour12: true 
             });
         }
-        statusEl.textContent = `${projectData.status || 'unknown'} • Last Update: ${lastUpdateText}`;
+        statusContainer.textContent = `Last Update: ${lastUpdateText}`;
     }
 }
 
@@ -141,10 +207,16 @@ function addProjectToList(projectData) {
     const startDate = projectData.start_date ? new Date(projectData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
     const endDate = projectData.end_date ? new Date(projectData.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
     
+    // Get status badge HTML
+    const statusBadge = getStatusBadgeHTML(projectData.status, projectData.status_display || projectData.get_status_display || projectData.status);
+    
     projectCard.innerHTML = `
         <div>
-            <div class="text-lg font-semibold text-gray-800">${escapeHtml(projectData.name || 'Unnamed Project')}</div>
-            <div class="text-sm text-gray-500">${projectData.status || 'unknown'} • Last Update: ${lastUpdateText}</div>
+            <div class="flex items-center gap-3 mb-2">
+                <div class="text-lg font-semibold text-gray-800">${escapeHtml(projectData.name || 'Unnamed Project')}</div>
+                ${statusBadge}
+            </div>
+            <div class="text-sm text-gray-500">Last Update: ${lastUpdateText}</div>
             <div class="text-sm text-gray-600 mt-1">${escapeHtml(projectData.description || 'No description')}</div>
             <div class="text-sm text-gray-500">Dates: ${startDate} to ${endDate}</div>
         </div>
