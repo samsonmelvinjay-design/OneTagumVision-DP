@@ -139,20 +139,21 @@
 
     <!-- Add/Edit Project Modal -->
     <div id="project-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto transition-opacity duration-300 opacity-0 pointer-events-none">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-0 relative mx-4 my-8 max-h-[90vh] overflow-y-auto animate-modal-scale">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-6xl p-0 relative mx-4 my-4 max-h-[95vh] overflow-y-auto animate-modal-scale">
             <button id="close-modal" class="absolute top-6 right-6 z-30 w-12 h-12 flex items-center justify-center bg-blue-700 text-white text-3xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
-            <form id="project-form" method="post" enctype="multipart/form-data" action="{% url 'project_list' %}" class="w-full p-8 md:p-12">
+            <form id="project-form" method="post" enctype="multipart/form-data" action="{% url 'project_list' %}" class="w-full p-6 md:p-8">
                 {% csrf_token %}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="flex flex-col gap-4">
-                        <label class="font-semibold text-gray-700">PRN</label>
-                        <input type="text" name="prn" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
-                        <label class="font-semibold text-gray-700">Name</label>
-                        <input type="text" name="name" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
-                        <label class="font-semibold text-gray-700">Description</label>
-                        <textarea name="description" rows="3" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required></textarea>
-                        <label class="font-semibold text-gray-700">Barangay</label>
-                        <select name="barangay" id="modal-barangay-select" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
+                    <!-- Column 1: Basic Information -->
+                    <div class="flex flex-col gap-3">
+                        <label class="font-semibold text-gray-700 text-sm">PRN</label>
+                        <input type="text" name="prn" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <label class="font-semibold text-gray-700 text-sm">Name</label>
+                        <input type="text" name="name" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <label class="font-semibold text-gray-700 text-sm">Description</label>
+                        <textarea name="description" rows="2" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none" required></textarea>
+                        <label class="font-semibold text-gray-700 text-sm">Barangay</label>
+                        <select name="barangay" id="modal-barangay-select" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
                             <option value="">---------</option>
                             <option value="Apokon">Apokon</option>
                             <option value="Bincungan">Bincungan</option>
@@ -178,51 +179,57 @@
                             <option value="San Miguel">San Miguel</option>
                             <option value="Visayan Village">Visayan Village</option>
                         </select>
-                        <label class="font-semibold text-gray-700">Project Cost</label>
-                        <input type="number" step="0.01" name="project_cost" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
-                        <label class="font-semibold text-gray-700">Source of Funds</label>
-                        <input type="text" name="source_of_funds" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
-                        <label class="font-semibold text-gray-700">Status</label>
-                        <select name="status" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
+                    </div>
+                    
+                    <!-- Column 2: Financial & Status -->
+                    <div class="flex flex-col gap-3">
+                        <label class="font-semibold text-gray-700 text-sm">Project Cost</label>
+                        <input type="number" step="0.01" name="project_cost" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
+                        <input type="text" name="source_of_funds" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <label class="font-semibold text-gray-700 text-sm">Status</label>
+                        <select name="status" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
                             <option value="">---------</option>
                             <option value="planned">Planned</option>
                             <option value="in_progress">Ongoing</option>
                             <option value="completed">Completed</option>
                         </select>
-                        <label class="font-semibold text-gray-700">Assigned Engineers</label>
-                        <select name="assigned_engineers" id="assigned-engineers-select" class="rounded-lg border border-gray-300 px-4 py-2 w-full" multiple required style="height: 120px; min-width: 200px;">
+                        <label class="font-semibold text-gray-700 text-sm">Assigned Engineers</label>
+                        <select name="assigned_engineers" id="assigned-engineers-select" class="rounded-lg border border-gray-300 px-3 py-2 text-sm w-full" multiple required style="height: 90px; min-width: 150px;">
                             <!-- Options will be populated by JavaScript -->
                         </select>
                     </div>
-                    <div class="flex flex-col gap-4">
-                        <label class="font-semibold text-gray-700">Latitude</label>
-                        <input type="number" step="any" name="latitude" id="latitude-input" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                        <label class="font-semibold text-gray-700">Longitude</label>
-                        <input type="number" step="any" name="longitude" id="longitude-input" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                        <button type="button" id="map-fullscreen-btn" class="mt-2 mb-4 w-fit bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2" title="Set map location">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" /></svg>
+                    
+                    <!-- Column 3: Location, Dates & Image -->
+                    <div class="flex flex-col gap-3">
+                        <label class="font-semibold text-gray-700 text-sm">Latitude</label>
+                        <input type="number" step="any" name="latitude" id="latitude-input" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
+                        <label class="font-semibold text-gray-700 text-sm">Longitude</label>
+                        <input type="number" step="any" name="longitude" id="longitude-input" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
+                        <button type="button" id="map-fullscreen-btn" class="mt-1 mb-2 w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-2 text-sm" title="Set map location">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" /></svg>
                             Set Map Location
                         </button>
-                        <label class="font-semibold text-gray-700">Start Date</label>
+                        <label class="font-semibold text-gray-700 text-sm">Start Date</label>
                         {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                        <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
                         {% else %}
-                        <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required disabled />
+                        <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required disabled />
                         {% endif %}
-                        <label class="font-semibold text-gray-700">End Date</label>
+                        <label class="font-semibold text-gray-700 text-sm">End Date</label>
                         {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                        <input type="date" name="end_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <input type="date" name="end_date" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
                         {% else %}
-                        <input type="date" name="end_date" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required disabled />
+                        <input type="date" name="end_date" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required disabled />
                         {% endif %}
-                        <label class="font-semibold text-gray-700">Image</label>
-                        <input type="file" name="image" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" id="image-input" />
+                        <label class="font-semibold text-gray-700 text-sm">Image</label>
+                        <input type="file" name="image" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" id="image-input" />
                     </div>
                 </div>
-                <div class="flex justify-end gap-4 pt-8 mt-6 border-t border-gray-100">
-                    <button type="button" onclick="closeProjectModal()" class="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200">Cancel</button>
-                    <button type="submit" class="px-8 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                <div class="flex justify-end gap-4 pt-6 mt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeProjectModal()" class="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200 text-sm">Cancel</button>
+                    <button type="submit" class="px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200 flex items-center gap-2 text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                         Save Project
                     </button>
                 </div>
