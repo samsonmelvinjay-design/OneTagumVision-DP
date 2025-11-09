@@ -1189,9 +1189,20 @@ def get_project_from_notification_api(request):
     if not message:
         return JsonResponse({'error': 'Message parameter required'}, status=400)
     
-    logger.info(f"API request to get project from notification: {message[:100]}...")
+    # Decode URL encoding
+    import urllib.parse
+    message = urllib.parse.unquote(message)
+    
+    logger.info(f"API request to get project from notification: {message[:200]}...")
     project_id = get_project_from_notification(message)
     logger.info(f"API response: project_id={project_id}")
+    
+    if project_id is None:
+        logger.warning(f"Could not find project for message: {message[:200]}")
+        # Try to list some projects for debugging
+        from .models import Project
+        sample_projects = Project.objects.all()[:5]
+        logger.info(f"Sample projects in database: {[(p.id, p.name, p.prn) for p in sample_projects]}")
     
     return JsonResponse({'project_id': project_id})
 

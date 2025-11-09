@@ -74,25 +74,38 @@ def get_project_from_notification(notification_message):
     from .models import Project
     import re
     import logging
+    import codecs
     
     logger = logging.getLogger(__name__)
     
+    # Decode unicode escapes (e.g., \u0027 -> ')
+    try:
+        notification_message = codecs.decode(notification_message, 'unicode_escape')
+    except:
+        pass
+    
+    logger.info(f"Processing notification message: {notification_message[:200]}")
+    
     # Pattern 0: "You have been assigned to project 'ProjectName (PRN: PRN123)' by ..."
-    match = re.search(r"You have been assigned to project '([^']+)'", notification_message)
+    # Handle both single quotes and unicode escapes
+    match = re.search(r"You have been assigned to project ['\u0027]([^'\u0027]+)['\u0027]", notification_message)
     if match:
         project_text = match.group(1).strip()
         logger.info(f"Extracted project text: '{project_text}'")
         
         # Try to extract PRN first (more reliable)
-        # Handle both "PRN: PRN123" and "PRN:PRN123" formats
+        # Handle both "PRN: PRN123" and "PRN:PRN123" formats, with or without spaces
         prn_match = re.search(r"\(PRN:\s*([^)]+)\)", project_text)
         if prn_match:
             prn = prn_match.group(1).strip()
             logger.info(f"Extracted PRN: '{prn}'")
             
+            # Normalize PRN - remove extra spaces
+            prn_normalized = re.sub(r'\s+', ' ', prn).strip()
+            
             # Try exact match first
             try:
-                project = Project.objects.get(prn=prn)
+                project = Project.objects.get(prn=prn_normalized)
                 logger.info(f"Found project by exact PRN match: {project.id} - {project.name}")
                 return project.id
             except Project.DoesNotExist:
@@ -100,23 +113,24 @@ def get_project_from_notification(notification_message):
             
             # Try with case-insensitive match
             try:
-                project = Project.objects.get(prn__iexact=prn)
+                project = Project.objects.get(prn__iexact=prn_normalized)
                 logger.info(f"Found project by case-insensitive PRN match: {project.id} - {project.name}")
                 return project.id
             except Project.DoesNotExist:
                 pass
             
-            # Try removing "PRN" prefix if present (e.g., "PRN9091" -> "9091")
-            prn_clean = re.sub(r'^PRN\s*', '', prn, flags=re.IGNORECASE).strip()
-            if prn_clean != prn:
+            # Try removing "PRN" prefix if present (e.g., "PRN 6969" -> "6969")
+            prn_clean = re.sub(r'^PRN\s*', '', prn_normalized, flags=re.IGNORECASE).strip()
+            if prn_clean != prn_normalized:
+                # Try without PRN prefix
                 try:
                     project = Project.objects.get(prn__iexact=prn_clean)
-                    logger.info(f"Found project by cleaned PRN: {project.id} - {project.name}")
+                    logger.info(f"Found project by cleaned PRN (no prefix): {project.id} - {project.name}")
                     return project.id
                 except Project.DoesNotExist:
                     pass
-                # Also try with "PRN" prefix (with space)
-                for prefix_variant in [f"PRN{prn_clean}", f"PRN {prn_clean}", f"PRN-{prn_clean}"]:
+                # Try with "PRN" prefix variants
+                for prefix_variant in [f"PRN{prn_clean}", f"PRN {prn_clean}", f"PRN-{prn_clean}", f"PRN {prn_clean}"]:
                     try:
                         project = Project.objects.get(prn__iexact=prefix_variant)
                         logger.info(f"Found project by PRN variant '{prefix_variant}': {project.id} - {project.name}")
@@ -125,15 +139,17 @@ def get_project_from_notification(notification_message):
                         pass
             
             # Try partial match - search for PRN containing the extracted value
-            # This handles cases where PRN might be stored differently
+            # This handles cases where PRN might be stored differently (spaces, dashes, etc.)
             try:
-                # Remove any spaces from PRN for comparison
-                prn_no_spaces = re.sub(r'\s+', '', prn)
+                # Remove all spaces and special chars for comparison
+                prn_no_spaces = re.sub(r'[\s\-_]+', '', prn_normalized)
                 projects = Project.objects.filter(prn__isnull=False).exclude(prn='')
                 for project in projects:
-                    project_prn_no_spaces = re.sub(r'\s+', '', project.prn or '')
+                    if not project.prn:
+                        continue
+                    project_prn_no_spaces = re.sub(r'[\s\-_]+', '', project.prn)
                     if prn_no_spaces.lower() == project_prn_no_spaces.lower():
-                        logger.info(f"Found project by PRN partial match: {project.id} - {project.name} (PRN: {project.prn})")
+                        logger.info(f"Found project by PRN normalized match: {project.id} - {project.name} (PRN: {project.prn})")
                         return project.id
             except Exception as e:
                 logger.warning(f"Error in partial PRN match: {e}")
