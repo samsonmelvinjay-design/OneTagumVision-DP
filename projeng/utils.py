@@ -70,8 +70,9 @@ def get_project_from_notification(notification_message):
     """
     Extract project information from notification message to find the related project.
     Returns project ID if found, None otherwise.
+    Checks both projeng.models.Project and monitoring.models.Project.
     """
-    from .models import Project
+    from .models import Project as ProjengProject
     import re
     import logging
     import codecs
@@ -92,116 +93,85 @@ def get_project_from_notification(notification_message):
     
     logger.info(f"Processing notification message: {notification_message[:200]}")
     
-    # Pattern 0: "You have been assigned to project 'ProjectName (PRN: PRN123)' by ..."
-    # Handle both single quotes and unicode escapes
-    match = re.search(r"You have been assigned to project ['\u0027]([^'\u0027]+)['\u0027]", notification_message)
-    if match:
+    # Helper function to search in a Project model
+    def search_in_project_model(ProjectModel, model_name):
+        """Search for project in a specific Project model"""
+        # Pattern 0: "You have been assigned to project 'ProjectName (PRN: PRN123)' by ..."
+        match = re.search(r"You have been assigned to project ['\u0027]([^'\u0027]+)['\u0027]", notification_message)
+        if not match:
+            return None
+            
         project_text = match.group(1).strip()
-        logger.info(f"Extracted project text: '{project_text}'")
+        logger.info(f"[{model_name}] Extracted project text: '{project_text}'")
         
         # Try to extract PRN first (more reliable)
-        # Handle both "PRN: PRN123" and "PRN:PRN123" formats, with or without spaces
         prn_match = re.search(r"\(PRN:\s*([^)]+)\)", project_text)
         if prn_match:
             prn = prn_match.group(1).strip()
-            logger.info(f"Extracted PRN: '{prn}'")
-            
-            # Normalize PRN - remove extra spaces
             prn_normalized = re.sub(r'\s+', ' ', prn).strip()
+            logger.info(f"[{model_name}] Extracted PRN: '{prn_normalized}'")
             
-            # Try exact match first
+            # Try exact match
             try:
-                project = Project.objects.get(prn=prn_normalized)
-                logger.info(f"Found project by exact PRN match: {project.id} - {project.name}")
+                project = ProjectModel.objects.get(prn=prn_normalized)
+                logger.info(f"[{model_name}] Found project by exact PRN: {project.id} - {project.name}")
                 return project.id
-            except Project.DoesNotExist:
+            except ProjectModel.DoesNotExist:
                 pass
             
-            # Try with case-insensitive match
+            # Try case-insensitive
             try:
-                project = Project.objects.get(prn__iexact=prn_normalized)
-                logger.info(f"Found project by case-insensitive PRN match: {project.id} - {project.name}")
+                project = ProjectModel.objects.get(prn__iexact=prn_normalized)
+                logger.info(f"[{model_name}] Found project by case-insensitive PRN: {project.id} - {project.name}")
                 return project.id
-            except Project.DoesNotExist:
+            except ProjectModel.DoesNotExist:
                 pass
             
-            # Try removing "PRN" prefix if present (e.g., "PRN 6969" -> "6969")
-            prn_clean = re.sub(r'^PRN\s*', '', prn_normalized, flags=re.IGNORECASE).strip()
-            if prn_clean != prn_normalized:
-                # Try without PRN prefix
-                try:
-                    project = Project.objects.get(prn__iexact=prn_clean)
-                    logger.info(f"Found project by cleaned PRN (no prefix): {project.id} - {project.name}")
+            # Try normalized (remove spaces/dashes)
+            prn_no_spaces = re.sub(r'[\s\-_]+', '', prn_normalized)
+            projects = ProjectModel.objects.filter(prn__isnull=False).exclude(prn='')
+            for project in projects:
+                if not project.prn:
+                    continue
+                project_prn_no_spaces = re.sub(r'[\s\-_]+', '', project.prn)
+                if prn_no_spaces.lower() == project_prn_no_spaces.lower():
+                    logger.info(f"[{model_name}] Found project by normalized PRN: {project.id} - {project.name} (PRN: {project.prn})")
                     return project.id
-                except Project.DoesNotExist:
-                    pass
-                # Try with "PRN" prefix variants
-                for prefix_variant in [f"PRN{prn_clean}", f"PRN {prn_clean}", f"PRN-{prn_clean}", f"PRN {prn_clean}"]:
-                    try:
-                        project = Project.objects.get(prn__iexact=prefix_variant)
-                        logger.info(f"Found project by PRN variant '{prefix_variant}': {project.id} - {project.name}")
-                        return project.id
-                    except Project.DoesNotExist:
-                        pass
-            
-            # Try partial match - search for PRN containing the extracted value
-            # This handles cases where PRN might be stored differently (spaces, dashes, etc.)
-            try:
-                # Remove all spaces and special chars for comparison
-                prn_no_spaces = re.sub(r'[\s\-_]+', '', prn_normalized)
-                projects = Project.objects.filter(prn__isnull=False).exclude(prn='')
-                for project in projects:
-                    if not project.prn:
-                        continue
-                    project_prn_no_spaces = re.sub(r'[\s\-_]+', '', project.prn)
-                    if prn_no_spaces.lower() == project_prn_no_spaces.lower():
-                        logger.info(f"Found project by PRN normalized match: {project.id} - {project.name} (PRN: {project.prn})")
-                        return project.id
-            except Exception as e:
-                logger.warning(f"Error in partial PRN match: {e}")
         
-        # Fallback to project name (remove PRN part if present)
+        # Fallback to project name
         project_name = re.sub(r'\s*\(PRN:[^)]+\)', '', project_text).strip()
-        logger.info(f"Trying project name: '{project_name}'")
+        logger.info(f"[{model_name}] Trying project name: '{project_name}'")
         
-        # Try exact name match
         try:
-            project = Project.objects.get(name=project_name)
-            logger.info(f"Found project by exact name: {project.id} - {project.name}")
+            project = ProjectModel.objects.get(name__iexact=project_name)
+            logger.info(f"[{model_name}] Found project by name: {project.id} - {project.name}")
             return project.id
-        except Project.DoesNotExist:
+        except ProjectModel.DoesNotExist:
             pass
-        except Project.MultipleObjectsReturned:
-            # If multiple projects with same name, try to get the most recent one
-            project = Project.objects.filter(name=project_name).order_by('-created_at').first()
+        except ProjectModel.MultipleObjectsReturned:
+            project = ProjectModel.objects.filter(name__iexact=project_name).order_by('-created_at').first()
             if project:
-                logger.info(f"Found project by name (multiple found, using most recent): {project.id} - {project.name}")
+                logger.info(f"[{model_name}] Found project by name (multiple): {project.id} - {project.name}")
                 return project.id
         
-        # Try case-insensitive name match
-        try:
-            project = Project.objects.get(name__iexact=project_name)
-            logger.info(f"Found project by case-insensitive name: {project.id} - {project.name}")
-            return project.id
-        except Project.DoesNotExist:
-            pass
-        except Project.MultipleObjectsReturned:
-            project = Project.objects.filter(name__iexact=project_name).order_by('-created_at').first()
-            if project:
-                logger.info(f"Found project by case-insensitive name (multiple found): {project.id} - {project.name}")
-                return project.id
-        
-        # Try partial name match (contains)
-        try:
-            projects = Project.objects.filter(name__icontains=project_name)
-            if projects.exists():
-                project = projects.order_by('-created_at').first()
-                logger.info(f"Found project by partial name match: {project.id} - {project.name}")
-                return project.id
-        except Exception as e:
-            logger.warning(f"Error in partial name match: {e}")
-        
-        logger.warning(f"Could not find project for text: '{project_text}'")
+        return None
+    
+    # First, try to find in projeng.models.Project (project engineer's projects)
+    project_id = search_in_project_model(ProjengProject, "projeng")
+    if project_id:
+        return project_id
+    
+    # If not found, try monitoring.models.Project (head engineer's projects)
+    try:
+        from monitoring.models import Project as MonitoringProject
+        project_id = search_in_project_model(MonitoringProject, "monitoring")
+        if project_id:
+            logger.info(f"Found project in monitoring app: {project_id}")
+            return project_id
+    except ImportError:
+        logger.warning("Could not import monitoring.models.Project")
+    except Exception as e:
+        logger.warning(f"Error searching in monitoring Project model: {e}")
     
     # Pattern 1: "Progress for project 'ProjectName' updated..."
     match = re.search(r"Progress for project '([^']+)'", notification_message)
