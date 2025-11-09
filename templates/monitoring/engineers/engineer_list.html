@@ -13,20 +13,20 @@
     </div>
 
     <!-- Search and Filter -->
-    <div class="w-full bg-white rounded-lg shadow p-4 mb-6">
-        <form method="get" class="flex flex-col md:flex-row gap-4">
-            <div class="flex-1">
+    <div class="w-full bg-white rounded-lg shadow p-3 mb-6">
+        <form method="get" class="flex flex-col md:flex-row gap-2 md:gap-3 items-center">
+            <div class="flex-1 w-full md:max-w-md">
                 <input 
                     type="text" 
                     name="search" 
                     value="{{ search_query }}" 
                     placeholder="Search by name, username, or email..." 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
                 >
             </div>
             <select 
                 name="status" 
-                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none w-full md:w-auto md:min-w-[140px]"
                 onchange="this.form.submit()"
             >
                 <option value="">All Status</option>
@@ -35,7 +35,7 @@
             </select>
             <select 
                 name="sort" 
-                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none w-full md:w-auto md:min-w-[160px]"
                 onchange="this.form.submit()"
             >
                 <option value="username" {% if sort_by == 'username' %}selected{% endif %}>Sort by Username</option>
@@ -44,7 +44,7 @@
                 <option value="projects" {% if sort_by == 'projects' %}selected{% endif %}>Sort by Projects</option>
             </select>
             {% if search_query or status_filter %}
-            <a href="{% url 'engineer_list' %}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="{% url 'engineer_list' %}" class="px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 whitespace-nowrap">
                 Clear
             </a>
             {% endif %}
