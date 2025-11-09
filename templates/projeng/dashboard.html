@@ -51,9 +51,20 @@
       </div>
     {% for project in assigned_projects %}
         <div class="bg-white rounded-xl shadow flex flex-col md:flex-row md:items-center justify-between px-6 py-4 gap-4 border border-gray-200 dashboard-project-card">
-          <div>
-            <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
-            <div class="text-sm text-gray-600">{{ project.get_status_display }} • Last Update: {{ project.last_update|date:"F j, Y"|default:"N/A" }}</div>
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
+              <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full 
+                  {% if project.status == 'completed' %}bg-green-100 text-green-800
+                  {% elif project.status == 'in_progress' %}bg-blue-100 text-blue-800
+                  {% elif project.status == 'planned' %}bg-yellow-100 text-yellow-800
+                  {% elif project.status == 'delayed' %}bg-red-100 text-red-800
+                  {% elif project.status == 'cancelled' %}bg-gray-300 text-gray-700
+                  {% else %}bg-gray-100 text-gray-800{% endif %}">
+                  {{ project.get_status_display }}
+              </span>
+            </div>
+            <div class="text-sm text-gray-500">Last Update: {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</div>
              {# You might want to add other brief project info here #}
           </div>
         </div>
@@ -153,7 +164,8 @@ setInterval(updateDashboardCards, 30000);
 document.getElementById('search-dashboard-projects').addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
     document.querySelectorAll('.dashboard-project-card').forEach(card => {
-        const name = card.querySelector('.text-lg').textContent.toLowerCase();
+        const nameEl = card.querySelector('.text-lg');
+        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
         card.style.display = name.includes(searchTerm) ? '' : 'none';
     });
 });

@@ -94,9 +94,76 @@ def dashboard(request):
             elif status == 'planned':
                 status_counts['Planned'] += 1
         projects_data = []
-        # Prefetch progress for assigned projects too
+        # Get project IDs before prefetching (for last update calculation)
+        from django.db.models import Max
+        project_ids = list(assigned_projects.values_list('id', flat=True))
+        
+        # Get latest update times from all sources
+        progress_times = {}
+        cost_times = {}
+        document_times = {}
+        
+        if project_ids:
+            # Get latest progress times
+            latest_progress = ProjectProgress.objects.filter(
+                project_id__in=project_ids
+            ).values('project_id').annotate(
+                max_time=Max('created_at')
+            ).values_list('project_id', 'max_time')
+            
+            # Get latest cost times
+            from .models import ProjectCost
+            latest_costs = ProjectCost.objects.filter(
+                project_id__in=project_ids
+            ).values('project_id').annotate(
+                max_time=Max('created_at')
+            ).values_list('project_id', 'max_time')
+            
+            # Get latest document times
+            from .models import ProjectDocument
+            latest_documents = ProjectDocument.objects.filter(
+                project_id__in=project_ids
+            ).values('project_id').annotate(
+                max_time=Max('uploaded_at')
+            ).values_list('project_id', 'max_time')
+            
+            progress_times = dict(latest_progress)
+            cost_times = dict(latest_costs)
+            document_times = dict(latest_documents)
+        
+        # Prefetch progress for assigned projects
         assigned_projects = assigned_projects.prefetch_related(progress_prefetch)
+        
+        # Calculate last update for each project and prepare projects_data
+        assigned_projects_with_updates = []
         for project in assigned_projects:
+            # Calculate last update using the same logic as my_projects_view
+            if project.status == 'planned':
+                project.calculated_last_update = None
+            else:
+                last_updates = []
+                
+                # Add latest progress update time if it exists
+                progress_time = progress_times.get(project.id)
+                if progress_time:
+                    last_updates.append(progress_time)
+                
+                # Add latest cost entry time if it exists
+                cost_time = cost_times.get(project.id)
+                if cost_time:
+                    last_updates.append(cost_time)
+                
+                # Add latest document upload time if it exists
+                doc_time = document_times.get(project.id)
+                if doc_time:
+                    last_updates.append(doc_time)
+                
+                # Get the most recent update (max of all timestamps)
+                project.calculated_last_update = max(last_updates) if last_updates else None
+            
+            assigned_projects_with_updates.append(project)
+            
+            # Prepare projects_data for JavaScript
             latest_progress = project.latest_progress_list[0] if hasattr(project, 'latest_progress_list') and project.latest_progress_list else None
             progress = int(latest_progress.percentage_complete) if latest_progress else 0
             projects_data.append({
@@ -114,7 +181,7 @@ def dashboard(request):
                 'image': project.image.url if project.image else "",
             })
         context = {
-            'assigned_projects': assigned_projects,
+            'assigned_projects': assigned_projects_with_updates,
             'total_projects': total_projects,
             'status_counts': status_counts,
             'delayed_count': status_counts['Delayed'],
