@@ -73,27 +73,73 @@ def get_project_from_notification(notification_message):
     """
     from .models import Project
     import re
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     # Pattern 0: "You have been assigned to project 'ProjectName (PRN: PRN123)' by ..."
     match = re.search(r"You have been assigned to project '([^']+)'", notification_message)
     if match:
         project_text = match.group(1).strip()
+        logger.info(f"Extracted project text: '{project_text}'")
+        
         # Try to extract PRN first (more reliable)
+        # Handle both "PRN: PRN123" and "PRN:PRN123" formats
         prn_match = re.search(r"\(PRN:\s*([^)]+)\)", project_text)
         if prn_match:
             prn = prn_match.group(1).strip()
+            logger.info(f"Extracted PRN: '{prn}'")
+            
+            # Try exact match first
             try:
                 project = Project.objects.get(prn=prn)
+                logger.info(f"Found project by exact PRN match: {project.id} - {project.name}")
                 return project.id
             except Project.DoesNotExist:
                 pass
+            
+            # Try with case-insensitive match
+            try:
+                project = Project.objects.get(prn__iexact=prn)
+                logger.info(f"Found project by case-insensitive PRN match: {project.id} - {project.name}")
+                return project.id
+            except Project.DoesNotExist:
+                pass
+            
+            # Try removing "PRN" prefix if present (e.g., "PRN9091" -> "9091")
+            prn_clean = re.sub(r'^PRN\s*', '', prn, flags=re.IGNORECASE).strip()
+            if prn_clean != prn:
+                try:
+                    project = Project.objects.get(prn__iexact=prn_clean)
+                    logger.info(f"Found project by cleaned PRN: {project.id} - {project.name}")
+                    return project.id
+                except Project.DoesNotExist:
+                    pass
+                # Also try with "PRN" prefix
+                try:
+                    project = Project.objects.get(prn__iexact=f"PRN{prn_clean}")
+                    logger.info(f"Found project by PRN with prefix: {project.id} - {project.name}")
+                    return project.id
+                except Project.DoesNotExist:
+                    pass
+        
         # Fallback to project name (remove PRN part if present)
         project_name = re.sub(r'\s*\(PRN:[^)]+\)', '', project_text).strip()
+        logger.info(f"Trying project name: '{project_name}'")
         try:
             project = Project.objects.get(name=project_name)
+            logger.info(f"Found project by name: {project.id} - {project.name}")
             return project.id
         except Project.DoesNotExist:
             pass
+        except Project.MultipleObjectsReturned:
+            # If multiple projects with same name, try to get the most recent one
+            project = Project.objects.filter(name=project_name).order_by('-created_at').first()
+            if project:
+                logger.info(f"Found project by name (multiple found, using most recent): {project.id} - {project.name}")
+                return project.id
+        
+        logger.warning(f"Could not find project for text: '{project_text}'")
     
     # Pattern 1: "Progress for project 'ProjectName' updated..."
     match = re.search(r"Progress for project '([^']+)'", notification_message)
