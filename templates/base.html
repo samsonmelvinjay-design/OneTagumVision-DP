@@ -110,22 +110,14 @@
                 </a>
                 {% endif %}
 
-                {# Engineers Dropdown #}
+                {# Engineers Management #}
                 {% if user|has_group:"Head Engineer" %}
-                <div class="relative w-full">
-                    <button class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 w-full text-left focus:outline-none">
-                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c0 1.49-.293 2.96-.856 4.369a20.061 20.061 0 01-2.615 3.556M16 14c0 1.49-.293 2.96-.856 4.369a20.061 20.061 0 01-2.615 3.556"/>
-                        </svg>
-                        Engineers
-                         <svg class="ml-auto h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div id="engineers-dropdown-content" class="absolute left-0 top-full mt-0 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-10 hidden">
-                         {# Dynamic engineer links will be added here by JavaScript #}
-                    </div>
-                </div>
+                <a href="{% url 'engineer_list' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'engineer_list' or request.resolver_match.url_name == 'engineer_create' or request.resolver_match.url_name == 'engineer_detail' or request.resolver_match.url_name == 'engineer_edit' %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c0 1.49-.293 2.96-.856 4.369a20.061 20.061 0 01-2.615 3.556M16 14c0 1.49-.293 2.96-.856 4.369a20.061 20.061 0 01-2.615 3.556"/>
+                    </svg>
+                    Engineers
+                </a>
                 {% endif %}
                 {% endif %}
             </nav>

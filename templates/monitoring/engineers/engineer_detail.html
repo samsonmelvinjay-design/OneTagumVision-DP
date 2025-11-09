@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex flex-col items-center w-full px-2 py-8 md:px-6 md:py-12">
+    <!-- Back Button -->
+    <div class="w-full max-w-6xl mb-4">
+        <a href="{% url 'engineer_list' %}" class="text-blue-600 hover:text-blue-800 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Engineers
+        </a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="w-full max-w-6xl mb-4 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Profile Section -->
+    <div class="w-full max-w-6xl bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
+            <div class="flex-shrink-0">
+                <div class="h-20 w-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold">
+                    {{ engineer.first_name|first }}{{ engineer.last_name|first|default:engineer.username|first }}
+                </div>
+            </div>
+            <div class="flex-1">
+                <h2 class="text-2xl font-bold text-gray-900">{{ engineer.get_full_name|default:engineer.username }}</h2>
+                <p class="text-gray-600">@{{ engineer.username }}</p>
+                <p class="text-gray-600">{{ engineer.email }}</p>
+                <div class="mt-4 flex flex-wrap items-center gap-4">
+                    {% if engineer.is_active %}
+                        <span class="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                    {% else %}
+                        <span class="px-3 py-1 text-sm font-semibold rounded-full bg-gray-100 text-gray-800">Inactive</span>
+                    {% endif %}
+                    <span class="text-sm text-gray-500">Joined: {{ engineer.date_joined|date:"M d, Y" }}</span>
+                    {% if engineer.last_login %}
+                        <span class="text-sm text-gray-500">Last Login: {{ engineer.last_login|timesince }} ago</span>
+                    {% else %}
+                        <span class="text-sm text-gray-500">Last Login: Never</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{% url 'engineer_edit' engineer.id %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Edit
+                </a>
+                {% if engineer.is_active %}
+                    <form method="post" action="{% url 'engineer_deactivate' engineer.id %}" class="inline" onsubmit="return confirm('Are you sure you want to deactivate this engineer account?');">
+                        {% csrf_token %}
+                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            Deactivate
+                        </button>
+                    </form>
+                {% else %}
+                    <form method="post" action="{% url 'engineer_activate' engineer.id %}" class="inline" onsubmit="return confirm('Are you sure you want to activate this engineer account?');">
+                        {% csrf_token %}
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            Activate
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-gray-900">{{ total_projects }}</div>
+            <div class="text-sm text-gray-600">Total Projects</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-blue-600">{{ active_projects }}</div>
+            <div class="text-sm text-gray-600">Active Projects</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-green-600">{{ completed_projects }}</div>
+            <div class="text-sm text-gray-600">Completed</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-yellow-600">{{ total_progress }}%</div>
+            <div class="text-sm text-gray-600">Progress</div>
+            <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-yellow-600 h-2 rounded-full" style="width: {{ total_progress }}%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Projects Table -->
+    <div class="w-full max-w-6xl bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Assigned Projects</h3>
+        </div>
+        {% if projects %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for project in projects %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ project.name }}</td>
+                        <td class="px-6 py-4">
+                            {% if project.status_display == 'Ongoing' %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Ongoing</span>
+                            {% elif project.status_display == 'Completed' %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
+                            {% elif project.status_display == 'Planned' %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Planned</span>
+                            {% elif project.status_display == 'Delayed' %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Delayed</span>
+                            {% else %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{{ project.status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ project.progress }}%"></div>
+                                </div>
+                                <span class="text-sm text-gray-600">{{ project.progress }}%</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            {% if project.start_date %}
+                                {{ project.start_date|date:"M d, Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            {% if project.end_date %}
+                                {{ project.end_date|date:"M d, Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm font-medium">
+                            <a href="{% url 'project_detail' project.id %}" class="text-blue-600 hover:text-blue-900">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center">
+            <p class="text-gray-500">This engineer has no assigned projects.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -2,6 +2,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from .finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications
+from .engineer_management import (
+    engineer_list, engineer_create, engineer_detail,
+    engineer_edit, engineer_deactivate, engineer_activate
+)
 from projeng.models import Project, ProjectProgress, ProjectCost
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator

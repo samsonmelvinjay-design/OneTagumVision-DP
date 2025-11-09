@@ -35,4 +35,12 @@ urlpatterns = [
     path('finance/cost-management/', views.finance_cost_management, name='finance_cost_management'),
     path('finance/notifications/', views.finance_notifications, name='finance_notifications'),
     path('finance/project/<int:project_id>/', finance_project_detail, name='finance_project_detail'),
+    
+    # Engineer Management URLs
+    path('engineers/', views.engineer_list, name='engineer_list'),
+    path('engineers/create/', views.engineer_create, name='engineer_create'),
+    path('engineers/<int:engineer_id>/', views.engineer_detail, name='engineer_detail'),
+    path('engineers/<int:engineer_id>/edit/', views.engineer_edit, name='engineer_edit'),
+    path('engineers/<int:engineer_id>/deactivate/', views.engineer_deactivate, name='engineer_deactivate'),
+    path('engineers/<int:engineer_id>/activate/', views.engineer_activate, name='engineer_activate'),
 ] 
