@@ -23,7 +23,7 @@
                  </div>
                 <p><strong class="font-medium text-gray-600">Start Date:</strong> {% if project.start_date %}{{ project.start_date|date:"F j, Y" }}{% else %}N/A{% endif %}</p>
                 <p><strong class="font-medium text-gray-600">End Date:</strong> {% if project.end_date %}{{ project.end_date|date:"F j, Y" }}{% else %}N/A{% endif %}</p>
-                <p><strong class="font-medium text-gray-600">Last Update:</strong> {% if project.last_update %}{{ project.last_update|date:"F j, Y" }}{% else %}N/A{% endif %}</p>
+                <p><strong class="font-medium text-gray-600">Last Update:</strong> {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"F j, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</p>
                 <p><strong class="font-medium text-gray-600">Created By:</strong> {% if project.created_by %}{{ project.created_by.get_full_name|default:project.created_by.username }}{% else %}N/A{% endif %}</p>
                  <p><strong class="font-medium text-gray-600">Assigned Engineers:</strong>
                     {% for engineer in project.assigned_engineers.all %}
