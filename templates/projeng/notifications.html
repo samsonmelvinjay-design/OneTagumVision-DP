@@ -512,17 +512,28 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Make existing notifications clickable on page load
     function makeNotificationsClickable() {
-        document.querySelectorAll('.notification-item').forEach(item => {
+        const items = document.querySelectorAll('.notification-item');
+        console.log('🔍 Found', items.length, 'notification items');
+        items.forEach((item, index) => {
             const isProjectNotification = item.dataset.isProjectNotification === 'true';
+            console.log(`📋 Notification ${index + 1}: isProjectNotification=${isProjectNotification}`);
             if (isProjectNotification) {
                 const notificationMessage = item.dataset.notificationMessage;
                 const notificationId = item.dataset.notificationId;
+                console.log(`  - Message: ${notificationMessage}`);
+                console.log(`  - ID: ${notificationId}`);
                 const contentDiv = item.querySelector('.notification-content');
                 if (contentDiv) {
-                    contentDiv.style.cursor = 'pointer';
-                    contentDiv.classList.add('hover:text-blue-600');
-                    contentDiv.addEventListener('click', function(e) {
+                    // Remove any existing click handlers to prevent duplicates
+                    const newContentDiv = contentDiv.cloneNode(true);
+                    contentDiv.parentNode.replaceChild(newContentDiv, contentDiv);
+                    
+                    newContentDiv.style.cursor = 'pointer';
+                    newContentDiv.classList.add('hover:text-blue-600');
+                    newContentDiv.addEventListener('click', function(e) {
                         e.stopPropagation();
+                        e.preventDefault();
+                        console.log('🖱️ Notification clicked:', notificationMessage);
                         fetchProjectIdAndRedirect(notificationMessage, notificationId);
                     });
                     // Hide "Mark Read" button for clickable notifications (will be auto-read when clicked)
@@ -530,6 +541,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (markReadBtn) {
                         markReadBtn.style.display = 'none';
                     }
+                    console.log(`  ✅ Made clickable`);
+                } else {
+                    console.warn(`  ⚠️ Content div not found`);
                 }
             }
         });
@@ -550,10 +564,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to fetch project ID from notification message and redirect
     async function fetchProjectIdAndRedirect(notificationMessage, notificationId) {
+        console.log('🔍 Fetching project ID for notification:', notificationMessage);
         try {
-            const response = await fetch(`/projeng/api/get-project-from-notification/?message=${encodeURIComponent(notificationMessage)}`);
+            const url = `/projeng/api/get-project-from-notification/?message=${encodeURIComponent(notificationMessage)}`;
+            console.log('📡 Fetching from URL:', url);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                console.error('❌ API response not OK:', response.status, response.statusText);
+                return;
+            }
+            
             const data = await response.json();
+            console.log('📦 API response:', data);
+            
             if (data.project_id) {
+                console.log('✅ Project ID found:', data.project_id);
                 // Mark notification as read when clicked
                 if (notificationId) {
                     const formData = new FormData();
@@ -566,12 +592,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     }).catch(err => console.error('Error marking notification as read:', err));
                 }
                 // Redirect to project detail page for Project Engineers
-                window.location.href = `/projeng/projects/${data.project_id}/detail/`;
+                const redirectUrl = `/projeng/projects/${data.project_id}/detail/`;
+                console.log('🚀 Redirecting to:', redirectUrl);
+                window.location.href = redirectUrl;
             } else {
-                console.log('No project ID found for notification');
+                console.warn('⚠️ No project ID found in response:', data);
+                if (data.error) {
+                    console.error('❌ API error:', data.error);
+                }
             }
         } catch (error) {
-            console.error('Error fetching project ID:', error);
+            console.error('❌ Error fetching project ID:', error);
+            alert('Error: Could not find project. Please try again.');
         }
     }
 });

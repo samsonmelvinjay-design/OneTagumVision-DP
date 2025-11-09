@@ -74,6 +74,27 @@ def get_project_from_notification(notification_message):
     from .models import Project
     import re
     
+    # Pattern 0: "You have been assigned to project 'ProjectName (PRN: PRN123)' by ..."
+    match = re.search(r"You have been assigned to project '([^']+)'", notification_message)
+    if match:
+        project_text = match.group(1).strip()
+        # Try to extract PRN first (more reliable)
+        prn_match = re.search(r"\(PRN:\s*([^)]+)\)", project_text)
+        if prn_match:
+            prn = prn_match.group(1).strip()
+            try:
+                project = Project.objects.get(prn=prn)
+                return project.id
+            except Project.DoesNotExist:
+                pass
+        # Fallback to project name (remove PRN part if present)
+        project_name = re.sub(r'\s*\(PRN:[^)]+\)', '', project_text).strip()
+        try:
+            project = Project.objects.get(name=project_name)
+            return project.id
+        except Project.DoesNotExist:
+            pass
+    
     # Pattern 1: "Progress for project 'ProjectName' updated..."
     match = re.search(r"Progress for project '([^']+)'", notification_message)
     if match:
