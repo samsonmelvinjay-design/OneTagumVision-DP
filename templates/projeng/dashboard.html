@@ -8,15 +8,15 @@
     </div>
   </div>
 
-  <!-- KPI Section -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-      <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+  <!-- Overview Cards Section -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl shadow-md p-5 flex items-center justify-between border-l-4 border-indigo-500">
           <div>
-              <div class="text-sm font-medium text-gray-500">Total Assigned Projects</div>
-              <div class="text-2xl font-bold text-indigo-600" id="card-total-projects">{{ total_projects }}</div>
+              <div class="text-sm font-medium text-gray-500 mb-1">Total Projects</div>
+              <div class="text-3xl font-bold text-indigo-600" id="card-total-projects">{{ total_projects }}</div>
           </div>
-          <div class="p-2 bg-indigo-100 rounded-md">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div class="p-3 bg-indigo-100 rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H7a2 2 0 00-2 2v2m7-7V3m0 2.882a2 2 0 01-.876 1.553L9 10m4-5.565l2.876 1.553A2 2 0 0119 9v2M5 9h14" />
               </svg>
           </div>
@@ -24,16 +24,34 @@
       {# Iterate over status counts to display individual KPIs #}
       {% for status, count in status_counts.items %}
           {% if status != 'Cancelled' %}
-              <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+              <div class="bg-white rounded-xl shadow-md p-5 flex items-center justify-between border-l-4 
+                  {% if status == 'Planned' %}border-yellow-500
+                  {% elif status == 'In Progress' %}border-blue-500
+                  {% elif status == 'Completed' %}border-green-500
+                  {% elif status == 'Delayed' %}border-red-500
+                  {% else %}border-gray-500{% endif %}">
                   <div>
-                      <div class="text-sm font-medium text-gray-500">{{ status }}</div>
-                      <div class="text-2xl font-bold text-gray-800" id="card-{{ status|slugify }}">{{ count }}</div>
+                      <div class="text-sm font-medium text-gray-500 mb-1">{{ status }}</div>
+                      <div class="text-3xl font-bold 
+                          {% if status == 'Planned' %}text-yellow-600
+                          {% elif status == 'In Progress' %}text-blue-600
+                          {% elif status == 'Completed' %}text-green-600
+                          {% elif status == 'Delayed' %}text-red-600
+                          {% else %}text-gray-800{% endif %}" id="card-{{ status|slugify }}">{{ count }}</div>
                   </div>
-                  {# Add a relevant icon for each status if desired #}
-                  <div class="p-2 bg-gray-100 rounded-md">
-                      {# Placeholder icon - replace with status-specific icons #}
-                       <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 2v-6m2 9H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <div class="p-3 rounded-lg
+                      {% if status == 'Planned' %}bg-yellow-100
+                      {% elif status == 'In Progress' %}bg-blue-100
+                      {% elif status == 'Completed' %}bg-green-100
+                      {% elif status == 'Delayed' %}bg-red-100
+                      {% else %}bg-gray-100{% endif %}">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 
+                          {% if status == 'Planned' %}text-yellow-500
+                          {% elif status == 'In Progress' %}text-blue-500
+                          {% elif status == 'Completed' %}text-green-500
+                          {% elif status == 'Delayed' %}text-red-500
+                          {% else %}text-gray-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                   </div>
               </div>
@@ -41,86 +59,80 @@
       {% endfor %}
   </div>
 
-  <!-- Main Content: Projects List and Analytics Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Project List (Left Column) -->
-    <div class="space-y-3">
-      <h2 class="text-xl font-semibold text-gray-800 mb-3">Recent Assigned Projects</h2>
-      <div class="mb-3">
-          <input type="text" id="search-dashboard-projects" placeholder="Search projects..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full">
-      </div>
-      <div class="space-y-3 overflow-y-auto">
-        {% for project in assigned_projects %}
-            <div class="bg-white rounded-lg shadow flex flex-col px-5 py-4 gap-2 border border-gray-200 dashboard-project-card">
-              <div class="flex items-center gap-3 flex-wrap">
-                <div class="text-lg font-semibold text-gray-800">{{ project.name }}</div>
-                <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0
-                    {% if project.status == 'completed' %}bg-green-100 text-green-800
-                    {% elif project.status == 'in_progress' %}bg-blue-100 text-blue-800
-                    {% elif project.status == 'planned' %}bg-yellow-100 text-yellow-800
-                    {% elif project.status == 'delayed' %}bg-red-100 text-red-800
-                    {% elif project.status == 'cancelled' %}bg-gray-300 text-gray-700
-                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                    {{ project.get_status_display }}
-                </span>
-              </div>
-              <div class="text-sm text-gray-500">Last Update: {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</div>
-            </div>
-        {% empty %}
-            <div class="bg-white rounded-lg shadow px-5 py-4 text-gray-600">
-                No recent projects assigned to you.
-            </div>
-        {% endfor %}
+  <!-- Charts Section: First Row - 2 Large Charts -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Chart 1: Project Status Overview -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h3 class="text-xl font-bold text-gray-800 mb-4">Project Status Overview</h3>
+      <div class="chart-container" style="height: 320px;">
+          <canvas id="projectOverviewChart"></canvas>
       </div>
     </div>
 
-    <!-- Analytics Graphs (Right Column - 2x3 Grid Layout) -->
-    <div class="space-y-6">
-      <!-- Top Row: 3 Graphs -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Graph 1: Project Status Overview -->
-        <div class="bg-white rounded-xl shadow p-5">
-          <h3 class="text-base font-bold text-gray-800 mb-3">Project Status Overview</h3>
-          <div class="chart-container" style="height: 250px;">
-              <canvas id="projectOverviewChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Graph 2: Placeholder for new graph -->
-        <div class="bg-white rounded-xl shadow p-5">
-          <h3 class="text-base font-bold text-gray-800 mb-3">Graph 2</h3>
-          <div class="chart-container flex items-center justify-center" style="height: 250px;">
-              <canvas id="chart2"></canvas>
-          </div>
-        </div>
-
-        <!-- Graph 3: Placeholder for new graph -->
-        <div class="bg-white rounded-xl shadow p-5">
-          <h3 class="text-base font-bold text-gray-800 mb-3">Graph 3</h3>
-          <div class="chart-container flex items-center justify-center" style="height: 250px;">
-              <canvas id="chart3"></canvas>
-          </div>
-        </div>
+    <!-- Chart 2: Placeholder for new graph -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h3 class="text-xl font-bold text-gray-800 mb-4">Graph 2</h3>
+      <div class="chart-container flex items-center justify-center" style="height: 320px;">
+          <canvas id="chart2"></canvas>
       </div>
+    </div>
+  </div>
 
-      <!-- Bottom Row: 2 Graphs -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Graph 4: Placeholder for new graph -->
-        <div class="bg-white rounded-xl shadow p-5">
-          <h3 class="text-base font-bold text-gray-800 mb-3">Graph 4</h3>
-          <div class="chart-container flex items-center justify-center" style="height: 250px;">
-              <canvas id="chart4"></canvas>
-          </div>
-        </div>
-
-        <!-- Graph 5: Placeholder for new graph -->
-        <div class="bg-white rounded-xl shadow p-5">
-          <h3 class="text-base font-bold text-gray-800 mb-3">Graph 5</h3>
-          <div class="chart-container flex items-center justify-center" style="height: 250px;">
-              <canvas id="chart5"></canvas>
-          </div>
-        </div>
+  <!-- Charts Section: Second Row - 3 Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <!-- Chart 3: Placeholder for new graph -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h3 class="text-lg font-bold text-gray-800 mb-4">Graph 3</h3>
+      <div class="chart-container flex items-center justify-center" style="height: 280px;">
+          <canvas id="chart3"></canvas>
       </div>
+    </div>
+
+    <!-- Chart 4: Placeholder for new graph -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h3 class="text-lg font-bold text-gray-800 mb-4">Graph 4</h3>
+      <div class="chart-container flex items-center justify-center" style="height: 280px;">
+          <canvas id="chart4"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 5: Placeholder for new graph -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h3 class="text-lg font-bold text-gray-800 mb-4">Graph 5</h3>
+      <div class="chart-container flex items-center justify-center" style="height: 280px;">
+          <canvas id="chart5"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Assigned Projects Section (Compact) -->
+  <div class="bg-white rounded-xl shadow-md p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-gray-800">Recent Assigned Projects</h2>
+      <input type="text" id="search-dashboard-projects" placeholder="Search projects..." class="px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64">
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for project in assigned_projects %}
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 dashboard-project-card hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <div class="text-base font-semibold text-gray-800 truncate flex-1">{{ project.name }}</div>
+              <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0
+                  {% if project.status == 'completed' %}bg-green-100 text-green-800
+                  {% elif project.status == 'in_progress' %}bg-blue-100 text-blue-800
+                  {% elif project.status == 'planned' %}bg-yellow-100 text-yellow-800
+                  {% elif project.status == 'delayed' %}bg-red-100 text-red-800
+                  {% elif project.status == 'cancelled' %}bg-gray-300 text-gray-700
+                  {% else %}bg-gray-100 text-gray-800{% endif %}">
+                  {{ project.get_status_display }}
+              </span>
+            </div>
+            <div class="text-xs text-gray-500">Last Update: {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</div>
+          </div>
+      {% empty %}
+          <div class="col-span-full bg-gray-50 rounded-lg p-4 text-center text-gray-600">
+              No recent projects assigned to you.
+          </div>
+      {% endfor %}
     </div>
   </div>
 
@@ -249,7 +261,7 @@ setInterval(updateDashboardCards, 30000);
 document.getElementById('search-dashboard-projects').addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
     document.querySelectorAll('.dashboard-project-card').forEach(card => {
-        const nameEl = card.querySelector('.text-lg');
+        const nameEl = card.querySelector('.text-base.font-semibold');
         const name = nameEl ? nameEl.textContent.toLowerCase() : '';
         card.style.display = name.includes(searchTerm) ? '' : 'none';
     });
