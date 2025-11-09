@@ -115,13 +115,28 @@ def get_project_from_notification(notification_message):
                     return project.id
                 except Project.DoesNotExist:
                     pass
-                # Also try with "PRN" prefix
-                try:
-                    project = Project.objects.get(prn__iexact=f"PRN{prn_clean}")
-                    logger.info(f"Found project by PRN with prefix: {project.id} - {project.name}")
-                    return project.id
-                except Project.DoesNotExist:
-                    pass
+                # Also try with "PRN" prefix (with space)
+                for prefix_variant in [f"PRN{prn_clean}", f"PRN {prn_clean}", f"PRN-{prn_clean}"]:
+                    try:
+                        project = Project.objects.get(prn__iexact=prefix_variant)
+                        logger.info(f"Found project by PRN variant '{prefix_variant}': {project.id} - {project.name}")
+                        return project.id
+                    except Project.DoesNotExist:
+                        pass
+            
+            # Try partial match - search for PRN containing the extracted value
+            # This handles cases where PRN might be stored differently
+            try:
+                # Remove any spaces from PRN for comparison
+                prn_no_spaces = re.sub(r'\s+', '', prn)
+                projects = Project.objects.filter(prn__isnull=False).exclude(prn='')
+                for project in projects:
+                    project_prn_no_spaces = re.sub(r'\s+', '', project.prn or '')
+                    if prn_no_spaces.lower() == project_prn_no_spaces.lower():
+                        logger.info(f"Found project by PRN partial match: {project.id} - {project.name} (PRN: {project.prn})")
+                        return project.id
+            except Exception as e:
+                logger.warning(f"Error in partial PRN match: {e}")
         
         # Fallback to project name (remove PRN part if present)
         project_name = re.sub(r'\s*\(PRN:[^)]+\)', '', project_text).strip()
