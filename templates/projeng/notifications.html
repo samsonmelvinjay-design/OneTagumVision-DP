@@ -348,13 +348,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Create notification element
         const notificationDiv = document.createElement('div');
-        notificationDiv.className = 'p-4 hover:bg-gray-50 transition-colors bg-blue-50 border-l-4 border-blue-500';
+        notificationDiv.className = 'p-4 hover:bg-gray-50 transition-colors bg-blue-50 border-l-4 border-blue-500 notification-item';
         notificationDiv.setAttribute('data-notification-id', notificationData.id);
+        notificationDiv.setAttribute('data-notification-message', escapeHtml(notificationData.message || 'New notification'));
+        notificationDiv.setAttribute('data-is-project-notification', hasProjectLink ? 'true' : 'false');
         
         notificationDiv.innerHTML = `
             <div class="flex justify-between items-start">
-                <div class="flex-1 ${clickableClass}" ${onClick}>
-                    <p class="text-gray-800 font-semibold ${hoverClass}">
+                <div class="flex-1 notification-content">
+                    <p class="text-gray-800 font-semibold">
                         ${escapeHtml(notificationData.message || 'New notification')}
                     </p>
                     <p class="text-sm text-gray-500 mt-1">
@@ -373,6 +375,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Insert at the top of the list
         notificationsContainer.insertBefore(notificationDiv, notificationsContainer.firstChild);
+        
+        // Make the notification clickable if it's a project notification
+        if (hasProjectLink && window.makeNotificationsClickable) {
+            setTimeout(() => {
+                window.makeNotificationsClickable();
+            }, 50);
+        }
         
         // Add event listeners for the new buttons
         const markReadBtn = notificationDiv.querySelector('.mark-read-btn');
@@ -522,45 +531,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 const notificationId = item.dataset.notificationId;
                 console.log(`  - Message: ${notificationMessage}`);
                 console.log(`  - ID: ${notificationId}`);
-                const contentDiv = item.querySelector('.notification-content');
+                
+                // Make the entire notification item clickable
+                item.style.cursor = 'pointer';
+                item.classList.add('hover:bg-blue-100');
+                
+                // Remove any existing click handlers first
+                const newItem = item.cloneNode(true);
+                item.parentNode.replaceChild(newItem, item);
+                
+                // Get the content div from the new item
+                const contentDiv = newItem.querySelector('.notification-content');
                 if (contentDiv) {
-                    // Remove any existing click handlers to prevent duplicates
-                    const newContentDiv = contentDiv.cloneNode(true);
-                    contentDiv.parentNode.replaceChild(newContentDiv, contentDiv);
-                    
-                    newContentDiv.style.cursor = 'pointer';
-                    newContentDiv.classList.add('hover:text-blue-600');
-                    newContentDiv.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        console.log('🖱️ Notification clicked:', notificationMessage);
-                        fetchProjectIdAndRedirect(notificationMessage, notificationId);
-                    });
-                    // Hide "Mark Read" button for clickable notifications (will be auto-read when clicked)
-                    const markReadBtn = item.querySelector('.mark-read-btn');
-                    if (markReadBtn) {
-                        markReadBtn.style.display = 'none';
-                    }
-                    console.log(`  ✅ Made clickable`);
-                } else {
-                    console.warn(`  ⚠️ Content div not found`);
+                    contentDiv.style.cursor = 'pointer';
+                    contentDiv.classList.add('hover:text-blue-600');
                 }
+                
+                // Add click handler to the entire notification item
+                newItem.addEventListener('click', function(e) {
+                    // Don't trigger if clicking on buttons
+                    if (e.target.closest('button') || e.target.closest('.flex.space-x-2')) {
+                        return;
+                    }
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('🖱️ Notification clicked:', notificationMessage);
+                    fetchProjectIdAndRedirect(notificationMessage, notificationId);
+                });
+                
+                // Hide "Mark Read" button for clickable notifications (will be auto-read when clicked)
+                const markReadBtn = newItem.querySelector('.mark-read-btn');
+                if (markReadBtn) {
+                    markReadBtn.style.display = 'none';
+                }
+                console.log(`  ✅ Made clickable`);
             }
         });
     }
     
-    // Make notifications clickable on page load
-    makeNotificationsClickable();
+    // Make notifications clickable on page load (with a small delay to ensure DOM is ready)
+    setTimeout(() => {
+        makeNotificationsClickable();
+    }, 100);
+    
+    // Store original function before it's defined
+    window.makeNotificationsClickable = makeNotificationsClickable;
     
     // Also make new notifications clickable when they're added via real-time
-    const originalAddNotificationToList = addNotificationToList;
-    addNotificationToList = function(notificationData) {
-        originalAddNotificationToList(notificationData);
-        // Make the newly added notification clickable
-        setTimeout(() => {
-            makeNotificationsClickable();
-        }, 100);
-    };
+    // This will be set up after addNotificationToList is defined
     
     // Function to fetch project ID from notification message and redirect
     async function fetchProjectIdAndRedirect(notificationMessage, notificationId) {
