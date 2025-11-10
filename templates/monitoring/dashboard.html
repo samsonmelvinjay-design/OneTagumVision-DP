@@ -38,68 +38,10 @@
         <h1 class="text-4xl font-extrabold text-gray-800">Welcome to OneTagumVision</h1>
     </div>
 
-    <!-- Top Row: Navigation Cards and Recent Projects -->
+    <!-- Top Row: Overall Project Metrics and Recent Projects -->
     <div class="flex flex-col md:flex-row gap-8 mb-8">
-        <!-- Navigation Cards Section -->
-        <div class="w-full md:w-1/3">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Navigation</h2>
-            <div class="grid grid-cols-1 gap-4">
-                <!-- Map Card -->
-                <a href="{% url 'map_view' %}" class="bg-white rounded-lg shadow p-4 flex items-center hover:-translate-y-1 hover:shadow-lg transition-transform duration-200 group">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-3 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.948L9 2m0 0l6 2.67M9 2v18m6-15.33l5.447 2.724A2 2 0 0121 8.618v9.764a2 2 0 01-1.553 1.948L15 22m0 0V4.67" />
-                    </svg>
-                    <div>
-                        <div class="text-lg font-bold text-gray-800">Map</div>
-                        <div class="text-gray-600 text-sm">View and explore project locations</div>
-                    </div>
-                </a>
-                <!-- Project List Card -->
-                <a href="{% url 'project_list' %}" class="bg-white rounded-lg shadow p-4 flex items-center hover:-translate-y-1 hover:shadow-lg transition-transform duration-200 group">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600 mr-3 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
-                    </svg>
-                    <div>
-                        <div class="text-lg font-bold text-gray-800">Projects</div>
-                        <div class="text-gray-600 text-sm">Manage and view project details</div>
-                    </div>
-                </a>
-                <!-- Reports Card -->
-                <a href="{% url 'reports' %}" class="bg-white rounded-lg shadow p-4 flex items-center hover:-translate-y-1 hover:shadow-lg transition-transform duration-200 group">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600 mr-3 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 018 0v2m-4-4V7m0 0V3m0 4a4 4 0 00-4 4v4" />
-                    </svg>
-                    <div>
-                        <div class="text-lg font-bold text-gray-800">Reports</div>
-                        <div class="text-gray-600 text-sm">Generate reports</div>
-                    </div>
-                </a>
-            </div>
-        </div>
-
-        <!-- Recent Projects Section -->
-        <div class="w-full md:w-2/3 bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Recent Projects</h2>
-            <ul class="space-y-4">
-                {% for project in recent_projects %}
-                <li class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 hover:bg-gray-100 transition duration-200">
-                    <div>
-                        <span class="font-semibold text-gray-800">{{ project.name }}</span>
-                        <span class="ml-2 text-xs px-2 py-1 rounded-full {% if project.status == 'completed' %}bg-green-100 text-green-700{% elif project.status == 'in_progress' %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-700{% endif %}">{{ project.status|title }}</span>
-                    </div>
-                    <span class="text-gray-500 text-xs">{{ project.created_at|date:"M d, Y" }}</span>
-                </li>
-                {% empty %}
-                <li class="text-gray-600">No recent projects.</li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-
-    <!-- Bottom Row: Metrics and Chart Section -->
-    <div class="flex flex-col md:flex-row gap-8 mb-8 bg-white rounded-lg shadow-md p-6">
-        <!-- Dashboard Metrics Section -->
-        <div class="w-full md:w-1/3">
+        <!-- Overall Project Metrics Section (moved to top-left) -->
+        <div class="w-full md:w-1/3 bg-white rounded-lg shadow-md p-6">
              <h2 class="text-2xl font-bold text-gray-800 mb-6">Overall Project Metrics</h2>
             <div class="grid grid-cols-1 gap-3">
                 <div class="flex items-center p-2 bg-blue-50 rounded-lg">
@@ -150,29 +92,74 @@
             </div>
         </div>
 
-        <!-- Project Status Chart Section -->
-        <div class="w-full md:w-2/3">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Project Status Overview Chart</h2>
-            <div class="chart-container" style="position: relative; height:35vh; width:100%">
-                <canvas id="projectStatusChart"></canvas>
-            </div>
+        <!-- Recent Projects Section -->
+        <div class="w-full md:w-2/3 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Recent Projects</h2>
+            <ul class="space-y-4">
+                {% for project in recent_projects %}
+                <li class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 hover:bg-gray-100 transition duration-200">
+                    <div>
+                        <span class="font-semibold text-gray-800">{{ project.name }}</span>
+                        <span class="ml-2 text-xs px-2 py-1 rounded-full {% if project.status == 'completed' %}bg-green-100 text-green-700{% elif project.status == 'in_progress' %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-700{% endif %}">{{ project.status|title }}</span>
+                    </div>
+                    <span class="text-gray-500 text-xs">{{ project.created_at|date:"M d, Y" }}</span>
+                </li>
+                {% empty %}
+                <li class="text-gray-600">No recent projects.</li>
+                {% endfor %}
+            </ul>
         </div>
     </div>
 
-    <!-- Collaborative Projects Analytics Section -->
-    <div class="flex flex-col md:flex-row gap-8 mb-8 bg-white rounded-lg shadow-md p-6">
-      <div class="w-full md:w-1/2">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Collaborative Projects per Barangay</h2>
-        <div class="chart-container" style="position: relative; height:32vh; width:100%">
-          <canvas id="collabBarangayChart"></canvas>
+    <!-- Charts Section: 6 Charts in 2 Columns -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Chart 1: Project Status Overview Chart -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Project Status Overview</h2>
+            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                <canvas id="projectStatusChart"></canvas>
+            </div>
         </div>
-      </div>
-      <div class="w-full md:w-1/2">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Collaborative Projects per Status</h2>
-        <div class="chart-container" style="position: relative; height:32vh; width:100%">
-          <canvas id="collabStatusChart"></canvas>
+
+        <!-- Chart 2: Collaborative Projects per Barangay -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Projects per Barangay</h2>
+            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                <canvas id="collabBarangayChart"></canvas>
+            </div>
         </div>
-      </div>
+
+        <!-- Chart 3: Collaborative Projects per Status -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Projects per Status</h2>
+            <div class="chart-container" style="position: relative; height:300px; width:100%">
+                <canvas id="collabStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Chart 4: Placeholder for new chart -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Chart 4</h2>
+            <div class="chart-container flex items-center justify-center" style="position: relative; height:300px; width:100%">
+                <canvas id="chart4"></canvas>
+            </div>
+        </div>
+
+        <!-- Chart 5: Placeholder for new chart -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Chart 5</h2>
+            <div class="chart-container flex items-center justify-center" style="position: relative; height:300px; width:100%">
+                <canvas id="chart5"></canvas>
+            </div>
+        </div>
+
+        <!-- Chart 6: Placeholder for new chart -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Chart 6</h2>
+            <div class="chart-container flex items-center justify-center" style="position: relative; height:300px; width:100%">
+                <canvas id="chart6"></canvas>
+            </div>
+        </div>
     </div>
 
     <!-- Any remaining content would go here -->
