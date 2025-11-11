@@ -841,12 +841,14 @@ def add_progress_update(request, pk):
         return JsonResponse({'error': 'Project not found.'}, status=404)
     
     if request.method == 'GET':
-        # Render form page for adding progress update
+        # Render combined form page for adding progress update or cost entry
         from datetime import date
         today = date.today()
-        return render(request, 'projeng/add_progress_update.html', {
+        from projeng.models import ProjectCost
+        return render(request, 'projeng/add_update.html', {
             'project': project,
-            'today': today
+            'today': today,
+            'cost_types': ProjectCost.COST_TYPES
         })
     
     if request.method == 'POST':
@@ -989,11 +991,11 @@ def add_cost_entry(request, pk):
         return JsonResponse({'error': 'Project not found.'}, status=404)
     
     if request.method == 'GET':
-        # Render form page for adding cost entry
+        # Render combined form page for adding progress update or cost entry
         from datetime import date
         today = date.today()
         from projeng.models import ProjectCost
-        return render(request, 'projeng/add_cost_entry.html', {
+        return render(request, 'projeng/add_update.html', {
             'project': project,
             'today': today,
             'cost_types': ProjectCost.COST_TYPES

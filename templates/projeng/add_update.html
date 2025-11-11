@@ -1,0 +1,501 @@
+{% extends 'projeng_base.html' %}
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-4 mb-4">
+            <a href="{% url 'projeng:projeng_project_detail' project.pk %}" 
+               class="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-2 -ml-2 rounded-lg hover:bg-gray-100"
+               title="Back to Project Details">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Add Update</h1>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p class="text-sm text-blue-900">
+                <span class="font-semibold">Project:</span> {{ project.name }}
+                {% if project.prn %}<span class="ml-4"><span class="font-semibold">PRN:</span> {{ project.prn }}</span>{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div class="flex border-b border-gray-200">
+            <button id="tab-progress" 
+                    class="flex-1 px-6 py-4 text-center font-semibold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition-colors">
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <span>Progress Update</span>
+                </div>
+            </button>
+            <button id="tab-cost" 
+                    class="flex-1 px-6 py-4 text-center font-semibold text-gray-600 hover:text-green-600 transition-colors">
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Cost Entry</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- Progress Update Form -->
+        <div id="form-progress" class="p-6">
+            <form id="progressForm" enctype="multipart/form-data" method="post" action="{% url 'projeng:projeng_add_progress_update' project.pk %}">
+                {% csrf_token %}
+                
+                <div class="space-y-6">
+                    <!-- Date and Percentage -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+                            <div class="flex items-center gap-2 text-gray-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <span>{{ today|date:'F j, Y' }} (today)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="percentage_complete" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Percentage Complete (%)
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" 
+                                   id="percentage_complete" 
+                                   name="percentage_complete" 
+                                   min="0" 
+                                   max="100" 
+                                   required 
+                                   placeholder="0-100"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                            <p class="text-xs text-gray-500 mt-1">Enter a value between 0 and 100</p>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="progress-description" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Description
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="progress-description" 
+                                  name="description" 
+                                  rows="4" 
+                                  required 
+                                  placeholder="Describe the progress made on this project..."
+                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"></textarea>
+                    </div>
+
+                    <!-- Photo Upload -->
+                    <div>
+                        <label for="progress-photo" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Photos (Optional)
+                        </label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors">
+                            <div class="space-y-1 text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="flex text-sm text-gray-600">
+                                    <label for="progress-photo" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                        <span>Upload photos</span>
+                                        <input type="file" 
+                                               id="progress-photo" 
+                                               name="photos" 
+                                               accept="image/*" 
+                                               multiple 
+                                               class="sr-only">
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB (multiple files allowed)</p>
+                            </div>
+                        </div>
+                        <div id="photo-preview" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 hidden"></div>
+                    </div>
+
+                    <!-- Messages -->
+                    <div id="progress-success-message" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p class="text-green-800 font-medium"></p>
+                    </div>
+                    <div id="progress-error-message" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-800 font-medium"></p>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex items-center gap-4 pt-4 border-t border-gray-200">
+                        <button type="submit" 
+                                id="submit-progress-btn"
+                                class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition-colors duration-200 inline-flex items-center justify-center gap-2">
+                            <span id="progress-loading-spinner" class="hidden">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
+                            <span>Add Progress Update</span>
+                        </button>
+                        <a href="{% url 'projeng:projeng_project_detail' project.pk %}" 
+                           class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-200">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Cost Entry Form -->
+        <div id="form-cost" class="p-6 hidden">
+            <form id="costForm" enctype="multipart/form-data" method="post" action="{% url 'projeng:projeng_add_cost_entry' project.pk %}">
+                {% csrf_token %}
+                
+                <div class="space-y-6">
+                    <!-- Date and Cost Type -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="cost-date" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Date
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" 
+                                   id="cost-date" 
+                                   name="date" 
+                                   required 
+                                   value="{{ today|date:'Y-m-d' }}"
+                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label for="cost-type" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Cost Type
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <select id="cost-type" 
+                                    name="cost_type" 
+                                    required
+                                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors">
+                                <option value="">Select cost type...</option>
+                                {% for value, label in cost_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Amount -->
+                    <div>
+                        <label for="cost-amount" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Amount (₱)
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">₱</span>
+                            <input type="number" 
+                                   id="cost-amount" 
+                                   name="amount" 
+                                   step="0.01" 
+                                   min="0" 
+                                   required 
+                                   placeholder="0.00"
+                                   class="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Enter the cost amount in pesos</p>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="cost-description" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Description
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="cost-description" 
+                                  name="description" 
+                                  rows="4" 
+                                  required 
+                                  placeholder="Describe the cost entry (e.g., materials purchased, labor costs, equipment rental, etc.)..."
+                                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors resize-none"></textarea>
+                    </div>
+
+                    <!-- Receipt Upload -->
+                    <div>
+                        <label for="cost-receipt" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Receipt (Optional)
+                        </label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-green-400 transition-colors">
+                            <div class="space-y-1 text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="flex text-sm text-gray-600">
+                                    <label for="cost-receipt" class="relative cursor-pointer bg-white rounded-md font-medium text-green-600 hover:text-green-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-green-500">
+                                        <span>Upload receipt</span>
+                                        <input type="file" 
+                                               id="cost-receipt" 
+                                               name="receipt" 
+                                               accept="image/*,.pdf" 
+                                               class="sr-only">
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                            </div>
+                        </div>
+                        <div id="receipt-preview" class="mt-4 hidden">
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900" id="receipt-name"></p>
+                                        <p class="text-xs text-gray-500" id="receipt-size"></p>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="clearReceipt()" class="text-red-500 hover:text-red-700">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages -->
+                    <div id="cost-success-message" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p class="text-green-800 font-medium"></p>
+                    </div>
+                    <div id="cost-error-message" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-800 font-medium"></p>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex items-center gap-4 pt-4 border-t border-gray-200">
+                        <button type="submit" 
+                                id="submit-cost-btn"
+                                class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:bg-green-700 transition-colors duration-200 inline-flex items-center justify-center gap-2">
+                            <span id="cost-loading-spinner" class="hidden">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
+                            <span>Add Cost Entry</span>
+                        </button>
+                        <a href="{% url 'projeng:projeng_project_detail' project.pk %}" 
+                           class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-200">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabProgress = document.getElementById('tab-progress');
+    const tabCost = document.getElementById('tab-cost');
+    const formProgress = document.getElementById('form-progress');
+    const formCost = document.getElementById('form-cost');
+
+    tabProgress.addEventListener('click', function() {
+        tabProgress.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+        tabProgress.classList.remove('text-gray-600');
+        tabCost.classList.remove('text-green-600', 'border-b-2', 'border-green-600', 'bg-green-50');
+        tabCost.classList.add('text-gray-600');
+        formProgress.classList.remove('hidden');
+        formCost.classList.add('hidden');
+    });
+
+    tabCost.addEventListener('click', function() {
+        tabCost.classList.add('text-green-600', 'border-b-2', 'border-green-600', 'bg-green-50');
+        tabCost.classList.remove('text-gray-600');
+        tabProgress.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+        tabProgress.classList.add('text-gray-600');
+        formCost.classList.remove('hidden');
+        formProgress.classList.add('hidden');
+    });
+
+    // Progress form handling
+    const progressForm = document.getElementById('progressForm');
+    const submitProgressBtn = document.getElementById('submit-progress-btn');
+    const progressLoadingSpinner = document.getElementById('progress-loading-spinner');
+    const progressSuccessMsg = document.getElementById('progress-success-message');
+    const progressErrorMsg = document.getElementById('progress-error-message');
+    const photoInput = document.getElementById('progress-photo');
+    const photoPreview = document.getElementById('photo-preview');
+
+    // Photo preview
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                photoPreview.classList.remove('hidden');
+                photoPreview.innerHTML = '';
+                
+                Array.from(files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const div = document.createElement('div');
+                            div.className = 'relative';
+                            div.innerHTML = `
+                                <img src="${e.target.result}" alt="Preview" class="w-full h-24 object-cover rounded-lg border border-gray-200">
+                                <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600" onclick="this.parentElement.remove()">×</button>
+                            `;
+                            photoPreview.appendChild(div);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            } else {
+                photoPreview.classList.add('hidden');
+            }
+        });
+    }
+
+    // Progress form submission
+    if (progressForm) {
+        progressForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            progressSuccessMsg.classList.add('hidden');
+            progressErrorMsg.classList.add('hidden');
+            
+            progressLoadingSpinner.classList.remove('hidden');
+            submitProgressBtn.disabled = true;
+            submitProgressBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            const formData = new FormData(progressForm);
+            
+            fetch(progressForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                progressLoadingSpinner.classList.add('hidden');
+                submitProgressBtn.disabled = false;
+                submitProgressBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                
+                if (data.success) {
+                    progressSuccessMsg.querySelector('p').textContent = data.message || 'Progress update added successfully!';
+                    progressSuccessMsg.classList.remove('hidden');
+                    progressForm.reset();
+                    photoPreview.classList.add('hidden');
+                    photoPreview.innerHTML = '';
+                    
+                    setTimeout(() => {
+                        window.location.href = '{% url "projeng:projeng_project_detail" project.pk %}';
+                    }, 1500);
+                } else {
+                    progressErrorMsg.querySelector('p').textContent = data.error || 'Failed to add progress update.';
+                    progressErrorMsg.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                progressLoadingSpinner.classList.add('hidden');
+                submitProgressBtn.disabled = false;
+                submitProgressBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                progressErrorMsg.querySelector('p').textContent = 'An error occurred. Please try again.';
+                progressErrorMsg.classList.remove('hidden');
+                console.error('Error:', error);
+            });
+        });
+    }
+
+    // Cost form handling
+    const costForm = document.getElementById('costForm');
+    const submitCostBtn = document.getElementById('submit-cost-btn');
+    const costLoadingSpinner = document.getElementById('cost-loading-spinner');
+    const costSuccessMsg = document.getElementById('cost-success-message');
+    const costErrorMsg = document.getElementById('cost-error-message');
+    const receiptInput = document.getElementById('cost-receipt');
+    const receiptPreview = document.getElementById('receipt-preview');
+
+    // Receipt preview
+    if (receiptInput) {
+        receiptInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                receiptPreview.classList.remove('hidden');
+                document.getElementById('receipt-name').textContent = file.name;
+                document.getElementById('receipt-size').textContent = (file.size / 1024).toFixed(2) + ' KB';
+            } else {
+                receiptPreview.classList.add('hidden');
+            }
+        });
+    }
+
+    window.clearReceipt = function() {
+        if (receiptInput) {
+            receiptInput.value = '';
+            receiptPreview.classList.add('hidden');
+        }
+    };
+
+    // Cost form submission
+    if (costForm) {
+        costForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            costSuccessMsg.classList.add('hidden');
+            costErrorMsg.classList.add('hidden');
+            
+            costLoadingSpinner.classList.remove('hidden');
+            submitCostBtn.disabled = true;
+            submitCostBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            const formData = new FormData(costForm);
+            
+            fetch(costForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                costLoadingSpinner.classList.add('hidden');
+                submitCostBtn.disabled = false;
+                submitCostBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                
+                if (data.success) {
+                    costSuccessMsg.querySelector('p').textContent = data.message || 'Cost entry added successfully!';
+                    costSuccessMsg.classList.remove('hidden');
+                    costForm.reset();
+                    receiptPreview.classList.add('hidden');
+                    
+                    setTimeout(() => {
+                        window.location.href = '{% url "projeng:projeng_project_detail" project.pk %}';
+                    }, 1500);
+                } else {
+                    costErrorMsg.querySelector('p').textContent = data.error || 'Failed to add cost entry.';
+                    costErrorMsg.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                costLoadingSpinner.classList.add('hidden');
+                submitCostBtn.disabled = false;
+                submitCostBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                costErrorMsg.querySelector('p').textContent = 'An error occurred. Please try again.';
+                costErrorMsg.classList.remove('hidden');
+                console.error('Error:', error);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+
