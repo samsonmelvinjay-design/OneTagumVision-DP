@@ -532,9 +532,9 @@ def project_detail_view(request, pk):
             if latest_document['uploaded_at__max']:
                 last_updates.append(latest_document['uploaded_at__max'])
             
-        # Get the most recent update (max of all timestamps)
-        # Only count actual activity: progress updates, cost entries, or document uploads
-        project.calculated_last_update = max(last_updates) if last_updates else None
+            # Get the most recent update (max of all timestamps)
+            # Only count actual activity: progress updates, cost entries, or document uploads
+            project.calculated_last_update = max(last_updates) if last_updates else None
         
         # Build activity history log
         activity_log = []
