@@ -424,11 +424,13 @@ def upload_docs_view(request):
 
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def my_reports_view(request):
+    # Build base queryset
     if is_head_engineer(request.user):
         assigned_projects = Project.objects.all()
     else:
         assigned_projects = Project.objects.filter(assigned_engineers=request.user)
-    delayed_count = assigned_projects.filter(status='delayed').count()
+    
+    # Apply filters
     barangay_filter = request.GET.get('barangay')
     status_filter = request.GET.get('status')
     start_date_filter = request.GET.get('start_date')
@@ -449,23 +451,51 @@ def my_reports_view(request):
             assigned_projects = assigned_projects.filter(end_date__lte=end_date)
         except ValueError:
             pass
+    
+    # Optimize status counts - use aggregation instead of multiple queries (single query)
+    from django.db.models import Count, Q
     status_counts = {}
+    status_aggregation = assigned_projects.values('status').annotate(count=Count('id'))
+    status_dict = {item['status']: item['count'] for item in status_aggregation}
     for status_key, status_display in Project.STATUS_CHOICES:
-        count_query = assigned_projects.filter(status=status_key)
-        count = count_query.count()
-        status_counts[status_display] = count
+        status_counts[status_display] = status_dict.get(status_key, 0)
+    
+    # Get delayed count from status_counts (already calculated, no extra query needed)
+    delayed_count = status_counts.get('Delayed', 0)
     total_projects = assigned_projects.count()
     barangays = [
         "Apokon", "Bincungan", "Busaon", "Canocotan", "Cuambogan", "La Filipina", "Liboganon", "Madaum", "Magdum", "Magugpo East", "Magugpo North", "Magugpo Poblacion", "Magugpo South", "Magugpo West", "Mankilam", "New Balamban", "Nueva Fuerza", "Pagsabangan", "Pandapan", "San Agustin", "San Isidro", "San Miguel", "Visayan Village"
     ]
     statuses = Project.STATUS_CHOICES
+    
+    # Optimize query - use select_related and prefetch_related to avoid N+1 queries
+    assigned_projects = assigned_projects.select_related('created_by').prefetch_related('assigned_engineers')
+    
     paginator = Paginator(assigned_projects, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    # Optimize progress queries - get all progress updates for projects in this page efficiently
+    # Instead of N+1 queries, fetch all progress records for these projects in 1-2 queries
+    project_ids = [project.id for project in page_obj.object_list]
+    latest_progress_per_project = {}
+    if project_ids:
+        # Get all progress records for these projects (one query instead of N queries)
+        all_progresses = ProjectProgress.objects.filter(
+            project_id__in=project_ids
+        ).order_by('project_id', '-date', '-created_at').select_related('project')
+        
+        # Process in Python to get the latest for each project
+        # Since we ordered by project_id, -date, -created_at, we can iterate once
+        current_project_id = None
+        for progress in all_progresses:
+            if progress.project_id != current_project_id:
+                latest_progress_per_project[progress.project_id] = progress.percentage_complete
+                current_project_id = progress.project_id
+    
     projects_list_for_modal = []
     for project in page_obj.object_list:
-        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        progress = latest_progress_per_project.get(project.id, 0)
         projects_list_for_modal.append({
             'id': project.id,
             'prn': project.prn or '',

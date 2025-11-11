@@ -220,7 +220,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Debounce function for date inputs to avoid too many requests
     let dateFilterTimeout;
+    let isLoading = false;
+    
+    function showLoadingOverlay() {
+        if (!isLoading) {
+            isLoading = true;
+            // Create loading overlay if it doesn't exist
+            let overlay = document.getElementById('loading-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'loading-overlay';
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+                overlay.innerHTML = '<div style="background: white; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div><p style="margin-top: 15px; color: #333; font-weight: 500;">Loading projects...</p></div>';
+                // Add spin animation
+                let style = document.createElement('style');
+                style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+                document.head.appendChild(style);
+                document.body.appendChild(overlay);
+            } else {
+                overlay.style.display = 'flex';
+            }
+        }
+    }
+    
     function submitFilterForm() {
+        if (isLoading) return; // Prevent multiple submissions
+        
+        showLoadingOverlay();
+        
         // Reset to page 1 when filtering
         const pageInput = document.createElement('input');
         pageInput.type = 'hidden';
