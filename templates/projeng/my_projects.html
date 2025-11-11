@@ -1,4 +1,49 @@
 {% extends 'projeng_base.html' %}
+
+{% block extra_js %}
+{{ block.super }}
+<!-- Define filter functions BEFORE content loads -->
+<script>
+// Define global functions IMMEDIATELY so inline handlers can use them
+window.setStatusFilter = function(status) {
+    console.log('setStatusFilter called with:', status);
+    if (window.currentStatusFilter !== undefined) {
+        window.currentStatusFilter = status;
+    }
+    if (typeof window.updateActiveFilter === 'function') {
+        window.updateActiveFilter(status);
+    }
+    if (typeof window.filterProjects === 'function') {
+        window.filterProjects();
+    } else {
+        console.warn('filterProjects not yet defined, will retry...');
+        setTimeout(function() {
+            if (typeof window.filterProjects === 'function') {
+                window.filterProjects();
+            }
+        }, 100);
+    }
+};
+
+window.setBarangayFilter = function(barangay) {
+    console.log('setBarangayFilter called with:', barangay);
+    if (window.currentBarangayFilter !== undefined) {
+        window.currentBarangayFilter = barangay;
+    }
+    if (typeof window.filterProjects === 'function') {
+        window.filterProjects();
+    } else {
+        console.warn('filterProjects not yet defined, will retry...');
+        setTimeout(function() {
+            if (typeof window.filterProjects === 'function') {
+                window.filterProjects();
+            }
+        }, 100);
+    }
+};
+</script>
+{% endblock %}
+
 {% block content %}
 <style>
     .filter-btn {
@@ -177,47 +222,58 @@
 {% endblock %}
 
 <script>
-// Filter state
-let currentStatusFilter = '';
-let currentBarangayFilter = '';
-let searchTerm = '';
+// Filter state - use window object to make accessible from inline handlers
+window.currentStatusFilter = window.currentStatusFilter || '';
+window.currentBarangayFilter = window.currentBarangayFilter || '';
+window.searchTerm = window.searchTerm || '';
+
+// Local variables for internal use
+let currentStatusFilter = window.currentStatusFilter;
+let currentBarangayFilter = window.currentBarangayFilter;
+let searchTerm = window.searchTerm;
 
 // Filter elements (will be initialized in DOMContentLoaded)
 let searchInput, barangayFilter, filterAll, filterInProgress, filterPlanned, filterCompleted, filterDelayed;
 
-// Define global functions IMMEDIATELY so inline handlers can use them
-window.setStatusFilter = function(status) {
-    console.log('setStatusFilter called with:', status);
-    currentStatusFilter = status;
-    if (typeof updateActiveFilter === 'function') {
-        updateActiveFilter(status);
-    }
-    if (typeof filterProjects === 'function') {
-        filterProjects();
-    } else {
-        console.warn('filterProjects not yet defined, will retry...');
-        setTimeout(function() {
-            if (typeof filterProjects === 'function') {
-                filterProjects();
-            }
-        }, 100);
-    }
-};
+// Update global functions to use window variables
+if (typeof window.setStatusFilter === 'undefined') {
+    window.setStatusFilter = function(status) {
+        console.log('setStatusFilter called with:', status);
+        window.currentStatusFilter = status;
+        currentStatusFilter = status;
+        if (typeof updateActiveFilter === 'function') {
+            updateActiveFilter(status);
+        }
+        if (typeof filterProjects === 'function') {
+            filterProjects();
+        } else {
+            console.warn('filterProjects not yet defined, will retry...');
+            setTimeout(function() {
+                if (typeof filterProjects === 'function') {
+                    filterProjects();
+                }
+            }, 100);
+        }
+    };
+}
 
-window.setBarangayFilter = function(barangay) {
-    console.log('setBarangayFilter called with:', barangay);
-    currentBarangayFilter = barangay;
-    if (typeof filterProjects === 'function') {
-        filterProjects();
-    } else {
-        console.warn('filterProjects not yet defined, will retry...');
-        setTimeout(function() {
-            if (typeof filterProjects === 'function') {
-                filterProjects();
-            }
-        }, 100);
-    }
-};
+if (typeof window.setBarangayFilter === 'undefined') {
+    window.setBarangayFilter = function(barangay) {
+        console.log('setBarangayFilter called with:', barangay);
+        window.currentBarangayFilter = barangay;
+        currentBarangayFilter = barangay;
+        if (typeof filterProjects === 'function') {
+            filterProjects();
+        } else {
+            console.warn('filterProjects not yet defined, will retry...');
+            setTimeout(function() {
+                if (typeof filterProjects === 'function') {
+                    filterProjects();
+                }
+            }, 100);
+        }
+    };
+}
 
 // Function to get status filter buttons object
 function getStatusFilters() {
@@ -230,8 +286,8 @@ function getStatusFilters() {
     };
 }
 
-// Function to update active filter button
-function updateActiveFilter(activeStatus) {
+// Function to update active filter button - expose to window for inline handlers
+window.updateActiveFilter = function updateActiveFilter(activeStatus) {
     const statusFilters = getStatusFilters();
     Object.keys(statusFilters).forEach(status => {
         const btn = statusFilters[status];
@@ -278,8 +334,13 @@ function updateActiveFilter(activeStatus) {
     });
 }
 
-// Function to filter projects
-function filterProjects() {
+// Function to filter projects - expose to window for inline handlers
+window.filterProjects = function filterProjects() {
+    // Sync with window variables
+    currentStatusFilter = window.currentStatusFilter || '';
+    currentBarangayFilter = window.currentBarangayFilter || '';
+    searchTerm = window.searchTerm || '';
+    
     const projectCards = document.querySelectorAll('.project-card');
     let visibleCount = 0;
     
@@ -370,6 +431,7 @@ function setupEventListeners() {
     // Search filter
     searchInput.addEventListener('input', function() {
         searchTerm = this.value.toLowerCase();
+        window.searchTerm = searchTerm;
         console.log('Search term changed:', searchTerm);
         filterProjects();
     });
@@ -377,6 +439,7 @@ function setupEventListeners() {
     // Barangay filter
     barangayFilter.addEventListener('change', function() {
         currentBarangayFilter = this.value;
+        window.currentBarangayFilter = currentBarangayFilter;
         console.log('Barangay filter changed:', currentBarangayFilter);
         filterProjects();
     });
@@ -386,6 +449,7 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         currentStatusFilter = '';
+        window.currentStatusFilter = '';
         console.log('Status filter: All');
         updateActiveFilter('');
         filterProjects();
@@ -396,6 +460,7 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         currentStatusFilter = 'in_progress';
+        window.currentStatusFilter = 'in_progress';
         console.log('Status filter: In Progress');
         updateActiveFilter('in_progress');
         filterProjects();
@@ -406,6 +471,7 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         currentStatusFilter = 'planned';
+        window.currentStatusFilter = 'planned';
         console.log('Status filter: Planned');
         updateActiveFilter('planned');
         filterProjects();
@@ -416,6 +482,7 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         currentStatusFilter = 'completed';
+        window.currentStatusFilter = 'completed';
         console.log('Status filter: Completed');
         updateActiveFilter('completed');
         filterProjects();
@@ -426,6 +493,7 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         currentStatusFilter = 'delayed';
+        window.currentStatusFilter = 'delayed';
         console.log('Status filter: Delayed');
         updateActiveFilter('delayed');
         filterProjects();
