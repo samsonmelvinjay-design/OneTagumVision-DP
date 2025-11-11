@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
-from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto
+from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, BarangayMetadata
 from django.contrib.auth.models import Group
 
 @admin.register(Layer)
@@ -85,4 +85,47 @@ class ProgressPhotoAdmin(admin.ModelAdmin):
     list_display = ('progress_update', 'uploaded_at')
     list_filter = ('uploaded_at',)
     search_fields = ('progress_update__project__name',)
-    readonly_fields = ('uploaded_at',) 
+    readonly_fields = ('uploaded_at',)
+
+@admin.register(BarangayMetadata)
+class BarangayMetadataAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Barangay Metadata.
+    Note: Head Engineers are admins (is_head_engineer checks for is_superuser),
+    so they automatically have access to Django admin.
+    """
+    list_display = [
+        'name', 
+        'barangay_class', 
+        'economic_class', 
+        'elevation_type',
+        'population',
+        'density',
+        'growth_rate'
+    ]
+    list_filter = [
+        'barangay_class',
+        'economic_class',
+        'elevation_type',
+        'data_year'
+    ]
+    search_fields = ['name']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name',)
+        }),
+        ('Demographics', {
+            'fields': ('population', 'land_area', 'density', 'growth_rate')
+        }),
+        ('Zoning Classifications', {
+            'fields': ('barangay_class', 'economic_class', 'elevation_type', 'industrial_zones')
+        }),
+        ('Additional Information', {
+            'fields': ('primary_industries', 'special_features')
+        }),
+        ('Data Source', {
+            'fields': ('data_source', 'data_year', 'created_at', 'updated_at')
+        }),
+    )
+    list_per_page = 25 

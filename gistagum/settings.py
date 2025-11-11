@@ -370,15 +370,15 @@ if REDIS_URL and not REDIS_URL.startswith('redis://default:YOUR_PASSWORD'):
         
         # Log successful SSL configuration (without exposing password)
         safe_url = REDIS_URL.split('@')[-1] if '@' in REDIS_URL else REDIS_URL
-        print(f"✅ Connected to Redis server {safe_url} using SSL")
+        print(f"Connected to Redis server {safe_url} using SSL")
     else:
         # Normal Redis connection (no SSL)
-        print(f"✅ Connected to Redis server (non-SSL)")
+        print(f"Connected to Redis server (non-SSL)")
     
     # Store the configured URL
     REDIS_CONFIG = REDIS_URL
 else:
-    print("⚠️  REDIS_URL not configured. Using database fallback for Celery.")
+    print("WARNING: REDIS_URL not configured. Using database fallback for Celery.")
 
 # ============================================================================
 # Celery Configuration for Background Tasks
@@ -408,7 +408,7 @@ if REDIS_CONFIG:
     CELERY_TASK_ACKS_LATE = True  # Tasks acknowledged after completion
 else:
     # Fallback: Use database as broker (not recommended for production, but works)
-    print("⚠️  Using database as Celery broker (fallback mode)")
+    print("WARNING: Using database as Celery broker (fallback mode)")
     CELERY_BROKER_URL = 'db+postgresql://'  # Will use DATABASE_URL
     CELERY_RESULT_BACKEND = 'db+postgresql://'  # Will use DATABASE_URL
     CELERY_ACCEPT_CONTENT = ['json']
@@ -442,7 +442,7 @@ try:
                     },
                 },
             }
-            print("✅ Django Channels configured with SSL Redis connection")
+            print("Django Channels configured with SSL Redis connection")
         else:
             # Plain Redis connection for Channels
             CHANNEL_LAYERS = {
@@ -453,20 +453,20 @@ try:
                     },
                 },
             }
-            print("✅ Django Channels configured with Redis connection")
+            print("Django Channels configured with Redis connection")
     else:
-        print("⚠️  Django Channels not configured (REDIS_URL not set)")
+        print("WARNING: Django Channels not configured (REDIS_URL not set)")
         # Set a default in-memory channel layer for development (not for production)
         CHANNEL_LAYERS = {
             "default": {
                 "BACKEND": "channels.layers.InMemoryChannelLayer"
             }
         }
-        print("⚠️  Using in-memory channel layer (development only)")
+        print("WARNING: Using in-memory channel layer (development only)")
 except ImportError:
     # Channels not installed - that's okay, it's optional
     # This should not happen in Phase 1, but fail gracefully
-    print("⚠️  channels-redis not installed - Channels will use in-memory layer")
+    print("WARNING: channels-redis not installed - Channels will use in-memory layer")
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer"

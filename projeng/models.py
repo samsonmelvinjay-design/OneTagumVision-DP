@@ -135,4 +135,107 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
 
     def __str__(self):
-        return f'Notification for {self.recipient.username}: {self.message[:50]}' 
+        return f'Notification for {self.recipient.username}: {self.message[:50]}'
+
+class BarangayMetadata(models.Model):
+    """Metadata and zoning information for barangays in Tagum City"""
+    
+    # Basic Info
+    name = models.CharField(max_length=255, unique=True, db_index=True)
+    
+    # Population & Demographics
+    population = models.IntegerField(null=True, blank=True)
+    land_area = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Land area in km²")
+    density = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Population density in people/km²")
+    growth_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Population growth rate in %")
+    
+    # Zoning Classifications
+    BARANGAY_CLASS_CHOICES = [
+        ('urban', 'Urban'),
+        ('rural', 'Rural'),
+    ]
+    barangay_class = models.CharField(
+        max_length=10, 
+        choices=BARANGAY_CLASS_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text="Urban or Rural classification"
+    )
+    
+    ECONOMIC_CLASS_CHOICES = [
+        ('growth_center', 'Growth Center'),
+        ('emerging', 'Emerging'),
+        ('satellite', 'Satellite'),
+    ]
+    economic_class = models.CharField(
+        max_length=20, 
+        choices=ECONOMIC_CLASS_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text="Economic development classification"
+    )
+    
+    ELEVATION_CHOICES = [
+        ('highland', 'Highland/Rolling'),
+        ('plains', 'Plains/Lowland'),
+        ('coastal', 'Coastal'),
+    ]
+    elevation_type = models.CharField(
+        max_length=20, 
+        choices=ELEVATION_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text="Geographic elevation classification"
+    )
+    
+    # Industrial Zones (can be multiple)
+    INDUSTRIAL_ZONE_CHOICES = [
+        ('cbd', 'Central Business District'),
+        ('urban_expansion', 'Urban Expansion Area'),
+        ('commercial_expansion', 'Commercial Expansion Area'),
+        ('institutional_recreational', 'Institutional & Recreational'),
+        ('agro_industrial', 'Agro-Industrial'),
+    ]
+    industrial_zones = models.JSONField(
+        default=list, 
+        help_text="List of industrial zone types (can be multiple)"
+    )
+    
+    # Additional Metadata
+    primary_industries = models.JSONField(
+        default=list,
+        help_text="List of primary industries (agriculture, tourism, etc.)"
+    )
+    special_features = models.JSONField(
+        default=list,
+        help_text="Special facilities (hospitals, markets, ports, etc.)"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    data_source = models.CharField(
+        max_length=255, 
+        default="PSA-2020 CPH",
+        help_text="Source of demographic data"
+    )
+    data_year = models.IntegerField(default=2020, help_text="Year of data collection")
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = "Barangay Metadata"
+    
+    def __str__(self):
+        class_display = self.get_barangay_class_display() if self.barangay_class else "Unclassified"
+        return f"{self.name} ({class_display})"
+    
+    def get_zoning_summary(self):
+        """Return a summary string of all zoning classifications"""
+        parts = []
+        if self.barangay_class:
+            parts.append(self.get_barangay_class_display())
+        if self.economic_class:
+            parts.append(self.get_economic_class_display())
+        if self.elevation_type:
+            parts.append(self.get_elevation_type_display())
+        return " | ".join(parts) if parts else "Unclassified" 

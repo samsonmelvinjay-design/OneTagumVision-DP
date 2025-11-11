@@ -21,7 +21,7 @@ try:
 except ImportError:
     # WebSocket not available - fail gracefully, SSE still works
     WEBSOCKET_AVAILABLE = False
-    print("⚠️  WebSocket broadcasting not available (SSE still works)")
+    print("WARNING: WebSocket broadcasting not available (SSE still works)")
 
 def format_project_display(project):
     """Helper function to format project display name consistently"""
@@ -144,7 +144,7 @@ def notify_project_updates(sender, instance, created, **kwargs):
             try:
                 broadcast_project_created(instance)
             except Exception as e:
-                print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+                print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
     else:
         # Project updated - check if it's a significant update
         old_state = _old_project_state.pop(instance.pk, None) if instance.pk else None
@@ -199,7 +199,7 @@ def notify_project_updates(sender, instance, created, **kwargs):
                     try:
                         broadcast_project_status_change(instance, old_state.get('status'), instance.status)
                     except Exception as e:
-                        print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+                        print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
             # Check if cost changed significantly
             elif old_state.get('project_cost') != instance.project_cost and instance.project_cost:
                 old_cost = old_state.get('project_cost') or 0
@@ -213,7 +213,7 @@ def notify_project_updates(sender, instance, created, **kwargs):
                     try:
                         broadcast_project_updated(instance, changes={'project_cost': {'old': old_cost, 'new': new_cost}})
                     except Exception as e:
-                        print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+                        print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
             # Check if description changed
             elif old_state.get('description') != instance.description:
                 message = f"Project description updated: {project_display} by {updater_name}"
@@ -287,7 +287,7 @@ def notify_progress_updates(sender, instance, created, **kwargs):
                     'created_by': creator_name,
                 })
             except Exception as e:
-                print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+                print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
     # Skip notifications for progress modifications to reduce noise
 
 def check_budget_over_utilization(project):
@@ -331,7 +331,7 @@ def check_budget_over_utilization(project):
         
         # Create notification message
         budget_message = (
-            f"⚠️ Budget Over-Utilized: {project_display} has exceeded its budget. "
+            f"WARNING: Budget Over-Utilized: {project_display} has exceeded its budget. "
             f"Total costs: {formatted_total} (Budget: {formatted_budget}) - "
             f"Over by {formatted_overage} ({overage_percentage:.1f}% over budget)"
         )
@@ -407,7 +407,7 @@ def notify_cost_updates(sender, instance, created, **kwargs):
                     'created_by': creator_name,
                 })
             except Exception as e:
-                print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+                print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
     # Skip notifications for cost modifications to reduce noise
 
 @receiver(post_save, sender=ProjectDocument)
@@ -560,7 +560,7 @@ def notify_project_deletion(sender, instance, **kwargs):
         try:
             broadcast_project_deleted(instance.name, instance.prn)
         except Exception as e:
-            print(f"⚠️  WebSocket broadcast failed (SSE still works): {e}")
+            print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
 
 # Track if we've already updated notifications for a project to prevent duplicates
 _notification_update_flags = {}
