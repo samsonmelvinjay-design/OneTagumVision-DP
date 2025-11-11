@@ -48,55 +48,62 @@ def home(request):
 @login_required
 @prevent_project_engineer_access
 def dashboard(request):
-    print(f"Dashboard view accessed by user: {request.user.username}, authenticated: {request.user.is_authenticated}")
-    from projeng.models import Project
-    from collections import Counter, defaultdict
-    
-    # Role-based queryset
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        print(f"User {request.user.username} is head engineer or finance manager, showing all projects")
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-    # Recent projects (5 most recent)
-    recent_projects = projects.order_by('-created_at')[:5]
-    # Metrics
-    project_count = projects.count()
-    completed_count = projects.filter(status='completed').count()
-    in_progress_count = projects.filter(status='in_progress').count() + projects.filter(status='ongoing').count()
-    planned_count = projects.filter(status='planned').count() + projects.filter(status='pending').count()
-    delayed_count = projects.filter(status='delayed').count()
-    # Collaborative analytics
-    collab_by_barangay = defaultdict(int)
-    collab_by_status = defaultdict(int)
-    for p in projects:
-        if p.barangay and isinstance(p.barangay, str) and p.barangay.strip():
-            collab_by_barangay[p.barangay.strip()] += 1
-        if p.status and isinstance(p.status, str) and p.status.strip():
-            # Use display-friendly status
-            status = (
-                'Ongoing' if p.status in ['in_progress', 'ongoing'] else
-                'Planned' if p.status in ['planned', 'pending'] else
-                'Completed' if p.status == 'completed' else
-                'Delayed' if p.status == 'delayed' else p.status.title()
-            )
-            collab_by_status[status] += 1
-    # Sort keys for consistent chart order
-    collab_by_barangay = {k: collab_by_barangay[k] for k in sorted(collab_by_barangay.keys())}
-    collab_by_status = {k: collab_by_status[k] for k in sorted(collab_by_status.keys())}
-    context = {
-        'recent_projects': recent_projects,
-        'project_count': project_count,
-        'completed_count': completed_count,
-        'in_progress_count': in_progress_count,
-        'planned_count': planned_count,
-        'delayed_count': delayed_count,
-        'collab_by_barangay': dict(collab_by_barangay),
-        'collab_by_status': dict(collab_by_status),
-    }
-    return render(request, 'monitoring/dashboard.html', context)
+    try:
+        print(f"Dashboard view accessed by user: {request.user.username}, authenticated: {request.user.is_authenticated}")
+        from projeng.models import Project
+        from collections import Counter, defaultdict
+        
+        # Role-based queryset
+        if is_head_engineer(request.user) or is_finance_manager(request.user):
+            print(f"User {request.user.username} is head engineer or finance manager, showing all projects")
+            projects = Project.objects.all()
+        elif is_project_engineer(request.user):
+            projects = Project.objects.filter(assigned_engineers=request.user)
+        else:
+            projects = Project.objects.none()
+        # Recent projects (5 most recent)
+        recent_projects = projects.order_by('-created_at')[:5]
+        # Metrics
+        project_count = projects.count()
+        completed_count = projects.filter(status='completed').count()
+        in_progress_count = projects.filter(status='in_progress').count() + projects.filter(status='ongoing').count()
+        planned_count = projects.filter(status='planned').count() + projects.filter(status='pending').count()
+        delayed_count = projects.filter(status='delayed').count()
+        # Collaborative analytics
+        collab_by_barangay = defaultdict(int)
+        collab_by_status = defaultdict(int)
+        for p in projects:
+            if p.barangay and isinstance(p.barangay, str) and p.barangay.strip():
+                collab_by_barangay[p.barangay.strip()] += 1
+            if p.status and isinstance(p.status, str) and p.status.strip():
+                # Use display-friendly status
+                status = (
+                    'Ongoing' if p.status in ['in_progress', 'ongoing'] else
+                    'Planned' if p.status in ['planned', 'pending'] else
+                    'Completed' if p.status == 'completed' else
+                    'Delayed' if p.status == 'delayed' else p.status.title()
+                )
+                collab_by_status[status] += 1
+        # Sort keys for consistent chart order
+        collab_by_barangay = {k: collab_by_barangay[k] for k in sorted(collab_by_barangay.keys())}
+        collab_by_status = {k: collab_by_status[k] for k in sorted(collab_by_status.keys())}
+        context = {
+            'recent_projects': recent_projects,
+            'project_count': project_count,
+            'completed_count': completed_count,
+            'in_progress_count': in_progress_count,
+            'planned_count': planned_count,
+            'delayed_count': delayed_count,
+            'collab_by_barangay': dict(collab_by_barangay),
+            'collab_by_status': dict(collab_by_status),
+        }
+        return render(request, 'monitoring/dashboard.html', context)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in dashboard view: {str(e)}', exc_info=True)
+        from django.http import HttpResponseServerError
+        return HttpResponseServerError(f'Server Error: {str(e)}')
 
 @login_required
 @prevent_project_engineer_access
