@@ -118,6 +118,9 @@
 {% block extra_js %}
 {{ projects_data|json_script:"projects-data" }}
 
+<!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
+<script src="{% static 'js/simple_choropleth.js' %}"></script>
+
 <!-- View Details Modal (Initially hidden) -->
 <div id="details-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-40" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out; position: fixed; z-index: 10000;">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-0 relative mx-4 my-8 max-h-[90vh] overflow-y-auto animate-modal-scale" style="position: relative; z-index: 10000; pointer-events: auto;">
@@ -1029,25 +1032,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     }); // End DOMContentLoaded
 
-// Load choropleth script after Leaflet is available
-function loadChoroplethScript() {
-    if (typeof L !== 'undefined') {
-        const script = document.createElement('script');
-        script.src = "{% static 'js/simple_choropleth.js' %}";
-        script.onload = function() {
-            console.log('Choropleth script loaded successfully');
-        };
-        script.onerror = function() {
-            console.error('Failed to load choropleth script');
-        };
-        document.head.appendChild(script);
-    } else {
-        console.error('Leaflet not available for choropleth map');
-    }
-}
-
-// Load script immediately
-loadChoroplethScript();
+// SimpleChoropleth script is now loaded statically in the template
+// No need for dynamic loading
 
 // Include the openDetailsModal function (copy from project_list.html)
 window.openDetailsModal = function(id) {
