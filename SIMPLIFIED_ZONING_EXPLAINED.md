@@ -59,7 +59,7 @@ Instead of precise polygons, we use **3-level detection**:
 
 ### Example 1: Creating a Project
 
-**Scenario:** Engineer creates a new project
+**Scenario:** Head Engineer creates a new project
 
 #### Step 1: User Enters Project Info
 ```
@@ -259,29 +259,30 @@ Since we don't have precise zone boundaries:
 
 ## 🔄 Real-World Workflow Examples
 
-### Workflow 1: Project Creation
+### Workflow 1: Project Creation (Head Engineer Only)
 
 ```
-1. Engineer opens "Create Project" form
+1. Head Engineer opens "Create Project" form
 2. Enters project name: "Drainage System - Domingo Subdivision"
 3. Selects barangay: "Magugpo West"
 4. System automatically detects: R-2 zone
 5. Shows zone info: "Medium Density Residential Zone"
-6. Engineer confirms or changes zone
+6. Head Engineer confirms or changes zone
 7. Project saved with zone information
 ```
 
 ### Workflow 2: Zone Validation
 
 ```
-1. Engineer creates project: "Factory Construction"
+1. Head Engineer creates project: "Factory Construction"
 2. System detects: R-2 zone (Residential)
 3. System shows warning: 
    "⚠️ Industrial project may not be allowed in Residential zone"
-4. Engineer can:
+4. Head Engineer can:
    - Change project type
    - Change location
    - Add note explaining exception
+   - Override warning if justified
 ```
 
 ### Workflow 3: Map Analysis
