@@ -110,7 +110,7 @@
                 </div>
             </div>
         </div>
-        <div id="map" style="height: 60vh; width: 100%; z-index: 1; position: relative;"></div>
+        <div id="map" style="height: 60vh; width: 100%; z-index: 1; position: relative; background-color: #f0f0f0;"></div>
     </div>
 </div>
 {% endblock %}
@@ -172,9 +172,16 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check if Leaflet is loaded
     if (typeof L === 'undefined') {
-        console.error('Leaflet is not loaded!');
+        console.error('Leaflet is not loaded! Please check if Leaflet CSS and JS are properly included.');
+        // Show error message to user
+        const mapContainer = document.getElementById('map');
+        if (mapContainer) {
+            mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: red; font-weight: bold; padding: 20px; text-align: center;">Error: Leaflet library not loaded. Please refresh the page.</div>';
+        }
         return;
     }
+    
+    console.log('Leaflet loaded successfully, version:', L.version || 'unknown');
 
     // Global variables
     let currentMapMode = 'markers'; // 'markers' or 'choropleth'
@@ -208,6 +215,18 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add fullscreen control
         addFullscreenControl();
+        
+        // Ensure map renders properly - call invalidateSize after a short delay
+        setTimeout(() => {
+            if (map) {
+                try {
+                    map.invalidateSize();
+                    console.log('Map size invalidated in initMap');
+                } catch (e) {
+                    console.error('Error invalidating map size:', e);
+                }
+            }
+        }, 100);
         
         console.log('Map initialized successfully');
     }
@@ -382,6 +401,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterSection) {
         filterSection.style.display = 'flex';
     }
+    
+    // Ensure map is visible and properly sized after initialization
+    setTimeout(() => {
+        if (map) {
+            map.invalidateSize();
+            console.log('Map size invalidated after initialization');
+        }
+    }, 200);
 
     // Use projects data from json_script tag
     const projectsDataElement = document.getElementById('projects-data');
