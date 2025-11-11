@@ -702,18 +702,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initialize choropleth map
         if (!choroplethMap) {
             if (typeof SimpleChoropleth === 'undefined') {
-                console.error('SimpleChoropleth class is not loaded!');
-                // Load the script if not already loaded
-                loadChoroplethScript();
-                // Try again after a short delay
-                setTimeout(() => {
-                    if (typeof SimpleChoropleth !== 'undefined') {
-                        choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
-                        choroplethMap.initialize();
-                    } else {
-                        console.error('SimpleChoropleth class still not available after loading script');
-                    }
-                }, 500);
+                console.error('SimpleChoropleth class is not loaded! Script should be loaded statically.');
+                console.error('Please check if simple_choropleth.js is included in the template.');
                 return;
             }
             try {
