@@ -58,4 +58,6 @@ urlpatterns = [
     # Phase 2: Barangay Metadata and Zoning API endpoints
     path('api/barangay-metadata/', views.barangay_metadata_api, name='barangay_metadata_api'),
     path('api/barangay-zoning-stats/', views.barangay_zoning_stats_api, name='barangay_zoning_stats_api'),
+    # Phase 5: Zone Data API endpoint for map visualization
+    path('api/barangay-zone-data/', views.barangay_zone_data_api, name='barangay_zone_data_api'),
 ] 

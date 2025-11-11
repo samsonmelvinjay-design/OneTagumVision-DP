@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 import json
 # from django.contrib.gis.geos import GEOSGeometry  # Temporarily disabled
-from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument, Notification, BarangayMetadata
+from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument, Notification, BarangayMetadata, ZoningZone
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from django.db.models import Sum, Avg, Count, Max
@@ -1790,4 +1790,77 @@ def barangay_zoning_stats_api(request):
             }
         }
     
-    return JsonResponse({'stats': stats}) 
+    return JsonResponse({'stats': stats})
+
+@require_http_methods(["GET"])
+@login_required
+def barangay_zone_data_api(request):
+    """
+    Return zone data aggregated by barangay for map visualization.
+    Shows which zone types have projects in each barangay.
+    """
+    from collections import defaultdict
+    
+    # Get all projects with zone_type
+    projects_with_zones = Project.objects.filter(
+        zone_type__isnull=False
+    ).exclude(zone_type='')
+    
+    # Aggregate by barangay and zone_type
+    barangay_zone_data = defaultdict(lambda: defaultdict(int))
+    zone_types_in_barangay = defaultdict(set)
+    
+    for project in projects_with_zones:
+        if project.barangay and project.zone_type:
+            barangay_zone_data[project.barangay][project.zone_type] += 1
+            zone_types_in_barangay[project.barangay].add(project.zone_type)
+    
+    # Get all active zones from ZoningZone model
+    all_zones = ZoningZone.objects.filter(is_active=True)
+    zones_by_barangay = defaultdict(list)
+    
+    for zone in all_zones:
+        zones_by_barangay[zone.barangay].append({
+            'zone_type': zone.zone_type,
+            'location_description': zone.location_description,
+            'keywords': zone.get_keywords_list()
+        })
+    
+    # Build response data
+    response_data = {}
+    
+    # Process barangays with projects
+    for barangay, zone_counts in barangay_zone_data.items():
+        # Find dominant zone (most projects)
+        dominant_zone = max(zone_counts.items(), key=lambda x: x[1])[0] if zone_counts else None
+        
+        response_data[barangay] = {
+            'dominant_zone': dominant_zone,
+            'zone_counts': dict(zone_counts),
+            'total_projects': sum(zone_counts.values()),
+            'zone_types': list(zone_types_in_barangay[barangay]),
+            'available_zones': zones_by_barangay.get(barangay, [])
+        }
+    
+    # Also include barangays that have zones defined but no projects yet
+    for barangay, zones in zones_by_barangay.items():
+        if barangay not in response_data:
+            # Get most common zone type for this barangay
+            zone_type_counts = defaultdict(int)
+            for zone in zones:
+                zone_type_counts[zone['zone_type']] += 1
+            
+            dominant_zone = max(zone_type_counts.items(), key=lambda x: x[1])[0] if zone_type_counts else None
+            
+            response_data[barangay] = {
+                'dominant_zone': dominant_zone,
+                'zone_counts': {},
+                'total_projects': 0,
+                'zone_types': list(zone_type_counts.keys()),
+                'available_zones': zones
+            }
+    
+    return JsonResponse({
+        'barangay_zones': response_data,
+        'count': len(response_data)
+    }) 

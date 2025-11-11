@@ -12,7 +12,8 @@ class SimpleChoropleth {
         this.barangayStats = {};
         // Phase 3: Zoning support
         this.zoningData = null;
-        this.currentView = 'projects'; // 'projects', 'urban_rural', 'economic', 'elevation'
+        this.zoneData = null; // Phase 5: Detailed zone data (R-1, R-2, etc.)
+        this.currentView = 'projects'; // 'projects', 'urban_rural', 'economic', 'elevation', 'zone_type'
         this.zoningLayers = {
             urbanRural: null,
             economic: null,
@@ -371,6 +372,8 @@ class SimpleChoropleth {
             await this.loadData();
             // Phase 3: Load zoning data
             await this.loadZoningData();
+            // Phase 5: Load zone data (R-1, R-2, etc.)
+            await this.loadZoneData();
             this.createChoropleth();
             console.log('Choropleth initialized successfully');
             console.log('Zoning data available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
@@ -452,6 +455,76 @@ class SimpleChoropleth {
             console.error('Error loading zoning data:', error);
             this.zoningData = {};
         }
+    }
+
+    // Phase 5: Load detailed zone data (R-1, R-2, C-1, etc.)
+    async loadZoneData() {
+        try {
+            const response = await fetch('/projeng/api/barangay-zone-data/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+            if (!response.ok) {
+                console.warn(`Failed to load zone data: HTTP ${response.status}`);
+                this.zoneData = {};
+                return;
+            }
+            const data = await response.json();
+            console.log('Zone data loaded:', data.count || 0, 'barangays');
+            this.zoneData = data.barangay_zones || {};
+        } catch (error) {
+            console.error('Error loading zone data:', error);
+            this.zoneData = {};
+        }
+    }
+
+    // Phase 5: Get color for zone type
+    getZoneTypeColor(zoneType) {
+        const zoneColors = {
+            // Residential
+            'R-1': '#e3f2fd', // Light blue
+            'R-2': '#90caf9', // Medium blue
+            'R-3': '#1976d2', // Dark blue
+            'SHZ': '#81c784', // Green
+            // Commercial
+            'C-1': '#ff9800', // Orange
+            'C-2': '#ffb74d', // Light orange
+            // Industrial
+            'I-1': '#f44336', // Red
+            'I-2': '#ef5350', // Light red
+            'AGRO': '#66bb6a', // Green
+            // Other
+            'INS-1': '#9c27b0', // Purple
+            'PARKS': '#4caf50', // Green
+            'AGRICULTURAL': '#8bc34a', // Light green
+            'ECO-TOURISM': '#00bcd4', // Cyan
+            'SPECIAL': '#795548', // Brown
+        };
+        return zoneColors[zoneType] || '#cccccc'; // Default gray
+    }
+
+    // Phase 5: Get zone type display name
+    getZoneTypeDisplayName(zoneType) {
+        const zoneNames = {
+            'R-1': 'Low Density Residential',
+            'R-2': 'Medium Density Residential',
+            'R-3': 'High Density Residential',
+            'SHZ': 'Socialized Housing',
+            'C-1': 'Major Commercial',
+            'C-2': 'Minor Commercial',
+            'I-1': 'Heavy Industrial',
+            'I-2': 'Light/Medium Industrial',
+            'AGRO': 'Agro-Industrial',
+            'INS-1': 'Institutional',
+            'PARKS': 'Parks & Open Spaces',
+            'AGRICULTURAL': 'Agricultural',
+            'ECO-TOURISM': 'Eco-tourism',
+            'SPECIAL': 'Special Use',
+        };
+        return zoneNames[zoneType] || zoneType;
     }
 
     switchView(viewType) {
@@ -578,6 +651,16 @@ class SimpleChoropleth {
                                 defaultCount++;
                             }
                             break;
+                        case 'zone_type':
+                            // Phase 5: Use detailed zone data
+                            const zoneInfo = this.zoneData[barangayName];
+                            if (zoneInfo && zoneInfo.dominant_zone) {
+                                color = this.getZoneTypeColor(zoneInfo.dominant_zone);
+                                coloredCount++;
+                            } else {
+                                defaultCount++;
+                            }
+                            break;
                         default:
                             defaultCount++;
                     }
@@ -597,6 +680,7 @@ class SimpleChoropleth {
             onEachFeature: (feature, layer) => {
                 const name = feature.properties.name || 'Unknown';
                 const barangay = this.zoningData[name];
+                const zoneInfo = this.zoneData ? this.zoneData[name] : null;
                 const stats = this.barangayStats[name] || {
                     totalProjects: 0,
                     totalCost: 0,
@@ -606,7 +690,7 @@ class SimpleChoropleth {
                 };
                 
                 // Create popup with both project stats and zoning info
-                const popupContent = this.createZoningPopup(name, barangay, stats);
+                const popupContent = this.createZoningPopup(name, barangay, stats, zoneInfo, viewType);
                 layer.bindPopup(popupContent);
                 
                 // Add hover effects
@@ -633,14 +717,43 @@ class SimpleChoropleth {
         console.log('=== createZoningLayer completed ===');
     }
 
-    createZoningPopup(name, barangay, stats) {
+    createZoningPopup(name, barangay, stats, zoneInfo = null, viewType = 'projects') {
         let content = `
             <div style="min-width: 250px;">
                 <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">${name}</h3>
         `;
         
+        // Phase 5: Add zone type information if available
+        if (viewType === 'zone_type' && zoneInfo) {
+            content += `
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #555;">Zone Classification</div>
+                    ${zoneInfo.dominant_zone ? `
+                        <div style="margin: 3px 0; font-size: 12px;">
+                            <strong>Dominant Zone:</strong> ${zoneInfo.dominant_zone} - ${this.getZoneTypeDisplayName(zoneInfo.dominant_zone)}
+                        </div>
+                    ` : ''}
+                    ${zoneInfo.zone_types && zoneInfo.zone_types.length > 0 ? `
+                        <div style="margin: 3px 0; font-size: 12px;">
+                            <strong>Zone Types:</strong> ${zoneInfo.zone_types.join(', ')}
+                        </div>
+                    ` : ''}
+                    ${zoneInfo.zone_counts && Object.keys(zoneInfo.zone_counts).length > 0 ? `
+                        <div style="margin: 3px 0; font-size: 12px;">
+                            <strong>Projects by Zone:</strong>
+                            <ul style="margin: 3px 0; padding-left: 20px; font-size: 11px;">
+                                ${Object.entries(zoneInfo.zone_counts).map(([zone, count]) => 
+                                    `<li>${zone}: ${count} project${count !== 1 ? 's' : ''}</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
         // Add zoning information if available
-        if (barangay) {
+        if (barangay && viewType !== 'zone_type') {
             content += `
                 <div style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
                     <div style="font-weight: bold; margin-bottom: 5px; color: #555;">Zoning Information</div>
