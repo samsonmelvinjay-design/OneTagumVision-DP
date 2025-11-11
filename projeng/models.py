@@ -52,6 +52,18 @@ class Project(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     last_update = models.DateField(blank=True, null=True)
     progress = models.PositiveIntegerField(default=0, help_text="Project progress in percentage (0-100)", blank=True, null=True)
+    
+    # Zoning classification (Phase 2: Simplified Zoning Integration)
+    zone_type = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Zoning classification at project location (R-1, R-2, C-1, I-2, etc.)"
+    )
+    zone_validated = models.BooleanField(
+        default=False,
+        help_text="Whether zone has been validated against official zoning"
+    )
 
     class Meta:
         ordering = ['name']
@@ -247,4 +259,73 @@ class BarangayMetadata(models.Model):
             parts.append(self.get_economic_class_display())
         if self.elevation_type:
             parts.append(self.get_elevation_type_display())
-        return " | ".join(parts) if parts else "Unclassified" 
+        return " | ".join(parts) if parts else "Unclassified"
+
+
+class ZoningZone(models.Model):
+    """Detailed zoning classification for specific areas within barangays"""
+    
+    # Zone Classification Types
+    ZONE_TYPE_CHOICES = [
+        # Residential
+        ('R-1', 'Low Density Residential Zone'),
+        ('R-2', 'Medium Density Residential Zone'),
+        ('R-3', 'High Density Residential Zone'),
+        ('SHZ', 'Socialized Housing Zone'),
+        # Commercial
+        ('C-1', 'Major Commercial Zone'),
+        ('C-2', 'Minor Commercial Zone'),
+        # Industrial
+        ('I-1', 'Heavy Industrial Zone'),
+        ('I-2', 'Light and Medium Industrial Zone'),
+        ('AGRO', 'Agro-Industrial Zone'),
+        # Other
+        ('INS-1', 'Institutional Zone'),
+        ('PARKS', 'Parks & Playgrounds/Open Spaces'),
+        ('AGRICULTURAL', 'Agricultural Zone'),
+        ('ECO-TOURISM', 'Eco-tourism Zone'),
+        ('SPECIAL', 'Special Use Zone'),
+    ]
+    
+    zone_type = models.CharField(
+        max_length=20, 
+        choices=ZONE_TYPE_CHOICES,
+        db_index=True,
+        help_text="Type of zoning classification"
+    )
+    barangay = models.CharField(
+        max_length=255, 
+        db_index=True,
+        help_text="Barangay name"
+    )
+    location_description = models.TextField(
+        help_text="Specific locations: subdivisions, roads, sites"
+    )
+    keywords = models.JSONField(
+        default=list,
+        help_text="Keywords for matching (subdivision names, road names, etc.)"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this zone is currently active"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['barangay', 'zone_type']
+        verbose_name = 'Zoning Zone'
+        verbose_name_plural = 'Zoning Zones'
+        indexes = [
+            models.Index(fields=['barangay', 'zone_type']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_zone_type_display()} - {self.barangay}"
+    
+    def get_keywords_list(self):
+        """Return keywords as a list (for compatibility)"""
+        if isinstance(self.keywords, list):
+            return self.keywords
+        return [] 

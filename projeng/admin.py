@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
-from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, BarangayMetadata
+from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, BarangayMetadata, ZoningZone
 from django.contrib.auth.models import Group
 
 @admin.register(Layer)
@@ -23,7 +23,7 @@ class ProjectAdmin(admin.ModelAdmin):
             'fields': ('name', 'prn', 'description', 'image')
         }),
         ('Location', {
-            'fields': ('barangay', 'latitude', 'longitude')
+            'fields': ('barangay', 'latitude', 'longitude', 'zone_type', 'zone_validated')
         }),
         ('Project Details', {
             'fields': ('project_cost', 'source_of_funds', 'status', 'start_date', 'end_date')
@@ -86,6 +86,45 @@ class ProgressPhotoAdmin(admin.ModelAdmin):
     list_filter = ('uploaded_at',)
     search_fields = ('progress_update__project__name',)
     readonly_fields = ('uploaded_at',)
+
+@admin.register(ZoningZone)
+class ZoningZoneAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Zoning Zones.
+    Head Engineers (admins) can manage zoning classifications.
+    """
+    list_display = [
+        'zone_type',
+        'barangay',
+        'location_description',
+        'is_active',
+        'created_at'
+    ]
+    list_filter = [
+        'zone_type',
+        'barangay',
+        'is_active',
+        'created_at'
+    ]
+    search_fields = [
+        'barangay',
+        'location_description',
+        'zone_type'
+    ]
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Zone Information', {
+            'fields': ('zone_type', 'barangay', 'is_active')
+        }),
+        ('Location Details', {
+            'fields': ('location_description', 'keywords')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+    list_per_page = 25
+    ordering = ['barangay', 'zone_type']
 
 @admin.register(BarangayMetadata)
 class BarangayMetadataAdmin(admin.ModelAdmin):
