@@ -55,6 +55,22 @@
                 <button id="btn-choropleth" class="px-6 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition text-lg">Choropleth View</button>
             </div>
             
+            <!-- Phase 3: Zoning Controls Panel (Visible only in Choropleth View) -->
+            <div id="zoning-controls" class="bg-white p-4 rounded-lg shadow-md mb-6 hidden">
+                <h3 class="text-lg font-semibold mb-3 text-gray-800">Zoning View</h3>
+                
+                <!-- View Type Selector -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2 text-gray-700">View Type</label>
+                    <select id="zoning-view-selector" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="projects">Projects (Default)</option>
+                        <option value="urban_rural">Urban / Rural</option>
+                        <option value="economic">Economic Classification</option>
+                        <option value="elevation">Elevation Type</option>
+                    </select>
+                </div>
+            </div>
+            
             <!-- Filter Section - Centered and Adjusted Size (Hidden in Choropleth View) -->
             <div id="filter-section" class="flex flex-col lg:flex-row gap-4 mb-6 justify-center items-center">
                 <div class="flex flex-col sm:flex-row gap-3">
@@ -493,6 +509,18 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Switching to markers view');
         currentMapMode = 'markers';
         
+        // Phase 3: Hide zoning controls
+        const zoningControls = document.getElementById('zoning-controls');
+        if (zoningControls) {
+            zoningControls.classList.add('hidden');
+        }
+        
+        // Show filter section in markers view
+        const filterSection = document.getElementById('filter-section');
+        if (filterSection) {
+            filterSection.style.display = 'flex';
+        }
+        
         // Clear choropleth if exists
         if (choroplethMap) {
             try {
@@ -580,6 +608,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function switchToChoropleth() {
         console.log('Switching to choropleth view');
         currentMapMode = 'choropleth';
+        
+        // Phase 3: Show zoning controls
+        const zoningControls = document.getElementById('zoning-controls');
+        if (zoningControls) {
+            zoningControls.classList.remove('hidden');
+        }
+        
+        // Hide filter section in choropleth view
+        const filterSection = document.getElementById('filter-section');
+        if (filterSection) {
+            filterSection.style.display = 'none';
+        }
         
         // Clear markers if exists
         if (markers) {
@@ -684,7 +724,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btn-markers').addEventListener('click', switchToMarkers);
     document.getElementById('btn-choropleth').addEventListener('click', switchToChoropleth);
 
-
+    // Phase 3: Zoning view selector event listener
+    const zoningViewSelector = document.getElementById('zoning-view-selector');
+    if (zoningViewSelector) {
+        zoningViewSelector.addEventListener('change', function(e) {
+            const viewType = e.target.value;
+            console.log('Switching to zoning view:', viewType);
+            if (choroplethMap && typeof choroplethMap.switchView === 'function') {
+                choroplethMap.switchView(viewType);
+            } else {
+                console.warn('Choropleth map not initialized or switchView method not available');
+            }
+        });
+    }
 
     // Filter controls
     const barangayFilter = document.getElementById('barangay-filter');

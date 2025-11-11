@@ -9,6 +9,14 @@ class SimpleChoropleth {
         this.summaryPanel = null;
         this.barangayData = [];
         this.barangayStats = {};
+        // Phase 3: Zoning support
+        this.zoningData = null;
+        this.currentView = 'projects'; // 'projects', 'urban_rural', 'economic', 'elevation'
+        this.zoningLayers = {
+            urbanRural: null,
+            economic: null,
+            elevation: null
+        };
     }
 
     calculateBarangayStats() {
@@ -118,27 +126,10 @@ class SimpleChoropleth {
                     ongoingProjects: 0,
                     plannedProjects: 0
                 };
+                const barangay = this.zoningData ? this.zoningData[name] : null;
                 
-                const popupContent = `
-                    <div style="min-width: 200px;">
-                        <h3 style="margin: 0 0 10px 0; color: #333;">${name}</h3>
-                        <div style="margin: 5px 0;">
-                            <strong>Total Projects:</strong> ${stats.totalProjects}
-                        </div>
-                        <div style="margin: 5px 0;">
-                            <strong>Total Cost:</strong> ${this.formatCurrency(stats.totalCost)}
-                        </div>
-                        <div style="margin: 5px 0;">
-                            <strong>Completed:</strong> ${stats.completedProjects}
-                        </div>
-                        <div style="margin: 5px 0;">
-                            <strong>Ongoing:</strong> ${stats.ongoingProjects}
-                        </div>
-                        <div style="margin: 5px 0;">
-                            <strong>Planned:</strong> ${stats.plannedProjects}
-                        </div>
-                    </div>
-                `;
+                // Use enhanced popup with zoning info
+                const popupContent = this.createZoningPopup(name, barangay, stats);
                 
                 layer.bindPopup(popupContent);
                 
@@ -196,35 +187,83 @@ class SimpleChoropleth {
             div.style.maxHeight = 'none';
             div.style.overflowY = 'visible';
             
-            div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Tagum City Barangays</h4>';
-            
-            // Get unique barangays with their colors
-            const uniqueBarangays = new Map();
-            this.barangayData.forEach(feature => {
-                const name = feature.properties.name;
-                const color = feature.properties.color || '#FF6B6B';
-                if (!uniqueBarangays.has(name)) {
-                    uniqueBarangays.set(name, color);
-                }
-            });
-
-            // Sort barangays alphabetically
-            const sortedBarangays = Array.from(uniqueBarangays.entries()).sort();
-
-            sortedBarangays.forEach(([name, color]) => {
+            // Show different legend based on current view
+            if (this.currentView === 'urban_rural') {
+                div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Urban / Rural</h4>';
                 div.innerHTML += `
                     <div style="margin: 2px 0; display: flex; align-items: center;">
-                        <i style="background: ${color}; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
-                        <span>${name}</span>
+                        <i style="background: #ef4444; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Urban</span>
+                    </div>
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #fbbf24; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Rural</span>
                     </div>
                 `;
-            });
+            } else if (this.currentView === 'economic') {
+                div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Economic Classification</h4>';
+                div.innerHTML += `
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #3b82f6; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Growth Center</span>
+                    </div>
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #10b981; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Emerging</span>
+                    </div>
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #fbbf24; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Satellite</span>
+                    </div>
+                `;
+            } else if (this.currentView === 'elevation') {
+                div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Elevation Type</h4>';
+                div.innerHTML += `
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #8b5cf6; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Highland</span>
+                    </div>
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #84cc16; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Plains</span>
+                    </div>
+                    <div style="margin: 2px 0; display: flex; align-items: center;">
+                        <i style="background: #06b6d4; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                        <span>Coastal</span>
+                    </div>
+                `;
+            } else {
+                // Default: show barangay list
+                div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Tagum City Barangays</h4>';
+                
+                // Get unique barangays with their colors
+                const uniqueBarangays = new Map();
+                this.barangayData.forEach(feature => {
+                    const name = feature.properties.name;
+                    const color = feature.properties.color || '#FF6B6B';
+                    if (!uniqueBarangays.has(name)) {
+                        uniqueBarangays.set(name, color);
+                    }
+                });
+
+                // Sort barangays alphabetically
+                const sortedBarangays = Array.from(uniqueBarangays.entries()).sort();
+
+                sortedBarangays.forEach(([name, color]) => {
+                    div.innerHTML += `
+                        <div style="margin: 2px 0; display: flex; align-items: center;">
+                            <i style="background: ${color}; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                            <span>${name}</span>
+                        </div>
+                    `;
+                });
+            }
 
             return div;
         };
 
         this.legend.addTo(this.map);
-        console.log('Legend created with', this.barangayData.length, 'barangays');
+        console.log('Legend created for view:', this.currentView);
     }
 
     createSummaryPanel() {
@@ -329,11 +368,189 @@ class SimpleChoropleth {
         try {
             console.log('Initializing choropleth...');
             await this.loadData();
+            // Phase 3: Load zoning data
+            await this.loadZoningData();
             this.createChoropleth();
             console.log('Choropleth initialized successfully');
         } catch (error) {
             console.error('Failed to initialize choropleth:', error);
         }
+    }
+
+    // Phase 3: Zoning functionality
+    async loadZoningData() {
+        try {
+            const response = await fetch('/projeng/api/barangay-metadata/');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            this.zoningData = {};
+            data.barangays.forEach(barangay => {
+                this.zoningData[barangay.name] = barangay;
+            });
+            console.log('Zoning data loaded:', Object.keys(this.zoningData).length, 'barangays');
+        } catch (error) {
+            console.error('Error loading zoning data:', error);
+            this.zoningData = {};
+        }
+    }
+
+    switchView(viewType) {
+        this.currentView = viewType;
+        
+        // Remove current layer
+        if (this.choroplethLayer) {
+            this.map.removeLayer(this.choroplethLayer);
+            this.choroplethLayer = null;
+        }
+
+        // Create and add new layer based on view
+        if (viewType === 'projects') {
+            this.createChoropleth();
+        } else {
+            this.createZoningLayer(viewType);
+        }
+        
+        // Update legend
+        this.createLegend();
+    }
+
+    createZoningLayer(viewType) {
+        if (!this.barangayData.length) {
+            console.error('No barangay data available');
+            return;
+        }
+
+        // Clear existing layer
+        if (this.choroplethLayer) {
+            this.map.removeLayer(this.choroplethLayer);
+        }
+
+        // Create zoning layer based on view type
+        this.choroplethLayer = L.geoJSON(this.barangayData, {
+            style: (feature) => {
+                const barangay = this.zoningData[feature.properties.name];
+                let color = '#ccc'; // Default
+                
+                if (barangay) {
+                    switch(viewType) {
+                        case 'urban_rural':
+                            color = barangay.barangay_class === 'urban' ? '#ef4444' : '#fbbf24';
+                            break;
+                        case 'economic':
+                            switch(barangay.economic_class) {
+                                case 'growth_center': color = '#3b82f6'; break;
+                                case 'emerging': color = '#10b981'; break;
+                                case 'satellite': color = '#fbbf24'; break;
+                            }
+                            break;
+                        case 'elevation':
+                            switch(barangay.elevation_type) {
+                                case 'highland': color = '#8b5cf6'; break;
+                                case 'plains': color = '#84cc16'; break;
+                                case 'coastal': color = '#06b6d4'; break;
+                            }
+                            break;
+                    }
+                }
+                
+                return {
+                    fillColor: color,
+                    weight: 2,
+                    opacity: 1,
+                    color: '#333',
+                    fillOpacity: 0.6
+                };
+            },
+            onEachFeature: (feature, layer) => {
+                const name = feature.properties.name || 'Unknown';
+                const barangay = this.zoningData[name];
+                const stats = this.barangayStats[name] || {
+                    totalProjects: 0,
+                    totalCost: 0,
+                    completedProjects: 0,
+                    ongoingProjects: 0,
+                    plannedProjects: 0
+                };
+                
+                // Create popup with both project stats and zoning info
+                const popupContent = this.createZoningPopup(name, barangay, stats);
+                layer.bindPopup(popupContent);
+                
+                // Add hover effects
+                layer.on({
+                    mouseover: (e) => {
+                        const layer = e.target;
+                        layer.setStyle({
+                            weight: 3,
+                            fillOpacity: 0.9
+                        });
+                        layer.bringToFront();
+                    },
+                    mouseout: (e) => {
+                        this.choroplethLayer.resetStyle(e.target);
+                    }
+                });
+            }
+        });
+
+        // Add to map
+        this.choroplethLayer.addTo(this.map);
+        console.log('Zoning layer created for view:', viewType);
+    }
+
+    createZoningPopup(name, barangay, stats) {
+        let content = `
+            <div style="min-width: 250px;">
+                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">${name}</h3>
+        `;
+        
+        // Add zoning information if available
+        if (barangay) {
+            content += `
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #555;">Zoning Information</div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Classification:</strong> ${barangay.barangay_class ? barangay.barangay_class.charAt(0).toUpperCase() + barangay.barangay_class.slice(1) : 'N/A'}
+                    </div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Economic Type:</strong> ${barangay.economic_class ? barangay.economic_class.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}
+                    </div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Elevation:</strong> ${barangay.elevation_type ? barangay.elevation_type.charAt(0).toUpperCase() + barangay.elevation_type.slice(1) : 'N/A'}
+                    </div>
+                    ${barangay.population ? `<div style="margin: 3px 0; font-size: 12px;"><strong>Population:</strong> ${barangay.population.toLocaleString()}</div>` : ''}
+                    ${barangay.density ? `<div style="margin: 3px 0; font-size: 12px;"><strong>Density:</strong> ${barangay.density.toLocaleString()} /km²</div>` : ''}
+                    ${barangay.growth_rate ? `<div style="margin: 3px 0; font-size: 12px;"><strong>Growth Rate:</strong> ${barangay.growth_rate}%</div>` : ''}
+                </div>
+            `;
+        }
+        
+        // Add project statistics
+        content += `
+                <div style="margin-top: 8px;">
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #555;">Project Statistics</div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Total Projects:</strong> ${stats.totalProjects}
+                    </div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Total Cost:</strong> ${this.formatCurrency(stats.totalCost)}
+                    </div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Completed:</strong> ${stats.completedProjects}
+                    </div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Ongoing:</strong> ${stats.ongoingProjects}
+                    </div>
+                    <div style="margin: 3px 0; font-size: 12px;">
+                        <strong>Planned:</strong> ${stats.plannedProjects}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return content;
     }
 }
 
