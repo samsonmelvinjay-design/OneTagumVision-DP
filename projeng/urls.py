@@ -54,4 +54,8 @@ urlpatterns = [
     
     # API endpoints
     path('api/get-project-from-notification/', views.get_project_from_notification_api, name='get_project_from_notification_api'),
+    
+    # Phase 2: Barangay Metadata and Zoning API endpoints
+    path('api/barangay-metadata/', views.barangay_metadata_api, name='barangay_metadata_api'),
+    path('api/barangay-zoning-stats/', views.barangay_zoning_stats_api, name='barangay_zoning_stats_api'),
 ] 

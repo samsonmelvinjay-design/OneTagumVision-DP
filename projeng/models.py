@@ -68,6 +68,15 @@ class Project(models.Model):
             'delayed': 'danger'
         }
         return status_classes.get(self.status, 'secondary')
+    
+    def get_barangay_metadata(self):
+        """Get related BarangayMetadata if barangay name matches"""
+        if not self.barangay:
+            return None
+        try:
+            return BarangayMetadata.objects.get(name=self.barangay)
+        except BarangayMetadata.DoesNotExist:
+            return None
 
 class ProjectProgress(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='progress_updates')

@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 import json
 # from django.contrib.gis.geos import GEOSGeometry  # Temporarily disabled
-from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument, Notification
+from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument, Notification, BarangayMetadata
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from django.db.models import Sum, Avg, Count, Max
@@ -29,7 +29,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.forms.fields import DateField # Import DateField
 from .utils import flag_overdue_projects_as_delayed, notify_head_engineers, notify_admins
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 from django.db import transaction
 import traceback
 from django.db.models import ProtectedError
@@ -43,6 +43,7 @@ from gistagum.access_control import (
     is_finance_manager,
     is_finance_or_head_engineer,
     project_engineer_required,
+    head_engineer_required,
     get_user_dashboard_url
 )
 
@@ -1697,4 +1698,83 @@ def projects_updates_api(request):
             for p in recent_projects
         ],
         'count': recent_projects.count()
-    }) 
+    })
+
+# ============================================================================
+# Phase 2: Barangay Metadata and Zoning API Endpoints
+# ============================================================================
+
+@require_http_methods(["GET"])
+@login_required
+def barangay_metadata_api(request):
+    """
+    Return all barangay metadata.
+    Accessible to all authenticated users (for map display).
+    """
+    barangays = BarangayMetadata.objects.all().order_by('name')
+    data = []
+    for barangay in barangays:
+        data.append({
+            'name': barangay.name,
+            'population': barangay.population,
+            'land_area': float(barangay.land_area) if barangay.land_area else None,
+            'density': float(barangay.density) if barangay.density else None,
+            'growth_rate': float(barangay.growth_rate) if barangay.growth_rate else None,
+            'barangay_class': barangay.barangay_class,
+            'economic_class': barangay.economic_class,
+            'elevation_type': barangay.elevation_type,
+            'industrial_zones': barangay.industrial_zones,
+            'primary_industries': barangay.primary_industries,
+            'special_features': barangay.special_features,
+            'zoning_summary': barangay.get_zoning_summary(),
+        })
+    return JsonResponse({'barangays': data})
+
+@require_http_methods(["GET"])
+@head_engineer_required
+def barangay_zoning_stats_api(request):
+    """
+    Return zoning statistics with project counts.
+    Accessible to Head Engineers only (for analytics dashboard).
+    """
+    # Get project counts per barangay
+    project_counts = Project.objects.values('barangay').annotate(
+        total_projects=Count('id'),
+        total_cost=Sum('project_cost'),
+        completed=Count('id', filter=Q(status='completed')),
+        ongoing=Count('id', filter=Q(status__in=['in_progress', 'ongoing'])),
+        planned=Count('id', filter=Q(status='planned')),
+        delayed=Count('id', filter=Q(status='delayed')),
+    )
+    
+    # Convert to dictionary for easier lookup
+    project_counts_dict = {
+        item['barangay']: item 
+        for item in project_counts 
+        if item['barangay']
+    }
+    
+    # Combine with metadata
+    stats = {}
+    for barangay in BarangayMetadata.objects.all().order_by('name'):
+        project_data = project_counts_dict.get(barangay.name, {})
+        stats[barangay.name] = {
+            'metadata': {
+                'barangay_class': barangay.barangay_class,
+                'economic_class': barangay.economic_class,
+                'elevation_type': barangay.elevation_type,
+                'population': barangay.population,
+                'density': float(barangay.density) if barangay.density else None,
+                'growth_rate': float(barangay.growth_rate) if barangay.growth_rate else None,
+            },
+            'projects': {
+                'total': project_data.get('total_projects', 0),
+                'completed': project_data.get('completed', 0),
+                'ongoing': project_data.get('ongoing', 0),
+                'planned': project_data.get('planned', 0),
+                'delayed': project_data.get('delayed', 0),
+                'total_cost': float(project_data.get('total_cost', 0)) if project_data.get('total_cost') else 0,
+            }
+        }
+    
+    return JsonResponse({'stats': stats}) 
