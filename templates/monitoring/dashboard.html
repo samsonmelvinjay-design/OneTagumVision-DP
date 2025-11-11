@@ -453,15 +453,27 @@
          });
 
         // Phase 6: Chart 7 - Projects by Zone Type
-        fetch('/projeng/api/zone-analytics/')
-         .then(response => response.json())
-         .then(data => {
-             try {
-                 const ctx = document.getElementById('projectsByZoneChart').getContext('2d');
-                 const zones = data.zones || [];
-                 
-                 const labels = zones.map(z => z.zone_type);
-                 const projectCounts = zones.map(z => z.total_projects);
+        const projectsByZoneChartEl = document.getElementById('projectsByZoneChart');
+        if (projectsByZoneChartEl) {
+            fetch('/projeng/api/zone-analytics/')
+             .then(response => {
+                 if (!response.ok) {
+                     throw new Error(`HTTP error! status: ${response.status}`);
+                 }
+                 return response.json();
+             })
+             .then(data => {
+                 try {
+                     const ctx = projectsByZoneChartEl.getContext('2d');
+                     const zones = data.zones || [];
+                     
+                     if (zones.length === 0) {
+                         projectsByZoneChartEl.parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">No zone data available</div>';
+                         return;
+                     }
+                     
+                     const labels = zones.map(z => z.zone_type);
+                     const projectCounts = zones.map(z => z.total_projects);
                  
                  // Zone colors matching the map
                  const zoneColors = {
@@ -534,22 +546,39 @@
                  console.error('Error rendering projects by zone chart:', error);
                  document.getElementById('projectsByZoneChart').parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">Error loading chart data</div>';
              }
-         })
-         .catch(error => {
-             console.error('Error fetching zone analytics data:', error);
-             document.getElementById('projectsByZoneChart').parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">Error loading chart data</div>';
-         });
+             })
+             .catch(error => {
+                 console.error('Error fetching zone analytics data:', error);
+                 if (projectsByZoneChartEl && projectsByZoneChartEl.parentElement) {
+                     projectsByZoneChartEl.parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">Error loading chart data</div>';
+                 }
+             });
+        } else {
+            console.warn('projectsByZoneChart element not found');
+        }
 
         // Phase 6: Chart 8 - Zone Cost Distribution
-        fetch('/projeng/api/zone-analytics/')
-         .then(response => response.json())
-         .then(data => {
-             try {
-                 const ctx = document.getElementById('zoneCostChart').getContext('2d');
-                 const zones = data.zones || [];
-                 
-                 // Filter zones with costs > 0
-                 const zonesWithCosts = zones.filter(z => z.total_cost > 0);
+        const zoneCostChartEl = document.getElementById('zoneCostChart');
+        if (zoneCostChartEl) {
+            fetch('/projeng/api/zone-analytics/')
+             .then(response => {
+                 if (!response.ok) {
+                     throw new Error(`HTTP error! status: ${response.status}`);
+                 }
+                 return response.json();
+             })
+             .then(data => {
+                 try {
+                     const ctx = zoneCostChartEl.getContext('2d');
+                     const zones = data.zones || [];
+                     
+                     // Filter zones with costs > 0
+                     const zonesWithCosts = zones.filter(z => z.total_cost > 0);
+                     
+                     if (zonesWithCosts.length === 0) {
+                         zoneCostChartEl.parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">No cost data available</div>';
+                         return;
+                     }
                  
                  const labels = zonesWithCosts.map(z => z.zone_type);
                  const costs = zonesWithCosts.map(z => z.total_cost);
@@ -614,11 +643,16 @@
                  console.error('Error rendering zone cost chart:', error);
                  document.getElementById('zoneCostChart').parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">Error loading chart data</div>';
              }
-         })
-         .catch(error => {
-             console.error('Error fetching zone analytics data:', error);
-             document.getElementById('zoneCostChart').parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">Error loading chart data</div>';
-         });
+                 })
+                 .catch(error => {
+                     console.error('Error fetching zone analytics data:', error);
+                     if (zoneCostChartEl && zoneCostChartEl.parentElement) {
+                         zoneCostChartEl.parentElement.innerHTML = '<div class="text-gray-500 text-center mt-8">Error loading chart data</div>';
+                     }
+                 });
+        } else {
+            console.warn('zoneCostChart element not found');
+        }
     });
 </script>
 {% endblock %} 
