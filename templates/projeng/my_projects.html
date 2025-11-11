@@ -182,28 +182,26 @@ let currentStatusFilter = '';
 let currentBarangayFilter = '';
 let searchTerm = '';
 
-// Get all filter elements
-const searchInput = document.getElementById('search-projects');
-const barangayFilter = document.getElementById('barangay-filter');
-const filterAll = document.getElementById('filter-all');
-const filterInProgress = document.getElementById('filter-in-progress');
-const filterPlanned = document.getElementById('filter-planned');
-const filterCompleted = document.getElementById('filter-completed');
-const filterDelayed = document.getElementById('filter-delayed');
+// Filter elements (will be initialized in DOMContentLoaded)
+let searchInput, barangayFilter, filterAll, filterInProgress, filterPlanned, filterCompleted, filterDelayed;
 
-// Status filter buttons
-const statusFilters = {
-    '': filterAll,
-    'in_progress': filterInProgress,
-    'planned': filterPlanned,
-    'completed': filterCompleted,
-    'delayed': filterDelayed
-};
+// Function to get status filter buttons object
+function getStatusFilters() {
+    return {
+        '': filterAll,
+        'in_progress': filterInProgress,
+        'planned': filterPlanned,
+        'completed': filterCompleted,
+        'delayed': filterDelayed
+    };
+}
 
 // Function to update active filter button
 function updateActiveFilter(activeStatus) {
+    const statusFilters = getStatusFilters();
     Object.keys(statusFilters).forEach(status => {
         const btn = statusFilters[status];
+        if (!btn) return; // Skip if button doesn't exist
         if (status === activeStatus) {
             btn.classList.add('active');
             // Update button styles based on status
@@ -308,46 +306,90 @@ function filterProjects() {
     }
 }
 
-// Event listeners
-searchInput.addEventListener('input', function() {
-    searchTerm = this.value.toLowerCase();
-    filterProjects();
-});
-
-barangayFilter.addEventListener('change', function() {
-    currentBarangayFilter = this.value;
-    filterProjects();
-});
-
-filterAll.addEventListener('click', function() {
-    currentStatusFilter = '';
-    updateActiveFilter('');
-    filterProjects();
-});
-
-filterInProgress.addEventListener('click', function() {
-    currentStatusFilter = 'in_progress';
-    updateActiveFilter('in_progress');
-    filterProjects();
-});
-
-filterPlanned.addEventListener('click', function() {
-    currentStatusFilter = 'planned';
-    updateActiveFilter('planned');
-    filterProjects();
-});
-
-filterCompleted.addEventListener('click', function() {
-    currentStatusFilter = 'completed';
-    updateActiveFilter('completed');
-    filterProjects();
-});
-
-filterDelayed.addEventListener('click', function() {
-    currentStatusFilter = 'delayed';
-    updateActiveFilter('delayed');
-    filterProjects();
-});
+// Setup event listeners
+function setupEventListeners() {
+    // Get all filter elements
+    searchInput = document.getElementById('search-projects');
+    barangayFilter = document.getElementById('barangay-filter');
+    filterAll = document.getElementById('filter-all');
+    filterInProgress = document.getElementById('filter-in-progress');
+    filterPlanned = document.getElementById('filter-planned');
+    filterCompleted = document.getElementById('filter-completed');
+    filterDelayed = document.getElementById('filter-delayed');
+    
+    // Check if all elements exist
+    if (!searchInput || !barangayFilter || !filterAll || !filterInProgress || !filterPlanned || !filterCompleted || !filterDelayed) {
+        console.error('Filter elements not found!', {
+            searchInput: !!searchInput,
+            barangayFilter: !!barangayFilter,
+            filterAll: !!filterAll,
+            filterInProgress: !!filterInProgress,
+            filterPlanned: !!filterPlanned,
+            filterCompleted: !!filterCompleted,
+            filterDelayed: !!filterDelayed
+        });
+        return;
+    }
+    
+    console.log('Setting up filter event listeners...');
+    
+    // Search filter
+    searchInput.addEventListener('input', function() {
+        searchTerm = this.value.toLowerCase();
+        console.log('Search term changed:', searchTerm);
+        filterProjects();
+    });
+    
+    // Barangay filter
+    barangayFilter.addEventListener('change', function() {
+        currentBarangayFilter = this.value;
+        console.log('Barangay filter changed:', currentBarangayFilter);
+        filterProjects();
+    });
+    
+    // Status filter buttons
+    filterAll.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentStatusFilter = '';
+        console.log('Status filter: All');
+        updateActiveFilter('');
+        filterProjects();
+    });
+    
+    filterInProgress.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentStatusFilter = 'in_progress';
+        console.log('Status filter: In Progress');
+        updateActiveFilter('in_progress');
+        filterProjects();
+    });
+    
+    filterPlanned.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentStatusFilter = 'planned';
+        console.log('Status filter: Planned');
+        updateActiveFilter('planned');
+        filterProjects();
+    });
+    
+    filterCompleted.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentStatusFilter = 'completed';
+        console.log('Status filter: Completed');
+        updateActiveFilter('completed');
+        filterProjects();
+    });
+    
+    filterDelayed.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentStatusFilter = 'delayed';
+        console.log('Status filter: Delayed');
+        updateActiveFilter('delayed');
+        filterProjects();
+    });
+    
+    console.log('Filter event listeners set up successfully');
+}
 
 // Real-time project list updates
 function setupRealtimeProjectList() {
@@ -648,6 +690,11 @@ function escapeHtml(text) {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - Initializing filters...');
+    
+    // Setup event listeners first
+    setupEventListeners();
+    
     // Initialize filters - ensure all projects are visible initially
     filterProjects();
     
