@@ -30,14 +30,14 @@
                         <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        <input type="text" id="search-projects" placeholder="Search projects by name or description..." 
+                        <input type="text" id="search-projects" oninput="searchTerm = this.value.toLowerCase(); filterProjects();" placeholder="Search projects by name or description..." 
                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                     </div>
                 </div>
                 
                 <!-- Barangay Filter -->
                 <div class="w-full lg:w-auto">
-                    <select id="barangay-filter" class="w-full lg:w-56 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                    <select id="barangay-filter" onchange="window.setBarangayFilter(this.value)" class="w-full lg:w-56 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                         <option value="">All Barangays</option>
                         <option value="Apokon">Apokon</option>
                         <option value="Bincungan">Bincungan</option>
@@ -68,19 +68,19 @@
             
             <!-- Status Filter Buttons -->
             <div class="mt-4 flex flex-wrap gap-2">
-                <button type="button" id="filter-all" class="filter-btn active px-4 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100" style="cursor: pointer;">
+                <button type="button" id="filter-all" onclick="window.setStatusFilter('')" class="filter-btn active px-4 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100" style="cursor: pointer;">
                     All
                 </button>
-                <button type="button" id="filter-in-progress" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
+                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
                     In Progress
                 </button>
-                <button type="button" id="filter-planned" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
+                <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
                     Planned
                 </button>
-                <button type="button" id="filter-completed" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100" style="cursor: pointer;">
+                <button type="button" id="filter-completed" onclick="window.setStatusFilter('completed')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100" style="cursor: pointer;">
                     Completed
                 </button>
-                <button type="button" id="filter-delayed" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100" style="cursor: pointer;">
+                <button type="button" id="filter-delayed" onclick="window.setStatusFilter('delayed')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100" style="cursor: pointer;">
                     Delayed
                 </button>
             </div>
@@ -409,6 +409,20 @@ function setupEventListeners() {
     console.log('Filter event listeners set up successfully');
 }
 
+// Global functions for inline onclick handlers (backup method)
+window.setStatusFilter = function(status) {
+    console.log('setStatusFilter called with:', status);
+    currentStatusFilter = status;
+    updateActiveFilter(status);
+    filterProjects();
+};
+
+window.setBarangayFilter = function(barangay) {
+    console.log('setBarangayFilter called with:', barangay);
+    currentBarangayFilter = barangay;
+    filterProjects();
+};
+
 // Real-time project list updates
 function setupRealtimeProjectList() {
     console.log('📋 Setting up real-time project list updates...');
@@ -706,12 +720,11 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded - Initializing filters...');
-    
-    // Wait a tiny bit to ensure all elements are rendered
-    setTimeout(function() {
+// Initialize on page load - try multiple methods to ensure it runs
+(function() {
+    function initFilters() {
+        console.log('Initializing filters...');
+        
         // Setup event listeners first
         setupEventListeners();
         
@@ -727,7 +740,25 @@ document.addEventListener('DOMContentLoaded', function() {
             completed: !!filterCompleted,
             delayed: !!filterDelayed
         });
-    }, 100);
+    }
+    
+    // Try multiple ways to ensure initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initFilters, 100);
+        });
+    } else {
+        // DOM already loaded
+        setTimeout(initFilters, 100);
+    }
+    
+    // Also try on window load as backup
+    window.addEventListener('load', function() {
+        if (!filterAll || !filterInProgress) {
+            console.log('Retrying filter setup on window load...');
+            setTimeout(initFilters, 200);
+        }
+    });
     
     // Wait a bit for realtimeManager to be initialized
     setTimeout(() => {
@@ -738,7 +769,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setupRealtimeNotifications();
         }
     }, 500);
-});
+})();
 </script>
 
 <style>
