@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     # 'django.contrib.gis',  # Temporarily disabled due to GDAL issues
     'projeng',
     'django_extensions',
-    # 'channels',  # Temporarily commented for migrations
+    # 'channels',  # Temporarily commented for management commands
 ]
 
 # ASGI Application for WebSocket support (Phase 1: Safe addition)
