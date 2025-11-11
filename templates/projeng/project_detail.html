@@ -23,7 +23,16 @@
     <!-- Header Section -->
     <div class="mb-6">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-3xl font-bold text-gray-900">Project Details</h1>
+            <div class="flex items-center gap-4">
+                <a href="{% url 'projeng:projeng_my_projects' %}" 
+                   class="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-2 -ml-2 rounded-lg hover:bg-gray-100"
+                   title="Back to My Projects">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <h1 class="text-3xl font-bold text-gray-900">Project Details</h1>
+            </div>
             <a href="{% url 'projeng:projeng_add_progress_update' project.pk %}" 
                class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition-colors duration-200 inline-flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
