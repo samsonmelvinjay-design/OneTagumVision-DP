@@ -1,0 +1,258 @@
+{% extends 'projeng_base.html' %}
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-4 mb-4">
+            <a href="{% url 'projeng:projeng_project_detail' project.pk %}" 
+               class="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-2 -ml-2 rounded-lg hover:bg-gray-100"
+               title="Back to Project Details">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Add Cost Entry</h1>
+        </div>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <p class="text-sm text-green-900">
+                <span class="font-semibold">Project:</span> {{ project.name }}
+                {% if project.prn %}<span class="ml-4"><span class="font-semibold">PRN:</span> {{ project.prn }}</span>{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <form id="costForm" enctype="multipart/form-data" method="post" action="{% url 'projeng:projeng_add_cost_entry' project.pk %}">
+            {% csrf_token %}
+            
+            <div class="space-y-6">
+                <!-- Date and Cost Type -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="cost-date" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Date
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" 
+                               id="cost-date" 
+                               name="date" 
+                               required 
+                               value="{{ today|date:'Y-m-d' }}"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors">
+                    </div>
+                    <div>
+                        <label for="cost-type" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Cost Type
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <select id="cost-type" 
+                                name="cost_type" 
+                                required
+                                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors">
+                            <option value="">Select cost type...</option>
+                            {% for value, label in cost_types %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Amount -->
+                <div>
+                    <label for="cost-amount" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Amount (₱)
+                        <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">₱</span>
+                        <input type="number" 
+                               id="cost-amount" 
+                               name="amount" 
+                               step="0.01" 
+                               min="0" 
+                               required 
+                               placeholder="0.00"
+                               class="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Enter the cost amount in pesos</p>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="cost-description" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Description
+                        <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="cost-description" 
+                              name="description" 
+                              rows="4" 
+                              required 
+                              placeholder="Describe the cost entry (e.g., materials purchased, labor costs, equipment rental, etc.)..."
+                              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors resize-none"></textarea>
+                </div>
+
+                <!-- Receipt Upload -->
+                <div>
+                    <label for="cost-receipt" class="block text-sm font-semibold text-gray-700 mb-2">
+                        Receipt (Optional)
+                    </label>
+                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-green-400 transition-colors">
+                        <div class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="cost-receipt" class="relative cursor-pointer bg-white rounded-md font-medium text-green-600 hover:text-green-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-green-500">
+                                    <span>Upload receipt</span>
+                                    <input type="file" 
+                                           id="cost-receipt" 
+                                           name="receipt" 
+                                           accept="image/*,.pdf" 
+                                           class="sr-only">
+                                </label>
+                                <p class="pl-1">or drag and drop</p>
+                            </div>
+                            <p class="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                        </div>
+                    </div>
+                    <div id="receipt-preview" class="mt-4 hidden">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900" id="receipt-name"></p>
+                                    <p class="text-xs text-gray-500" id="receipt-size"></p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="clearReceipt()" class="text-red-500 hover:text-red-700">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div id="cost-success-message" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-green-800 font-medium"></p>
+                </div>
+                <div id="cost-error-message" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-red-800 font-medium"></p>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex items-center gap-4 pt-4 border-t border-gray-200">
+                    <button type="submit" 
+                            id="submit-btn"
+                            class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:bg-green-700 transition-colors duration-200 inline-flex items-center justify-center gap-2">
+                        <span id="cost-loading-spinner" class="hidden">
+                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                        <span>Add Cost Entry</span>
+                    </button>
+                    <a href="{% url 'projeng:projeng_project_detail' project.pk %}" 
+                       class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-200">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('costForm');
+    const submitBtn = document.getElementById('submit-btn');
+    const loadingSpinner = document.getElementById('cost-loading-spinner');
+    const successMsg = document.getElementById('cost-success-message');
+    const errorMsg = document.getElementById('cost-error-message');
+    const receiptInput = document.getElementById('cost-receipt');
+    const receiptPreview = document.getElementById('receipt-preview');
+
+    // Receipt preview
+    if (receiptInput) {
+        receiptInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                receiptPreview.classList.remove('hidden');
+                document.getElementById('receipt-name').textContent = file.name;
+                document.getElementById('receipt-size').textContent = (file.size / 1024).toFixed(2) + ' KB';
+            } else {
+                receiptPreview.classList.add('hidden');
+            }
+        });
+    }
+
+    window.clearReceipt = function() {
+        if (receiptInput) {
+            receiptInput.value = '';
+            receiptPreview.classList.add('hidden');
+        }
+    };
+
+    // Form submission
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Hide previous messages
+            successMsg.classList.add('hidden');
+            errorMsg.classList.add('hidden');
+            
+            // Show loading state
+            loadingSpinner.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            
+            const formData = new FormData(form);
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingSpinner.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                
+                if (data.success) {
+                    successMsg.querySelector('p').textContent = data.message || 'Cost entry added successfully!';
+                    successMsg.classList.remove('hidden');
+                    form.reset();
+                    receiptPreview.classList.add('hidden');
+                    
+                    // Redirect to project detail page after 1.5 seconds
+                    setTimeout(() => {
+                        window.location.href = '{% url "projeng:projeng_project_detail" project.pk %}';
+                    }, 1500);
+                } else {
+                    errorMsg.querySelector('p').textContent = data.error || 'Failed to add cost entry.';
+                    errorMsg.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                loadingSpinner.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                errorMsg.querySelector('p').textContent = 'An error occurred. Please try again.';
+                errorMsg.classList.remove('hidden');
+                console.error('Error:', error);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
+

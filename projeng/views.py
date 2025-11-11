@@ -975,14 +975,34 @@ def add_progress_update(request, pk):
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-@user_passes_test(is_project_engineer, login_url='/accounts/login/')
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 @csrf_exempt
 def add_cost_entry(request, pk):
+    try:
+        project = Project.objects.get(pk=pk)
+        
+        # Check permissions - head engineers can add cost entries to any project
+        if not is_head_engineer(request.user):
+            if request.user not in project.assigned_engineers.all():
+                return JsonResponse({'error': 'You are not assigned to this project.'}, status=403)
+    except Project.DoesNotExist:
+        return JsonResponse({'error': 'Project not found.'}, status=404)
+    
+    if request.method == 'GET':
+        # Render form page for adding cost entry
+        from datetime import date
+        today = date.today()
+        from projeng.models import ProjectCost
+        return render(request, 'projeng/add_cost_entry.html', {
+            'project': project,
+            'today': today,
+            'cost_types': ProjectCost.COST_TYPES
+        })
+    
     if request.method == 'POST':
         try:
             from decimal import Decimal, InvalidOperation
             
-            project = Project.objects.get(pk=pk)
             # Use request.POST and request.FILES for multipart/form-data
             date = request.POST.get('date')
             cost_type = request.POST.get('cost_type')
