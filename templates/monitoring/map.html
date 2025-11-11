@@ -200,35 +200,59 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Check if map already exists and clean it up
         if (L.DomUtil.get('map') !== null) {
-            L.DomUtil.get('map')._leaflet_id = null;
+            try {
+                const existingMap = L.DomUtil.get('map');
+                if (existingMap._leaflet_id) {
+                    // Map already exists, remove it first
+                    if (map && typeof map.remove === 'function') {
+                        map.remove();
+                    }
+                    L.DomUtil.get('map')._leaflet_id = null;
+                }
+            } catch (e) {
+                console.log('Error cleaning up existing map:', e);
+                L.DomUtil.get('map')._leaflet_id = null;
+            }
         }
         
-        map = L.map('map').setView([7.4475, 125.8096], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        try {
+            map = L.map('map').setView([7.4475, 125.8096], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
 
-        // Add marker cluster group
-        markers = L.markerClusterGroup();
-        map.addLayer(markers);
-        
-        // Add fullscreen control
-        addFullscreenControl();
-        
-        // Ensure map renders properly - call invalidateSize after a short delay
-        setTimeout(() => {
-            if (map) {
-                try {
-                    map.invalidateSize();
-                    console.log('Map size invalidated in initMap');
-                } catch (e) {
-                    console.error('Error invalidating map size:', e);
-                }
+            // Add marker cluster group
+            if (!markers) {
+                markers = L.markerClusterGroup();
+                map.addLayer(markers);
             }
-        }, 100);
-        
-        console.log('Map initialized successfully');
+            
+            // Add fullscreen control
+            addFullscreenControl();
+            
+            // Ensure map renders properly - call invalidateSize after a short delay
+            setTimeout(() => {
+                if (map) {
+                    try {
+                        map.invalidateSize();
+                        console.log('Map size invalidated in initMap');
+                    } catch (e) {
+                        console.error('Error invalidating map size:', e);
+                    }
+                }
+            }, 150);
+            
+            console.log('Map initialized successfully');
+        } catch (e) {
+            console.error('Error initializing map:', e);
+            // Show error to user
+            if (mapContainer) {
+                mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: red; font-weight: bold; padding: 20px; text-align: center;">Error initializing map. Please refresh the page.<br><small>' + e.message + '</small></div>';
+            }
+        }
     }
 
     // Fullscreen functionality
@@ -396,8 +420,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the map
     initMap();
     
-    // Set initial filter visibility (show filters for markers view by default)
+    // Get filter section element once (reuse throughout)
     const filterSection = document.getElementById('filter-section');
+    
+    // Set initial filter visibility (show filters for markers view by default)
     if (filterSection) {
         filterSection.style.display = 'flex';
     }
@@ -543,7 +569,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show filter section in markers view
-        const filterSection = document.getElementById('filter-section');
         if (filterSection) {
             filterSection.style.display = 'flex';
         }
@@ -620,7 +645,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show filter section for markers view
-        const filterSection = document.getElementById('filter-section');
         if (filterSection) {
             filterSection.style.display = 'flex';
         }
@@ -643,7 +667,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Hide filter section in choropleth view
-        const filterSection = document.getElementById('filter-section');
         if (filterSection) {
             filterSection.style.display = 'none';
         }
@@ -735,7 +758,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Hide filter section for choropleth view
-        const filterSection = document.getElementById('filter-section');
         if (filterSection) {
             filterSection.style.display = 'none';
         }
@@ -832,30 +854,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-            // Initial render
-        setTimeout(() => {
-            console.log('Starting initial render - map:', map, 'markers:', markers);
-            if (map && markers) {
+    // Initial render - ensure map is ready
+    setTimeout(() => {
+        console.log('Starting initial render - map:', map, 'markers:', markers, 'currentMapMode:', currentMapMode);
+        if (map && markers && currentMapMode === 'markers') {
+            try {
                 renderMarkers();
                 console.log('Initial render completed successfully');
-            } else {
-                console.error('Map or markers not initialized for initial render');
-                // Try to reinitialize if needed
-                if (!map) {
-                    console.log('Reinitializing map');
-                    initMap();
-                }
-                if (!markers && map) {
-                    console.log('Reinitializing markers');
-                    markers = L.markerClusterGroup();
-                    map.addLayer(markers);
-                }
-                if (map && markers) {
-                    console.log('Retrying render after reinitialization');
-                    renderMarkers();
-                }
+            } catch (e) {
+                console.error('Error during initial render:', e);
             }
-        }, 100);
+        } else {
+            console.warn('Map or markers not ready for initial render', {
+                map: !!map,
+                markers: !!markers,
+                currentMapMode: currentMapMode
+            });
+            // Try to reinitialize if needed
+            if (!map) {
+                console.log('Reinitializing map');
+                initMap();
+            }
+            if (!markers && map) {
+                console.log('Reinitializing markers');
+                markers = L.markerClusterGroup();
+                map.addLayer(markers);
+            }
+            // Retry render after a short delay
+            setTimeout(() => {
+                if (map && markers && currentMapMode === 'markers') {
+                    console.log('Retrying render after reinitialization');
+                    try {
+                        renderMarkers();
+                    } catch (e) {
+                        console.error('Error during retry render:', e);
+                    }
+                }
+            }, 200);
+        }
+    }, 300);
 
     // Handle window resize
     window.addEventListener('resize', () => {
