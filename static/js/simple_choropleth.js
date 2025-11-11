@@ -234,6 +234,20 @@ class SimpleChoropleth {
                         <span>Coastal</span>
                     </div>
                 `;
+            } else if (this.currentView === 'zone_type') {
+                // Phase 5: Zone type legend
+                div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Zone Types</h4>';
+                const zoneTypes = ['R-1', 'R-2', 'R-3', 'SHZ', 'C-1', 'C-2', 'I-1', 'I-2', 'AGRO', 'INS-1', 'PARKS', 'AGRICULTURAL', 'ECO-TOURISM', 'SPECIAL'];
+                zoneTypes.forEach(zoneType => {
+                    const color = this.getZoneTypeColor(zoneType);
+                    const displayName = this.getZoneTypeDisplayName(zoneType);
+                    div.innerHTML += `
+                        <div style="margin: 2px 0; display: flex; align-items: center;">
+                            <i style="background: ${color}; width: 16px; height: 16px; margin-right: 6px; border: 1px solid #333; flex-shrink: 0;"></i>
+                            <span style="font-size: 11px;">${zoneType}: ${displayName}</span>
+                        </div>
+                    `;
+                });
             } else {
                 // Default: show barangay list
                 div.innerHTML = '<h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;">Tagum City Barangays</h4>';
