@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',  # For human-readable number formatting (intcomma, etc.)
     'whitenoise.runserver_nostatic',
     'tailwind',
     'onetagumvision',
@@ -51,7 +52,7 @@ INSTALLED_APPS = [
     # 'django.contrib.gis',  # Temporarily disabled due to GDAL issues
     'projeng',
     'django_extensions',
-    # 'channels',  # Temporarily commented for management commands
+    'channels',  # Django Channels for WebSocket support (Phase 1: Safe addition)
 ]
 
 # ASGI Application for WebSocket support (Phase 1: Safe addition)
