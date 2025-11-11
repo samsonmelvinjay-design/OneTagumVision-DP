@@ -49,19 +49,22 @@
 <div class="flex flex-col items-center w-full px-4 py-8 md:px-8 md:py-12">
     <div class="w-full max-w-6xl bg-white rounded-2xl shadow-lg">
         <div class="p-4 md:p-8">
-            <!-- Map Type Toggle -->
-            <div class="flex justify-center gap-2 mb-6">
-                <button id="btn-markers" class="px-6 py-3 rounded-lg font-semibold border border-gray-300 bg-blue-600 text-white transition text-lg">Markers View</button>
-                <button id="btn-choropleth" class="px-6 py-3 rounded-lg font-semibold border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition text-lg">Choropleth View</button>
-            </div>
-            
-            <!-- Phase 3: Zoning Controls Panel (Visible only in Choropleth View) -->
-            <div id="zoning-controls" class="bg-white p-4 rounded-lg shadow-md mb-6 hidden">
-                <h3 class="text-lg font-semibold mb-3 text-gray-800">Zoning View</h3>
+            <!-- Combined View Controls -->
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Map View Options</h3>
                 
-                <!-- View Type Selector -->
+                <!-- Zoning Overlay Toggle -->
                 <div class="mb-4">
-                    <label class="block text-sm font-medium mb-2 text-gray-700">View Type</label>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="zoning-overlay-toggle" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <span class="text-base font-medium text-gray-700">Show Zoning Overlay</span>
+                    </label>
+                    <p class="text-sm text-gray-500 mt-1 ml-8">Display zoning information as colored overlay on the map</p>
+                </div>
+                
+                <!-- Zoning View Type Selector (Visible when overlay is enabled) -->
+                <div id="zoning-view-controls" class="hidden">
+                    <label class="block text-sm font-medium mb-2 text-gray-700">Zoning View Type</label>
                     <select id="zoning-view-selector" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="projects">Projects (Default)</option>
                         <option value="urban_rural">Urban / Rural</option>
@@ -187,11 +190,11 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Leaflet loaded successfully, version:', L.version || 'unknown');
 
     // Global variables
-    let currentMapMode = 'markers'; // 'markers' or 'choropleth'
     let map = null;
     let markers = null;
     let choroplethMap = null;
     let choroplethMapReady = false; // Flag to track if choropleth map is ready
+    let zoningOverlayEnabled = false; // Track if zoning overlay is enabled
     let statusFilter = '';
     let isFullscreen = false;
     let fullscreenButton = null;
@@ -561,234 +564,97 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Switch between map modes
-    function switchToMarkers() {
-        console.log('Switching to markers view');
-        currentMapMode = 'markers';
+    // Toggle zoning overlay on/off (combined view approach)
+    function toggleZoningOverlay(enabled) {
+        console.log('Toggling zoning overlay:', enabled);
+        zoningOverlayEnabled = enabled;
         
-        // Phase 3: Hide zoning controls
-        const zoningControls = document.getElementById('zoning-controls');
-        if (zoningControls) {
-            zoningControls.classList.add('hidden');
-        }
-        
-        // Show filter section in markers view
-        if (filterSection) {
-            filterSection.style.display = 'flex';
-        }
-        
-        // Clear choropleth if exists
-        if (choroplethMap) {
-            try {
-                // Use the cleanup method to properly remove all choropleth elements
-                choroplethMap.cleanup();
-            } catch (e) {
-                console.log('Error clearing choropleth:', e);
+        const zoningViewControls = document.getElementById('zoning-view-controls');
+        if (zoningViewControls) {
+            if (enabled) {
+                zoningViewControls.classList.remove('hidden');
+            } else {
+                zoningViewControls.classList.add('hidden');
             }
-            choroplethMap = null;
-            choroplethMapReady = false; // Reset ready flag
         }
         
-        // Ensure map is properly initialized
-        if (!map || !map._loaded) {
-            console.log('Reinitializing map for markers');
-            if (map) {
+        if (enabled) {
+            // Show zoning overlay
+            if (!choroplethMap) {
+                // Initialize choropleth map if not already done
+                if (typeof SimpleChoropleth === 'undefined') {
+                    console.error('SimpleChoropleth class is not loaded! Script should be loaded statically.');
+                    console.error('Please check if simple_choropleth.js is included in the template.');
+                    return;
+                }
                 try {
-                    map.remove();
+                    choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
+                    choroplethMapReady = false; // Reset flag
+                    // Initialize asynchronously and wait for it to complete
+                    choroplethMap.initialize().then(() => {
+                        choroplethMapReady = true; // Mark as ready
+                        console.log('Choropleth map initialized successfully and ready');
+                        console.log('switchView method available:', typeof choroplethMap.switchView === 'function');
+                        // Get current view type from selector
+                        const viewSelector = document.getElementById('zoning-view-selector');
+                        if (viewSelector) {
+                            const viewType = viewSelector.value || 'projects';
+                            if (typeof choroplethMap.switchView === 'function') {
+                                choroplethMap.switchView(viewType);
+                            }
+                        }
+                    }).catch((error) => {
+                        choroplethMapReady = false;
+                        console.error('Error during choropleth initialization:', error);
+                    });
                 } catch (e) {
-                    console.log('Error removing old map:', e);
-                }
-            }
-            initMap();
-        }
-        
-        // Ensure markers are initialized
-        if (!markers) {
-            console.log('Reinitializing markers');
-            markers = L.markerClusterGroup();
-            map.addLayer(markers);
-        }
-        
-        // Render markers
-        renderMarkers();
-        
-        // Ensure map interactions are enabled
-        try {
-            if (map) {
-                map.invalidateSize();
-                // Only enable interactions if they exist
-                if (map.dragging && typeof map.dragging.enable === 'function') {
-                    map.dragging.enable();
-                }
-                if (map.touchZoom && typeof map.touchZoom.enable === 'function') {
-                    map.touchZoom.enable();
-                }
-                if (map.doubleClickZoom && typeof map.doubleClickZoom.enable === 'function') {
-                    map.doubleClickZoom.enable();
-                }
-                if (map.scrollWheelZoom && typeof map.scrollWheelZoom.enable === 'function') {
-                    map.scrollWheelZoom.enable();
-                }
-                if (map.boxZoom && typeof map.boxZoom.enable === 'function') {
-                    map.boxZoom.enable();
-                }
-                if (map.keyboard && typeof map.keyboard.enable === 'function') {
-                    map.keyboard.enable();
-                }
-                if (map.tap && typeof map.tap.enable === 'function') {
-                    map.tap.enable();
-                }
-                console.log('Map interactions enabled for markers view');
-            }
-        } catch (e) {
-            console.log('Error enabling map interactions:', e);
-        }
-        
-        // Ensure fullscreen button is available in markers view
-        if (!fullscreenButton) {
-            addFullscreenControl();
-        }
-        
-        // Show filter section for markers view
-        if (filterSection) {
-            filterSection.style.display = 'flex';
-        }
-        
-        // Update UI
-        document.getElementById('btn-markers').classList.add('bg-blue-600', 'text-white');
-        document.getElementById('btn-markers').classList.remove('bg-gray-50', 'text-gray-700');
-        document.getElementById('btn-choropleth').classList.remove('bg-blue-600', 'text-white');
-        document.getElementById('btn-choropleth').classList.add('bg-gray-50', 'text-gray-700');
-    }
-
-    function switchToChoropleth() {
-        console.log('Switching to choropleth view');
-        currentMapMode = 'choropleth';
-        
-        // Phase 3: Show zoning controls
-        const zoningControls = document.getElementById('zoning-controls');
-        if (zoningControls) {
-            zoningControls.classList.remove('hidden');
-        }
-        
-        // Hide filter section in choropleth view
-        if (filterSection) {
-            filterSection.style.display = 'none';
-        }
-        
-        // Clear markers if exists
-        if (markers) {
-            try {
-                map.removeLayer(markers);
-            } catch (e) {
-                console.log('Error removing markers:', e);
-            }
-            markers = null;
-        }
-        
-        // Ensure map is properly initialized
-        if (!map || !map._loaded) {
-            console.log('Reinitializing map for choropleth');
-            if (map) {
-                try {
-                    map.remove();
-                } catch (e) {
-                    console.log('Error removing old map:', e);
-                }
-            }
-            initMap();
-        }
-        
-        // Initialize choropleth map
-        if (!choroplethMap) {
-            if (typeof SimpleChoropleth === 'undefined') {
-                console.error('SimpleChoropleth class is not loaded! Script should be loaded statically.');
-                console.error('Please check if simple_choropleth.js is included in the template.');
-                return;
-            }
-            try {
-                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
-                choroplethMapReady = false; // Reset flag
-                // Initialize asynchronously and wait for it to complete
-                choroplethMap.initialize().then(() => {
-                    choroplethMapReady = true; // Mark as ready
-                    console.log('Choropleth map initialized successfully and ready');
-                    console.log('switchView method available:', typeof choroplethMap.switchView === 'function');
-                    // Update the view selector to match current view if needed
-                    if (zoningViewSelector && choroplethMap.currentView) {
-                        zoningViewSelector.value = choroplethMap.currentView;
-                    }
-                }).catch((error) => {
                     choroplethMapReady = false;
-                    console.error('Error during choropleth initialization:', error);
-                });
-            } catch (e) {
-                choroplethMapReady = false;
-                console.error('Error creating choropleth map:', e);
+                    console.error('Error creating choropleth map:', e);
+                }
+            } else if (choroplethMap && choroplethMapReady) {
+                // Choropleth already exists, just show it
+                const viewSelector = document.getElementById('zoning-view-selector');
+                if (viewSelector) {
+                    const viewType = viewSelector.value || 'projects';
+                    if (typeof choroplethMap.switchView === 'function') {
+                        choroplethMap.switchView(viewType);
+                    }
+                }
+            }
+        } else {
+            // Hide zoning overlay (but keep choroplethMap instance for faster re-enabling)
+            if (choroplethMap && choroplethMap.choroplethLayer) {
+                try {
+                    map.removeLayer(choroplethMap.choroplethLayer);
+                    if (choroplethMap.legend) {
+                        map.removeControl(choroplethMap.legend);
+                    }
+                    if (choroplethMap.summaryPanel) {
+                        map.removeControl(choroplethMap.summaryPanel);
+                    }
+                } catch (e) {
+                    console.log('Error hiding choropleth layer:', e);
+                }
             }
         }
-        
-        // Ensure map interactions are enabled for choropleth
-        try {
-            if (map) {
-                map.invalidateSize();
-                // Only enable interactions if they exist
-                if (map.dragging && typeof map.dragging.enable === 'function') {
-                    map.dragging.enable();
-                }
-                if (map.touchZoom && typeof map.touchZoom.enable === 'function') {
-                    map.touchZoom.enable();
-                }
-                if (map.doubleClickZoom && typeof map.doubleClickZoom.enable === 'function') {
-                    map.doubleClickZoom.enable();
-                }
-                if (map.scrollWheelZoom && typeof map.scrollWheelZoom.enable === 'function') {
-                    map.scrollWheelZoom.enable();
-                }
-                if (map.boxZoom && typeof map.boxZoom.enable === 'function') {
-                    map.boxZoom.enable();
-                }
-                if (map.keyboard && typeof map.keyboard.enable === 'function') {
-                    map.keyboard.enable();
-                }
-                if (map.tap && typeof map.tap.enable === 'function') {
-                    map.tap.enable();
-                }
-                console.log('Map interactions enabled for choropleth view');
-            }
-        } catch (e) {
-            console.log('Error enabling map interactions:', e);
-        }
-        
-        // Ensure fullscreen button is available in choropleth view
-        if (!fullscreenButton) {
-            addFullscreenControl();
-        }
-        
-        // Hide filter section for choropleth view
-        if (filterSection) {
-            filterSection.style.display = 'none';
-        }
-        
-        // Update UI
-        document.getElementById('btn-choropleth').classList.add('bg-blue-600', 'text-white');
-        document.getElementById('btn-choropleth').classList.remove('bg-gray-50', 'text-gray-700');
-        document.getElementById('btn-markers').classList.remove('bg-blue-600', 'text-white');
-        document.getElementById('btn-markers').classList.add('bg-gray-50', 'text-gray-700');
     }
 
-    // Map mode toggle event listeners
-    document.getElementById('btn-markers').addEventListener('click', switchToMarkers);
-    document.getElementById('btn-choropleth').addEventListener('click', switchToChoropleth);
+    // Zoning overlay toggle event listener
+    const zoningOverlayToggle = document.getElementById('zoning-overlay-toggle');
+    if (zoningOverlayToggle) {
+        zoningOverlayToggle.addEventListener('change', function(e) {
+            toggleZoningOverlay(e.target.checked);
+        });
+    }
 
     // Phase 3: Zoning view selector event listener
     // This function will be called when the selector changes
     function handleZoningViewChange(viewType) {
         console.log('handleZoningViewChange called with:', viewType);
         
-        // Check if we're in choropleth mode
-        if (currentMapMode !== 'choropleth') {
-            console.warn('Not in choropleth view. Current mode:', currentMapMode);
+        // Check if zoning overlay is enabled
+        if (!zoningOverlayEnabled) {
+            console.warn('Zoning overlay is not enabled');
             return;
         }
         
