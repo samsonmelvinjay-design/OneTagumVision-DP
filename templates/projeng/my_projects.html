@@ -4,41 +4,154 @@
 {{ block.super }}
 <!-- Define filter functions BEFORE content loads -->
 <script>
+// Initialize filter state on window object
+window.currentStatusFilter = '';
+window.currentBarangayFilter = '';
+window.searchTerm = '';
+
+// Define filterProjects function early so inline handlers can use it
+window.filterProjects = function() {
+    const statusFilter = window.currentStatusFilter || '';
+    const barangayFilter = window.currentBarangayFilter || '';
+    const searchTerm = window.searchTerm || '';
+    
+    const projectCards = document.querySelectorAll('.project-card');
+    let visibleCount = 0;
+    
+    console.log('Filtering projects:', {
+        statusFilter: statusFilter,
+        barangayFilter: barangayFilter,
+        searchTerm: searchTerm
+    });
+    
+    projectCards.forEach(card => {
+        const projectStatus = (card.getAttribute('data-status') || '').trim();
+        const projectBarangay = (card.getAttribute('data-barangay') || '').trim();
+        const nameEl = card.querySelector('.text-lg');
+        const descEl = card.querySelector('.text-sm.text-gray-600');
+        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
+        const desc = descEl ? descEl.textContent.toLowerCase() : '';
+        
+        // Status filter - must match exactly
+        let statusMatch = true;
+        if (statusFilter) {
+            statusMatch = projectStatus === statusFilter;
+        }
+        
+        // Barangay filter - must match exactly (case-insensitive)
+        let barangayMatch = true;
+        if (barangayFilter) {
+            barangayMatch = projectBarangay.toLowerCase() === barangayFilter.toLowerCase();
+        }
+        
+        // Search filter - must contain search term
+        const searchMatch = !searchTerm || name.includes(searchTerm) || desc.includes(searchTerm);
+        
+        // Show/hide card based on all filters
+        if (statusMatch && barangayMatch && searchMatch) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    console.log(`Filtered: ${visibleCount} projects visible out of ${projectCards.length} total`);
+    
+    // Show/hide "no projects" message for filtered results
+    const emptyStateFiltered = document.getElementById('empty-state-filtered');
+    
+    if (visibleCount === 0 && projectCards.length > 0) {
+        // Show empty state for filtered results
+        if (emptyStateFiltered) {
+            emptyStateFiltered.classList.remove('hidden');
+        }
+    } else {
+        // Hide empty state for filtered results
+        if (emptyStateFiltered) {
+            emptyStateFiltered.classList.add('hidden');
+        }
+    }
+};
+
+// Define updateActiveFilter function early
+window.updateActiveFilter = function(activeStatus) {
+    const filterAll = document.getElementById('filter-all');
+    const filterInProgress = document.getElementById('filter-in-progress');
+    const filterPlanned = document.getElementById('filter-planned');
+    const filterCompleted = document.getElementById('filter-completed');
+    const filterDelayed = document.getElementById('filter-delayed');
+    
+    const statusFilters = {
+        '': filterAll,
+        'in_progress': filterInProgress,
+        'planned': filterPlanned,
+        'completed': filterCompleted,
+        'delayed': filterDelayed
+    };
+    
+    Object.keys(statusFilters).forEach(status => {
+        const btn = statusFilters[status];
+        if (!btn) return;
+        if (status === activeStatus) {
+            btn.classList.add('active');
+            // Update button styles based on status
+            if (status === '') {
+                btn.classList.remove('bg-gray-50', 'text-gray-700', 'border-gray-300');
+                btn.classList.add('bg-gray-100', 'text-gray-900', 'border-gray-400');
+            } else if (status === 'in_progress') {
+                btn.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-300');
+                btn.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-400');
+            } else if (status === 'planned') {
+                btn.classList.remove('bg-amber-50', 'text-amber-700', 'border-amber-300');
+                btn.classList.add('bg-amber-100', 'text-amber-800', 'border-amber-400');
+            } else if (status === 'completed') {
+                btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
+                btn.classList.add('bg-green-100', 'text-green-800', 'border-green-400');
+            } else if (status === 'delayed') {
+                btn.classList.remove('bg-red-50', 'text-red-700', 'border-red-300');
+                btn.classList.add('bg-red-100', 'text-red-800', 'border-red-400');
+            }
+        } else {
+            btn.classList.remove('active');
+            // Reset button styles
+            if (status === '') {
+                btn.classList.remove('bg-gray-100', 'text-gray-900', 'border-gray-400');
+                btn.classList.add('bg-gray-50', 'text-gray-700', 'border-gray-300');
+            } else if (status === 'in_progress') {
+                btn.classList.remove('bg-blue-100', 'text-blue-800', 'border-blue-400');
+                btn.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-300');
+            } else if (status === 'planned') {
+                btn.classList.remove('bg-amber-100', 'text-amber-800', 'border-amber-400');
+                btn.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-300');
+            } else if (status === 'completed') {
+                btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-400');
+                btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
+            } else if (status === 'delayed') {
+                btn.classList.remove('bg-red-100', 'text-red-800', 'border-red-400');
+                btn.classList.add('bg-red-50', 'text-red-700', 'border-red-300');
+            }
+        }
+    });
+};
+
 // Define global functions IMMEDIATELY so inline handlers can use them
 window.setStatusFilter = function(status) {
     console.log('setStatusFilter called with:', status);
-    if (window.currentStatusFilter !== undefined) {
-        window.currentStatusFilter = status;
-    }
+    window.currentStatusFilter = status;
     if (typeof window.updateActiveFilter === 'function') {
         window.updateActiveFilter(status);
     }
     if (typeof window.filterProjects === 'function') {
         window.filterProjects();
-    } else {
-        console.warn('filterProjects not yet defined, will retry...');
-        setTimeout(function() {
-            if (typeof window.filterProjects === 'function') {
-                window.filterProjects();
-            }
-        }, 100);
     }
 };
 
 window.setBarangayFilter = function(barangay) {
     console.log('setBarangayFilter called with:', barangay);
-    if (window.currentBarangayFilter !== undefined) {
-        window.currentBarangayFilter = barangay;
-    }
+    window.currentBarangayFilter = barangay;
     if (typeof window.filterProjects === 'function') {
         window.filterProjects();
-    } else {
-        console.warn('filterProjects not yet defined, will retry...');
-        setTimeout(function() {
-            if (typeof window.filterProjects === 'function') {
-                window.filterProjects();
-            }
-        }, 100);
     }
 };
 </script>
@@ -75,7 +188,7 @@ window.setBarangayFilter = function(barangay) {
                         <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        <input type="text" id="search-projects" oninput="searchTerm = this.value.toLowerCase(); filterProjects();" placeholder="Search projects by name or description..." 
+                        <input type="text" id="search-projects" oninput="window.searchTerm = this.value.toLowerCase(); if (typeof window.filterProjects === 'function') window.filterProjects();" placeholder="Search projects by name or description..." 
                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                     </div>
                 </div>
@@ -286,120 +399,13 @@ function getStatusFilters() {
     };
 }
 
-// Function to update active filter button - expose to window for inline handlers
-window.updateActiveFilter = function updateActiveFilter(activeStatus) {
-    const statusFilters = getStatusFilters();
-    Object.keys(statusFilters).forEach(status => {
-        const btn = statusFilters[status];
-        if (!btn) return; // Skip if button doesn't exist
-        if (status === activeStatus) {
-            btn.classList.add('active');
-            // Update button styles based on status
-            if (status === '') {
-                btn.classList.remove('bg-gray-50', 'text-gray-700', 'border-gray-300');
-                btn.classList.add('bg-gray-100', 'text-gray-900', 'border-gray-400');
-            } else if (status === 'in_progress') {
-                btn.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-300');
-                btn.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-400');
-            } else if (status === 'planned') {
-                btn.classList.remove('bg-amber-50', 'text-amber-700', 'border-amber-300');
-                btn.classList.add('bg-amber-100', 'text-amber-800', 'border-amber-400');
-            } else if (status === 'completed') {
-                btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
-                btn.classList.add('bg-green-100', 'text-green-800', 'border-green-400');
-            } else if (status === 'delayed') {
-                btn.classList.remove('bg-red-50', 'text-red-700', 'border-red-300');
-                btn.classList.add('bg-red-100', 'text-red-800', 'border-red-400');
-            }
-        } else {
-            btn.classList.remove('active');
-            // Reset button styles
-            if (status === '') {
-                btn.classList.remove('bg-gray-100', 'text-gray-900', 'border-gray-400');
-                btn.classList.add('bg-gray-50', 'text-gray-700', 'border-gray-300');
-            } else if (status === 'in_progress') {
-                btn.classList.remove('bg-blue-100', 'text-blue-800', 'border-blue-400');
-                btn.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-300');
-            } else if (status === 'planned') {
-                btn.classList.remove('bg-amber-100', 'text-amber-800', 'border-amber-400');
-                btn.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-300');
-            } else if (status === 'completed') {
-                btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-400');
-                btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
-            } else if (status === 'delayed') {
-                btn.classList.remove('bg-red-100', 'text-red-800', 'border-red-400');
-                btn.classList.add('bg-red-50', 'text-red-700', 'border-red-300');
-            }
-        }
-    });
-}
+// Use the window.updateActiveFilter function (already defined in extra_js block)
+// Just create a local reference for convenience
+const updateActiveFilter = window.updateActiveFilter;
 
-// Function to filter projects - expose to window for inline handlers
-window.filterProjects = function filterProjects() {
-    // Sync with window variables
-    currentStatusFilter = window.currentStatusFilter || '';
-    currentBarangayFilter = window.currentBarangayFilter || '';
-    searchTerm = window.searchTerm || '';
-    
-    const projectCards = document.querySelectorAll('.project-card');
-    let visibleCount = 0;
-    
-    console.log('Filtering projects:', {
-        statusFilter: currentStatusFilter,
-        barangayFilter: currentBarangayFilter,
-        searchTerm: searchTerm
-    });
-    
-    projectCards.forEach(card => {
-        const projectStatus = (card.getAttribute('data-status') || '').trim();
-        const projectBarangay = (card.getAttribute('data-barangay') || '').trim();
-        const nameEl = card.querySelector('.text-lg');
-        const descEl = card.querySelector('.text-sm.text-gray-600');
-        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
-        const desc = descEl ? descEl.textContent.toLowerCase() : '';
-        
-        // Status filter - must match exactly
-        let statusMatch = true;
-        if (currentStatusFilter) {
-            statusMatch = projectStatus === currentStatusFilter;
-        }
-        
-        // Barangay filter - must match exactly (case-insensitive)
-        let barangayMatch = true;
-        if (currentBarangayFilter) {
-            barangayMatch = projectBarangay.toLowerCase() === currentBarangayFilter.toLowerCase();
-        }
-        
-        // Search filter - must contain search term
-        const searchMatch = !searchTerm || name.includes(searchTerm) || desc.includes(searchTerm);
-        
-        // Show/hide card based on all filters
-        if (statusMatch && barangayMatch && searchMatch) {
-            card.style.display = '';
-            visibleCount++;
-        } else {
-            card.style.display = 'none';
-        }
-    });
-    
-    console.log(`Filtered: ${visibleCount} projects visible out of ${projectCards.length} total`);
-    
-    // Show/hide "no projects" message for filtered results
-    const emptyStateFiltered = document.getElementById('empty-state-filtered');
-    const noProjectsMsgFiltered = document.getElementById('no-projects-message-filtered');
-    
-    if (visibleCount === 0 && projectCards.length > 0) {
-        // Show empty state for filtered results
-        if (emptyStateFiltered) {
-            emptyStateFiltered.classList.remove('hidden');
-        }
-    } else {
-        // Hide empty state for filtered results
-        if (emptyStateFiltered) {
-            emptyStateFiltered.classList.add('hidden');
-        }
-    }
-}
+// Use the window.filterProjects function (already defined in extra_js block)
+// Just create a local reference for convenience
+const filterProjects = window.filterProjects;
 
 // Setup event listeners
 function setupEventListeners() {
