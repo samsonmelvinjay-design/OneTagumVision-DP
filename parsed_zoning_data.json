@@ -1,0 +1,686 @@
+[
+  {
+    "zone_type": "R-1",
+    "barangay": "Visayan Village",
+    "location_description": "Specific areas defined by roads/boundaries",
+    "keywords": [
+      "Specific areas defined by roads/boundaries"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Liboganon",
+    "location_description": "Line abiding Liboganon road, Barangay Residential Site, Coastal Residential Area",
+    "keywords": [
+      "Line abiding Liboganon road",
+      "Coastal Residential Area",
+      "Barangay Residential Site",
+      "Line",
+      "Liboganon"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Madaum",
+    "location_description": "Makabayan Village, specific areas defined by roads/boundaries",
+    "keywords": [
+      "Makabayan Village"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Apokon",
+    "location_description": "Specific areas defined by roads/boundaries",
+    "keywords": [
+      "Specific areas defined by roads/boundaries"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Pandapan",
+    "location_description": "Barangay Residential site",
+    "keywords": [
+      "Barangay Residential site",
+      "Barangay Residential"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "New Balamban",
+    "location_description": "Barangay Residential site, Sitio Mandapaan residential site, and areas abiding specific roads",
+    "keywords": [
+      "Barangay Residential site",
+      "Barangay Residential",
+      "Sitio Mandapaan residential site",
+      "Sitio Mandapaan"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "San Agustin",
+    "location_description": "Barangay Residential Site, and area abiding San Agustin-New Balamban road",
+    "keywords": [
+      "area abiding San Agustin-New Balamban road",
+      "San Agustin",
+      "Barangay Residential Site",
+      "New Balamban"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Pagsabangan",
+    "location_description": "Barangay Residential Site, Purok Angkibit Site",
+    "keywords": [
+      "Purok Angkibit Site",
+      "Barangay Residential Site"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "La Filipina",
+    "location_description": "Specific area bounded by a proposed road and the Mankilam boundary",
+    "keywords": [
+      "Specific area bounded by a proposed road",
+      "Mankilam",
+      "the Mankilam boundary"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Nueva Fuerza",
+    "location_description": "Barangay Residential Site",
+    "keywords": [
+      "Barangay Residential Site"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "Mankilam",
+    "location_description": "Specific area bounded by barangay boundaries and proposed/existing roads",
+    "keywords": [
+      "Specific area bounded by barangay boundaries"
+    ]
+  },
+  {
+    "zone_type": "R-1",
+    "barangay": "San Miguel",
+    "location_description": "Specific areas bounded by boundaries, creeks, and roads",
+    "keywords": [
+      "Specific areas bounded by boundaries"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Magugpo West",
+    "location_description": "Domingo Subdivision",
+    "keywords": [
+      "Domingo Subdivision"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Magugpo North",
+    "location_description": "Suaybaguio District, Mirafuentes, Kalambuan Christ the King Subdivisions",
+    "keywords": [
+      "Kalambuan Christ",
+      "Mirafuentes",
+      "Suaybaguio District",
+      "King Subdivisions",
+      "Kalambuan Christ the King Subdivisions"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Magugpo East",
+    "location_description": "Senangote Village 1 & 2, Zafra Compound, Mencidor, Briz District, Liwayway Village, Bag Village, Shrineville, DANECO Village, RJP Village II Subdivisions, and specific areas",
+    "keywords": [
+      "Bag Village",
+      "Shrineville",
+      "Senangote Village",
+      "DANECO Village",
+      "RJP Village II Subdivisions",
+      "Senangote Village 1 & 2",
+      "Village",
+      "Subdivisions",
+      "Liwayway Village",
+      "Mencidor",
+      "Zafra Compound",
+      "Briz District"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Madaum",
+    "location_description": "Barrio Site, except institutional area",
+    "keywords": [
+      "Barrio Site"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Magdum",
+    "location_description": "Specific areas defined by subdivisions/boundaries and roads",
+    "keywords": [
+      "Specific areas defined by subdivisions/boundaries"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "La Filipina",
+    "location_description": "Bello, Kalamboan Christ the King Village, and specific areas",
+    "keywords": [
+      "Bello",
+      "King Village",
+      "Kalamboan Christ the King Village",
+      "Kalamboan Christ"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Cuambogan",
+    "location_description": "Purok San Antonio residential site, and specific areas",
+    "keywords": [
+      "Purok San Antonio residential site",
+      "Purok San Antonio"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Nueva Fuerza",
+    "location_description": "Specific area bounded by a proposed circumferential road",
+    "keywords": [
+      "Specific area bounded by a proposed circumferential road"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "Mankilam",
+    "location_description": "Margarita Village, Davao Sports Complex, Villa Margarita, Villa Patricia Subdivisions",
+    "keywords": [
+      "Margarita Village",
+      "Villa Margarita",
+      "Villa Patricia Subdivisions",
+      "Davao Sports Complex"
+    ]
+  },
+  {
+    "zone_type": "R-2",
+    "barangay": "San Miguel",
+    "location_description": "Specific areas defined by roads/boundaries",
+    "keywords": [
+      "Specific areas defined by roads/boundaries"
+    ]
+  },
+  {
+    "zone_type": "R-3",
+    "barangay": "Magugpo West",
+    "location_description": "Cristo Rey Village Subdivision 1 & 2, Padilla Subdivision, Gante Subdivision 1, 2 and 3, and specific areas",
+    "keywords": [
+      "Padilla Subdivision",
+      "Gante Subdivision 1",
+      "Cristo Rey Village Subdivision",
+      "Gante Subdivision",
+      "Cristo Rey Village Subdivision 1 & 2"
+    ]
+  },
+  {
+    "zone_type": "R-3",
+    "barangay": "Magugpo East",
+    "location_description": "Specific areas defined by roads and boundaries",
+    "keywords": [
+      "Specific areas defined by roads"
+    ]
+  },
+  {
+    "zone_type": "SHZ",
+    "barangay": "Magugpo South",
+    "location_description": "City government area Proposed Resettlement Site @ Purok V",
+    "keywords": [
+      "Purok",
+      "Proposed Resettlement Site",
+      "City government area Proposed Resettlement Site @ Purok V",
+      "City"
+    ]
+  },
+  {
+    "zone_type": "SHZ",
+    "barangay": "Madaum",
+    "location_description": "Area of the proposed resettlement site adjacent to Makabayan Village",
+    "keywords": [
+      "Area of the proposed resettlement site adjacent to Makabayan Village",
+      "Makabayan Village"
+    ]
+  },
+  {
+    "zone_type": "SHZ",
+    "barangay": "La Filipina",
+    "location_description": "Proposed Inocencio Estabillo Subdivision",
+    "keywords": [
+      "Proposed Inocencio Estabillo Subdivision"
+    ]
+  },
+  {
+    "zone_type": "SHZ",
+    "barangay": "Cuambogan",
+    "location_description": "Sacred Heart Homeowners Subdivision, Proposed Tagum City resettlement site, Couples for Christ Resettlement Site",
+    "keywords": [
+      "Couples",
+      "Proposed Tagum City",
+      "Christ Resettlement Site",
+      "Sacred Heart Homeowners Subdivision",
+      "Proposed Tagum City resettlement site",
+      "Couples for Christ Resettlement Site"
+    ]
+  },
+  {
+    "zone_type": "C-1",
+    "barangay": "Magugpo West",
+    "location_description": "Specific area defined by roads/boundaries, including the location of numerous banks",
+    "keywords": [
+      "Specific area defined by roads/boundaries"
+    ]
+  },
+  {
+    "zone_type": "C-1",
+    "barangay": "Magugpo East",
+    "location_description": "Specific areas defined by roads and boundaries, except existing institutional establishments and subdivisions",
+    "keywords": [
+      "Specific areas defined by roads"
+    ]
+  },
+  {
+    "zone_type": "C-1",
+    "barangay": "Magugpo South",
+    "location_description": "Specific area bounded by Pioneer Avenues, Sobrecary Street, except existing Subdivisions and Institutional establishments",
+    "keywords": [
+      "Specific area bounded by Pioneer Avenues",
+      "Subdivisions",
+      "Pioneer Avenues",
+      "Sobrecary Street",
+      "except existing Subdivisions",
+      "Institutional",
+      "Institutional establishments"
+    ]
+  },
+  {
+    "zone_type": "C-1",
+    "barangay": "Visayan Village",
+    "location_description": "Specific area defined by roads/boundaries",
+    "keywords": [
+      "Specific area defined by roads/boundaries"
+    ]
+  },
+  {
+    "zone_type": "C-1",
+    "barangay": "Madaum",
+    "location_description": "Specific area bounded by Madaum road, Madaum-Baret road, and Katipunan Madaum barrio site boundary",
+    "keywords": [
+      "Specific area bounded by Madaum road",
+      "Madaum",
+      "Baret",
+      "Katipunan Madaum barrio site boundary",
+      "Madaum-Baret road",
+      "Katipunan Madaum"
+    ]
+  },
+  {
+    "zone_type": "C-2",
+    "barangay": "Magugpo West",
+    "location_description": "Specific area bounded by roads, except existing Institutional establishments",
+    "keywords": [
+      "Specific area bounded by roads",
+      "except existing Institutional establishments",
+      "Institutional"
+    ]
+  },
+  {
+    "zone_type": "C-2",
+    "barangay": "La Filipina",
+    "location_description": "Specific area bounded by boundaries and roads, except existing institutional establishments",
+    "keywords": [
+      "Specific area bounded by boundaries"
+    ]
+  },
+  {
+    "zone_type": "C-2",
+    "barangay": "Mankilam",
+    "location_description": "Specific area bounded by boundaries and roads",
+    "keywords": [
+      "Specific area bounded by boundaries"
+    ]
+  },
+  {
+    "zone_type": "C-2",
+    "barangay": "San Miguel",
+    "location_description": "Specific area along Capitol-San Miguel road",
+    "keywords": [
+      "Specific area along Capitol-San Miguel road",
+      "San Miguel",
+      "Capitol"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Madaum",
+    "location_description": "Specific area near shoreline, Existing Packing Houses, Existing Plastic Factory",
+    "keywords": [
+      "Existing Plastic Factory",
+      "Specific area near shoreline",
+      "Existing Packing Houses"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Magdum",
+    "location_description": "Specific area near Hijo River, Twin Rivers Plantation, Inc Property, Tagum Wood Core Industry",
+    "keywords": [
+      "Specific area near Hijo River",
+      "Inc Property",
+      "Hijo River",
+      "Tagum Wood Core Industry",
+      "Twin Rivers Plantation"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Canocotan",
+    "location_description": "J & B Poultry and Industrial Compound",
+    "keywords": [
+      "J & B Poultry",
+      "Poultry",
+      "Industrial Compound"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Magugpo East",
+    "location_description": "Ian C. Neo Mini Saw Mill, Tagum Engineering Service Center Asphalt and Batching Plant, Proposed \"\"CLASS AA\"\" Slaughterhouse",
+    "keywords": [
+      "Batching Plant",
+      "Neo Mini Saw Mill",
+      "Proposed \"\"CLASS AA\"\" Slaughterhouse",
+      "Ian C. Neo Mini Saw Mill",
+      "Slaughterhouse",
+      "Tagum Engineering Service Center Asphalt",
+      "Ian"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Magugpo West",
+    "location_description": "Heroben Saw Mill, Sato Pallet Maker",
+    "keywords": [
+      "Heroben Saw Mill",
+      "Sato Pallet Maker"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Mankilam",
+    "location_description": "Orient Wood Industries Co., F. Albatera, Robert Oliveros, Nomer V. Navarro Mini Sawmills",
+    "keywords": [
+      "Navarro Mini Sawmills",
+      "Albatera",
+      "Nomer V. Navarro Mini Sawmills",
+      "F. Albatera",
+      "Robert Oliveros",
+      "Orient Wood Industries Co",
+      "Nomer",
+      "Orient Wood Industries Co."
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "San Miguel",
+    "location_description": "C. Z. Sarmento Pallet Maker",
+    "keywords": [
+      "C. Z. Sarmento Pallet Maker",
+      "Sarmento Pallet Maker"
+    ]
+  },
+  {
+    "zone_type": "I-2",
+    "barangay": "Bincungan",
+    "location_description": "Persan Construction Batching Plant Area",
+    "keywords": [
+      "Persan Construction Batching Plant Area"
+    ]
+  },
+  {
+    "zone_type": "I-1",
+    "barangay": "Magdum",
+    "location_description": "Specific area near Hijo River, Hexat Mining Corporation",
+    "keywords": [
+      "Hexat Mining Corporation",
+      "Specific area near Hijo River",
+      "Hijo River"
+    ]
+  },
+  {
+    "zone_type": "I-1",
+    "barangay": "Pandapan",
+    "location_description": "Specific area bounded by roads/boundaries, Minex Mining Corporation",
+    "keywords": [
+      "Minex Mining Corporation",
+      "Specific area bounded by roads/boundaries"
+    ]
+  },
+  {
+    "zone_type": "I-1",
+    "barangay": "Canocotan",
+    "location_description": "Pryce Gases gas refilling station",
+    "keywords": [
+      "Pryce Gases gas refilling station",
+      "Pryce Gases"
+    ]
+  },
+  {
+    "zone_type": "I-1",
+    "barangay": "Cuambogan",
+    "location_description": "Tagum PPMC Wood Veneer, Inc.",
+    "keywords": [
+      "Wood Veneer",
+      "Tagum PPMC Wood Veneer",
+      "Inc",
+      "Tagum"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Apokon",
+    "location_description": "Juania Iligan Rice and Corn Mill",
+    "keywords": [
+      "Juania Iligan Rice",
+      "Corn Mill"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Canocotan",
+    "location_description": "New Filipino Rice Mill",
+    "keywords": [
+      "New Filipino Rice Mill"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Magdum",
+    "location_description": "Alben's Rice Mill, Royce Food Banana Chips Factory, Vina T. Li Dryer",
+    "keywords": [
+      "Rice Mill",
+      "Royce Food Banana Chips Factory",
+      "Alben's Rice Mill",
+      "Alben",
+      "Vina T. Li Dryer",
+      "Li Dryer",
+      "Vina"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Magugpo East",
+    "location_description": "Tagum Commodities Corporation",
+    "keywords": [
+      "Tagum Commodities Corporation"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Magugpo North",
+    "location_description": "A. Baga, E. Baga, AJ Bautista Rice Mills",
+    "keywords": [
+      "E. Baga",
+      "A. Baga",
+      "Bautista Rice Mills",
+      "Baga",
+      "AJ Bautista Rice Mills"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Mankilam",
+    "location_description": "Pacatang, Calzada, Limbago Rice/Corn/Feed Mills, Bordago Corn Mill, AJ Rice Mill, Perfect Milling Corp.",
+    "keywords": [
+      "Rice Mill",
+      "Perfect Milling Corp",
+      "AJ Rice Mill",
+      "Limbago Rice/Corn/Feed Mills",
+      "Calzada",
+      "Perfect Milling Corp.",
+      "Limbago Rice",
+      "Bordago Corn Mill",
+      "Corn",
+      "Pacatang",
+      "Feed Mills"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Pagsabangan",
+    "location_description": "Villarico Rice Mill",
+    "keywords": [
+      "Villarico Rice Mill"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "San Miguel",
+    "location_description": "Solano Poultry Farm, Francis Apolinario Corn Mill and Dryier",
+    "keywords": [
+      "Solano Poultry Farm",
+      "Dryier",
+      "Francis Apolinario Corn Mill"
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Visayan Village",
+    "location_description": "Calzada Poultry Farm, Masaganang Sakahan Inc., Venson Rice and Corn Mill",
+    "keywords": [
+      "Calzada Poultry Farm",
+      "Corn Mill",
+      "Masaganang Sakahan Inc",
+      "Venson Rice",
+      "Masaganang Sakahan Inc."
+    ]
+  },
+  {
+    "zone_type": "AGRO",
+    "barangay": "Cuambogan",
+    "location_description": "Edward Baga Rice Mill, and a specific area",
+    "keywords": [
+      "Edward Baga Rice Mill"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "Apokon",
+    "location_description": "USP-Regional-Trade School Compound",
+    "keywords": [
+      "Trade School Compound",
+      "USP-Regional-Trade School Compound",
+      "Regional"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "Mankilam",
+    "location_description": "Provincial Government Center - Capitol Site",
+    "keywords": [
+      "Provincial Government Center",
+      "Capitol Site",
+      "Provincial Government Center - Capitol Site"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "La Filipina",
+    "location_description": "Proposed University and Support Institutional Development Zone",
+    "keywords": [
+      "Proposed University",
+      "Support Institutional Development Zone"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "Magdum",
+    "location_description": "Proposed University and Support Institutional Development Zone",
+    "keywords": [
+      "Proposed University",
+      "Support Institutional Development Zone"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "Magdum",
+    "location_description": "PCUP, Old NIA",
+    "keywords": [
+      "Old",
+      "Old NIA"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "Canocotan",
+    "location_description": "Tagum City Jail Site",
+    "keywords": [
+      "Tagum City Jail Site"
+    ]
+  },
+  {
+    "zone_type": "INS-1",
+    "barangay": "Visayan Village",
+    "location_description": "Philippine National Police Provincial Headquarter",
+    "keywords": [
+      "Philippine National Police Provincial Headquarter"
+    ]
+  },
+  {
+    "zone_type": "PARKS",
+    "barangay": "Mankilam",
+    "location_description": "Provincial Sports Complex",
+    "keywords": [
+      "Provincial Sports Complex"
+    ]
+  },
+  {
+    "zone_type": "PARKS",
+    "barangay": "Apokon",
+    "location_description": "Proposed 5 hectares Nature's Park @ USP-Regional Compound",
+    "keywords": [
+      "Park",
+      "Proposed 5 hectares Nature's Park @ USP-Regional Compound",
+      "Nature",
+      "Regional Compound"
+    ]
+  },
+  {
+    "zone_type": "ECO-TOURISM",
+    "barangay": "Madaum",
+    "location_description": "Specific area near Madaum shoreline",
+    "keywords": [
+      "Specific area near Madaum shoreline",
+      "Madaum"
+    ]
+  }
+]
