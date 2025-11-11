@@ -121,7 +121,7 @@ class BarangayMetadata(models.Model):
     data_year = models.IntegerField(default=2020)
     
     class Meta:
-        ordering = ['name']
+        ordering = ['name']S
         verbose_name_plural = "Barangay Metadata"
     
     def __str__(self):
@@ -154,7 +154,7 @@ class BarangayMetadata(models.Model):
 ```python
 from django.core.management.base import BaseCommand
 from projeng.models import BarangayMetadata
-
+SSSSS
 class Command(BaseCommand):
     help = 'Populate barangay metadata from the infographic data'
     

@@ -713,10 +713,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             try {
                 choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
-                choroplethMap.initialize();
-                console.log('Choropleth map initialized successfully');
+                // Initialize asynchronously and wait for it to complete
+                choroplethMap.initialize().then(() => {
+                    console.log('Choropleth map initialized successfully and ready');
+                    // Update the view selector to match current view if needed
+                    if (zoningViewSelector && choroplethMap.currentView) {
+                        zoningViewSelector.value = choroplethMap.currentView;
+                    }
+                }).catch((error) => {
+                    console.error('Error during choropleth initialization:', error);
+                });
             } catch (e) {
-                console.error('Error initializing choropleth map:', e);
+                console.error('Error creating choropleth map:', e);
             }
         }
         
@@ -779,10 +787,31 @@ document.addEventListener('DOMContentLoaded', function() {
         zoningViewSelector.addEventListener('change', function(e) {
             const viewType = e.target.value;
             console.log('Switching to zoning view:', viewType);
-            if (choroplethMap && typeof choroplethMap.switchView === 'function') {
-                choroplethMap.switchView(viewType);
+            
+            // Wait for choropleth map to be ready
+            if (!choroplethMap) {
+                console.warn('Choropleth map not initialized yet. Waiting...');
+                // Wait a bit and try again
+                setTimeout(() => {
+                    if (choroplethMap && typeof choroplethMap.switchView === 'function') {
+                        choroplethMap.switchView(viewType);
+                    } else {
+                        console.error('Choropleth map still not ready after wait');
+                    }
+                }, 500);
+                return;
+            }
+            
+            if (typeof choroplethMap.switchView === 'function') {
+                try {
+                    choroplethMap.switchView(viewType);
+                    console.log('Successfully switched to view:', viewType);
+                } catch (error) {
+                    console.error('Error switching view:', error);
+                }
             } else {
-                console.warn('Choropleth map not initialized or switchView method not available');
+                console.error('switchView method not available on choroplethMap');
+                console.log('choroplethMap object:', choroplethMap);
             }
         });
     }

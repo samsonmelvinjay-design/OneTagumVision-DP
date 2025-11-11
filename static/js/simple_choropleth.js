@@ -372,8 +372,12 @@ class SimpleChoropleth {
             await this.loadZoningData();
             this.createChoropleth();
             console.log('Choropleth initialized successfully');
+            console.log('Zoning data available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
+            console.log('switchView method available:', typeof this.switchView === 'function');
+            return true; // Return success
         } catch (error) {
             console.error('Failed to initialize choropleth:', error);
+            throw error; // Re-throw to allow promise rejection
         }
     }
 
@@ -397,11 +401,27 @@ class SimpleChoropleth {
     }
 
     switchView(viewType) {
+        console.log('switchView called with viewType:', viewType);
         this.currentView = viewType;
+        
+        // Check if zoning data is loaded
+        if (viewType !== 'projects' && (!this.zoningData || Object.keys(this.zoningData).length === 0)) {
+            console.warn('Zoning data not loaded yet. Loading...');
+            this.loadZoningData().then(() => {
+                this.switchView(viewType); // Retry after loading
+            }).catch((error) => {
+                console.error('Failed to load zoning data:', error);
+            });
+            return;
+        }
         
         // Remove current layer
         if (this.choroplethLayer) {
-            this.map.removeLayer(this.choroplethLayer);
+            try {
+                this.map.removeLayer(this.choroplethLayer);
+            } catch (e) {
+                console.log('Error removing layer:', e);
+            }
             this.choroplethLayer = null;
         }
 
@@ -414,6 +434,7 @@ class SimpleChoropleth {
         
         // Update legend
         this.createLegend();
+        console.log('View switched to:', viewType);
     }
 
     createZoningLayer(viewType) {
