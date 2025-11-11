@@ -188,6 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let map = null;
     let markers = null;
     let choroplethMap = null;
+    let choroplethMapReady = false; // Flag to track if choropleth map is ready
     let statusFilter = '';
     let isFullscreen = false;
     let fullscreenButton = null;
@@ -582,6 +583,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Error clearing choropleth:', e);
             }
             choroplethMap = null;
+            choroplethMapReady = false; // Reset ready flag
         }
         
         // Ensure map is properly initialized
@@ -713,17 +715,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             try {
                 choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
+                choroplethMapReady = false; // Reset flag
                 // Initialize asynchronously and wait for it to complete
                 choroplethMap.initialize().then(() => {
+                    choroplethMapReady = true; // Mark as ready
                     console.log('Choropleth map initialized successfully and ready');
+                    console.log('switchView method available:', typeof choroplethMap.switchView === 'function');
                     // Update the view selector to match current view if needed
                     if (zoningViewSelector && choroplethMap.currentView) {
                         zoningViewSelector.value = choroplethMap.currentView;
                     }
                 }).catch((error) => {
+                    choroplethMapReady = false;
                     console.error('Error during choropleth initialization:', error);
                 });
             } catch (e) {
+                choroplethMapReady = false;
                 console.error('Error creating choropleth map:', e);
             }
         }
@@ -782,37 +789,66 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btn-choropleth').addEventListener('click', switchToChoropleth);
 
     // Phase 3: Zoning view selector event listener
+    // This function will be called when the selector changes
+    function handleZoningViewChange(viewType) {
+        console.log('handleZoningViewChange called with:', viewType);
+        
+        // Check if we're in choropleth mode
+        if (currentMapMode !== 'choropleth') {
+            console.warn('Not in choropleth view. Current mode:', currentMapMode);
+            return;
+        }
+        
+        // Wait for choropleth map to be ready
+        if (!choroplethMap || !choroplethMapReady) {
+            console.warn('Choropleth map not ready yet. Waiting...', {
+                choroplethMap: !!choroplethMap,
+                choroplethMapReady: choroplethMapReady
+            });
+            // Wait a bit and try again (with exponential backoff)
+            let attempts = 0;
+            const maxAttempts = 5;
+            const checkReady = () => {
+                attempts++;
+                if (choroplethMap && choroplethMapReady && typeof choroplethMap.switchView === 'function') {
+                    console.log('Choropleth map is now ready, switching view');
+                    try {
+                        choroplethMap.switchView(viewType);
+                        console.log('Successfully switched to view:', viewType);
+                    } catch (error) {
+                        console.error('Error switching view:', error);
+                    }
+                } else if (attempts < maxAttempts) {
+                    setTimeout(checkReady, 200 * attempts); // Exponential backoff
+                } else {
+                    console.error('Choropleth map still not ready after', maxAttempts, 'attempts');
+                }
+            };
+            setTimeout(checkReady, 200);
+            return;
+        }
+        
+        // Map is ready, switch view
+        if (typeof choroplethMap.switchView === 'function') {
+            try {
+                choroplethMap.switchView(viewType);
+                console.log('Successfully switched to view:', viewType);
+            } catch (error) {
+                console.error('Error switching view:', error);
+            }
+        } else {
+            console.error('switchView method not available on choroplethMap');
+            console.log('choroplethMap object:', choroplethMap);
+        }
+    }
+    
+    // Attach event listener to zoning view selector
     const zoningViewSelector = document.getElementById('zoning-view-selector');
     if (zoningViewSelector) {
         zoningViewSelector.addEventListener('change', function(e) {
             const viewType = e.target.value;
-            console.log('Switching to zoning view:', viewType);
-            
-            // Wait for choropleth map to be ready
-            if (!choroplethMap) {
-                console.warn('Choropleth map not initialized yet. Waiting...');
-                // Wait a bit and try again
-                setTimeout(() => {
-                    if (choroplethMap && typeof choroplethMap.switchView === 'function') {
-                        choroplethMap.switchView(viewType);
-                    } else {
-                        console.error('Choropleth map still not ready after wait');
-                    }
-                }, 500);
-                return;
-            }
-            
-            if (typeof choroplethMap.switchView === 'function') {
-                try {
-                    choroplethMap.switchView(viewType);
-                    console.log('Successfully switched to view:', viewType);
-                } catch (error) {
-                    console.error('Error switching view:', error);
-                }
-            } else {
-                console.error('switchView method not available on choroplethMap');
-                console.log('choroplethMap object:', choroplethMap);
-            }
+            console.log('Zoning view selector changed to:', viewType);
+            handleZoningViewChange(viewType);
         });
     }
 
