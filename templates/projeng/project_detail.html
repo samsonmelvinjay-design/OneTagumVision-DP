@@ -1,95 +1,322 @@
 {% extends 'projeng_base.html' %}
+{% load humanize %}
 {% block content %}
-<div class="container mx-auto p-6 bg-white shadow-md rounded-lg">
-    <div class="flex items-center justify-between mb-4">
-        <a href="{% url 'projeng:projeng_my_projects' %}" class="inline-block px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold rounded-lg shadow hover:from-gray-500 hover:to-gray-700 transition duration-200" title="Back to My Projects">&larr; Back to My Projects</a>
-        <h1 class="text-3xl font-bold text-gray-800">Project Details: {{ project.name }}</h1>
-        <a href="{% url 'projeng:projeng_project_analytics' project.pk %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200" title="View project analytics">View Analytics</a>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="border-r pr-8">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Basic Information</h2>
-            <div class="space-y-3">
-                <p><strong class="font-medium text-gray-600">PRN:</strong> {{ project.prn|default:"N/A" }}</p>
-                <p><strong class="font-medium text-gray-600">Description:</strong> {{ project.description|default:"N/A" }}</p>
-                <div class="flex items-center gap-2">
-                     <strong class="font-medium text-gray-600">Status:</strong>
-                     <select id="project-status" class="rounded-md border border-gray-300 px-3 py-1 text-sm focus:ring-blue-500 focus:border-blue-500 outline-none" title="Change project status">
-                         {% for value, text in status_choices %}
-                             <option value="{{ value }}" {% if project.status == value %}selected{% endif %}>{{ text }}</option>
-                         {% endfor %}
-                     </select>
-                 </div>
-                <p><strong class="font-medium text-gray-600">Start Date:</strong> {% if project.start_date %}{{ project.start_date|date:"F j, Y" }}{% else %}N/A{% endif %}</p>
-                <p><strong class="font-medium text-gray-600">End Date:</strong> {% if project.end_date %}{{ project.end_date|date:"F j, Y" }}{% else %}N/A{% endif %}</p>
-                <p><strong class="font-medium text-gray-600">Last Update:</strong> {% if project.calculated_last_update %}{{ project.calculated_last_update|date:"F j, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}{% else %}Never{% endif %}</p>
-                <p><strong class="font-medium text-gray-600">Created By:</strong> {% if project.created_by %}{{ project.created_by.get_full_name|default:project.created_by.username }}{% else %}N/A{% endif %}</p>
-                 <p><strong class="font-medium text-gray-600">Assigned Engineers:</strong>
-                    {% for engineer in project.assigned_engineers.all %}
-                        {{ engineer.get_full_name|default:engineer.username }}{% if not forloop.last %}, {% endif %}
-                    {% empty %}
-                        N/A
-                    {% endfor %}
-                </p>
-            </div>
+<style>
+    .info-card {
+        transition: all 0.2s ease;
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border: 1px solid;
+    }
+</style>
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+    <!-- Header Section -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Project Details</h1>
+            <a href="{% url 'projeng:projeng_project_analytics' project.pk %}" 
+               class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition-colors duration-200 inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                <span>View Analytics</span>
+            </a>
         </div>
-
-        <div>
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Location & Financials</h2>
-            <div class="space-y-3">
-                <p><strong class="font-medium text-gray-600">Barangay:</strong> {{ project.barangay|default:"N/A" }}</p>
-                <p><strong class="font-medium text-gray-600">Latitude:</strong> {{ project.latitude|default:"N/A" }}</p>
-                <p><strong class="font-medium text-gray-600">Longitude:</strong> {{ project.longitude|default:"N/A" }}</p>
-                <p><strong class="font-medium text-gray-600">Project Cost:</strong> {{ project.project_cost|default:"N/A" }}</p>
-                <p><strong class="font-medium text-gray-600">Source of Funds:</strong> {{ project.source_of_funds|default:"N/A" }}</p>
+        
+        <!-- Project Name and Status Header Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div class="flex items-start justify-between flex-wrap gap-4">
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">{{ project.name }}</h2>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="status-badge
+                            {% if project.status == 'completed' %}bg-green-50 text-green-800 border-green-200
+                            {% elif project.status == 'in_progress' %}bg-blue-50 text-blue-800 border-blue-200
+                            {% elif project.status == 'planned' %}bg-amber-50 text-amber-800 border-amber-200
+                            {% elif project.status == 'delayed' %}bg-red-50 text-red-800 border-red-200
+                            {% else %}bg-gray-50 text-gray-800 border-gray-200{% endif %}">
+                            {{ project.get_status_display }}
+                        </span>
+                        {% if project.prn %}
+                        <span class="text-sm text-gray-600 font-medium">PRN: {{ project.prn }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium text-gray-700">Change Status:</label>
+                    <select id="project-status" class="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+                        {% for value, text in status_choices %}
+                            <option value="{{ value }}" {% if project.status == value %}selected{% endif %}>{{ text }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            {% if project.image %}
+            
+            <!-- Progress Bar (Only for In Progress projects) -->
+            {% if project.status == 'in_progress' and project.progress is not None %}
             <div class="mt-6">
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">Project Image</h3>
-                <img src="{{ project.image.url }}" alt="Project Image" class="max-w-full h-auto rounded-md shadow">
+                <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
+                    <span class="font-medium">Project Progress</span>
+                    <span class="font-semibold text-gray-900">{{ project.progress }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300" style="width: {{ project.progress }}%"></div>
+                </div>
             </div>
             {% endif %}
         </div>
     </div>
 
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Basic Information -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Basic Information Card -->
+            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Basic Information
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+                        <p class="text-gray-900 mt-1">{{ project.description|default:"No description provided" }}</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Start Date</label>
+                            <p class="text-gray-900 mt-1">
+                                {% if project.start_date %}
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        {{ project.start_date|date:"F j, Y" }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">End Date</label>
+                            <p class="text-gray-900 mt-1">
+                                {% if project.end_date %}
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        {{ project.end_date|date:"F j, Y" }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Update</label>
+                        <p class="text-gray-900 mt-1">
+                            {% if project.calculated_last_update %}
+                                {{ project.calculated_last_update|date:"F j, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}
+                            {% else %}
+                                <span class="text-gray-400">Never</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Created By</label>
+                            <p class="text-gray-900 mt-1">
+                                {% if project.created_by %}
+                                    {{ project.created_by.get_full_name|default:project.created_by.username }}
+                                {% else %}
+                                    <span class="text-gray-400">N/A</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned Engineers</label>
+                            <p class="text-gray-900 mt-1">
+                                {% if project.assigned_engineers.all %}
+                                    {% for engineer in project.assigned_engineers.all %}
+                                        <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-sm mr-1 mb-1">{{ engineer.get_full_name|default:engineer.username }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-gray-400">No engineers assigned</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location & Financials Card -->
+            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Location & Financials
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Barangay</label>
+                        <p class="text-gray-900 mt-1 flex items-center gap-1">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            {{ project.barangay|default:"Not specified" }}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Latitude</label>
+                            <p class="text-gray-900 mt-1 font-mono text-sm">{{ project.latitude|default:"N/A" }}</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Longitude</label>
+                            <p class="text-gray-900 mt-1 font-mono text-sm">{{ project.longitude|default:"N/A" }}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project Cost</label>
+                        <p class="text-gray-900 mt-1 text-lg font-semibold">
+                            {% if project.project_cost %}
+                                ₱{{ project.project_cost|floatformat:2|intcomma }}
+                            {% else %}
+                                <span class="text-gray-400">Not specified</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Source of Funds</label>
+                        <p class="text-gray-900 mt-1">{{ project.source_of_funds|default:"Not specified" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Project Image & Quick Actions -->
+        <div class="space-y-6">
+            <!-- Project Image Card -->
+            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Project Image
+                </h3>
+                {% if project.image %}
+                    <img src="{{ project.image.url }}" alt="Project Image" class="w-full h-auto rounded-lg shadow-sm border border-gray-200">
+                {% else %}
+                    <div class="w-full h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <div class="text-center">
+                            <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <p class="text-sm text-gray-500">No image uploaded</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-    document.getElementById('project-status').addEventListener('change', function() {
-        const newStatus = this.value;
-        const projectId = {{ project.pk }};
-        const url = `{% url 'projeng:projeng_update_project_status' project.pk %}`;
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken
-            },
-            body: JSON.stringify({ status: newStatus })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Status updated successfully:', data.new_status_display);
-                // Optionally update the status text on the page without a full reload
-                // const statusTextElement = document.querySelector('.project-status-text'); // You might want to add a class to your status text
-                // if (statusTextElement) {
-                //     statusTextElement.textContent = data.new_status_display;
-                // }
-            } else {
-                console.error('Error updating status:', data.error);
-                // Optionally revert the dropdown or show an error message to the user
-                // this.value = this.dataset.currentStatus; // Store current status in a data attribute
-                alert('Failed to update status: ' + data.error);
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-            alert('An error occurred while updating status.');
-        });
+        }
+        return cookieValue;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelect = document.getElementById('project-status');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function() {
+                const newStatus = this.value;
+                const projectId = {{ project.pk }};
+                const url = `{% url 'projeng:projeng_update_project_status' project.pk %}`;
+
+                // Show loading state
+                const originalValue = this.value;
+                this.disabled = true;
+                this.style.opacity = '0.6';
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    this.disabled = false;
+                    this.style.opacity = '1';
+                    
+                    if (data.success) {
+                        console.log('Status updated successfully:', data.new_status_display);
+                        // Update status badge if needed
+                        const statusBadge = document.querySelector('.status-badge');
+                        if (statusBadge && data.new_status_display) {
+                            statusBadge.textContent = data.new_status_display;
+                            // Update badge color based on new status
+                            statusBadge.className = 'status-badge ';
+                            if (newStatus === 'completed') {
+                                statusBadge.className += 'bg-green-50 text-green-800 border-green-200';
+                            } else if (newStatus === 'in_progress') {
+                                statusBadge.className += 'bg-blue-50 text-blue-800 border-blue-200';
+                            } else if (newStatus === 'planned') {
+                                statusBadge.className += 'bg-amber-50 text-amber-800 border-amber-200';
+                            } else if (newStatus === 'delayed') {
+                                statusBadge.className += 'bg-red-50 text-red-800 border-red-200';
+                            } else {
+                                statusBadge.className += 'bg-gray-50 text-gray-800 border-gray-200';
+                            }
+                        }
+                    } else {
+                        console.error('Error updating status:', data.error);
+                        alert('Failed to update status: ' + (data.error || 'Unknown error'));
+                        this.value = originalValue;
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert('An error occurred while updating status.');
+                    this.value = originalValue;
+                    this.disabled = false;
+                    this.style.opacity = '1';
+                });
+            });
+        }
     });
 </script>
 
-{% endblock %} 
+{% endblock %}
