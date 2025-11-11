@@ -797,12 +797,11 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (e) {
                 console.error('Error during initial render:', e);
             }
-        } else {
-            console.warn('Map or markers not ready for initial render', {
-                map: !!map,
-                markers: !!markers,
-                currentMapMode: currentMapMode
-            });
+            } else {
+                console.warn('Map or markers not ready for initial render', {
+                    map: !!map,
+                    markers: !!markers
+                });
             // Try to reinitialize if needed
             if (!map) {
                 console.log('Reinitializing map');
@@ -815,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             // Retry render after a short delay
             setTimeout(() => {
-                if (map && markers && currentMapMode === 'markers') {
+                if (map && markers) {
                     console.log('Retrying render after reinitialization');
                     try {
                         renderMarkers();
