@@ -733,33 +733,40 @@ class SimpleChoropleth {
 
     createZoningPopup(name, barangay, stats, zoneInfo = null, viewType = 'projects') {
         let content = `
-            <div style="min-width: 280px; padding: 4px;">
-                <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 18px; font-weight: 700; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">${name}</h3>
+            <div style="min-width: 320px; max-width: 400px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 20px 16px 20px; border-radius: 12px 12px 0 0;">
+                <h3 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); letter-spacing: 0.5px;">${name}</h3>
+            </div>
+            <div style="background: #ffffff; padding: 20px; border-radius: 0 0 12px 12px;">
         `;
         
         // Phase 5: Add zone type information if available
         if (viewType === 'zone_type' && zoneInfo) {
             content += `
-                <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px;">
-                    <div style="font-weight: 600; margin-bottom: 10px; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Zone Classification</div>
+                <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #667eea;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <div style="width: 32px; height: 32px; background: #667eea; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">📍</div>
+                        <div style="font-weight: 700; color: #1e293b; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Zone Classification</div>
+                    </div>
                     ${zoneInfo.dominant_zone ? `
-                        <div style="margin: 6px 0; font-size: 13px; line-height: 1.6;">
-                            <strong style="color: #4b5563;">Dominant Zone:</strong> <span style="color: #1f2937;">${zoneInfo.dominant_zone} - ${this.getZoneTypeDisplayName(zoneInfo.dominant_zone)}</span>
+                        <div style="background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Dominant Zone</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${zoneInfo.dominant_zone} - ${this.getZoneTypeDisplayName(zoneInfo.dominant_zone)}</div>
                         </div>
                     ` : ''}
                     ${zoneInfo.zone_types && zoneInfo.zone_types.length > 0 ? `
-                        <div style="margin: 6px 0; font-size: 13px; line-height: 1.6;">
-                            <strong style="color: #4b5563;">Zone Types:</strong> <span style="color: #1f2937;">${zoneInfo.zone_types.join(', ')}</span>
+                        <div style="background: white; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Zone Types</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${zoneInfo.zone_types.join(', ')}</div>
                         </div>
                     ` : ''}
                     ${zoneInfo.zone_counts && Object.keys(zoneInfo.zone_counts).length > 0 ? `
-                        <div style="margin: 6px 0; font-size: 13px; line-height: 1.6;">
-                            <strong style="color: #4b5563;">Projects by Zone:</strong>
-                            <ul style="margin: 6px 0; padding-left: 24px; font-size: 12px; line-height: 1.8;">
+                        <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Projects by Zone</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                                 ${Object.entries(zoneInfo.zone_counts).map(([zone, count]) => 
-                                    `<li style="color: #1f2937;">${zone}: ${count} project${count !== 1 ? 's' : ''}</li>`
+                                    `<span style="background: #667eea; color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">${zone}: ${count}</span>`
                                 ).join('')}
-                            </ul>
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -769,42 +776,75 @@ class SimpleChoropleth {
         // Add zoning information if available
         if (barangay && viewType !== 'zone_type') {
             content += `
-                <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 16px;">
-                    <div style="font-weight: 600; margin-bottom: 10px; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Zoning Information</div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Classification:</strong> <span style="color: #1f2937;">${barangay.barangay_class ? barangay.barangay_class.charAt(0).toUpperCase() + barangay.barangay_class.slice(1) : 'N/A'}</span>
+                <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #10b981;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">🏘️</div>
+                        <div style="font-weight: 700; color: #1e293b; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Zoning Information</div>
                     </div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Economic Type:</strong> <span style="color: #1f2937;">${barangay.economic_class ? barangay.economic_class.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>
+                    <div style="display: grid; gap: 8px;">
+                        <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Classification</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${barangay.barangay_class ? barangay.barangay_class.charAt(0).toUpperCase() + barangay.barangay_class.slice(1) : 'N/A'}</div>
+                        </div>
+                        <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Economic Type</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${barangay.economic_class ? barangay.economic_class.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</div>
+                        </div>
+                        <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Elevation</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${barangay.elevation_type ? barangay.elevation_type.charAt(0).toUpperCase() + barangay.elevation_type.slice(1) : 'N/A'}</div>
+                        </div>
+                        ${barangay.population ? `
+                            <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Population</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${barangay.population.toLocaleString()}</div>
+                            </div>
+                        ` : ''}
+                        ${barangay.density ? `
+                            <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Density</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${barangay.density.toLocaleString()} /km²</div>
+                            </div>
+                        ` : ''}
+                        ${barangay.growth_rate ? `
+                            <div style="background: white; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Growth Rate</div>
+                                <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${barangay.growth_rate}%</div>
+                            </div>
+                        ` : ''}
                     </div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Elevation:</strong> <span style="color: #1f2937;">${barangay.elevation_type ? barangay.elevation_type.charAt(0).toUpperCase() + barangay.elevation_type.slice(1) : 'N/A'}</span>
-                    </div>
-                    ${barangay.population ? `<div style="margin: 8px 0; font-size: 13px; line-height: 1.6;"><strong style="color: #4b5563;">Population:</strong> <span style="color: #1f2937;">${barangay.population.toLocaleString()}</span></div>` : ''}
-                    ${barangay.density ? `<div style="margin: 8px 0; font-size: 13px; line-height: 1.6;"><strong style="color: #4b5563;">Density:</strong> <span style="color: #1f2937;">${barangay.density.toLocaleString()} /km²</span></div>` : ''}
-                    ${barangay.growth_rate ? `<div style="margin: 8px 0; font-size: 13px; line-height: 1.6;"><strong style="color: #4b5563;">Growth Rate:</strong> <span style="color: #1f2937;">${barangay.growth_rate}%</span></div>` : ''}
                 </div>
             `;
         }
         
         // Add project statistics
         content += `
-                <div style="margin-top: 12px;">
-                    <div style="font-weight: 600; margin-bottom: 10px; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Project Statistics</div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Total Projects:</strong> <span style="color: #1f2937;">${stats.totalProjects}</span>
+                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 10px; padding: 16px; border-left: 4px solid #f59e0b;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <div style="width: 32px; height: 32px; background: #f59e0b; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">📊</div>
+                        <div style="font-weight: 700; color: #1e293b; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Project Statistics</div>
                     </div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Total Cost:</strong> <span style="color: #1f2937;">${this.formatCurrency(stats.totalCost)}</span>
-                    </div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Completed:</strong> <span style="color: #1f2937;">${stats.completedProjects}</span>
-                    </div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Ongoing:</strong> <span style="color: #1f2937;">${stats.ongoingProjects}</span>
-                    </div>
-                    <div style="margin: 8px 0; font-size: 13px; line-height: 1.6;">
-                        <strong style="color: #4b5563;">Planned:</strong> <span style="color: #1f2937;">${stats.plannedProjects}</span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="background: white; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Total Projects</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${stats.totalProjects}</div>
+                        </div>
+                        <div style="background: white; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Total Cost</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #1e293b; word-break: break-word;">${this.formatCurrency(stats.totalCost)}</div>
+                        </div>
+                        <div style="background: #d1fae5; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
+                            <div style="font-size: 11px; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Completed</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #047857;">${stats.completedProjects}</div>
+                        </div>
+                        <div style="background: #dbeafe; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;">
+                            <div style="font-size: 11px; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Ongoing</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #1d4ed8;">${stats.ongoingProjects}</div>
+                        </div>
+                        <div style="background: #ede9fe; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; grid-column: 1 / -1;">
+                            <div style="font-size: 11px; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Planned</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #6d28d9;">${stats.plannedProjects}</div>
+                        </div>
                     </div>
                 </div>
             </div>
