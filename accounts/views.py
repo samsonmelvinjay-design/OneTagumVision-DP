@@ -1,5 +1,8 @@
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 def dual_login(request):
     print("dual_login view received a request.") # Debug print at the very beginning
@@ -26,6 +29,7 @@ def dual_login(request):
             if user.is_superuser:
                 print(f"Authenticated superuser: {user.username}, redirecting to /dashboard/")
                 login(request, user)
+                request.session['show_login_success'] = True
                 response = redirect('/dashboard/')
                 return response
             # Debug: show user groups
@@ -34,20 +38,34 @@ def dual_login(request):
             if user.groups.filter(name='Finance Manager').exists():
                 print(f"Finance Manager detected, redirecting to finance dashboard")
                 login(request, user)
+                request.session['show_login_success'] = True
                 return redirect('/dashboard/finance/dashboard/')
             elif user.groups.filter(name='Head Engineer').exists():
                 print(f"Head Engineer detected, redirecting to /dashboard/")
                 login(request, user)
+                request.session['show_login_success'] = True
                 return redirect('/dashboard/')
             elif user.groups.filter(name='Project Engineer').exists():
                 print(f"Project Engineer detected, redirecting to projeng dashboard")
                 login(request, user)
+                request.session['show_login_success'] = True
                 return redirect('/projeng/dashboard/')
             else:
                 error = 'You do not have permission to access the system.'
         else:
             error = 'Invalid username or password.'
     return render(request, 'registration/dual_login.html', {'error': error})
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def clear_login_success(request):
+    """
+    Clear the login success session flag after showing the modal
+    """
+    if 'show_login_success' in request.session:
+        del request.session['show_login_success']
+        request.session.save()
+    return JsonResponse({'status': 'success'})
 
 def custom_logout(request):
     """

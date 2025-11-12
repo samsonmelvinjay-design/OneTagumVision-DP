@@ -133,6 +133,29 @@
         </aside>
         <!-- Main Content -->
         <main class="flex-1 h-full bg-gray-100 text-gray-900 ml-64">
+            <!-- Login Success Modal -->
+            {% if request.session.show_login_success %}
+            <div id="login-success-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-50">
+                <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all animate-modal-scale">
+                    <div class="flex flex-col items-center text-center">
+                        <!-- Success Icon -->
+                        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                            <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <!-- Success Message -->
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Successfully Logged In!</h2>
+                        <p class="text-gray-600 mb-6">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
+                        <!-- Close Button -->
+                        <button id="close-login-success-modal" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+                            Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Toast Notification Container - Positioned to be visible above all content -->
             <div id="toast-notification" class="fixed top-4 right-4 z-[9999] hidden" style="margin-right: 1rem;">
                 <div class="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] max-w-[500px] animate-slide-in">
@@ -201,9 +224,76 @@
 .animate-slide-in {
     animation: slide-in 0.3s ease-out;
 }
+@keyframes modal-scale {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+.animate-modal-scale {
+    animation: modal-scale 0.3s ease-out;
+}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // Login Success Modal
+  {% if request.session.show_login_success %}
+  const loginSuccessModal = document.getElementById('login-success-modal');
+  const closeLoginSuccessBtn = document.getElementById('close-login-success-modal');
+  
+  if (loginSuccessModal) {
+    // Show modal immediately
+    loginSuccessModal.classList.remove('hidden');
+    
+    // Close modal and clear session flag
+    function closeLoginSuccessModal() {
+      loginSuccessModal.classList.add('hidden');
+      // Clear the session flag via AJAX
+      fetch('/accounts/clear-login-success/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'Content-Type': 'application/json',
+        },
+      }).catch(err => console.error('Error clearing login success flag:', err));
+    }
+    
+    if (closeLoginSuccessBtn) {
+      closeLoginSuccessBtn.addEventListener('click', closeLoginSuccessModal);
+    }
+    
+    // Close on background click
+    loginSuccessModal.addEventListener('click', function(e) {
+      if (e.target === loginSuccessModal) {
+        closeLoginSuccessModal();
+      }
+    });
+    
+    // Auto-close after 3 seconds
+    setTimeout(closeLoginSuccessModal, 3000);
+  }
+  
+  // Helper function to get CSRF token
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  {% endif %}
+  
   if (typeof window.engineerModalSetup === 'undefined') {
     window.engineerModalSetup = true;
     // Engineer modal logic
