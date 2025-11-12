@@ -161,7 +161,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200" id="projects-table-body">
-                        {% for project in page_obj.object_list %}
+                        {% for project in projects %}
                         <tr class="hover:bg-blue-50 transition-colors duration-150">
                             <td class="px-4 py-4">
                                 <div class="text-sm font-semibold text-gray-900">{{ project.name }}</div>
