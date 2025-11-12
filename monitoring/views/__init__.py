@@ -771,8 +771,17 @@ def head_engineer_analytics(request):
     projects_list = []
     for p in page_obj.object_list:
         # Get latest progress
-        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
-        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date', '-created_at').first()
+        
+        # Calculate progress - if completed, show 100%, otherwise use latest progress or 0
+        if p.status == 'completed':
+            progress = 100
+        elif latest_progress and latest_progress.percentage_complete is not None:
+            # Ensure progress is between 0 and 100
+            progress = max(0, min(100, int(float(latest_progress.percentage_complete))))
+        else:
+            progress = 0
+        
         # Status display
         status_display = (
             'Ongoing' if p.status in ['in_progress', 'ongoing'] else

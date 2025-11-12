@@ -173,9 +173,9 @@
                             <td class="px-4 py-4">
                                 <div class="flex items-center gap-3">
                                     <div class="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: {{ project.total_progress }}%"></div>
+                                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: {{ project.total_progress|default:0 }}%; min-width: {% if project.total_progress > 0 %}2px{% else %}0{% endif %}"></div>
                                     </div>
-                                    <span class="text-sm font-semibold text-gray-700 min-w-[45px]">{{ project.total_progress }}%</span>
+                                    <span class="text-sm font-semibold text-gray-700 min-w-[45px]">{{ project.total_progress|default:0 }}%</span>
                                 </div>
                             </td>
                             <td class="px-4 py-4 text-center">
