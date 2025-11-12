@@ -759,36 +759,37 @@ def head_engineer_analytics(request):
     planned_projects = Project.objects.filter(status__in=['planned', 'pending']).count()
     delayed_projects = Project.objects.filter(status='delayed').count()
     
-    # Order by created_at descending and prefetch related data for efficiency
-    projects = projects.order_by('-created_at').prefetch_related('assigned_engineers')
+    # Order by created_at descending
+    projects = projects.order_by('-created_at')
     
     # Pagination - 15 items per page
     paginator = Paginator(projects, 15)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
-    # Get all project IDs for batch progress query
+    # Get all project IDs for batch queries
     project_ids = [p.id for p in page_obj.object_list]
     
     # Batch fetch latest progress for all projects on this page
+    from django.db.models import Max
     latest_progress_dict = {}
     if project_ids:
-        from django.db.models import Max
-        latest_progress_records = ProjectProgress.objects.filter(
-            project_id__in=project_ids
-        ).values('project_id').annotate(
-            latest_date=Max('date'),
-            latest_created=Max('created_at')
-        )
-        
-        # Get the actual latest progress records
-        for record in latest_progress_records:
+        # Get the latest progress update for each project
+        for project_id in project_ids:
             latest = ProjectProgress.objects.filter(
-                project_id=record['project_id'],
-                date=record['latest_date']
-            ).order_by('-created_at').first()
+                project_id=project_id
+            ).order_by('-date', '-created_at').first()
             if latest:
-                latest_progress_dict[record['project_id']] = latest
+                latest_progress_dict[project_id] = latest
+    
+    # Batch fetch assigned engineers for all projects
+    from django.db.models import Prefetch
+    projects_with_engineers = Project.objects.filter(
+        id__in=project_ids
+    ).prefetch_related('assigned_engineers')
+    engineers_dict = {}
+    for proj in projects_with_engineers:
+        engineers_dict[proj.id] = [eng.username for eng in proj.assigned_engineers.all()]
     
     # Prepare project list for the table and JS (only for current page)
     projects_list = []
@@ -801,10 +802,16 @@ def head_engineer_analytics(request):
             progress = 100
         elif latest_progress and latest_progress.percentage_complete is not None:
             # Ensure progress is between 0 and 100
-            progress = max(0, min(100, int(float(latest_progress.percentage_complete))))
-        elif p.progress is not None:
+            try:
+                progress = max(0, min(100, int(latest_progress.percentage_complete)))
+            except (ValueError, TypeError):
+                progress = 0
+        elif hasattr(p, 'progress') and p.progress is not None:
             # Fallback to project's direct progress field
-            progress = max(0, min(100, int(float(p.progress))))
+            try:
+                progress = max(0, min(100, int(p.progress)))
+            except (ValueError, TypeError):
+                progress = 0
         else:
             progress = 0
         
@@ -816,14 +823,14 @@ def head_engineer_analytics(request):
             'Delayed' if p.status == 'delayed' else p.status.title()
         )
         
-        # Assigned engineers - use all() since we prefetched
-        assigned_to = [engineer.username for engineer in p.assigned_engineers.all()]
+        # Assigned engineers from batch query
+        assigned_to = engineers_dict.get(p.id, [])
         
         projects_list.append({
             'id': p.id,
             'name': p.name,
-            'prn': p.prn,
-            'barangay': p.barangay,
+            'prn': p.prn or '',
+            'barangay': p.barangay or '',
             'total_progress': progress,
             'status': p.status,
             'status_display': status_display,
