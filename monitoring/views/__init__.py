@@ -901,8 +901,8 @@ def head_engineer_project_detail(request, pk):
         # Get all progress updates - order by date and id to avoid duplicates and ensure consistent ordering
         progress_updates = ProjectProgress.objects.filter(project=project).order_by('date', 'id').distinct()
         assigned_to = list(project.assigned_engineers.values_list('username', flat=True))
-        # Get all cost entries
-        costs = ProjectCost.objects.filter(project=project).order_by('date')
+        # Get all cost entries with created_by prefetched
+        costs = ProjectCost.objects.filter(project=project).select_related('created_by').order_by('date')
         # Analytics & summary
         latest_progress = progress_updates.last() if progress_updates else None
         
