@@ -759,26 +759,52 @@ def head_engineer_analytics(request):
     planned_projects = Project.objects.filter(status__in=['planned', 'pending']).count()
     delayed_projects = Project.objects.filter(status='delayed').count()
     
-    # Order by created_at descending
-    projects = projects.order_by('-created_at')
+    # Order by created_at descending and prefetch related data for efficiency
+    projects = projects.order_by('-created_at').prefetch_related('assigned_engineers')
     
     # Pagination - 15 items per page
     paginator = Paginator(projects, 15)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
+    # Get all project IDs for batch progress query
+    project_ids = [p.id for p in page_obj.object_list]
+    
+    # Batch fetch latest progress for all projects on this page
+    latest_progress_dict = {}
+    if project_ids:
+        from django.db.models import Max
+        latest_progress_records = ProjectProgress.objects.filter(
+            project_id__in=project_ids
+        ).values('project_id').annotate(
+            latest_date=Max('date'),
+            latest_created=Max('created_at')
+        )
+        
+        # Get the actual latest progress records
+        for record in latest_progress_records:
+            latest = ProjectProgress.objects.filter(
+                project_id=record['project_id'],
+                date=record['latest_date']
+            ).order_by('-created_at').first()
+            if latest:
+                latest_progress_dict[record['project_id']] = latest
+    
     # Prepare project list for the table and JS (only for current page)
     projects_list = []
     for p in page_obj.object_list:
-        # Get latest progress
-        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date', '-created_at').first()
+        # Get latest progress from batch query
+        latest_progress = latest_progress_dict.get(p.id)
         
-        # Calculate progress - if completed, show 100%, otherwise use latest progress or 0
+        # Calculate progress - priority: 1) completed status = 100%, 2) latest progress update, 3) project.progress field, 4) 0
         if p.status == 'completed':
             progress = 100
         elif latest_progress and latest_progress.percentage_complete is not None:
             # Ensure progress is between 0 and 100
             progress = max(0, min(100, int(float(latest_progress.percentage_complete))))
+        elif p.progress is not None:
+            # Fallback to project's direct progress field
+            progress = max(0, min(100, int(float(p.progress))))
         else:
             progress = 0
         
@@ -789,8 +815,10 @@ def head_engineer_analytics(request):
             'Completed' if p.status == 'completed' else
             'Delayed' if p.status == 'delayed' else p.status.title()
         )
-        # Assigned engineers
-        assigned_to = list(p.assigned_engineers.values_list('username', flat=True))
+        
+        # Assigned engineers - use all() since we prefetched
+        assigned_to = [engineer.username for engineer in p.assigned_engineers.all()]
+        
         projects_list.append({
             'id': p.id,
             'name': p.name,
