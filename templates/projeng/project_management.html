@@ -175,10 +175,36 @@
                              <span class="text-xl font-semibold text-blue-600">₱{{ budget_remaining|floatformat:2 }}</span>
                          {% endif %}
                      </div>
-                     <div class="w-full bg-gray-200 rounded-full h-4">
-                         <div class="h-4 rounded-full {% if budget_utilization > 100 %}bg-red-600{% else %}bg-green-600{% endif %}" style="width: {{ budget_utilization }}%"></div>
-                     </div>
-                     <p class="text-sm text-gray-500 mt-1">Budget Utilization: {{ budget_utilization|floatformat:1 }}%</p>
+                    <!-- Enhanced Budget Status Indicator -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">Budget Utilization</span>
+                            <span class="font-semibold {% if budget_utilization >= 100 %}text-red-600{% elif budget_utilization >= 95 %}text-orange-600{% elif budget_utilization >= 80 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                                {{ budget_utilization|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4 relative">
+                            <div class="h-4 rounded-full {% if budget_utilization >= 100 %}bg-red-600{% elif budget_utilization >= 95 %}bg-orange-500{% elif budget_utilization >= 80 %}bg-yellow-500{% else %}bg-green-500{% endif %}" 
+                                 style="width: {% if budget_utilization > 100 %}100{% else %}{{ budget_utilization|floatformat:0 }}{% endif %}%">
+                            </div>
+                            <!-- Threshold markers -->
+                            <div class="absolute left-[80%] top-0 h-4 w-0.5 bg-gray-400 opacity-50"></div>
+                            <div class="absolute left-[95%] top-0 h-4 w-0.5 bg-gray-400 opacity-50"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0%</span>
+                            <span class="text-yellow-600">80%</span>
+                            <span class="text-orange-600">95%</span>
+                            <span>100%</span>
+                        </div>
+                        {% if budget_utilization >= 100 %}
+                            <p class="text-sm text-red-600 font-semibold mt-2">⚠️ Over Budget</p>
+                        {% elif budget_utilization >= 95 %}
+                            <p class="text-sm text-orange-600 font-semibold mt-2">⚠️ Critical: Approaching Budget Limit</p>
+                        {% elif budget_utilization >= 80 %}
+                            <p class="text-sm text-yellow-600 font-semibold mt-2">⚠️ Warning: Monitor Spending</p>
+                        {% endif %}
+                    </div>
                  {% else %}
                       <p class="text-gray-500">Budget not specified.</p>
                  {% endif %}
@@ -198,6 +224,22 @@
              {% if not total_cost and not cost_by_type %}
                   <p class="text-gray-500">No cost entries yet.</p>
              {% endif %}
+
+             <!-- Budget Alert Button (for Project Engineers) -->
+             {% for group in user.groups.all %}
+                 {% if group.name == 'Project Engineer' %}
+                 <div class="mt-4 pt-4 border-t border-gray-200">
+                     <button type="button" 
+                             onclick="showBudgetAlertModal()"
+                             class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition flex items-center justify-center">
+                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                         </svg>
+                         📋 Send Budget Alert to Head Engineer
+                     </button>
+                 </div>
+                 {% endif %}
+             {% endfor %}
 
              <!-- List of Cost Entries (Optional, could be a separate section or modal) -->
          </div>
@@ -428,6 +470,72 @@
                 });
             });
         }
+
+        // Budget Alert Modal Functions
+        function showBudgetAlertModal() {
+            document.getElementById('budgetAlertModal').classList.remove('hidden');
+        }
+
+        function hideBudgetAlertModal() {
+            document.getElementById('budgetAlertModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        const budgetModal = document.getElementById('budgetAlertModal');
+        if (budgetModal) {
+            budgetModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hideBudgetAlertModal();
+                }
+            });
+        }
     });
 </script>
+
+<!-- Budget Alert Modal -->
+<div id="budgetAlertModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">Send Budget Alert</h3>
+            <button onclick="hideBudgetAlertModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'send_budget_alert' project.pk %}">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Current Budget Status: <span class="font-semibold {% if budget_utilization >= 100 %}text-red-600{% elif budget_utilization >= 95 %}text-orange-600{% elif budget_utilization >= 80 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                        {{ budget_utilization|floatformat:1 }}% utilized
+                    </span>
+                </label>
+                <p class="text-sm text-gray-600 mb-4">
+                    Spent: ₱{{ total_cost|floatformat:2 }} | Budget: ₱{{ project.project_cost|floatformat:2 }} | Remaining: ₱{{ budget_remaining|floatformat:2 }}
+                </p>
+            </div>
+            <div class="mb-4">
+                <label for="alert-message" class="block text-sm font-medium text-gray-700 mb-2">
+                    Describe your budget concern (optional):
+                </label>
+                <textarea id="alert-message" 
+                          name="message" 
+                          rows="4" 
+                          placeholder="e.g., Upcoming milestone will require additional materials. Anticipated cost: ₱30,000..."
+                          class="w-full border rounded-md p-2 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition">
+                    Send Alert
+                </button>
+                <button type="button" 
+                        onclick="hideBudgetAlertModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %} 

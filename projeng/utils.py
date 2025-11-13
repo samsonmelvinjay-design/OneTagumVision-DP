@@ -66,6 +66,126 @@ def notify_head_engineers_and_finance(message, check_duplicates=True):
     notify_head_engineers(message, check_duplicates=check_duplicates)
     notify_finance_managers(message, check_duplicates=check_duplicates)
 
+def format_project_display(project):
+    """Helper function to format project display name consistently"""
+    project_name = project.name.strip() if project.name else "Unnamed Project"
+    if project.prn:
+        return f"{project_name} (PRN: {project.prn})"
+    return project_name
+
+def notify_head_engineer_about_budget_concern(project, sender_user, message=None, utilization_percentage=None):
+    """
+    Allow Project Engineers to manually notify Head Engineers about budget concerns.
+    
+    Args:
+        project: Project instance
+        sender_user: User sending the notification (Project Engineer)
+        message: Optional custom message
+        utilization_percentage: Current budget utilization percentage
+    """
+    from django.db.models import Sum
+    from .models import ProjectCost
+    
+    # Calculate current budget status if not provided
+    if utilization_percentage is None:
+        if not project.project_cost:
+            return  # Can't calculate if no budget
+        
+        total_costs = ProjectCost.objects.filter(project=project).aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+        
+        try:
+            total_costs_float = float(total_costs)
+            project_budget_float = float(project.project_cost)
+            utilization_percentage = (total_costs_float / project_budget_float) * 100 if project_budget_float > 0 else 0
+        except (ValueError, TypeError):
+            utilization_percentage = 0
+    
+    project_display = format_project_display(project)
+    sender_name = sender_user.get_full_name() or sender_user.username
+    
+    # Build notification message
+    if message:
+        notification_message = (
+            f"📋 Budget Concern: {project_display} - {message} "
+            f"(Current utilization: {utilization_percentage:.1f}%) "
+            f"- Reported by {sender_name}"
+        )
+    else:
+        notification_message = (
+            f"📋 Budget Concern: {project_display} is at {utilization_percentage:.1f}% of budget. "
+            f"Reported by {sender_name}. Please review."
+        )
+    
+    # Notify all Head Engineers
+    notify_head_engineers(notification_message, check_duplicates=True)
+
+def can_update_budget(user, project):
+    """
+    Check if user can update project budget.
+    
+    Rules:
+    - Finance Managers: Can update any project budget
+    - Head Engineers: Can update any project budget
+    - Project Engineers: Cannot update budgets
+    """
+    from gistagum.access_control import is_finance_manager, is_head_engineer
+    
+    return is_finance_manager(user) or is_head_engineer(user)
+
+def forward_budget_alert_to_finance(project, head_engineer, assessment_message=None, requested_budget_increase=None):
+    """
+    Allow Head Engineers to forward budget alerts to Finance Managers with their assessment.
+    
+    Args:
+        project: Project instance
+        head_engineer: Head Engineer forwarding the alert
+        assessment_message: Optional assessment/recommendation from Head Engineer
+        requested_budget_increase: Optional requested budget increase amount
+    """
+    from django.db.models import Sum
+    from .models import ProjectCost
+    
+    # Calculate current budget status
+    total_costs = ProjectCost.objects.filter(project=project).aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+    
+    try:
+        total_costs_float = float(total_costs)
+        project_budget_float = float(project.project_cost) or 0
+        utilization_percentage = (total_costs_float / project_budget_float) * 100 if project_budget_float > 0 else 0
+        remaining = project_budget_float - total_costs_float
+    except (ValueError, TypeError):
+        return
+    
+    project_display = format_project_display(project)
+    head_engineer_name = head_engineer.get_full_name() or head_engineer.username
+    
+    formatted_total = f"₱{total_costs_float:,.2f}"
+    formatted_budget = f"₱{project_budget_float:,.2f}"
+    formatted_remaining = f"₱{max(0, remaining):,.2f}"
+    
+    # Build notification message
+    if requested_budget_increase:
+        formatted_increase = f"₱{float(requested_budget_increase):,.2f}"
+        message = (
+            f"💰 Budget Review Request: {project_display} "
+            f"(Utilization: {utilization_percentage:.1f}% | Spent: {formatted_total} | Budget: {formatted_budget}). "
+            f"Requested budget increase: {formatted_increase}. "
+            f"Assessment from {head_engineer_name}: {assessment_message or 'Please review and approve.'}"
+        )
+    else:
+        message = (
+            f"💰 Budget Review Request: {project_display} "
+            f"(Utilization: {utilization_percentage:.1f}% | Spent: {formatted_total} | Budget: {formatted_budget} | Remaining: {formatted_remaining}). "
+            f"Assessment from {head_engineer_name}: {assessment_message or 'Please review.'}"
+        )
+    
+    # Notify Finance Managers
+    notify_finance_managers(message, check_duplicates=True)
+
 def get_project_from_notification(notification_message):
     """
     Extract project information from notification message to find the related project.

@@ -290,10 +290,18 @@ def notify_progress_updates(sender, instance, created, **kwargs):
                 print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
     # Skip notifications for progress modifications to reduce noise
 
-def check_budget_over_utilization(project):
+def check_budget_thresholds(project, cost_entry=None):
     """
-    Check if project budget is over-utilized and notify Head Engineers.
-    Budget is considered over-utilized when total costs exceed the project budget.
+    Check project budget against thresholds and trigger appropriate notifications.
+    
+    Thresholds:
+    - 80%: Warning to Head Engineers
+    - 95%: Critical alert to Head Engineers
+    - 100%+: Over budget alert to Head Engineers
+    
+    Args:
+        project: Project instance
+        cost_entry: Optional ProjectCost instance that triggered the check
     """
     from django.db.models import Sum
     from .models import ProjectCost
@@ -315,30 +323,69 @@ def check_budget_over_utilization(project):
     except (ValueError, TypeError):
         return  # Skip if conversion fails
     
-    # Check if budget is exceeded
+    # Calculate utilization percentage
+    utilization_percentage = (total_costs_float / project_budget_float) * 100 if project_budget_float > 0 else 0
+    
+    # Format amounts
+    formatted_total = f"₱{total_costs_float:,.2f}"
+    formatted_budget = f"₱{project_budget_float:,.2f}"
+    formatted_remaining = f"₱{max(0, project_budget_float - total_costs_float):,.2f}"
+    
+    # Build project display name
+    project_display = format_project_display(project)
+    
+    # Get cost entry creator name if available
+    creator_name = "System"
+    if cost_entry and cost_entry.created_by:
+        creator_name = cost_entry.created_by.get_full_name() or cost_entry.created_by.username
+    
+    # Check thresholds and notify accordingly
+    # 100%+ threshold: Over budget
     if total_costs_float > project_budget_float:
-        # Calculate overage amount and percentage
         overage_amount = total_costs_float - project_budget_float
         overage_percentage = ((total_costs_float / project_budget_float) - 1) * 100
-        
-        # Format amounts
-        formatted_total = f"₱{total_costs_float:,.2f}"
-        formatted_budget = f"₱{project_budget_float:,.2f}"
         formatted_overage = f"₱{overage_amount:,.2f}"
         
-        # Build project display name
-        project_display = format_project_display(project)
-        
-        # Create notification message
-        budget_message = (
-            f"WARNING: Budget Over-Utilized: {project_display} has exceeded its budget. "
-            f"Total costs: {formatted_total} (Budget: {formatted_budget}) - "
-            f"Over by {formatted_overage} ({overage_percentage:.1f}% over budget)"
+        message = (
+            f"🚨 URGENT: {project_display} is OVER BUDGET by {formatted_overage} "
+            f"({overage_percentage:.1f}% over). "
+            f"Total spent: {formatted_total} | Budget: {formatted_budget}. "
+            f"Cost entry by: {creator_name}. "
+            f"Immediate review required."
         )
-        
-        # Notify Head Engineers and Admins
-        notify_head_engineers(budget_message, check_duplicates=True)
-        notify_admins(budget_message, check_duplicates=True)
+        notify_head_engineers(message, check_duplicates=True)
+        notify_admins(message, check_duplicates=True)
+    
+    # 95% threshold: Critical alert
+    elif utilization_percentage >= 95:
+        message = (
+            f"⚠️ CRITICAL: {project_display} is at {utilization_percentage:.1f}% of budget. "
+            f"Spent: {formatted_total} | Budget: {formatted_budget} | Remaining: {formatted_remaining}. "
+            f"Cost entry by: {creator_name}. "
+            f"Project may exceed budget soon. Review recommended."
+        )
+        notify_head_engineers(message, check_duplicates=True)
+        notify_admins(message, check_duplicates=True)
+    
+    # 80% threshold: Warning
+    elif utilization_percentage >= 80:
+        message = (
+            f"⚠️ WARNING: {project_display} is at {utilization_percentage:.1f}% of budget. "
+            f"Spent: {formatted_total} | Budget: {formatted_budget} | Remaining: {formatted_remaining}. "
+            f"Cost entry by: {creator_name}. "
+            f"Monitor spending closely."
+        )
+        notify_head_engineers(message, check_duplicates=True)
+        notify_admins(message, check_duplicates=True)
+
+
+# Keep old function name for backward compatibility (deprecated)
+def check_budget_over_utilization(project):
+    """
+    DEPRECATED: Use check_budget_thresholds() instead.
+    Kept for backward compatibility.
+    """
+    check_budget_thresholds(project)
 
 @receiver(post_save, sender=ProjectCost)
 def notify_cost_updates(sender, instance, created, **kwargs):
@@ -376,8 +423,8 @@ def notify_cost_updates(sender, instance, created, **kwargs):
         notify_head_engineers(message)
         notify_admins(message)
         
-        # Check if budget is over-utilized after this cost entry
-        check_budget_over_utilization(instance.project)
+        # Check if budget thresholds are crossed after this cost entry
+        check_budget_thresholds(instance.project, cost_entry=instance)
         
         # Phase 3: Also broadcast via WebSocket (parallel to SSE)
         if WEBSOCKET_AVAILABLE:

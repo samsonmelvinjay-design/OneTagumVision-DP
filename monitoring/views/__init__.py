@@ -6,6 +6,7 @@ from .engineer_management import (
     engineer_list, engineer_create, engineer_detail,
     engineer_edit, engineer_deactivate, engineer_activate
 )
+from .budget_notifications import forward_budget_alert_to_finance_view
 from projeng.models import Project, ProjectProgress, ProjectCost
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator

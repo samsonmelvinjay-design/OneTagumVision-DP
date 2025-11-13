@@ -28,7 +28,13 @@ except Exception:  # pragma: no cover - allow missing dep
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.forms.fields import DateField # Import DateField
-from .utils import flag_overdue_projects_as_delayed, notify_head_engineers, notify_admins
+from .utils import (
+    flag_overdue_projects_as_delayed, 
+    notify_head_engineers, 
+    notify_admins,
+    notify_head_engineer_about_budget_concern,
+    forward_budget_alert_to_finance
+)
 from django.views.decorators.http import require_GET, require_http_methods
 from django.db import transaction
 import traceback
@@ -2315,4 +2321,35 @@ def zone_analytics_api(request):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f'Error in zone_analytics_api: {str(e)}', exc_info=True)
-        return JsonResponse({'error': 'Internal server error'}, status=500) 
+        return JsonResponse({'error': 'Internal server error'}, status=500)
+
+
+@login_required
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
+def send_budget_alert(request, project_id):
+    """
+    Allow Project Engineers to manually send budget alerts to Head Engineers.
+    """
+    project = get_object_or_404(Project, pk=project_id)
+    
+    # Check if user has access to this project
+    if is_project_engineer(request.user) and project not in request.user.assigned_projects.all():
+        messages.error(request, "You don't have access to this project.")
+        return redirect('projeng:projeng_dashboard')
+    
+    if request.method == 'POST':
+        custom_message = request.POST.get('message', '').strip()
+        
+        # Send notification
+        notify_head_engineer_about_budget_concern(
+            project=project,
+            sender_user=request.user,
+            message=custom_message if custom_message else None
+        )
+        
+        messages.success(request, f"Budget alert sent to Head Engineers for project '{project.name}'.")
+        return redirect('projeng:project_detail', pk=project_id)
+    
+    # GET request - show form (or handle via AJAX)
+    messages.error(request, "Invalid request method.")
+    return redirect('projeng:project_detail', pk=project_id) 

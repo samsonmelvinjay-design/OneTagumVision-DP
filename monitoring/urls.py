@@ -23,6 +23,7 @@ urlpatterns = [
     path('analytics/head-engineer/', views.head_engineer_analytics, name='head_engineer_analytics'),
     path('notifications/', views.head_engineer_notifications, name='head_engineer_notifications'),
     path('projects/<int:pk>/', views.project_detail, name='project_detail'),
+    path('projects/<int:project_id>/forward-budget-alert/', views.forward_budget_alert_to_finance_view, name='forward_budget_alert'),
     path('monitoring/projects/<int:pk>/detail/', views.head_engineer_project_detail, name='monitoring_project_detail'),
     path('dashboard/api/card-data/', views.head_dashboard_card_data_api, name='head_dashboard_card_data_api'),
     path('dashboard/budget-utilization-data/', views.dashboard_budget_utilization_data, name='dashboard_budget_utilization_data'),
