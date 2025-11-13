@@ -399,7 +399,10 @@ def finance_project_detail(request, project_id):
         return render(request, 'finance_manager/finance_project_detail.html', context)
     except Exception as e:
         logger.error(f"Finance project detail: Error processing project {project_id}: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
         from django.contrib import messages
         from django.shortcuts import redirect
         messages.error(request, f"Error loading project details: {str(e)}")
-        return redirect('finance_projects') 
+        # Redirect to finance cost management page instead of finance_projects
+        return redirect('finance_cost_management') 
