@@ -2423,27 +2423,39 @@ def send_budget_alert(request, project_id):
     """
     Allow Project Engineers to manually send budget alerts to Head Engineers.
     """
+    # Add immediate logging to verify function is called
+    import sys
+    print(f"send_budget_alert: Function called - method={request.method}, project_id={project_id}, user={request.user.username}", file=sys.stderr)
+    logging.info(f"send_budget_alert: Function called - method={request.method}, project_id={project_id}, user={request.user.username}")
+    
     try:
         project = get_object_or_404(Project, pk=project_id)
+        print(f"send_budget_alert: Project found - {project.name} (ID: {project.id})", file=sys.stderr)
+        logging.info(f"send_budget_alert: Project found - {project.name} (ID: {project.id})")
         
         # Check if user has access to this project
         if is_project_engineer(request.user) and project not in project.assigned_engineers.all():
+            print(f"send_budget_alert: Access denied - user not assigned to project", file=sys.stderr)
             messages.error(request, "You don't have access to this project.")
             return redirect('projeng:projeng_dashboard')
         
         if request.method == 'POST':
+            print(f"send_budget_alert: POST request received for project {project_id} by user {request.user.username}", file=sys.stderr)
             logging.info(f"send_budget_alert: POST request received for project {project_id} by user {request.user.username}")
             custom_message = request.POST.get('message', '').strip()
+            print(f"send_budget_alert: Custom message: '{custom_message}'", file=sys.stderr)
             logging.info(f"send_budget_alert: Custom message: '{custom_message}'")
             
             # Send notification
             try:
+                print(f"send_budget_alert: Calling notify_head_engineer_about_budget_concern", file=sys.stderr)
                 logging.info(f"send_budget_alert: Calling notify_head_engineer_about_budget_concern")
                 notification_count = notify_head_engineer_about_budget_concern(
                     project=project,
                     sender_user=request.user,
                     message=custom_message if custom_message else None
                 )
+                print(f"send_budget_alert: Function returned notification_count: {notification_count}", file=sys.stderr)
                 logging.info(f"send_budget_alert: Function returned notification_count: {notification_count}")
                 
                 # Check if Head Engineers exist

@@ -40,11 +40,16 @@ def _check_duplicate_notification(recipient, message, time_window_seconds=10):
 def notify_head_engineers(message, check_duplicates=True):
     """Notify Head Engineers about important updates"""
     import logging
+    import sys
     logger = logging.getLogger(__name__)
+    
+    print(f"notify_head_engineers: Function called, check_duplicates={check_duplicates}", file=sys.stderr)
+    logger.info(f"notify_head_engineers: Function called, check_duplicates={check_duplicates}")
     
     # Get Head Engineers - try both exact match and case-insensitive
     head_engineers = User.objects.filter(groups__name='Head Engineer').distinct()
     head_engineer_count = head_engineers.count()
+    print(f"notify_head_engineers: Found {head_engineer_count} Head Engineer(s)", file=sys.stderr)
     logger.info(f"notify_head_engineers: Found {head_engineer_count} Head Engineer(s)")
     
     if head_engineer_count == 0:
@@ -62,10 +67,14 @@ def notify_head_engineers(message, check_duplicates=True):
             logger.debug(f"notify_head_engineers: Skipping duplicate for {user.username}")
             continue  # Skip if duplicate exists
         try:
+            import sys
             notification = Notification.objects.create(recipient=user, message=message)
             notification_count += 1
+            print(f"notify_head_engineers: Created notification ID {notification.id} for {user.username}", file=sys.stderr)
             logger.info(f"notify_head_engineers: Created notification ID {notification.id} for {user.username}")
         except Exception as e:
+            import sys
+            print(f"notify_head_engineers: ERROR creating notification for {user.username}: {str(e)}", file=sys.stderr)
             logger.error(f"notify_head_engineers: Failed to create notification for {user.username}: {str(e)}", exc_info=True)
     
     logger.info(f"notify_head_engineers: Created {notification_count} notification(s) total")
