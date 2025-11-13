@@ -356,17 +356,14 @@
                         <div class="w-7 h-7 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📍</div>
                         <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Location</h3>
                     </div>
-                    <!-- Map First - Prominent Display -->
-                    <div class="bg-white rounded-lg overflow-hidden shadow-sm mb-3 border border-gray-200">
-                        <div id="details-map" class="w-full h-64 rounded-lg" style="min-height: 256px; background-color: #f3f4f6;"></div>
-                    </div>
-                    <!-- Location Details Below Map -->
-                    <div class="space-y-2">
-                        <div class="bg-white rounded-lg p-3 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Barangay</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-barangay">—</div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
+                    <!-- Side-by-side Layout: Details Left, Map Right -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Left Side: Location Details -->
+                        <div class="space-y-2">
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <div class="text-xs text-gray-500 uppercase mb-1">Barangay</div>
+                                <div class="text-sm font-semibold text-gray-800" id="details-barangay">—</div>
+                            </div>
                             <div class="bg-white rounded-lg p-3 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Latitude</div>
                                 <div class="text-xs font-mono text-gray-700" id="details-latitude">—</div>
@@ -375,6 +372,10 @@
                                 <div class="text-xs text-gray-500 uppercase mb-1">Longitude</div>
                                 <div class="text-xs font-mono text-gray-700" id="details-longitude">—</div>
                             </div>
+                        </div>
+                        <!-- Right Side: Map -->
+                        <div class="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200">
+                            <div id="details-map" class="w-full h-full rounded-lg" style="min-height: 200px; height: 100%; background-color: #f3f4f6;"></div>
                         </div>
                     </div>
                 </div>
