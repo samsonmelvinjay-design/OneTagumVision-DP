@@ -394,6 +394,66 @@ def finance_project_detail(request, project_id):
         for cost in costs:
             cost_by_type[cost.get_cost_type_display()] += float(cost.amount)
         
+        # Get the most recent Budget Review Request notification for this project
+        # to extract requested amount and assessment
+        budget_request_info = None
+        try:
+            from projeng.models import Notification
+            from django.contrib.auth.models import User
+            
+            # Get Finance Managers
+            finance_managers = User.objects.filter(groups__name='Finance Manager').distinct()
+            
+            # Find the most recent Budget Review Request notification for this project
+            # that was sent to any Finance Manager
+            notifications = Notification.objects.filter(
+                recipient__in=finance_managers,
+                message__icontains='Budget Review Request',
+                message__icontains=project.name
+            ).order_by('-created_at')
+            
+            if notifications.exists():
+                latest_notification = notifications.first()
+                message = latest_notification.message
+                
+                # Parse the notification message to extract requested amount and assessment
+                import re
+                
+                # Extract requested budget increase amount
+                requested_amount = None
+                amount_match = re.search(r'Requested budget increase:\s*₱([\d,]+\.?\d*)', message)
+                if amount_match:
+                    try:
+                        amount_str = amount_match.group(1).replace(',', '')
+                        requested_amount = float(amount_str)
+                    except (ValueError, AttributeError):
+                        pass
+                
+                # Extract assessment message
+                assessment = None
+                assessment_match = re.search(r'Assessment from [^:]+:\s*(.+?)(?:\.\s*$|$)', message)
+                if assessment_match:
+                    assessment = assessment_match.group(1).strip()
+                    # Clean up common endings
+                    if assessment.endswith('.'):
+                        assessment = assessment[:-1]
+                
+                # Extract Head Engineer name
+                head_engineer_name = None
+                engineer_match = re.search(r'Assessment from ([^:]+):', message)
+                if engineer_match:
+                    head_engineer_name = engineer_match.group(1).strip()
+                
+                if requested_amount or assessment:
+                    budget_request_info = {
+                        'requested_amount': requested_amount,
+                        'assessment': assessment,
+                        'head_engineer_name': head_engineer_name,
+                        'notification_date': latest_notification.created_at,
+                    }
+        except Exception as e:
+            logger.error(f"Error extracting budget request info: {str(e)}", exc_info=True)
+        
         context = {
             'project': project,
             'costs': costs,
@@ -403,6 +463,7 @@ def finance_project_detail(request, project_id):
             'project_budget': project_budget,
             'threshold': threshold,
             'cost_by_type': dict(cost_by_type),
+            'budget_request_info': budget_request_info,
         }
         return render(request, 'finance_manager/finance_project_detail.html', context)
     except Exception as e:

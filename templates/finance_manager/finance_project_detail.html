@@ -36,6 +36,44 @@
             {% endif %}
         </div>
         
+        <!-- Budget Request Information from Head Engineer -->
+        {% if budget_request_info %}
+        <div class="mt-6 pt-6 border-t-2 border-gray-300 bg-blue-50 rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Budget Review Request from Head Engineer
+            </h3>
+            <div class="space-y-2">
+                {% if budget_request_info.head_engineer_name %}
+                <div class="flex items-start">
+                    <span class="font-semibold text-gray-700 min-w-[140px]">Requested By:</span>
+                    <span class="text-gray-800">{{ budget_request_info.head_engineer_name }}</span>
+                </div>
+                {% endif %}
+                {% if budget_request_info.requested_amount %}
+                <div class="flex items-start">
+                    <span class="font-semibold text-gray-700 min-w-[140px]">Requested Amount:</span>
+                    <span class="text-blue-700 font-bold text-lg">₱{{ budget_request_info.requested_amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endif %}
+                {% if budget_request_info.assessment %}
+                <div class="flex items-start">
+                    <span class="font-semibold text-gray-700 min-w-[140px]">Assessment:</span>
+                    <span class="text-gray-800 flex-1">{{ budget_request_info.assessment }}</span>
+                </div>
+                {% endif %}
+                {% if budget_request_info.notification_date %}
+                <div class="flex items-start">
+                    <span class="font-semibold text-gray-700 min-w-[140px]">Request Date:</span>
+                    <span class="text-gray-600 text-sm">{{ budget_request_info.notification_date|date:"F d, Y g:i A" }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Budget Approval/Rejection Actions (only show if utilization >= 80%) -->
         {% if budget_utilization >= 80 %}
         <div class="mt-6 pt-6 border-t-2 border-gray-300">
