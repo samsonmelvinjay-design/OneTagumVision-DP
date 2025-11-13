@@ -955,7 +955,7 @@ def project_analytics(request, pk):
             'timeline_data': timeline_data,
             'today': timezone.now().date(),
         }
-        return render(request, 'projeng/project_management.html', context)
+        return render(request, 'projeng/project_detail.html', context)
     except Project.DoesNotExist:
         raise Http404("Project does not exist or you are not assigned to it.")
     except PermissionDenied:
