@@ -1802,17 +1802,25 @@ def head_engineer_notifications(request):
     
     # Add project IDs to notifications for clickable links
     from projeng.utils import get_project_from_notification
+    import logging
+    logger = logging.getLogger(__name__)
     notifications_with_projects = []
     for notification in page_obj:
         project_id = None
         try:
             if notification.message:
+                # Check if it's a Budget Concern notification
+                if 'Budget Concern' in notification.message or '📋' in notification.message:
+                    logger.info(f"Processing Budget Concern notification {notification.id}: {notification.message[:100]}")
                 project_id = get_project_from_notification(notification.message)
+                if project_id:
+                    logger.info(f"Extracted project_id={project_id} for notification {notification.id}")
+                else:
+                    if 'Budget Concern' in notification.message or '📋' in notification.message:
+                        logger.warning(f"Failed to extract project_id for Budget Concern notification {notification.id}")
         except Exception as e:
             # Log error but don't break the page
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error getting project from notification {notification.id}: {str(e)}")
+            logger.error(f"Error getting project from notification {notification.id}: {str(e)}", exc_info=True)
         notifications_with_projects.append({
             'notification': notification,
             'project_id': project_id
