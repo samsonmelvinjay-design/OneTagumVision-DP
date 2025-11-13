@@ -152,6 +152,25 @@
 </div>
 
 <script>
+// Function to redirect to project detail page - Define globally before DOMContentLoaded
+window.redirectToProject = function(projectId, notificationId) {
+    if (projectId) {
+        // Mark notification as read when clicked
+        if (notificationId) {
+            const formData = new FormData();
+            formData.append('action', 'mark_read');
+            formData.append('notification_id', notificationId);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            fetch('{% url "finance_notifications" %}', {
+                method: 'POST',
+                body: formData
+            }).catch(err => console.error('Error marking notification as read:', err));
+        }
+        // Redirect to project detail page for Finance Managers
+        window.location.href = `/dashboard/finance/project/${projectId}/`;
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // Mark all as read
     document.getElementById('markAllReadBtn').addEventListener('click', function() {
@@ -568,25 +587,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup after a short delay to ensure realtimeManager is initialized
     setTimeout(setupNotificationListUpdates, 500);
-    
-    // Function to redirect to project detail page - Make it globally accessible
-    window.redirectToProject = function(projectId, notificationId) {
-        if (projectId) {
-            // Mark notification as read when clicked
-            if (notificationId) {
-                const formData = new FormData();
-                formData.append('action', 'mark_read');
-                formData.append('notification_id', notificationId);
-                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-                fetch('{% url "finance_notifications" %}', {
-                    method: 'POST',
-                    body: formData
-                }).catch(err => console.error('Error marking notification as read:', err));
-            }
-            // Redirect to project detail page for Finance Managers
-            window.location.href = `/dashboard/finance/project/${projectId}/`;
-        }
-    };
     
     // Make existing notifications clickable (fallback for notifications without project_id in data attribute)
     document.querySelectorAll('.notification-item').forEach(item => {
