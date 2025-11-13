@@ -39,11 +39,26 @@ def _check_duplicate_notification(recipient, message, time_window_seconds=10):
 
 def notify_head_engineers(message, check_duplicates=True):
     """Notify Head Engineers about important updates"""
-    head_engineers = User.objects.filter(groups__name='Head Engineer')
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    head_engineers = User.objects.filter(groups__name='Head Engineer').distinct()
+    logger.info(f"Found {head_engineers.count()} Head Engineer(s) to notify")
+    
+    if not head_engineers.exists():
+        logger.warning("No Head Engineers found in the system. Please ensure at least one user is in the 'Head Engineer' group.")
+        return
+    
+    notification_count = 0
     for user in head_engineers:
         if check_duplicates and _check_duplicate_notification(user, message):
+            logger.debug(f"Skipping duplicate notification for Head Engineer: {user.username}")
             continue  # Skip if duplicate exists
         Notification.objects.create(recipient=user, message=message)
+        notification_count += 1
+        logger.info(f"Notification created for Head Engineer: {user.username} (ID: {user.id})")
+    
+    logger.info(f"Successfully sent {notification_count} notification(s) to Head Engineers")
 
 def notify_admins(message, check_duplicates=True):
     """Notify Admins about important updates"""
@@ -119,7 +134,11 @@ def notify_head_engineer_about_budget_concern(project, sender_user, message=None
         )
     
     # Notify all Head Engineers
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Sending budget concern notification for project: {project.name} (ID: {project.id}) from {sender_name}")
     notify_head_engineers(notification_message, check_duplicates=True)
+    logger.info(f"Budget concern notification sent successfully")
 
 def can_update_budget(user, project):
     """
