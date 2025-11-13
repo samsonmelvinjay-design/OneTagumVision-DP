@@ -400,9 +400,11 @@ def map_view(request):
     else:
         projects = Project.objects.none()
     # Only include projects with coordinates
-    projects_with_coords = projects.filter(latitude__isnull=False, longitude__isnull=False)
+    projects_with_coords = projects.filter(latitude__isnull=False, longitude__isnull=False).prefetch_related('assigned_engineers')
     projects_data = []
     for p in projects_with_coords:
+        # Get assigned engineers as a list of usernames
+        assigned_engineers = [eng.username for eng in p.assigned_engineers.all()]
         projects_data.append({
             'id': p.id,
             'name': p.name,
@@ -418,6 +420,7 @@ def map_view(request):
             'end_date': str(p.end_date) if p.end_date else "",
             'image': p.image.url if p.image else "",
             'progress': getattr(p, 'progress', 0),
+            'assigned_engineers': assigned_engineers,
         })
     return render(request, 'monitoring/map.html', {'projects_data': projects_data})
 

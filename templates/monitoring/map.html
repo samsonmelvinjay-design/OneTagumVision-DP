@@ -1249,11 +1249,11 @@ window.openDetailsModal = function(id) {
             }
         }
 
-        // Display progress bar
+        // Display progress bar - show for any project with progress data
         if (progressSection && progressBar && progressText) {
              // Use project.progress for the modal progress bar
              const modalProgressValue = project.progress !== undefined ? parseInt(project.progress, 10) : null;
-             if ((project.status === 'ongoing' || project.status === 'in_progress') && modalProgressValue !== null && !isNaN(modalProgressValue) && modalProgressValue >= 0 && modalProgressValue <= 100) {
+             if (modalProgressValue !== null && !isNaN(modalProgressValue) && modalProgressValue >= 0 && modalProgressValue <= 100) {
                 progressSection.classList.remove('hidden');
                 progressBar.style.width = modalProgressValue + '%';
                 progressText.textContent = modalProgressValue + '% Complete';
