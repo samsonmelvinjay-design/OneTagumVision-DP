@@ -371,7 +371,7 @@
                         </div>
                     </div>
                     <div class="bg-white rounded-lg overflow-hidden shadow-sm">
-                        <div id="details-map" class="w-full h-40 rounded-lg"></div>
+                        <div id="details-map" class="w-full h-40 rounded-lg" style="min-height: 160px; background-color: #f3f4f6;"></div>
                     </div>
                 </div>
             </div>
@@ -817,7 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </svg>
                             <span>${project.barangay || 'Unknown location'}</span>
                         </div>
-                        ${(projectStatus === 'ongoing' || projectStatus === 'in_progress') ? `
+                        ${displayProgress !== undefined && displayProgress !== null && !isNaN(parseInt(displayProgress, 10)) && parseInt(displayProgress, 10) >= 0 && parseInt(displayProgress, 10) <= 100 ? `
                         <div class="mb-3">
                             <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
                                 <span class="font-medium">Progress</span>
@@ -1289,18 +1289,23 @@ window.openDetailsModal = function(id) {
                     if (L.DomUtil.get('details-map')) {
                        L.DomUtil.get('details-map')._leaflet_id = null;
                     }
-                    window.detailsMap = L.map('details-map').setView([detailMapLat, detailMapLng], 15);
+                    window.detailsMap = L.map('details-map', {
+                        zoomControl: true,
+                        scrollWheelZoom: false,
+                        doubleClickZoom: false,
+                        dragging: true,
+                        touchZoom: true
+                    }).setView([detailMapLat, detailMapLng], 15);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                         maxZoom: 19
                     }).addTo(window.detailsMap);
                     L.marker([detailMapLat, detailMapLng]).addTo(window.detailsMap);
-                    setTimeout(() => { window.detailsMap.invalidateSize(); }, 350);
-                    // Explicitly set a lower z-index for the inner map to ensure modal content is above it
-                    const innerMapElement = document.getElementById('details-map');
-                    if (innerMapElement) {
-                        innerMapElement.style.zIndex = '-1';
-                    }
+                    setTimeout(() => { 
+                        if (window.detailsMap) {
+                            window.detailsMap.invalidateSize(); 
+                        }
+                    }, 350);
                 } else {
                     detailsMapDiv.innerHTML = '<div class="text-gray-400 text-center py-8">No location set</div>';
                 }
