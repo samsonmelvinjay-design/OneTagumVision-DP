@@ -39,18 +39,36 @@ def _check_duplicate_notification(recipient, message, time_window_seconds=10):
 
 def notify_head_engineers(message, check_duplicates=True):
     """Notify Head Engineers about important updates"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Get Head Engineers - try both exact match and case-insensitive
     head_engineers = User.objects.filter(groups__name='Head Engineer').distinct()
+    head_engineer_count = head_engineers.count()
+    logger.info(f"notify_head_engineers: Found {head_engineer_count} Head Engineer(s)")
+    
+    if head_engineer_count == 0:
+        logger.warning("notify_head_engineers: No Head Engineers found with group name 'Head Engineer'")
+        # Try to find any users with similar group names for debugging
+        from django.contrib.auth.models import Group
+        all_groups = Group.objects.all()
+        logger.warning(f"Available groups: {[g.name for g in all_groups]}")
+        return 0
+    
     notification_count = 0
     for user in head_engineers:
+        logger.info(f"notify_head_engineers: Processing Head Engineer: {user.username} (ID: {user.id})")
         if check_duplicates and _check_duplicate_notification(user, message):
+            logger.debug(f"notify_head_engineers: Skipping duplicate for {user.username}")
             continue  # Skip if duplicate exists
         try:
-            Notification.objects.create(recipient=user, message=message)
+            notification = Notification.objects.create(recipient=user, message=message)
             notification_count += 1
+            logger.info(f"notify_head_engineers: Created notification ID {notification.id} for {user.username}")
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to create notification for Head Engineer {user.username}: {str(e)}", exc_info=True)
+            logger.error(f"notify_head_engineers: Failed to create notification for {user.username}: {str(e)}", exc_info=True)
+    
+    logger.info(f"notify_head_engineers: Created {notification_count} notification(s) total")
     return notification_count
 
 def notify_admins(message, check_duplicates=True):
@@ -137,9 +155,12 @@ def notify_head_engineer_about_budget_concern(project, sender_user, message=None
     
     # Notify all Head Engineers
     # Use check_duplicates=False for manual alerts to ensure they always go through
-    logger.info(f"Sending budget concern notification for project: {project.name} (ID: {project.id}) from {sender_name}")
+    logger.info(f"notify_head_engineer_about_budget_concern: Starting notification process")
+    logger.info(f"notify_head_engineer_about_budget_concern: Project: {project.name} (ID: {project.id})")
+    logger.info(f"notify_head_engineer_about_budget_concern: Sender: {sender_name}")
+    logger.info(f"notify_head_engineer_about_budget_concern: Message: {notification_message}")
     notification_count = notify_head_engineers(notification_message, check_duplicates=False)
-    logger.info(f"Budget concern notification sent to {notification_count} Head Engineer(s)")
+    logger.info(f"notify_head_engineer_about_budget_concern: Completed - sent to {notification_count} Head Engineer(s)")
     return notification_count
 
 def can_update_budget(user, project):
