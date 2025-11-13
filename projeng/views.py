@@ -2434,10 +2434,16 @@ def send_budget_alert(request, project_id):
         logging.info(f"send_budget_alert: Project found - {project.name} (ID: {project.id})")
         
         # Check if user has access to this project
-        if is_project_engineer(request.user) and project not in project.assigned_engineers.all():
-            print(f"send_budget_alert: Access denied - user not assigned to project", file=sys.stderr)
-            messages.error(request, "You don't have access to this project.")
-            return redirect('projeng:projeng_dashboard')
+        # Note: For Project Engineers, check if user is in assigned_engineers
+        # For Head Engineers, they can access all projects
+        if is_project_engineer(request.user):
+            if request.user not in project.assigned_engineers.all():
+                print(f"send_budget_alert: Access denied - user {request.user.username} not in assigned_engineers for project {project.id}", file=sys.stderr)
+                print(f"send_budget_alert: Assigned engineers: {[e.username for e in project.assigned_engineers.all()]}", file=sys.stderr)
+                messages.error(request, "You don't have access to this project.")
+                return redirect('projeng:projeng_dashboard')
+            else:
+                print(f"send_budget_alert: Access granted - user {request.user.username} is assigned to project {project.id}", file=sys.stderr)
         
         if request.method == 'POST':
             print(f"send_budget_alert: POST request received for project {project_id} by user {request.user.username}", file=sys.stderr)
