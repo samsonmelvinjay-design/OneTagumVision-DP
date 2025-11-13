@@ -306,6 +306,7 @@ def project_list(request):
         projects = Project.objects.none()
     
     # Apply filters
+    from django.db.models import Q
     barangay_filter = request.GET.get('barangay')
     duration_filter = request.GET.get('duration')
     status_filter = request.GET.get('status')
@@ -317,11 +318,14 @@ def project_list(request):
     
     # Status filter
     if status_filter:
-        projects = projects.filter(status=status_filter)
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
+        if status_filter == 'in_progress':
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            projects = projects.filter(status=status_filter)
     
     # Search filter (search in name, PRN, description)
     if search_query:
-        from django.db.models import Q
         projects = projects.filter(
             Q(name__icontains=search_query) |
             Q(prn__icontains=search_query) |
@@ -459,11 +463,48 @@ def reports(request):
     # This view is only accessible to Head Engineers and Finance Managers
     # Project Engineers are redirected by the decorator
     from projeng.models import ProjectCost
+    from django.db.models import Q
     
     if is_head_engineer(request.user) or is_finance_manager(request.user):
         projects = Project.objects.all()
     else:
         projects = Project.objects.none()
+    
+    # Apply filters from request parameters
+    barangay_filter = request.GET.get('barangay', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    start_date_filter = request.GET.get('start_date', '').strip()
+    end_date_filter = request.GET.get('end_date', '').strip()
+    
+    # Filter by barangay
+    if barangay_filter:
+        projects = projects.filter(barangay=barangay_filter)
+    
+    # Filter by status
+    if status_filter:
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
+        if status_filter == 'in_progress':
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            projects = projects.filter(status=status_filter)
+    
+    # Filter by start date
+    if start_date_filter:
+        try:
+            from datetime import datetime
+            start_date = datetime.strptime(start_date_filter, '%Y-%m-%d').date()
+            projects = projects.filter(start_date__gte=start_date)
+        except ValueError:
+            pass
+    
+    # Filter by end date
+    if end_date_filter:
+        try:
+            from datetime import datetime
+            end_date = datetime.strptime(end_date_filter, '%Y-%m-%d').date()
+            projects = projects.filter(end_date__lte=end_date)
+        except ValueError:
+            pass
     
     # Calculate budget metrics
     total_budget = 0
@@ -540,6 +581,10 @@ def reports(request):
         'remaining_budget': remaining_budget,
         'budget_utilization': budget_utilization,
         'avg_project_cost': avg_project_cost,
+        'selected_barangay': barangay_filter,
+        'selected_status': status_filter,
+        'selected_start_date': start_date_filter,
+        'selected_end_date': end_date_filter,
     }
     return render(request, 'monitoring/reports.html', context)
 
@@ -813,10 +858,9 @@ def head_engineer_analytics(request):
     # Apply status filter
     status_filter = request.GET.get('status', '')
     if status_filter:
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
         if status_filter == 'in_progress':
-            projects = projects.filter(status__in=['in_progress', 'ongoing'])
-        elif status_filter == 'planned':
-            projects = projects.filter(status__in=['planned', 'pending'])
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
         else:
             projects = projects.filter(status=status_filter)
     
@@ -1127,14 +1171,9 @@ def export_reports_csv(request):
     
     # Filter by status
     if status_filter:
-        if status_filter == 'completed':
-            projects = projects.filter(status='completed')
-        elif status_filter in ['in_progress', 'ongoing']:
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
+        if status_filter == 'in_progress':
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        elif status_filter in ['planned', 'pending']:
-            projects = projects.filter(Q(status='planned') | Q(status='pending'))
-        elif status_filter == 'delayed':
-            projects = projects.filter(status='delayed')
         else:
             projects = projects.filter(status=status_filter)
     
@@ -1206,14 +1245,9 @@ def export_reports_excel(request):
     
     # Filter by status
     if status_filter:
-        if status_filter == 'completed':
-            projects = projects.filter(status='completed')
-        elif status_filter in ['in_progress', 'ongoing']:
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
+        if status_filter == 'in_progress':
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        elif status_filter in ['planned', 'pending']:
-            projects = projects.filter(Q(status='planned') | Q(status='pending'))
-        elif status_filter == 'delayed':
-            projects = projects.filter(status='delayed')
         else:
             projects = projects.filter(status=status_filter)
     
@@ -1296,14 +1330,9 @@ def export_reports_pdf(request):
     
     # Filter by status
     if status_filter:
-        if status_filter == 'completed':
-            projects = projects.filter(status='completed')
-        elif status_filter in ['in_progress', 'ongoing']:
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
+        if status_filter == 'in_progress':
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        elif status_filter in ['planned', 'pending']:
-            projects = projects.filter(Q(status='planned') | Q(status='pending'))
-        elif status_filter == 'delayed':
-            projects = projects.filter(status='delayed')
         else:
             projects = projects.filter(status=status_filter)
     

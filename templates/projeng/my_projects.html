@@ -32,10 +32,14 @@ window.filterProjects = function() {
         const name = nameEl ? nameEl.textContent.toLowerCase() : '';
         const desc = descEl ? descEl.textContent.toLowerCase() : '';
         
-        // Status filter - must match exactly
+        // Status filter - must match exactly (handle in_progress/ongoing)
         let statusMatch = true;
         if (statusFilter) {
-            statusMatch = projectStatus === statusFilter;
+            if (statusFilter === 'in_progress') {
+                statusMatch = projectStatus === 'in_progress' || projectStatus === 'ongoing';
+            } else {
+                statusMatch = projectStatus === statusFilter;
+            }
         }
         
         // Barangay filter - must match exactly (case-insensitive)
@@ -229,17 +233,14 @@ window.setBarangayFilter = function(barangay) {
                 <button type="button" id="filter-all" onclick="window.setStatusFilter('')" class="filter-btn active px-4 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100" style="cursor: pointer;">
                     All
                 </button>
-                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
-                    In Progress
-                </button>
                 <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
                     Planned
                 </button>
+                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
+                    In Progress
+                </button>
                 <button type="button" id="filter-completed" onclick="window.setStatusFilter('completed')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100" style="cursor: pointer;">
                     Completed
-                </button>
-                <button type="button" id="filter-delayed" onclick="window.setStatusFilter('delayed')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100" style="cursor: pointer;">
-                    Delayed
                 </button>
             </div>
         </div>

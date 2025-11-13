@@ -438,7 +438,11 @@ def my_reports_view(request):
     if barangay_filter:
         assigned_projects = assigned_projects.filter(barangay=barangay_filter)
     if status_filter:
-        assigned_projects = assigned_projects.filter(status=status_filter)
+        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
+        if status_filter == 'in_progress':
+            assigned_projects = assigned_projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            assigned_projects = assigned_projects.filter(status=status_filter)
     if start_date_filter:
         try:
             start_date = datetime.strptime(start_date_filter, '%Y-%m-%d').date()
@@ -466,7 +470,12 @@ def my_reports_view(request):
     barangays = [
         "Apokon", "Bincungan", "Busaon", "Canocotan", "Cuambogan", "La Filipina", "Liboganon", "Madaum", "Magdum", "Magugpo East", "Magugpo North", "Magugpo Poblacion", "Magugpo South", "Magugpo West", "Mankilam", "New Balamban", "Nueva Fuerza", "Pagsabangan", "Pandapan", "San Agustin", "San Isidro", "San Miguel", "Visayan Village"
     ]
-    statuses = Project.STATUS_CHOICES
+    # Filter statuses to only show: Planned, In Progress, Completed
+    statuses = [
+        ('planned', 'Planned'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ]
     
     # Optimize query - use select_related and prefetch_related to avoid N+1 queries
     assigned_projects = assigned_projects.select_related('created_by').prefetch_related('assigned_engineers')

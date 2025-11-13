@@ -21,51 +21,48 @@
           <div>
                     <label for="barangay-filter" class="block text-sm font-medium text-gray-700">Barangay:</label>
                     <select id="barangay-filter" name="barangay" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option value="">All Barangays</option>
-                        <option value="Apokon">Apokon</option>
-                        <option value="Bincungan">Bincungan</option>
-                        <option value="Busaon">Busaon</option>
-                        <option value="Canocotan">Canocotan</option>
-                        <option value="Cuambogan">Cuambogan</option>
-                        <option value="La Filipina">La Filipina</option>
-                        <option value="Liboganon">Liboganon</option>
-                        <option value="Madaum">Madaum</option>
-                        <option value="Magdum">Magdum</option>
-                        <option value="Magugpo East">Magugpo East</option>
-                        <option value="Magugpo North">Magugpo North</option>
-                        <option value="Magugpo Poblacion">Magugpo Poblacion</option>
-                        <option value="Magugpo South">Magugpo South</option>
-                        <option value="Magugpo West">Magugpo West</option>
-                        <option value="Mankilam">Mankilam</option>
-                        <option value="New Balamban">New Balamban</option>
-                        <option value="Nueva Fuerza">Nueva Fuerza</option>
-                        <option value="Pagsabangan">Pagsabangan</option>
-                        <option value="Pandapan">Pandapan</option>
-                        <option value="San Agustin">San Agustin</option>
-                        <option value="San Isidro">San Isidro</option>
-                        <option value="San Miguel">San Miguel</option>
-                        <option value="Visayan Village">Visayan Village</option>
+                        <option value="" {% if not selected_barangay %}selected{% endif %}>All Barangays</option>
+                        <option value="Apokon" {% if selected_barangay == 'Apokon' %}selected{% endif %}>Apokon</option>
+                        <option value="Bincungan" {% if selected_barangay == 'Bincungan' %}selected{% endif %}>Bincungan</option>
+                        <option value="Busaon" {% if selected_barangay == 'Busaon' %}selected{% endif %}>Busaon</option>
+                        <option value="Canocotan" {% if selected_barangay == 'Canocotan' %}selected{% endif %}>Canocotan</option>
+                        <option value="Cuambogan" {% if selected_barangay == 'Cuambogan' %}selected{% endif %}>Cuambogan</option>
+                        <option value="La Filipina" {% if selected_barangay == 'La Filipina' %}selected{% endif %}>La Filipina</option>
+                        <option value="Liboganon" {% if selected_barangay == 'Liboganon' %}selected{% endif %}>Liboganon</option>
+                        <option value="Madaum" {% if selected_barangay == 'Madaum' %}selected{% endif %}>Madaum</option>
+                        <option value="Magdum" {% if selected_barangay == 'Magdum' %}selected{% endif %}>Magdum</option>
+                        <option value="Magugpo East" {% if selected_barangay == 'Magugpo East' %}selected{% endif %}>Magugpo East</option>
+                        <option value="Magugpo North" {% if selected_barangay == 'Magugpo North' %}selected{% endif %}>Magugpo North</option>
+                        <option value="Magugpo Poblacion" {% if selected_barangay == 'Magugpo Poblacion' %}selected{% endif %}>Magugpo Poblacion</option>
+                        <option value="Magugpo South" {% if selected_barangay == 'Magugpo South' %}selected{% endif %}>Magugpo South</option>
+                        <option value="Magugpo West" {% if selected_barangay == 'Magugpo West' %}selected{% endif %}>Magugpo West</option>
+                        <option value="Mankilam" {% if selected_barangay == 'Mankilam' %}selected{% endif %}>Mankilam</option>
+                        <option value="New Balamban" {% if selected_barangay == 'New Balamban' %}selected{% endif %}>New Balamban</option>
+                        <option value="Nueva Fuerza" {% if selected_barangay == 'Nueva Fuerza' %}selected{% endif %}>Nueva Fuerza</option>
+                        <option value="Pagsabangan" {% if selected_barangay == 'Pagsabangan' %}selected{% endif %}>Pagsabangan</option>
+                        <option value="Pandapan" {% if selected_barangay == 'Pandapan' %}selected{% endif %}>Pandapan</option>
+                        <option value="San Agustin" {% if selected_barangay == 'San Agustin' %}selected{% endif %}>San Agustin</option>
+                        <option value="San Isidro" {% if selected_barangay == 'San Isidro' %}selected{% endif %}>San Isidro</option>
+                        <option value="San Miguel" {% if selected_barangay == 'San Miguel' %}selected{% endif %}>San Miguel</option>
+                        <option value="Visayan Village" {% if selected_barangay == 'Visayan Village' %}selected{% endif %}>Visayan Village</option>
             </select>
           </div>
           <div>
                     <label for="status-filter" class="block text-sm font-medium text-gray-700">Status:</label>
                     <select id="status-filter" name="status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option value="">All Statuses</option>
-                        <option value="completed">Completed</option>
-                        <option value="in_progress">Ongoing</option>
-                        <option value="ongoing">Ongoing</option>
-                        <option value="planned">Planned</option>
-                        <option value="pending">Pending</option>
-                        <option value="delayed">Delayed</option>
-            </select>
+                        <option value="" {% if not selected_status %}selected{% endif %}>All Statuses</option>
+                        <option value="planned" {% if selected_status == 'planned' %}selected{% endif %}>Planned</option>
+                        <option value="in_progress" {% if selected_status == 'in_progress' or selected_status == 'ongoing' %}selected{% endif %}>In Progress</option>
+                        <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+                    </select>
           </div>
           <div>
                     <label for="start-date-filter" class="block text-sm font-medium text-gray-700">Start Date:</label>
-                    <input type="date" id="start-date-filter" name="start_date" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <input type="date" id="start-date-filter" name="start_date" value="{{ selected_start_date|default:'' }}" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
           </div>
                 <div>
                     <label for="end-date-filter" class="block text-sm font-medium text-gray-700">End Date:</label>
-                    <input type="date" id="end-date-filter" name="end_date" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <input type="date" id="end-date-filter" name="end_date" value="{{ selected_end_date|default:'' }}" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
         </div>
                 <div class="flex items-end">
                     <button type="button" id="clear-filters-btn" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-gray-500 focus:border-gray-500">Clear Filters</button>
@@ -241,11 +238,10 @@ let filteredProjects = [];
 function normalizeStatus(status) {
     if (!status) return '';
     status = status.toLowerCase();
-    if (status === 'in_progress' || status === 'ongoing') return 'Ongoing';
-    if (status === 'planned' || status === 'pending') return 'Planned';
-    if (status === 'completed') return 'Completed';
-    if (status === 'delayed') return 'Delayed';
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    if (status === 'in_progress' || status === 'ongoing') return 'in_progress';
+    if (status === 'planned' || status === 'pending') return 'planned';
+    if (status === 'completed') return 'completed';
+    return status;
 }
 
     // Function to format date
@@ -295,7 +291,19 @@ function normalizeStatus(status) {
 
         filteredProjects = projects.filter(p => {
             const matchesBarangay = !barangay || (p.barangay && p.barangay.trim().toLowerCase() === barangay.trim().toLowerCase());
-            const matchesStatus = !status || normalizeStatus(p.status) === normalizeStatus(status);
+            
+            // Status matching - handle in_progress/ongoing
+            let matchesStatus = true;
+            if (status) {
+                const normalizedStatus = normalizeStatus(status);
+                const projectStatus = normalizeStatus(p.status);
+                if (normalizedStatus === 'in_progress') {
+                    matchesStatus = (projectStatus === 'in_progress' || projectStatus === 'ongoing');
+                } else {
+                    matchesStatus = (projectStatus === normalizedStatus);
+                }
+            }
+            
             let matchesDate = true;
             if (startDate && p.start_date) {
                 matchesDate = matchesDate && (new Date(p.start_date) >= new Date(startDate));

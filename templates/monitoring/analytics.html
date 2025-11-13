@@ -32,7 +32,7 @@
         </div>
 
         <!-- Stats Cards - Modern Gradient Design -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
             <div id="card-all" class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if not status_filter %}active{% endif %}" onclick="filterByStatus('all', this)">
                 <div class="flex items-center justify-between mb-3">
                     <div class="bg-white bg-opacity-20 rounded-lg p-2">
@@ -79,18 +79,6 @@
                 </div>
                 <div class="text-2xl font-bold mb-1">{{ planned_projects }}</div>
                 <div class="text-purple-100 text-xs font-medium">Planned</div>
-            </div>
-            
-            <div id="card-delayed" class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if status_filter == 'delayed' %}active{% endif %}" onclick="filterByStatus('delayed', this)">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-2xl font-bold mb-1">{{ delayed_projects }}</div>
-                <div class="text-red-100 text-xs font-medium">Delayed</div>
             </div>
         </div>
 

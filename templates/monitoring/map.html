@@ -150,23 +150,23 @@
             <!-- Filter Section (Above Map) -->
             <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                 <div id="filter-section">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <!-- Date Range -->
                         <div class="lg:col-span-2 grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">Start Date</label>
-                                <input id="start-date-filter" type="date" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" />
+                                <input id="start-date-filter" type="date" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" />
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">End Date</label>
-                                <input id="end-date-filter" type="date" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" />
+                                <input id="end-date-filter" type="date" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" />
                             </div>
                         </div>
                         
                         <!-- Barangay Filter -->
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Barangay</label>
-                            <select id="barangay-filter" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300">
+                            <select id="barangay-filter" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300">
                                 <option value="">All Barangays</option>
                                 <option value="Apokon">Apokon</option>
                                 <option value="Bincungan">Bincungan</option>
@@ -195,19 +195,19 @@
                         </div>
                         
                         <!-- Status Filters and Add Project Button -->
-                        <div>
+                        <div class="lg:col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                             <div class="flex gap-3 items-center">
-                                <div class="flex gap-2 flex-1">
-                                    <button id="btn-completed" class="flex-1 px-3 py-2.5 rounded-lg font-semibold border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all text-sm h-[42px]">Completed</button>
-                                    <button id="btn-ongoing" class="flex-1 px-3 py-2.5 rounded-lg font-semibold border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all text-sm h-[42px]">Ongoing</button>
-                                    <button id="btn-planned" class="flex-1 px-3 py-2.5 rounded-lg font-semibold border-2 border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 transition-all text-sm h-[42px]">Planned</button>
+                                <div class="flex gap-2 flex-1 min-w-0">
+                                    <button id="btn-completed" class="flex-1 px-4 py-3 rounded-lg font-semibold border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all text-base h-[45px] whitespace-nowrap">Completed</button>
+                                    <button id="btn-ongoing" class="flex-1 px-4 py-3 rounded-lg font-semibold border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all text-base h-[45px] whitespace-nowrap">In Progress</button>
+                                    <button id="btn-planned" class="flex-1 px-4 py-3 rounded-lg font-semibold border-2 border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 transition-all text-base h-[45px] whitespace-nowrap">Planned</button>
                                 </div>
-                                <button id="add-project-btn" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg text-sm h-[42px] min-w-fit flex-shrink-0">
-                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button id="add-project-btn" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg text-base h-[45px] flex-shrink-0 whitespace-nowrap">
+                                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
-                                    <span class="whitespace-nowrap">Add Project</span>
+                                    <span>Add Project</span>
                                 </button>
                             </div>
                         </div>
