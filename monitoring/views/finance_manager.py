@@ -145,10 +145,13 @@ def finance_projects(request):
         return render(request, 'finance_manager/finance_projects.html', context)
     except Exception as e:
         logger.error(f"Error in finance_projects view: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
         from django.contrib import messages
-        from django.shortcuts import redirect
+        from django.http import HttpResponseServerError
         messages.error(request, f"Error loading projects: {str(e)}")
-        return redirect('finance_dashboard')
+        # Return error page instead of redirecting to avoid losing error context
+        return HttpResponseServerError(f"Server Error: {str(e)}. Please check server logs for details.")
 
 @login_required
 @finance_manager_required
@@ -240,10 +243,13 @@ def finance_cost_management(request):
         return render(request, 'finance_manager/finance_cost_management.html', context)
     except Exception as e:
         logger.error(f"Error in finance_cost_management view: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
         from django.contrib import messages
-        from django.shortcuts import redirect
+        from django.http import HttpResponseServerError
         messages.error(request, f"Error loading finance management: {str(e)}")
-        return redirect('finance_dashboard')
+        # Return error page instead of redirecting to avoid losing error context
+        return HttpResponseServerError(f"Server Error: {str(e)}. Please check server logs for details.")
 
 @login_required
 @finance_manager_required
