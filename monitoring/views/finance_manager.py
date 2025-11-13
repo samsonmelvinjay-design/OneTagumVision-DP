@@ -46,7 +46,7 @@ def finance_dashboard(request):
         .annotate(total=Sum('amount'))
         .order_by('month')
     )
-    months = [m['month'].strftime('%b %Y') for m in monthly_spending]
+    months = [m['month'].strftime('%b %Y') if m['month'] else 'Unknown' for m in monthly_spending]
     monthly_totals = [float(m['total']) for m in monthly_spending]
     cumulative = []
     running = 0
