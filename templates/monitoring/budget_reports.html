@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% block content %}
 <style>
 @media print {
@@ -11,10 +12,13 @@
   .section { page-break-inside: avoid; }
 }
 </style>
-<div class="container mx-auto px-4 py-8 bg-gray-100 min-h-screen">
-  <div class="flex items-center justify-between mb-6 no-print">
-    <h1 class="text-3xl font-bold text-gray-800">Budget Reports</h1>
-    <div class="flex justify-end mb-6">
+<div class="container mx-auto px-4 py-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 no-print gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-1">Budget Reports</h1>
+      <p class="text-sm text-gray-600">Comprehensive financial overview of all projects</p>
+    </div>
+    <div class="flex justify-end">
       <div class="relative inline-block text-left">
         <button id="export-dropdown-btn" type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-blue-600 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" aria-haspopup="true" aria-expanded="true">
           Export
@@ -35,36 +39,76 @@
   </div>
 
   <!-- Summary Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-xl shadow p-6">
-      <div class="text-sm text-gray-600 font-semibold mb-2">Total Budget</div>
-      <div class="text-3xl font-bold text-blue-700">₱{{ total_budget_sum|floatformat:2 }}</div>
-      <div class="text-xs text-gray-500 mt-1">{{ project_data|length }} project{{ project_data|length|pluralize }}</div>
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg border border-blue-200 p-6 hover:shadow-xl transition-shadow">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm text-blue-700 font-semibold uppercase tracking-wide">Total Budget</div>
+        <svg class="w-8 h-8 text-blue-500 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <div class="text-3xl font-bold text-blue-900 mb-1">₱{{ total_budget_sum|floatformat:2|intcomma }}</div>
+      <div class="text-xs text-blue-600 font-medium">{{ project_data|length }} project{{ project_data|length|pluralize }}</div>
     </div>
     
-    <div class="bg-white rounded-xl shadow p-6">
-      <div class="text-sm text-gray-600 font-semibold mb-2">Total Spent</div>
-      <div class="text-3xl font-bold text-orange-600">₱{{ total_spent_sum|floatformat:2 }}</div>
-      <div class="text-xs text-gray-500 mt-1">Remaining: ₱{{ total_remaining_sum|floatformat:2 }}</div>
+    <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-shadow">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm text-orange-700 font-semibold uppercase tracking-wide">Total Spent</div>
+        <svg class="w-8 h-8 text-orange-500 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+      </div>
+      <div class="text-3xl font-bold text-orange-900 mb-1">₱{{ total_spent_sum|floatformat:2|intcomma }}</div>
+      <div class="text-xs text-orange-600 font-medium">Remaining: ₱{{ total_remaining_sum|floatformat:2|intcomma }}</div>
     </div>
     
-    <div class="bg-white rounded-xl shadow p-6">
-      <div class="text-sm text-gray-600 font-semibold mb-2">Over Budget Projects</div>
-      <div class="text-3xl font-bold text-red-600">{{ over_count }}</div>
+    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg border border-red-200 p-6 hover:shadow-xl transition-shadow">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm text-red-700 font-semibold uppercase tracking-wide">Over Budget</div>
+        <svg class="w-8 h-8 text-red-500 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+      </div>
+      <div class="text-3xl font-bold text-red-900 mb-1">{{ over_count }}</div>
       {% if over_count > 0 %}
-      <div class="mt-2 text-xs text-red-600 font-semibold">⚠️ Requires Attention</div>
+      <div class="mt-2 text-xs text-red-700 font-semibold flex items-center">
+        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+        </svg>
+        Requires Attention
+      </div>
       {% else %}
-      <div class="mt-2 text-xs text-green-600 font-semibold">✓ All within budget</div>
+      <div class="mt-2 text-xs text-green-700 font-semibold flex items-center">
+        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        All within budget
+      </div>
       {% endif %}
     </div>
     
-    <div class="bg-white rounded-xl shadow p-6">
-      <div class="text-sm text-gray-600 font-semibold mb-2">At Risk Projects</div>
-      <div class="text-3xl font-bold text-yellow-600">{{ at_risk_count }}</div>
+    <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl shadow-lg border border-yellow-200 p-6 hover:shadow-xl transition-shadow">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm text-yellow-700 font-semibold uppercase tracking-wide">At Risk</div>
+        <svg class="w-8 h-8 text-yellow-500 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+      </div>
+      <div class="text-3xl font-bold text-yellow-900 mb-1">{{ at_risk_count }}</div>
       {% if at_risk_count > 0 %}
-      <div class="mt-2 text-xs text-yellow-600 font-semibold">⚠️ 90%+ utilization</div>
+      <div class="mt-2 text-xs text-yellow-700 font-semibold flex items-center">
+        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+        </svg>
+        90%+ utilization
+      </div>
       {% else %}
-      <div class="mt-2 text-xs text-green-600 font-semibold">✓ All safe</div>
+      <div class="mt-2 text-xs text-green-700 font-semibold flex items-center">
+        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        All safe
+      </div>
       {% endif %}
     </div>
   </div>
@@ -88,51 +132,122 @@
   </div>
   {% endif %}
 
-  <div class="bg-white rounded-xl shadow p-6 mb-8 overflow-x-auto">
-    <table class="w-full min-w-[900px] divide-y divide-gray-200 text-sm">
-      <thead class="bg-gray-50">
+  <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8 overflow-x-auto">
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-gray-800">Project Budget Details</h2>
+      <p class="text-sm text-gray-600 mt-1">Comprehensive budget overview for all projects</p>
+    </div>
+    <table class="w-full min-w-[1200px] divide-y divide-gray-200 text-sm">
+      <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
         <tr>
-          <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">PRN #</th>
-          <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Project</th>
-          <th class="px-3 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Barangay</th>
-          <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Budget</th>
-          <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Spent</th>
-          <th class="px-3 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Remaining</th>
-          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Utilization</th>
-          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Over/Under</th>
-          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-          <th class="px-3 py-3 text-center font-semibold text-gray-700 uppercase tracking-wider">Cost Breakdown</th>
+          <th class="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-wider text-xs">PRN #</th>
+          <th class="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-wider text-xs">Project</th>
+          <th class="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-wider text-xs">Barangay</th>
+          <th class="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-wider text-xs">Assigned Engineers</th>
+          <th class="px-4 py-4 text-right font-bold text-gray-700 uppercase tracking-wider text-xs">Budget</th>
+          <th class="px-4 py-4 text-right font-bold text-gray-700 uppercase tracking-wider text-xs">Spent</th>
+          <th class="px-4 py-4 text-right font-bold text-gray-700 uppercase tracking-wider text-xs">Remaining</th>
+          <th class="px-4 py-4 text-center font-bold text-gray-700 uppercase tracking-wider text-xs">Utilization</th>
+          <th class="px-4 py-4 text-center font-bold text-gray-700 uppercase tracking-wider text-xs">Over/Under</th>
+          <th class="px-4 py-4 text-center font-bold text-gray-700 uppercase tracking-wider text-xs">Status</th>
+          <th class="px-4 py-4 text-center font-bold text-gray-700 uppercase tracking-wider text-xs">Cost Breakdown</th>
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
         {% for p in project_data %}
-        <tr>
-          <td class="px-3 py-3">{{ p.prn }}</td>
-          <td class="px-3 py-3 font-semibold text-blue-900">{{ p.name }}</td>
-          <td class="px-3 py-3">{{ p.barangay }}</td>
-          <td class="px-3 py-3 text-right">₱{{ p.budget|floatformat:2 }}</td>
-          <td class="px-3 py-3 text-right">₱{{ p.spent|floatformat:2 }}</td>
-          <td class="px-3 py-3 text-right">₱{{ p.remaining|floatformat:2 }}</td>
-          <td class="px-3 py-3 text-center">{{ p.utilization|floatformat:1 }}%</td>
-          <td class="px-3 py-3 text-center">
-            {% if p.over_under == 'Over' %}
-              <span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Over</span>
+        <tr class="hover:bg-blue-50 transition-colors duration-150">
+          <td class="px-4 py-4 whitespace-nowrap">
+            <span class="text-gray-700 font-medium">{{ p.prn|default:"—" }}</span>
+          </td>
+          <td class="px-4 py-4">
+            <div class="font-semibold text-blue-900">{{ p.name }}</div>
+          </td>
+          <td class="px-4 py-4">
+            <span class="text-gray-700">{{ p.barangay|default:"—" }}</span>
+          </td>
+          <td class="px-4 py-4">
+            {% if p.assigned_engineers %}
+              <div class="flex flex-wrap gap-1">
+                {% for engineer in p.assigned_engineers|slice:":2" %}
+                  <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ engineer }}
+                  </span>
+                {% endfor %}
+                {% if p.engineer_count > 2 %}
+                  <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
+                    +{{ p.engineer_count|add:"-2" }} more
+                  </span>
+                {% endif %}
+              </div>
             {% else %}
-              <span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Under</span>
+              <span class="text-gray-400 text-xs">No engineers assigned</span>
             {% endif %}
           </td>
-          <td class="px-3 py-3 text-center">{{ p.status|title }}</td>
-          <td class="px-3 py-3 text-center">
-            {% for c in p.cost_breakdown %}
-              <div>{{ c.cost_type|title }}: ₱{{ c.total|floatformat:2 }}</div>
-            {% empty %}
-              <div class="text-gray-400">No costs</div>
-            {% endfor %}
+          <td class="px-4 py-4 text-right whitespace-nowrap">
+            <span class="font-semibold text-gray-900">₱{{ p.budget|floatformat:2 }}</span>
+          </td>
+          <td class="px-4 py-4 text-right whitespace-nowrap">
+            <span class="font-semibold text-orange-600">₱{{ p.spent|floatformat:2 }}</span>
+          </td>
+          <td class="px-4 py-4 text-right whitespace-nowrap">
+            {% if p.remaining < 0 %}
+              <span class="font-semibold text-red-600">₱{{ p.remaining|floatformat:2 }}</span>
+            {% else %}
+              <span class="font-semibold text-green-600">₱{{ p.remaining|floatformat:2 }}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-4 text-center">
+            <div class="flex flex-col items-center">
+              <span class="font-semibold {% if p.utilization >= 100 %}text-red-600{% elif p.utilization >= 95 %}text-orange-600{% elif p.utilization >= 80 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                {{ p.utilization|floatformat:1 }}%
+              </span>
+              <div class="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {% if p.utilization >= 100 %}bg-red-600{% elif p.utilization >= 95 %}bg-orange-500{% elif p.utilization >= 80 %}bg-yellow-500{% else %}bg-green-500{% endif %}" 
+                     style="width: {% if p.utilization > 100 %}100{% else %}{{ p.utilization|floatformat:0 }}{% endif %}%"></div>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 text-center">
+            {% if p.over_under == 'Over' %}
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                Over
+              </span>
+            {% else %}
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                Under
+              </span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-4 text-center">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium
+              {% if p.status == 'completed' %}bg-green-100 text-green-800
+              {% elif p.status == 'in_progress' or p.status == 'ongoing' %}bg-blue-100 text-blue-800
+              {% elif p.status == 'planned' or p.status == 'pending' %}bg-yellow-100 text-yellow-800
+              {% elif p.status == 'delayed' %}bg-red-100 text-red-800
+              {% else %}bg-gray-100 text-gray-800{% endif %}">
+              {{ p.status|title }}
+            </span>
+          </td>
+          <td class="px-4 py-4 text-center">
+            <button onclick="showCostBreakdownModal({{ forloop.counter0 }})" 
+                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              View Details
+            </button>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="9" class="text-center py-6 text-gray-400">No projects found.</td>
+          <td colspan="11" class="text-center py-12 text-gray-400">
+            <div class="flex flex-col items-center">
+              <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <p class="text-lg font-medium">No projects found.</p>
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -215,6 +330,106 @@
     document.addEventListener('click', function() {
       menu.classList.add('hidden');
     });
+
+    // Cost Breakdown Modal Functions
+    const projectData = {{ project_data_json|safe }};
+    
+    function showCostBreakdownModal(index) {
+      const project = projectData[index];
+      const modal = document.getElementById('costBreakdownModal');
+      const modalContent = document.getElementById('costBreakdownContent');
+      
+      // Build modal content
+      let html = `
+        <div class="mb-4">
+          <h3 class="text-lg font-bold text-gray-900 mb-1">${project.name}</h3>
+          <p class="text-sm text-gray-600">PRN: ${project.prn || 'N/A'} | ${project.barangay || 'N/A'}</p>
+        </div>
+        <div class="grid grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+          <div>
+            <p class="text-xs text-gray-600 mb-1">Budget</p>
+            <p class="text-sm font-semibold text-gray-900">₱${parseFloat(project.budget).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-600 mb-1">Spent</p>
+            <p class="text-sm font-semibold text-orange-600">₱${parseFloat(project.spent).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-600 mb-1">Utilization</p>
+            <p class="text-sm font-semibold ${project.utilization >= 100 ? 'text-red-600' : project.utilization >= 95 ? 'text-orange-600' : project.utilization >= 80 ? 'text-yellow-600' : 'text-green-600'}">${parseFloat(project.utilization).toFixed(1)}%</p>
+          </div>
+        </div>
+        <div class="border-t border-gray-200 pt-4">
+          <h4 class="text-sm font-semibold text-gray-700 mb-3">Cost Breakdown by Type</h4>
+      `;
+      
+      if (project.cost_breakdown && project.cost_breakdown.length > 0) {
+        html += '<div class="space-y-2">';
+        let total = 0;
+        project.cost_breakdown.forEach(function(cost) {
+          total += parseFloat(cost.total);
+          html += `
+            <div class="flex justify-between items-center p-2 bg-white rounded border border-gray-200 hover:bg-gray-50">
+              <span class="text-sm font-medium text-gray-700">${cost.cost_type}</span>
+              <span class="text-sm font-semibold text-gray-900">₱${parseFloat(cost.total).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            </div>
+          `;
+        });
+        html += '</div>';
+        html += `
+          <div class="mt-4 pt-3 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-bold text-gray-900">Total</span>
+              <span class="text-base font-bold text-blue-600">₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="text-center py-8 text-gray-400">
+            <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-sm">No cost entries recorded</p>
+          </div>
+        `;
+      }
+      
+      html += '</div>';
+      modalContent.innerHTML = html;
+      modal.classList.remove('hidden');
+    }
+
+    function hideCostBreakdownModal() {
+      document.getElementById('costBreakdownModal').classList.add('hidden');
+    }
+
+    // Close modal when clicking outside
+    const costModal = document.getElementById('costBreakdownModal');
+    if (costModal) {
+      costModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+          hideCostBreakdownModal();
+        }
+      });
+    }
   });
 </script>
+
+<!-- Cost Breakdown Modal -->
+<div id="costBreakdownModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+      <h3 class="text-lg font-bold text-gray-900">Cost Breakdown</h3>
+      <button onclick="hideCostBreakdownModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div id="costBreakdownContent" class="p-6">
+      <!-- Content will be dynamically inserted here -->
+    </div>
+  </div>
+</div>
 {% endblock %} 

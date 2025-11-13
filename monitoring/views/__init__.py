@@ -634,6 +634,11 @@ def budget_reports(request):
         cost_breakdown = [
             {'cost_type': k, 'total': v} for k, v in cost_breakdown_map.items()
         ]
+        
+        # Get assigned engineers
+        assigned_engineers = p.assigned_engineers.all()
+        engineer_names = [eng.get_full_name() or eng.username for eng in assigned_engineers]
+        
         project_data.append({
             'id': p.id,
             'name': p.name,
@@ -648,11 +653,14 @@ def budget_reports(request):
             'utilization': utilization,
             'over_under': over_under,
             'cost_breakdown': cost_breakdown,
+            'assigned_engineers': engineer_names,
+            'engineer_count': len(engineer_names),
         })
         project_names.append(p.name)
         utilizations.append(utilization)
     context = {
         'project_data': project_data,
+        'project_data_json': json.dumps(project_data),  # For JavaScript modal
         'project_names': json.dumps(project_names),
         'utilizations': json.dumps(utilizations),
         'over_count': over_count,
