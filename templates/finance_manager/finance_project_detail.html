@@ -1,22 +1,65 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% block content %}
 <div class="container mx-auto p-6">
     <h1 class="text-2xl font-bold mb-4">Project Financial Details</h1>
     <div class="bg-white rounded-xl shadow p-6 mb-6">
         <h2 class="text-xl font-semibold mb-2">{{ project.name }}</h2>
+        {% if project.prn %}<div class="mb-2"><span class="font-semibold">PRN:</span> {{ project.prn }}</div>{% endif %}
         <div class="mb-2"><span class="font-semibold">Barangay:</span> {{ project.barangay }}</div>
-        <div class="mb-2"><span class="font-semibold">Approved Budget:</span> ₱{{ project.project_cost|floatformat:2 }}</div>
-        <div class="mb-2"><span class="font-semibold">Total Spent:</span> ₱{{ total_spent|floatformat:2 }}</div>
-        <div class="mb-2"><span class="font-semibold">Remaining:</span> ₱{{ remaining|floatformat:2 }}</div>
+        <div class="mb-2"><span class="font-semibold">Approved Budget:</span> ₱{{ project.project_cost|floatformat:2|intcomma }}</div>
+        <div class="mb-2"><span class="font-semibold">Total Spent:</span> ₱{{ total_spent|floatformat:2|intcomma }}</div>
+        <div class="mb-2"><span class="font-semibold">Remaining:</span> 
+            <span class="{% if remaining < 0 %}text-red-700 font-bold{% elif remaining < project_budget|mul:0.2 %}text-yellow-600 font-bold{% else %}text-green-700 font-bold{% endif %}">
+                ₱{{ remaining|floatformat:2|intcomma }}
+            </span>
+        </div>
+        <div class="mb-4">
+            <span class="font-semibold">Budget Utilization:</span>
+            <div class="mt-2">
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div class="h-4 rounded-full {% if budget_utilization >= 100 %}bg-red-600{% elif budget_utilization >= 80 %}bg-orange-500{% elif budget_utilization >= 50 %}bg-yellow-500{% else %}bg-green-500{% endif %}" 
+                         style="width: {{ budget_utilization|floatformat:1 }}%"></div>
+                </div>
+                <span class="text-sm {% if budget_utilization >= 100 %}text-red-700 font-bold{% elif budget_utilization >= 80 %}text-orange-600 font-bold{% elif budget_utilization >= 50 %}text-yellow-600{% else %}text-green-700{% endif %}">
+                    {{ budget_utilization|floatformat:1 }}%
+                </span>
+            </div>
+        </div>
         <div class="mb-2"><span class="font-semibold">Status:</span>
             {% if total_spent > project.project_cost %}
                 <span class="text-red-700 font-bold">Over Budget</span>
-            {% elif total_spent == project.project_cost %}
-                <span class="text-green-700 font-bold">Within Budget</span>
+            {% elif budget_utilization >= 80 %}
+                <span class="text-orange-600 font-bold">At Risk ({{ budget_utilization|floatformat:1 }}% utilized)</span>
             {% else %}
-                <span class="text-yellow-600 font-bold">Under Budget</span>
+                <span class="text-green-700 font-bold">Within Budget</span>
             {% endif %}
         </div>
+        
+        <!-- Budget Approval/Rejection Actions (only show if utilization >= 80%) -->
+        {% if budget_utilization >= 80 %}
+        <div class="mt-6 pt-6 border-t-2 border-gray-300">
+            <h3 class="text-lg font-semibold mb-4">Budget Management Actions</h3>
+            <div class="flex gap-4">
+                <button type="button" 
+                        onclick="showApproveBudgetModal()"
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center justify-center font-semibold shadow-lg hover:shadow-xl">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Approve Budget Increase
+                </button>
+                <button type="button" 
+                        onclick="showRejectBudgetModal()"
+                        class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center justify-center font-semibold shadow-lg hover:shadow-xl">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Reject Budget Request
+                </button>
+            </div>
+        </div>
+        {% endif %}
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow p-6">
@@ -65,4 +108,175 @@
         <a href="{% url 'finance_cost_management' %}" class="text-blue-600 underline">&larr; Back to Finance Management</a>
     </div>
 </div>
+
+<!-- Approve Budget Modal -->
+<div id="approveBudgetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" style="display: none;">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">Approve Budget Increase</h3>
+            <button onclick="hideApproveBudgetModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'approve_budget_request' project_id=project.id %}">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Current Budget: <span class="font-semibold">₱{{ project.project_cost|floatformat:2|intcomma }}</span>
+                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Current Utilization: <span class="font-semibold {% if budget_utilization >= 100 %}text-red-600{% elif budget_utilization >= 80 %}text-orange-600{% else %}text-yellow-600{% endif %}">
+                        {{ budget_utilization|floatformat:1 }}%
+                    </span>
+                </label>
+            </div>
+            <div class="mb-4">
+                <label for="approved_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                    Approved Budget Increase Amount (₱):
+                </label>
+                <input type="number" 
+                       id="approved_amount" 
+                       name="approved_amount" 
+                       step="0.01" 
+                       min="0.01"
+                       required
+                       placeholder="Enter amount to add to budget"
+                       class="w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+            </div>
+            <div class="mb-4">
+                <label for="approval_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                    Notes (optional):
+                </label>
+                <textarea id="approval_notes" 
+                          name="notes" 
+                          rows="3" 
+                          placeholder="Add any notes or comments about this approval..."
+                          class="w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                    Approve
+                </button>
+                <button type="button" 
+                        onclick="hideApproveBudgetModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reject Budget Modal -->
+<div id="rejectBudgetModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" style="display: none;">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">Reject Budget Request</h3>
+            <button onclick="hideRejectBudgetModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <form method="post" action="{% url 'reject_budget_request' project_id=project.id %}">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Current Budget: <span class="font-semibold">₱{{ project.project_cost|floatformat:2|intcomma }}</span>
+                </label>
+                <p class="text-sm text-gray-600 mb-4">
+                    The budget will remain unchanged. Head Engineers will be notified of the rejection.
+                </p>
+            </div>
+            <div class="mb-4">
+                <label for="rejection_reason" class="block text-sm font-medium text-gray-700 mb-2">
+                    Rejection Reason (optional but recommended):
+                </label>
+                <textarea id="rejection_reason" 
+                          name="rejection_reason" 
+                          rows="4" 
+                          placeholder="Explain why the budget increase request is being rejected..."
+                          class="w-full border rounded-md p-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition">
+                    Reject Request
+                </button>
+                <button type="button" 
+                        onclick="hideRejectBudgetModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Approve Budget Modal Functions
+window.showApproveBudgetModal = function() {
+    const modal = document.getElementById('approveBudgetModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    } else {
+        console.error('Approve budget modal not found!');
+    }
+};
+
+window.hideApproveBudgetModal = function() {
+    const modal = document.getElementById('approveBudgetModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+};
+
+// Reject Budget Modal Functions
+window.showRejectBudgetModal = function() {
+    const modal = document.getElementById('rejectBudgetModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    } else {
+        console.error('Reject budget modal not found!');
+    }
+};
+
+window.hideRejectBudgetModal = function() {
+    const modal = document.getElementById('rejectBudgetModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+};
+
+// Close modals when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+    const approveModal = document.getElementById('approveBudgetModal');
+    const rejectModal = document.getElementById('rejectBudgetModal');
+    
+    if (approveModal) {
+        approveModal.addEventListener('click', function(e) {
+            if (e.target === approveModal) {
+                hideApproveBudgetModal();
+            }
+        });
+    }
+    
+    if (rejectModal) {
+        rejectModal.addEventListener('click', function(e) {
+            if (e.target === rejectModal) {
+                hideRejectBudgetModal();
+            }
+        });
+    }
+});
+</script>
 {% endblock %} 

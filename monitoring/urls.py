@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from monitoring.views.finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications, finance_project_detail
+from monitoring.views.budget_approval import approve_budget_request, reject_budget_request
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),  # Changed: /dashboard/ now goes directly to dashboard
@@ -39,6 +40,8 @@ urlpatterns = [
     path('finance/cost-management/', views.finance_cost_management, name='finance_cost_management'),
     path('finance/notifications/', views.finance_notifications, name='finance_notifications'),
     path('finance/project/<int:project_id>/', finance_project_detail, name='finance_project_detail'),
+    path('finance/project/<int:project_id>/approve-budget/', approve_budget_request, name='approve_budget_request'),
+    path('finance/project/<int:project_id>/reject-budget/', reject_budget_request, name='reject_budget_request'),
     
     # Engineer Management URLs
     path('engineers/', views.engineer_list, name='engineer_list'),
