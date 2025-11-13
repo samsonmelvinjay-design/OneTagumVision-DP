@@ -81,9 +81,11 @@
                             <div class="text-sm font-semibold text-green-700">₱{{ proj.spent|floatformat:2|intcomma }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold {% if proj.remaining < 0 %}text-red-700{% elif proj.remaining < proj.budget|floatformat:0|add:0|mul:0.2|floatformat:0|add:0 %}text-yellow-600{% else %}text-green-700{% endif %}">
+                            {% with threshold=proj.budget|mul:0.2 %}
+                            <div class="text-sm font-semibold {% if proj.remaining < 0 %}text-red-700{% elif proj.remaining < threshold %}text-yellow-600{% else %}text-green-700{% endif %}">
                                 ₱{{ proj.remaining|floatformat:2|intcomma }}
                             </div>
+                            {% endwith %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
