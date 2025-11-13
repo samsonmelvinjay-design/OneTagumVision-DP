@@ -401,10 +401,39 @@ def map_view(request):
         projects = Project.objects.none()
     # Only include projects with coordinates
     projects_with_coords = projects.filter(latitude__isnull=False, longitude__isnull=False).prefetch_related('assigned_engineers')
+    
+    # Get latest progress for all projects
+    from django.db.models import Max
+    project_ids = [p.id for p in projects_with_coords]
+    latest_progress = {}
+    if project_ids:
+        from projeng.models import ProjectProgress
+        latest_progress_qs = ProjectProgress.objects.filter(
+            project_id__in=project_ids
+        ).values('project_id').annotate(
+            latest_date=Max('date'),
+            latest_created=Max('created_at')
+        )
+        for item in latest_progress_qs:
+            latest = ProjectProgress.objects.filter(
+                project_id=item['project_id'],
+                date=item['latest_date'],
+                created_at=item['latest_created']
+            ).order_by('-created_at').first()
+            if latest and latest.percentage_complete is not None:
+                latest_progress[item['project_id']] = int(latest.percentage_complete)
+    
     projects_data = []
     for p in projects_with_coords:
         # Get assigned engineers as a list of usernames
         assigned_engineers = [eng.username for eng in p.assigned_engineers.all()]
+        # Get progress - prefer latest progress update, fallback to project.progress field
+        progress_value = latest_progress.get(p.id)
+        if progress_value is None:
+            progress_value = getattr(p, 'progress', 0)
+            if progress_value is None:
+                progress_value = 0
+        
         projects_data.append({
             'id': p.id,
             'name': p.name,
@@ -419,7 +448,7 @@ def map_view(request):
             'start_date': str(p.start_date) if p.start_date else "",
             'end_date': str(p.end_date) if p.end_date else "",
             'image': p.image.url if p.image else "",
-            'progress': getattr(p, 'progress', 0),
+            'progress': progress_value,
             'assigned_engineers': assigned_engineers,
         })
     return render(request, 'monitoring/map.html', {'projects_data': projects_data})
