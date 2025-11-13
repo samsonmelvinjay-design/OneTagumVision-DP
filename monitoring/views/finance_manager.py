@@ -169,11 +169,8 @@ def finance_projects(request):
         logger.error(f"Error in finance_projects view: {str(e)}", exc_info=True)
         import traceback
         logger.error(traceback.format_exc())
-        from django.contrib import messages
-        from django.http import HttpResponseServerError
-        messages.error(request, f"Error loading projects: {str(e)}")
-        # Return error page instead of redirecting to avoid losing error context
-        return HttpResponseServerError(f"Server Error: {str(e)}. Please check server logs for details.")
+        # Re-raise the exception so Django's error handling can show the actual error
+        raise
 
 @login_required
 @finance_manager_required
@@ -267,11 +264,8 @@ def finance_cost_management(request):
         logger.error(f"Error in finance_cost_management view: {str(e)}", exc_info=True)
         import traceback
         logger.error(traceback.format_exc())
-        from django.contrib import messages
-        from django.http import HttpResponseServerError
-        messages.error(request, f"Error loading finance management: {str(e)}")
-        # Return error page instead of redirecting to avoid losing error context
-        return HttpResponseServerError(f"Server Error: {str(e)}. Please check server logs for details.")
+        # Re-raise the exception so Django's error handling can show the actual error
+        raise
 
 @login_required
 @finance_manager_required
