@@ -11,6 +11,17 @@
 
     <!-- Filters Section -->
     <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6 no-print">
+      <!-- Date Range Presets -->
+      <div class="mb-4 pb-4 border-b border-gray-200">
+        <label class="block text-xs font-semibold text-gray-600 mb-2">Quick Date Range</label>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setDateRange('7days')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded-lg transition-colors">Last 7 Days</button>
+          <button onclick="setDateRange('30days')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded-lg transition-colors">Last 30 Days</button>
+          <button onclick="setDateRange('month')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded-lg transition-colors">This Month</button>
+          <button onclick="setDateRange('year')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded-lg transition-colors">This Year</button>
+          <button onclick="setDateRange('all')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded-lg transition-colors">All Time</button>
+        </div>
+      </div>
       <div class="flex flex-col lg:flex-row lg:items-end gap-4">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 flex-1">
           <div>
@@ -65,16 +76,30 @@
             <input id="filter-search" type="text" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" placeholder="Search projects...">
           </div>
         </div>
-        <div class="relative">
-          <button id="export-btn" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-base font-semibold shadow-md transition-all duration-200 hover:shadow-lg">
+        <div class="flex gap-3">
+          <button id="view-project-list-btn" class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-base font-semibold shadow-md transition-all duration-200 hover:shadow-lg">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
             </svg>
-            Export
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
+            View Project List
+            <span id="project-count-badge" class="bg-white bg-opacity-20 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
           </button>
+          <button onclick="clearAllFilters()" class="inline-flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-5 py-2.5 rounded-lg text-base font-semibold shadow-md transition-all duration-200 hover:shadow-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Clear Filters
+          </button>
+          <div class="relative">
+            <button id="export-btn" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-base font-semibold shadow-md transition-all duration-200 hover:shadow-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Export
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
           <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
             <a href="{% url 'export_reports_pdf' %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
               <div class="flex items-center gap-2">
@@ -171,6 +196,54 @@
           </div>
           <div class="text-2xl font-bold mb-1">0</div>
           <div class="text-red-100 text-xs font-medium">Delayed</div>
+        </div>
+      </div>
+
+      <!-- Budget Metrics Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div class="bg-white bg-opacity-20 rounded-lg p-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold mb-1">₱{{ total_budget|floatformat:0|intcomma }}</div>
+          <div class="text-indigo-100 text-xs font-medium">Total Budget</div>
+        </div>
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div class="bg-white bg-opacity-20 rounded-lg p-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold mb-1">₱{{ total_spent|floatformat:0|intcomma }}</div>
+          <div class="text-orange-100 text-xs font-medium">Total Spent</div>
+        </div>
+        <div class="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div class="bg-white bg-opacity-20 rounded-lg p-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold mb-1">₱{{ remaining_budget|floatformat:0|intcomma }}</div>
+          <div class="text-teal-100 text-xs font-medium">Remaining Budget</div>
+        </div>
+        <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div class="bg-white bg-opacity-20 rounded-lg p-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="text-2xl font-bold mb-1">{{ budget_utilization|floatformat:1 }}%</div>
+          <div class="text-pink-100 text-xs font-medium">Budget Utilization</div>
         </div>
       </div>
 
@@ -402,6 +475,12 @@ function filterAndRender() {
     document.querySelector('#card-ongoing span').textContent = filteredProjects.filter(p => normalizeStatus(p.status) === 'Ongoing').length;
     document.querySelector('#card-planned span').textContent = filteredProjects.filter(p => normalizeStatus(p.status) === 'Planned').length;
     document.querySelector('#card-delayed span').textContent = filteredProjects.filter(p => normalizeStatus(p.status) === 'Delayed').length;
+    
+    // Update project count badge
+    const projectCountBadge = document.getElementById('project-count-badge');
+    if (projectCountBadge) {
+        projectCountBadge.textContent = filteredProjects.length;
+    }
     // Update charts
     // Bar chart (status)
     const statusMap = {};
@@ -430,6 +509,74 @@ filterSearch.addEventListener('input', filterAndRender);
 
 // Initial render
 filterAndRender();
+
+// Date Range Preset Functions
+function setDateRange(range) {
+    const today = new Date();
+    const startDateInput = document.getElementById('filter-start-date');
+    const endDateInput = document.getElementById('filter-end-date');
+    
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    switch(range) {
+        case '7days':
+            startDate.setDate(today.getDate() - 7);
+            endDate = today;
+            break;
+        case '30days':
+            startDate.setDate(today.getDate() - 30);
+            endDate = today;
+            break;
+        case 'month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = today;
+            break;
+        case 'year':
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = today;
+            break;
+        case 'all':
+            startDate = null;
+            endDate = null;
+            break;
+    }
+    
+    if (startDate) {
+        startDateInput.value = startDate.toISOString().split('T')[0];
+    } else {
+        startDateInput.value = '';
+    }
+    
+    if (endDate) {
+        endDateInput.value = endDate.toISOString().split('T')[0];
+    } else {
+        endDateInput.value = '';
+    }
+    
+    filterAndRender();
+}
+
+// Clear All Filters Function
+function clearAllFilters() {
+    document.getElementById('filter-start-date').value = '';
+    document.getElementById('filter-end-date').value = '';
+    document.getElementById('filter-barangay').value = 'All Barangays';
+    document.getElementById('filter-status').value = 'All Status';
+    document.getElementById('filter-search').value = '';
+    filterAndRender();
+}
+
+// View Project List Button Handler
+const viewProjectListBtn = document.getElementById('view-project-list-btn');
+if (viewProjectListBtn) {
+    viewProjectListBtn.addEventListener('click', function() {
+        modalCurrentPage = 1;
+        renderModalTablePage(modalCurrentPage);
+        renderModalPagination();
+        projectListModal.classList.remove('hidden');
+    });
+}
 
 // Modal logic
 const projectListModal = document.getElementById('project-list-modal');

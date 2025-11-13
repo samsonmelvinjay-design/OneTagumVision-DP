@@ -458,10 +458,41 @@ def map_view(request):
 def reports(request):
     # This view is only accessible to Head Engineers and Finance Managers
     # Project Engineers are redirected by the decorator
+    from projeng.models import ProjectCost
+    
     if is_head_engineer(request.user) or is_finance_manager(request.user):
         projects = Project.objects.all()
     else:
         projects = Project.objects.none()
+    
+    # Calculate budget metrics
+    total_budget = 0
+    total_spent = 0
+    projects_with_budget = 0
+    
+    for p in projects:
+        if p.project_cost:
+            try:
+                total_budget += float(p.project_cost)
+                projects_with_budget += 1
+            except (ValueError, TypeError):
+                pass
+    
+    # Calculate total spent from ProjectCost
+    project_ids = [p.id for p in projects]
+    if project_ids:
+        costs = ProjectCost.objects.filter(project_id__in=project_ids)
+        for cost in costs:
+            try:
+                if cost.amount:
+                    total_spent += float(cost.amount)
+            except (ValueError, TypeError):
+                pass
+    
+    remaining_budget = total_budget - total_spent
+    budget_utilization = (total_spent / total_budget * 100) if total_budget > 0 else 0
+    avg_project_cost = (total_budget / len(projects)) if len(projects) > 0 else 0
+    
     # Prepare data for JS and summary cards
     projects_list = []
     status_map = defaultdict(int)
@@ -504,6 +535,11 @@ def reports(request):
         'barangay_labels': json.dumps(barangay_labels),
         'barangay_counts': json.dumps(barangay_counts),
         'projects_json': json.dumps(projects_list),
+        'total_budget': total_budget,
+        'total_spent': total_spent,
+        'remaining_budget': remaining_budget,
+        'budget_utilization': budget_utilization,
+        'avg_project_cost': avg_project_cost,
     }
     return render(request, 'monitoring/reports.html', context)
 
