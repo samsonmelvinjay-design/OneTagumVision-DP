@@ -608,7 +608,7 @@
                 </svg>
             </button>
         </div>
-        <form method="post" action="{% url 'projeng:send_budget_alert' project.pk %}">
+        <form method="post" action="{% url 'projeng:send_budget_alert' project_id=project.pk %}">
             {% csrf_token %}
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
