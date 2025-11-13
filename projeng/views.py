@@ -2435,13 +2435,32 @@ def send_budget_alert(request, project_id):
             custom_message = request.POST.get('message', '').strip()
             
             # Send notification
-            notify_head_engineer_about_budget_concern(
-                project=project,
-                sender_user=request.user,
-                message=custom_message if custom_message else None
-            )
+            try:
+                notify_head_engineer_about_budget_concern(
+                    project=project,
+                    sender_user=request.user,
+                    message=custom_message if custom_message else None
+                )
+                
+                # Verify notifications were created
+                from django.contrib.auth.models import User
+                from .models import Notification
+                head_engineers = User.objects.filter(groups__name='Head Engineer').distinct()
+                recent_notifications = Notification.objects.filter(
+                    recipient__in=head_engineers,
+                    message__icontains=project.name,
+                    created_at__gte=django_timezone.now() - timedelta(seconds=5)
+                ).count()
+                
+                if recent_notifications > 0:
+                    messages.success(request, f"Budget alert sent to {recent_notifications} Head Engineer(s) for project '{project.name}'.")
+                else:
+                    messages.warning(request, f"Budget alert submitted, but no Head Engineers were found to notify. Please ensure at least one user is in the 'Head Engineer' group.")
+                
+            except Exception as e:
+                logging.error(f"Error sending budget alert notification: {str(e)}", exc_info=True)
+                messages.error(request, f"Error sending budget alert: {str(e)}")
             
-            messages.success(request, f"Budget alert sent to Head Engineers for project '{project.name}'.")
             return redirect('projeng:projeng_project_detail', pk=project_id)
         
         # GET request - show form (or handle via AJAX)
