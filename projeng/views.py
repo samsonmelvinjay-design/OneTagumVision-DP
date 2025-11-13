@@ -943,17 +943,110 @@ def project_analytics(request, pk):
             'days_elapsed': (timezone.now().date() - project.start_date).days if project.start_date else None,
             'total_days': (project.end_date - project.start_date).days if project.start_date and project.end_date else None,
         }
+        
+        # Calculate remaining_budget (used by template) - convert to float
+        remaining_budget = float(budget_remaining) if budget_remaining is not None else None
+        total_cost_float = float(total_cost)
+        over_budget_amount = abs(remaining_budget) if remaining_budget is not None and remaining_budget < 0 else 0
+        
+        # Build activity history log (simplified for analytics view)
+        activity_log = []
+        # Add project creation
+        if project.created_at:
+            activity_log.append({
+                'type': 'project_created',
+                'timestamp': project.created_at,
+                'message': f'Project "{project.name}" was created',
+                'user': project.created_by,
+            })
+        # Add progress updates
+        for progress in progress_updates[:10]:  # Limit to recent 10
+            activity_log.append({
+                'type': 'progress_update',
+                'timestamp': progress.created_at,
+                'message': f'Progress updated to {progress.percentage_complete}%',
+                'description': progress.description,
+                'user': progress.created_by,
+                'percentage': progress.percentage_complete,
+                'date': progress.date,
+            })
+        # Add cost entries
+        for cost in costs[:10]:  # Limit to recent 10
+            activity_log.append({
+                'type': 'cost_entry',
+                'timestamp': cost.created_at,
+                'message': f'Cost entry added: {project.name} - {cost.get_cost_type_display()} ₱{cost.amount:.2f}',
+                'user': cost.created_by,
+                'cost_type': cost.get_cost_type_display(),
+                'date': cost.date,
+            })
+        activity_log.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Progress timeline data for charts
+        progress_timeline_data = []
+        progress_percentages = []
+        progress_dates = []
+        for progress in progress_updates.order_by('date', 'created_at'):
+            progress_timeline_data.append({
+                'date': progress.date.isoformat(),
+                'percentage': progress.percentage_complete,
+            })
+            progress_percentages.append(progress.percentage_complete)
+            progress_dates.append(progress.date.isoformat())
+        
+        # Timeline comparison (simplified)
+        timeline_comparison = None
+        if project.start_date and project.end_date:
+            today = timezone.now().date()
+            total_days = (project.end_date - project.start_date).days
+            elapsed_days = (today - project.start_date).days if today >= project.start_date else 0
+            expected_progress = min(100, (elapsed_days / total_days * 100)) if total_days > 0 else 0
+            progress_variance = total_progress - expected_progress
+            
+            timeline_comparison = {
+                'expected_progress': round(expected_progress, 2),
+                'actual_progress': total_progress,
+                'progress_variance': round(progress_variance, 2),
+                'elapsed_days': elapsed_days,
+                'total_days': total_days,
+                'remaining_days': max(0, (project.end_date - today).days),
+                'is_ahead': progress_variance > 0,
+                'is_behind': progress_variance < -5,
+                'expected_progress_data': [expected_progress],
+                'expected_dates': [project.start_date.isoformat()],
+                'actual_progress_aligned': [total_progress],
+            }
+        
+        # Convert to JSON for JavaScript
+        import json
+        progress_dates_json = json.dumps(progress_dates)
+        progress_percentages_json = json.dumps(progress_percentages)
+        expected_dates_json = json.dumps(timeline_comparison['expected_dates']) if timeline_comparison else '[]'
+        expected_progress_data_json = json.dumps(timeline_comparison['expected_progress_data']) if timeline_comparison else '[]'
+        actual_progress_aligned_json = json.dumps(timeline_comparison['actual_progress_aligned']) if timeline_comparison else '[]'
+        
         context = {
             'project': project,
+            'status_choices': Project.STATUS_CHOICES,
             'latest_progress': latest_progress,
             'total_progress': total_progress,
-            'total_cost': total_cost,
+            'total_cost': total_cost_float,
             'cost_by_type': cost_by_type,
             'budget_utilization': budget_utilization,
-            'budget_remaining': budget_remaining,
+            'budget_remaining': budget_remaining,  # Keep for backward compatibility
+            'remaining_budget': remaining_budget,  # New variable name used by template
             'budget_status': budget_status,
+            'over_budget_amount': over_budget_amount,
             'timeline_data': timeline_data,
             'today': timezone.now().date(),
+            'activity_log': activity_log,
+            'progress_timeline_data': progress_timeline_data,
+            'progress_dates': progress_dates_json,
+            'progress_percentages': progress_percentages_json,
+            'timeline_comparison': timeline_comparison,
+            'expected_dates_json': expected_dates_json,
+            'expected_progress_data_json': expected_progress_data_json,
+            'actual_progress_aligned_json': actual_progress_aligned_json,
         }
         return render(request, 'projeng/project_detail.html', context)
     except Project.DoesNotExist:
