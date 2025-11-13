@@ -12,13 +12,13 @@
                 <button id="export-button" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-green-500 focus:border-green-500">
                     Export
                 </button>
-            </div>
-        </div>
+      </div>
+    </div>
 
         {# Add Filter Form Here #}
         <form method="get" id="filter-form" class="mb-4">
             <div class="flex flex-wrap gap-4 items-center">
-                <div>
+          <div>
                     <label for="barangay-filter" class="block text-sm font-medium text-gray-700">Barangay:</label>
                     <select id="barangay-filter" name="barangay" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                         <option value="">All Barangays</option>
@@ -45,9 +45,9 @@
                         <option value="San Isidro">San Isidro</option>
                         <option value="San Miguel">San Miguel</option>
                         <option value="Visayan Village">Visayan Village</option>
-                    </select>
-                </div>
-                <div>
+            </select>
+          </div>
+          <div>
                     <label for="status-filter" class="block text-sm font-medium text-gray-700">Status:</label>
                     <select id="status-filter" name="status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                         <option value="">All Statuses</option>
@@ -57,20 +57,20 @@
                         <option value="planned">Planned</option>
                         <option value="pending">Pending</option>
                         <option value="delayed">Delayed</option>
-                    </select>
-                </div>
-                <div>
+            </select>
+          </div>
+          <div>
                     <label for="start-date-filter" class="block text-sm font-medium text-gray-700">Start Date:</label>
                     <input type="date" id="start-date-filter" name="start_date" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                </div>
+          </div>
                 <div>
                     <label for="end-date-filter" class="block text-sm font-medium text-gray-700">End Date:</label>
                     <input type="date" id="end-date-filter" name="end_date" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                </div>
+        </div>
                 <div class="flex items-end">
                     <button type="button" id="clear-filters-btn" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-gray-500 focus:border-gray-500">Clear Filters</button>
-                </div>
-            </div>
+              </div>
+              </div>
         </form>
 
         {# Table of projects #}
@@ -95,8 +95,8 @@
                 </tbody>
             </table>
         </div>
+      </div>
     </div>
-</div>
 
 <!-- Export Modal -->
 <div id="exportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full" style="z-index: 1000;">
@@ -136,9 +136,9 @@
                                 <option value="San Miguel">San Miguel</option>
                                 <option value="Visayan Village">Visayan Village</option>
                             </select>
-                        </div>
-                    </div>
-                    
+        </div>
+      </div>
+
                     {# Export As Dropdown #}
                     <div class="relative inline-block text-left mr-4">
                         <div>
@@ -146,23 +146,23 @@
                                 Export As
                                 <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
+              </svg>
                             </button>
-                        </div>
+      </div>
 
                         <div id="export-dropdown-menu" class="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden" role="menu" aria-orientation="vertical" aria-labelledby="export-dropdown-button">
                             <div class="py-1" role="none">
                                 <a href="{% url 'export_reports_csv' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-csv">Export CSV</a>
                                 <a href="{% url 'export_reports_excel' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-excel">Export Excel</a>
                                 <a href="{% url 'export_reports_pdf' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem" id="export-pdf">Export PDF</a>
-                            </div>
-                        </div>
-                    </div>
+          </div>
+        </div>
+      </div>
                     <button id="closeModal" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
                 </div>
             </div>
             
-            <div class="overflow-x-auto">
+        <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -176,16 +176,16 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Started</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Ended</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
+              </tr>
+            </thead>
                     <tbody id="modal-projects-table-body" class="bg-white divide-y divide-gray-200">
                         {# Project rows will be added here by JavaScript #}
-                    </tbody>
-                </table>
-            </div>
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
-</div>
+  </div>
 
 {{ projects_json|json_script:"projects-data" }}
 
@@ -195,8 +195,38 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Get project data directly from the template context
-    const projects = JSON.parse(document.getElementById('projects-data').textContent);
-    let filteredProjects = projects;
+    const projectsDataElement = document.getElementById('projects-data');
+    let projects = [];
+let filteredProjects = [];
+
+    if (projectsDataElement) {
+        try {
+            const rawContent = projectsDataElement.textContent.trim();
+            if (rawContent) {
+                const parsed = JSON.parse(rawContent);
+                // Ensure we have an array
+                if (Array.isArray(parsed)) {
+                    projects = parsed;
+                    console.log('Loaded', projects.length, 'projects');
+                } else {
+                    console.error('Projects data is not an array:', typeof parsed, parsed);
+                    projects = [];
+                }
+            } else {
+                console.warn('Projects data element is empty');
+                projects = [];
+            }
+        } catch (e) {
+            console.error('Error parsing projects data:', e);
+            console.error('Raw content:', projectsDataElement.textContent);
+            projects = [];
+        }
+    } else {
+        console.error('Projects data element not found');
+        projects = [];
+    }
+    
+    filteredProjects = [...projects]; // Create a copy
 
     // Filter elements
     const filterForm = document.getElementById('filter-form');
@@ -208,15 +238,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const projectsTableBody = document.getElementById('projects-table-body');
 
     // Function to normalize status
-    function normalizeStatus(status) {
-        if (!status) return '';
-        status = status.toLowerCase();
-        if (status === 'in_progress' || status === 'ongoing') return 'Ongoing';
-        if (status === 'planned' || status === 'pending') return 'Planned';
-        if (status === 'completed') return 'Completed';
-        if (status === 'delayed') return 'Delayed';
-        return status.charAt(0).toUpperCase() + status.slice(1);
-    }
+function normalizeStatus(status) {
+    if (!status) return '';
+    status = status.toLowerCase();
+    if (status === 'in_progress' || status === 'ongoing') return 'Ongoing';
+    if (status === 'planned' || status === 'pending') return 'Planned';
+    if (status === 'completed') return 'Completed';
+    if (status === 'delayed') return 'Delayed';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
     // Function to format date
     function formatDate(dateStr) {
@@ -252,10 +282,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to filter and render projects
     function filterAndRender() {
-        const barangay = barangayFilter.value;
-        const status = statusFilter.value;
-        const startDate = startDateFilter.value;
-        const endDate = endDateFilter.value;
+        // Ensure projects is an array
+        if (!Array.isArray(projects)) {
+            console.error('Projects is not an array, cannot filter');
+            projects = [];
+        }
+        
+        const barangay = barangayFilter ? barangayFilter.value : '';
+        const status = statusFilter ? statusFilter.value : '';
+        const startDate = startDateFilter ? startDateFilter.value : '';
+        const endDate = endDateFilter ? endDateFilter.value : '';
 
         filteredProjects = projects.filter(p => {
             const matchesBarangay = !barangay || (p.barangay && p.barangay.trim().toLowerCase() === barangay.trim().toLowerCase());
@@ -455,4 +491,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endblock %}
+{% endblock %} 
