@@ -1,409 +1,304 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Projects Report - OneTagumVision</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List of Infrastructure Projects - OneTagumVision</title>
     <style>
+        /* === Long Bond Paper (8.5" x 13") === */
         @page {
-            size: A4;
-            margin: 2cm;
+            size: 8.5in 13in; /* Long bond paper */
+            margin: 15mm;
         }
-        body {
-            font-family: Arial, sans-serif;
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 8.5in;      /* Long bond width */
+            min-height: 13in;   /* Long bond height */
+            background: #fff;
+            font-family: "Times New Roman", serif;
             font-size: 10pt;
-            line-height: 1.4;
-            color: #000000;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
+
+        #report {
+            width: 100%;
+            margin: auto;
+            padding: 5mm 0;
+        }
+
+        /* === Official Header Section === */
         .header {
             text-align: center;
-            border-bottom: 3px solid #000000;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            border-bottom: 2px solid black;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+            position: relative;
         }
+
+        .header-logo {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 80px;
+            height: 80px;
+        }
+
+        .header-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .header h1 {
-            color: #000000;
             margin: 0;
-            font-size: 18pt;
-            font-weight: bold;
+            font-size: 11pt;
+            font-weight: normal;
+            line-height: 1.3;
         }
+
         .header h2 {
-            color: #000000;
-            margin: 5px 0;
+            margin: 2px 0;
             font-size: 14pt;
             font-weight: bold;
+            letter-spacing: 1px;
         }
-        .header .meta {
-            color: #000000;
-            font-size: 9pt;
-            margin-top: 5px;
-        }
-        .executive-summary {
-            background-color: #ffffff;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            border: 2px solid #000000;
-        }
-        .summary-title {
-            color: #000000;
+
+        .header h3 {
+            margin: 2px 0;
             font-size: 12pt;
             font-weight: bold;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #000000;
-            padding-bottom: 5px;
         }
-        .summary-cards {
-            display: table;
-            width: 100%;
-            margin-bottom: 10px;
+
+        .header h4 {
+            margin: 3px 0;
+            font-size: 11pt;
+            font-weight: normal;
         }
-        .summary-card {
-            display: table-cell;
-            width: 25%;
-            padding: 10px;
-            vertical-align: top;
-        }
-        .card {
-            background-color: white;
-            border: 2px solid #000000;
-            border-radius: 5px;
-            padding: 12px;
-            text-align: center;
-        }
-        .card-title {
-            font-weight: bold;
-            color: #000000;
-            font-size: 8pt;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        .card-value {
-            font-size: 20pt;
-            font-weight: bold;
-            margin: 5px 0;
-        }
-        .card-value.total { color: #000000; font-weight: bold; }
-        .card-value.completed { color: #000000; font-weight: bold; }
-        .card-value.ongoing { color: #000000; font-weight: bold; }
-        .card-value.planned { color: #000000; font-weight: bold; }
-        .card-value.delayed { color: #000000; font-weight: bold; }
-        .card-subtitle {
-            font-size: 7pt;
-            color: #000000;
+
+        .header-subtitle {
             margin-top: 5px;
-        }
-        .section {
-            margin-top: 25px;
-            page-break-inside: avoid;
-        }
-        table {
-            page-break-inside: auto;
-        }
-        tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-        }
-        thead {
-            display: table-header-group;
-        }
-        tfoot {
-            display: table-footer-group;
-        }
-        .section-title {
-            color: #000000;
-            font-size: 14pt;
+            font-size: 10pt;
             font-weight: bold;
-            border-bottom: 2px solid #000000;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
         }
+
+        /* === Report Metadata === */
+        .report-meta {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 10pt;
+        }
+
+        .report-meta strong {
+            font-weight: bold;
+        }
+
+        /* === Table Styling === */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 5px;
             font-size: 9pt;
         }
+
+        th, td {
+            border: 1px solid black;
+            padding: 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
         th {
-            background-color: #000000;
+            background-color: black;
             color: white;
-            padding: 10px 8px;
-            text-align: left;
             font-weight: bold;
-            border: 1px solid #000000;
+            font-size: 8.5pt;
         }
+
         td {
-            border: 1px solid #000000;
-            padding: 8px;
+            word-wrap: break-word;
+            font-size: 8.5pt;
+        }
+
+        td.text-left {
             text-align: left;
         }
-        tr:nth-child(even) {
-            background-color: #f5f5f5;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 8pt;
-            font-weight: bold;
-            border: 1px solid #000000;
-        }
-        .status-completed {
-            background-color: #ffffff;
-            color: #000000;
-            border: 1px solid #000000;
-        }
-        .status-ongoing {
-            background-color: #ffffff;
-            color: #000000;
-            border: 1px solid #000000;
-        }
-        .status-planned {
-            background-color: #ffffff;
-            color: #000000;
-            border: 1px solid #000000;
-        }
-        .status-delayed {
-            background-color: #ffffff;
-            color: #000000;
-            border: 1px solid #000000;
-        }
-        .text-right {
+
+        td.text-right {
             text-align: right;
         }
-        .text-center {
+
+        /* Column widths for better layout */
+        .col-no { width: 3%; }
+        .col-prn { width: 8%; }
+        .col-name { width: 20%; }
+        .col-location { width: 10%; }
+        .col-cost { width: 10%; }
+        .col-desc { width: 15%; }
+        .col-date-start { width: 7%; }
+        .col-date-target { width: 7%; }
+        .col-date-complete { width: 7%; }
+        .col-accomplishment { width: 6%; }
+        .col-remarks { width: 10%; }
+
+        /* === Footer Section === */
+        .signature-section {
+            margin-top: 20px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .signature {
+            width: 45%;
+            display: inline-block;
+            vertical-align: top;
             text-align: center;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #000000;
-            text-align: center;
-            font-size: 8pt;
-            color: #000000;
-        }
-        .insights {
-            background-color: #ffffff;
-            border: 2px solid #000000;
-            border-left: 4px solid #000000;
-            padding: 12px;
-            margin: 15px 0;
-        }
-        .insights-title {
-            font-weight: bold;
-            color: #000000;
-            margin-bottom: 5px;
             font-size: 10pt;
+            margin-top: 15px;
         }
-        .insights-content {
+
+        .signature-line {
+            border-top: 1px solid black;
+            margin: 30px auto 5px auto;
+            width: 80%;
+        }
+
+        .footer-note {
+            text-align: right;
+            font-style: italic;
             font-size: 9pt;
-            color: #000000;
+            margin-top: 10px;
+        }
+
+        /* Page break controls */
+        .no-break {
+            page-break-inside: avoid;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>ONETAGUMVISION</h1>
-        <h2>PROJECTS STATUS REPORT</h2>
-        <div class="meta">
-            Generated: {{ generated_at|date:"F d, Y \a\t g:i A" }}<br>
-            Prepared by: {{ generated_by }}<br>
-            Report Period: All Projects
+    <div id="report">
+        <!-- === Official Header === -->
+        <div class="header">
+            <div class="header-logo">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a8/Tagum_City_Seal.png" alt="Tagum Logo">
+            </div>
+            <h1>REPUBLIC OF THE PHILIPPINES</h1>
+            <h1>PROVINCE OF DAVAO DEL NORTE</h1>
+            <h2>CITY OF TAGUM</h2>
+            <h3>OFFICE OF THE CITY ENGINEER</h3>
+            <h4>LIST OF INFRASTRUCTURE PROJECTS</h4>
+            <div class="header-subtitle">As of {{ generated_at|date:"M d, Y" }}</div>
         </div>
-    </div>
 
-    <div class="executive-summary">
-        <div class="summary-title">EXECUTIVE SUMMARY</div>
-        <div class="summary-cards">
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Total Projects</div>
-                    <div class="card-value total">{{ total_projects }}</div>
-                    <div class="card-subtitle">All Projects</div>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Completed</div>
-                    <div class="card-value completed">{{ completed_count }}</div>
-                    <div class="card-subtitle">
-                        {% if total_projects > 0 %}
-                            {% widthratio completed_count total_projects 100 %}% of total
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Ongoing</div>
-                    <div class="card-value ongoing">{{ ongoing_count }}</div>
-                    <div class="card-subtitle">
-                        {% if total_projects > 0 %}
-                            {% widthratio ongoing_count total_projects 100 %}% of total
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Planned</div>
-                    <div class="card-value planned">{{ planned_count }}</div>
-                    <div class="card-subtitle">
-                        {% if total_projects > 0 %}
-                            {% widthratio planned_count total_projects 100 %}% of total
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+        <div class="report-meta">
+            <p><strong>OneTagumVision</strong> | Generated on: {{ generated_at|date:"F d, Y \a\t g:i A" }}</p>
         </div>
-        <div class="summary-cards" style="margin-top: 10px;">
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Delayed</div>
-                    <div class="card-value delayed">{{ delayed_count }}</div>
-                    <div class="card-subtitle">
-                        {% if total_projects > 0 %}
-                            {% widthratio delayed_count total_projects 100 %}% of total
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Total Budget</div>
-                    <div class="card-value total">₱{{ total_budget|floatformat:2 }}</div>
-                    <div class="card-subtitle">Combined Project Budget</div>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Top Location</div>
-                    <div class="card-value ongoing">{{ top_barangay_name }}</div>
-                    <div class="card-subtitle">{{ top_barangay_count }} project{{ top_barangay_count|pluralize }}</div>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card">
-                    <div class="card-title">Completion Rate</div>
-                    <div class="card-value completed">
-                        {% if total_projects > 0 %}
-                            {% widthratio completed_count total_projects 100 %}%
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </div>
-                    <div class="card-subtitle">Projects Completed</div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    {% if delayed_count > 0 %}
-    <div class="insights">
-        <div class="insights-title">⚠️ ATTENTION REQUIRED</div>
-        <div class="insights-content">
-            There {{ delayed_count|pluralize:"is,are" }} currently {{ delayed_count }} delayed project{{ delayed_count|pluralize }} requiring immediate attention. 
-            Review project timelines and resource allocation to address delays.
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="section">
-        <div class="section-title">DETAILED PROJECT LISTING</div>
-        <table>
+        <!-- === Table === -->
+        <table class="no-break">
             <thead>
                 <tr>
-                    <th class="text-center">#</th>
-                    <th>PRN #</th>
-                    <th>Project Name</th>
-                    <th>Description</th>
-                    <th>Location</th>
-                    <th class="text-right">Budget</th>
-                    <th>Source of Funds</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th class="text-center">Status</th>
+                    <th class="col-no">Item No.</th>
+                    <th class="col-prn">PRN</th>
+                    <th class="col-name">Name of Project</th>
+                    <th class="col-location">Location</th>
+                    <th class="col-cost">Project Cost</th>
+                    <th class="col-desc">Project Description</th>
+                    <th colspan="4">Project Implementation Status</th>
+                    <th class="col-remarks">REMARKS</th>
+                </tr>
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th class="col-date-start">Date Started</th>
+                    <th class="col-date-target">Target Date of Completion</th>
+                    <th class="col-date-complete">Date of Completion</th>
+                    <th class="col-accomplishment">% Accomplishment</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for project in projects %}
                 <tr>
-                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>{{ forloop.counter }}</td>
                     <td>{{ project.prn|default:"N/A" }}</td>
-                    <td><strong>{{ project.name|default:"Unnamed Project" }}</strong></td>
-                    <td>{{ project.description|default:"-"|truncatewords:8 }}</td>
+                    <td class="text-left"><strong>{{ project.name|default:"Unnamed Project" }}</strong></td>
                     <td>{{ project.barangay|default:"N/A" }}</td>
                     <td class="text-right">₱{{ project.project_cost|default:0|floatformat:2 }}</td>
-                    <td>{{ project.source_of_funds|default:"-"|truncatewords:5 }}</td>
-                    <td>{{ project.start_date|date:"M d, Y"|default:"N/A" }}</td>
-                    <td>{{ project.end_date|date:"M d, Y"|default:"N/A" }}</td>
-                    <td class="text-center">
+                    <td class="text-left">{{ project.description|default:"-"|truncatewords:10 }}</td>
+                    <td>{{ project.start_date|date:"d-M-y"|default:"-" }}</td>
+                    <td>{{ project.end_date|date:"d-M-y"|default:"-" }}</td>
+                    <td>
                         {% if project.status == 'completed' %}
-                            <span class="status-badge status-completed">Completed</span>
-                        {% elif project.status == 'in_progress' or project.status == 'ongoing' %}
-                            <span class="status-badge status-ongoing">Ongoing</span>
-                        {% elif project.status == 'planned' or project.status == 'pending' %}
-                            <span class="status-badge status-planned">Planned</span>
-                        {% elif project.status == 'delayed' %}
-                            <span class="status-badge status-delayed">Delayed</span>
+                            {{ project.end_date|date:"d-M-y"|default:"-" }}
                         {% else %}
-                            <span class="status-badge">{{ project.get_status_display|default:project.status|title }}</span>
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if project.status == 'completed' %}
+                            100.00%
+                        {% elif project.status == 'in_progress' or project.status == 'ongoing' %}
+                            {% comment %} Calculate progress if available {% endcomment %}
+                            -
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="text-left">
+                        {% if project.status == 'completed' %}
+                            100% Completed
+                        {% elif project.status == 'in_progress' or project.status == 'ongoing' %}
+                            On Going
+                        {% elif project.status == 'planned' or project.status == 'pending' %}
+                            For Implementation
+                        {% elif project.status == 'delayed' %}
+                            On Going
+                        {% else %}
+                            For Pre-Engineering
                         {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="10" class="text-center" style="padding: 20px; color: #6b7280;">
+                    <td colspan="11" style="text-align: center; padding: 20px;">
                         No projects found in the system.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </div>
 
-    <div class="section">
-        <div class="section-title">PROJECT DISTRIBUTION BY STATUS</div>
-        <table style="width: 60%;">
-            <thead>
-                <tr>
-                    <th>Status</th>
-                    <th class="text-center">Count</th>
-                    <th class="text-center">Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for status, count in status_map.items %}
-                <tr>
-                    <td><strong>{{ status }}</strong></td>
-                    <td class="text-center">{{ count }}</td>
-                    <td class="text-center">
-                        {% if total_projects > 0 %}
-                            {% widthratio count total_projects 100 %}%
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+        <!-- === Footer Signatures === -->
+        <div class="signature-section">
+            <div class="signature">
+                <div class="signature-line"></div>
+                <strong>Engr. Juan Dela Cruz</strong><br>
+                City Engineer
+            </div>
 
-    <div class="footer">
-        <div>Report Generated: {{ generated_at|date:"F d, Y \a\t g:i A" }}</div>
-        <div>Prepared by: {{ generated_by }}</div>
-        <div>System: OneTagumVision Project Management System</div>
-        <div>Total Projects: {{ total_projects }} | Total Budget: ₱{{ total_budget|floatformat:2 }}</div>
+            <div class="signature" style="float: right;">
+                <div class="signature-line"></div>
+                <strong>Engr. Maria Santos</strong><br>
+                Project Monitoring Head
+            </div>
+        </div>
+
+        <div class="footer-note">
+            Prepared and generated by: <strong>Engineering Department</strong>
+        </div>
     </div>
 </body>
 </html>
