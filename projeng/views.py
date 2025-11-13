@@ -2436,26 +2436,22 @@ def send_budget_alert(request, project_id):
             
             # Send notification
             try:
-                notify_head_engineer_about_budget_concern(
+                notification_count = notify_head_engineer_about_budget_concern(
                     project=project,
                     sender_user=request.user,
                     message=custom_message if custom_message else None
                 )
                 
-                # Verify notifications were created
-                from django.contrib.auth.models import User
-                from .models import Notification
-                head_engineers = User.objects.filter(groups__name='Head Engineer').distinct()
-                recent_notifications = Notification.objects.filter(
-                    recipient__in=head_engineers,
-                    message__icontains=project.name,
-                    created_at__gte=timezone.now() - timedelta(seconds=5)
-                ).count()
-                
-                if recent_notifications > 0:
-                    messages.success(request, f"Budget alert sent to {recent_notifications} Head Engineer(s) for project '{project.name}'.")
+                if notification_count and notification_count > 0:
+                    messages.success(request, f"Budget alert sent to {notification_count} Head Engineer(s) for project '{project.name}'.")
                 else:
-                    messages.warning(request, f"Budget alert submitted, but no Head Engineers were found to notify. Please ensure at least one user is in the 'Head Engineer' group.")
+                    # Check if Head Engineers exist
+                    from django.contrib.auth.models import User
+                    head_engineers = User.objects.filter(groups__name='Head Engineer').distinct()
+                    if head_engineers.count() == 0:
+                        messages.warning(request, f"No Head Engineers found in the system. Please ensure at least one user is in the 'Head Engineer' group.")
+                    else:
+                        messages.warning(request, f"Budget alert submitted, but notification delivery may have failed. Please check system logs.")
                 
             except Exception as e:
                 logging.error(f"Error sending budget alert notification: {str(e)}", exc_info=True)
@@ -2466,6 +2462,9 @@ def send_budget_alert(request, project_id):
         # GET request - show form (or handle via AJAX)
         messages.error(request, "Invalid request method.")
         return redirect('projeng:projeng_project_detail', pk=project_id)
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
+        return redirect('projeng:projeng_dashboard')
     except Exception as e:
         logging.error(f"Error in send_budget_alert: {str(e)}", exc_info=True)
         messages.error(request, f"An error occurred while sending the budget alert: {str(e)}")
