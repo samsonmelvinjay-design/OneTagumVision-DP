@@ -12,43 +12,46 @@
             font-family: Arial, sans-serif;
             font-size: 10pt;
             line-height: 1.4;
-            color: #1f2937;
+            color: #000000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .header {
             text-align: center;
-            border-bottom: 3px solid #1e40af;
+            border-bottom: 3px solid #000000;
             padding-bottom: 15px;
             margin-bottom: 20px;
         }
         .header h1 {
-            color: #1e40af;
+            color: #000000;
             margin: 0;
             font-size: 18pt;
             font-weight: bold;
         }
         .header h2 {
-            color: #3b82f6;
+            color: #000000;
             margin: 5px 0;
             font-size: 14pt;
+            font-weight: bold;
         }
         .header .meta {
-            color: #6b7280;
+            color: #000000;
             font-size: 9pt;
             margin-top: 5px;
         }
         .executive-summary {
-            background-color: #f9fafb;
+            background-color: #ffffff;
             padding: 15px;
             border-radius: 5px;
             margin-bottom: 20px;
-            border: 1px solid #e5e7eb;
+            border: 2px solid #000000;
         }
         .summary-title {
-            color: #1e40af;
+            color: #000000;
             font-size: 12pt;
             font-weight: bold;
             margin-bottom: 15px;
-            border-bottom: 2px solid #3b82f6;
+            border-bottom: 2px solid #000000;
             padding-bottom: 5px;
         }
         .summary-cards {
@@ -64,14 +67,14 @@
         }
         .card {
             background-color: white;
-            border: 1px solid #d1d5db;
+            border: 2px solid #000000;
             border-radius: 5px;
             padding: 12px;
             text-align: center;
         }
         .card-title {
             font-weight: bold;
-            color: #374151;
+            color: #000000;
             font-size: 8pt;
             margin-bottom: 5px;
             text-transform: uppercase;
@@ -81,25 +84,38 @@
             font-weight: bold;
             margin: 5px 0;
         }
-        .card-value.total { color: #1e40af; }
-        .card-value.completed { color: #10b981; }
-        .card-value.ongoing { color: #3b82f6; }
-        .card-value.planned { color: #f59e0b; }
-        .card-value.delayed { color: #ef4444; }
+        .card-value.total { color: #000000; font-weight: bold; }
+        .card-value.completed { color: #000000; font-weight: bold; }
+        .card-value.ongoing { color: #000000; font-weight: bold; }
+        .card-value.planned { color: #000000; font-weight: bold; }
+        .card-value.delayed { color: #000000; font-weight: bold; }
         .card-subtitle {
             font-size: 7pt;
-            color: #6b7280;
+            color: #000000;
             margin-top: 5px;
         }
         .section {
             margin-top: 25px;
             page-break-inside: avoid;
         }
+        table {
+            page-break-inside: auto;
+        }
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        thead {
+            display: table-header-group;
+        }
+        tfoot {
+            display: table-footer-group;
+        }
         .section-title {
-            color: #1e40af;
+            color: #000000;
             font-size: 14pt;
             font-weight: bold;
-            border-bottom: 2px solid #3b82f6;
+            border-bottom: 2px solid #000000;
             padding-bottom: 5px;
             margin-bottom: 15px;
         }
@@ -110,23 +126,20 @@
             font-size: 9pt;
         }
         th {
-            background-color: #3b82f6;
+            background-color: #000000;
             color: white;
             padding: 10px 8px;
             text-align: left;
             font-weight: bold;
-            border: 1px solid #2563eb;
+            border: 1px solid #000000;
         }
         td {
-            border: 1px solid #ddd;
+            border: 1px solid #000000;
             padding: 8px;
             text-align: left;
         }
         tr:nth-child(even) {
-            background-color: #f9fafb;
-        }
-        tr:hover {
-            background-color: #f3f4f6;
+            background-color: #f5f5f5;
         }
         .status-badge {
             display: inline-block;
@@ -134,22 +147,27 @@
             border-radius: 3px;
             font-size: 8pt;
             font-weight: bold;
+            border: 1px solid #000000;
         }
         .status-completed {
-            background-color: #d1fae5;
-            color: #065f46;
+            background-color: #ffffff;
+            color: #000000;
+            border: 1px solid #000000;
         }
         .status-ongoing {
-            background-color: #dbeafe;
-            color: #1e40af;
+            background-color: #ffffff;
+            color: #000000;
+            border: 1px solid #000000;
         }
         .status-planned {
-            background-color: #fef3c7;
-            color: #92400e;
+            background-color: #ffffff;
+            color: #000000;
+            border: 1px solid #000000;
         }
         .status-delayed {
-            background-color: #fee2e2;
-            color: #991b1b;
+            background-color: #ffffff;
+            color: #000000;
+            border: 1px solid #000000;
         }
         .text-right {
             text-align: right;
@@ -160,26 +178,27 @@
         .footer {
             margin-top: 30px;
             padding-top: 15px;
-            border-top: 2px solid #e5e7eb;
+            border-top: 2px solid #000000;
             text-align: center;
             font-size: 8pt;
-            color: #6b7280;
+            color: #000000;
         }
         .insights {
-            background-color: #eff6ff;
-            border-left: 4px solid #3b82f6;
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            border-left: 4px solid #000000;
             padding: 12px;
             margin: 15px 0;
         }
         .insights-title {
             font-weight: bold;
-            color: #1e40af;
+            color: #000000;
             margin-bottom: 5px;
             font-size: 10pt;
         }
         .insights-content {
             font-size: 9pt;
-            color: #374151;
+            color: #000000;
         }
     </style>
 </head>
