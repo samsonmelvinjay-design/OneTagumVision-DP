@@ -592,9 +592,11 @@ def reports(request):
 @login_required
 @prevent_project_engineer_access
 def budget_reports(request):
-    
     from projeng.models import Project, ProjectCost
     from collections import defaultdict
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    
     # Role-based queryset
     if is_head_engineer(request.user) or is_finance_manager(request.user):
         projects = Project.objects.all()
@@ -602,6 +604,31 @@ def budget_reports(request):
         projects = Project.objects.filter(assigned_engineers=request.user)
     else:
         projects = Project.objects.none()
+    
+    # Apply filters
+    selected_barangay = request.GET.get('barangay', '')
+    selected_status = request.GET.get('status', '')
+    selected_start_date = request.GET.get('start_date', '')
+    selected_end_date = request.GET.get('end_date', '')
+    
+    if selected_barangay:
+        projects = projects.filter(barangay=selected_barangay)
+    
+    if selected_status:
+        if selected_status == 'in_progress':
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            projects = projects.filter(status=selected_status)
+    
+    if selected_start_date:
+        projects = projects.filter(start_date__gte=selected_start_date)
+    
+    if selected_end_date:
+        projects = projects.filter(end_date__lte=selected_end_date)
+    
+    # Get all projects for summary calculations (before pagination)
+    all_projects_for_summary = projects
+    
     project_data = []
     project_names = []
     utilizations = []
@@ -610,7 +637,9 @@ def budget_reports(request):
     total_budget_sum = 0
     total_spent_sum = 0
     at_risk_count = 0
-    for p in projects:
+    
+    # Calculate summary from all filtered projects
+    for p in all_projects_for_summary:
         # Calculate spent and utilization
         costs = ProjectCost.objects.filter(project=p)
         spent = sum([float(c.amount) for c in costs]) if costs else 0
@@ -658,9 +687,24 @@ def budget_reports(request):
         })
         project_names.append(p.name)
         utilizations.append(utilization)
+    
+    # Pagination - 20 items per page
+    paginator = Paginator(project_data, 20)
+    page_number = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.get_page(page_number)
+    except:
+        page_obj = paginator.get_page(1)
+    
+    # Get paginated project data for display
+    paginated_project_data = list(page_obj.object_list)
+    
+    # Get all unique barangays for filter dropdown
+    all_barangays = Project.objects.values_list('barangay', flat=True).distinct().exclude(barangay__isnull=True).exclude(barangay='').order_by('barangay')
+    
     context = {
-        'project_data': project_data,
-        'project_data_json': json.dumps(project_data),  # For JavaScript modal
+        'project_data': paginated_project_data,
+        'project_data_json': json.dumps(paginated_project_data),  # For JavaScript modal
         'project_names': json.dumps(project_names),
         'utilizations': json.dumps(utilizations),
         'over_count': over_count,
@@ -669,6 +713,12 @@ def budget_reports(request):
         'total_spent_sum': total_spent_sum,
         'total_remaining_sum': total_budget_sum - total_spent_sum,
         'at_risk_count': at_risk_count,
+        'page_obj': page_obj,  # For pagination controls
+        'selected_barangay': selected_barangay,
+        'selected_status': selected_status,
+        'selected_start_date': selected_start_date,
+        'selected_end_date': selected_end_date,
+        'all_barangays': all_barangays,
     }
     return render(request, 'monitoring/budget_reports.html', context)
 
