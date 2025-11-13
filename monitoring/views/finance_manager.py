@@ -387,6 +387,9 @@ def finance_project_detail(request, project_id):
         remaining = project_budget - total_spent_float
         budget_utilization = (total_spent_float / project_budget * 100) if project_budget > 0 else 0
         
+        # Calculate threshold (20% of budget) for color coding
+        threshold = project_budget * 0.2
+        
         cost_by_type = defaultdict(float)
         for cost in costs:
             cost_by_type[cost.get_cost_type_display()] += float(cost.amount)
@@ -398,6 +401,7 @@ def finance_project_detail(request, project_id):
             'remaining': remaining,
             'budget_utilization': budget_utilization,
             'project_budget': project_budget,
+            'threshold': threshold,
             'cost_by_type': dict(cost_by_type),
         }
         return render(request, 'finance_manager/finance_project_detail.html', context)

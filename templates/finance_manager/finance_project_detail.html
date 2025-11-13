@@ -10,7 +10,7 @@
         <div class="mb-2"><span class="font-semibold">Approved Budget:</span> ₱{{ project.project_cost|floatformat:2|intcomma }}</div>
         <div class="mb-2"><span class="font-semibold">Total Spent:</span> ₱{{ total_spent|floatformat:2|intcomma }}</div>
         <div class="mb-2"><span class="font-semibold">Remaining:</span> 
-            <span class="{% if remaining < 0 %}text-red-700 font-bold{% elif remaining < project_budget|mul:0.2 %}text-yellow-600 font-bold{% else %}text-green-700 font-bold{% endif %}">
+            <span class="{% if remaining < 0 %}text-red-700 font-bold{% elif remaining < threshold %}text-yellow-600 font-bold{% else %}text-green-700 font-bold{% endif %}">
                 ₱{{ remaining|floatformat:2|intcomma }}
             </span>
         </div>
