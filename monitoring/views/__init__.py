@@ -275,8 +275,27 @@ def project_list(request):
             # Phase 4: Auto-detect zone before saving
             zone_type, confidence = project.detect_and_set_zone(save=False)
             
-            project.save()
-            form.save_m2m()  # Save assigned engineers
+            # Log image upload info for debugging
+            if 'image' in request.FILES:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Uploading image: {request.FILES['image'].name}, size: {request.FILES['image'].size} bytes")
+            
+            try:
+                project.save()
+                form.save_m2m()  # Save assigned engineers
+                
+                # Log successful save and image URL
+                if project.image:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"Project saved successfully. Image URL: {project.image.url}")
+                    logger.info(f"Image name: {project.image.name}")
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error saving project: {str(e)}", exc_info=True)
+                raise
             
             # Log zone detection result (optional, for debugging)
             if zone_type:

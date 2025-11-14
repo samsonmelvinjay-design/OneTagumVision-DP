@@ -227,11 +227,17 @@ if SPACES_CONFIGURED:
     AWS_QUERYSTRING_AUTH = False
     
     # Make files publicly accessible (required for CDN to work)
+    # Note: For DigitalOcean Spaces, use 'public-read' for public access
     AWS_DEFAULT_ACL = 'public-read'
     
     # Additional Spaces settings for proper file uploads
     AWS_S3_FILE_OVERWRITE = False  # Don't overwrite files with same name
     AWS_S3_VERIFY = True  # Verify SSL certificates
+    
+    # Add error logging for uploads
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("Spaces storage backend configured with ACL: public-read")
     
     # Important: Set location to empty string so files go to root of bucket
     # The upload_to parameter in models will create the folder structure
