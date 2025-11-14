@@ -1640,11 +1640,18 @@ function formatDate(dateStr) {
 
 <!-- Popup Map Modal for Setting Location -->
 <div id="map-popup-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden" style="z-index: 20001;">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-0 relative mx-4 my-8 max-h-[90vh] flex flex-col">
-        <button type="button" id="close-map-popup" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
-        <div id="popup-map" style="min-height:300px; height:60vh; background:#eee;" class="rounded-lg border border-gray-300 w-full"></div>
-        <div class="flex justify-end gap-4 p-4">
-            <button type="button" id="close-map-popup-btn" class="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200">Done</button>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-0 relative mx-4 my-8 max-h-[90vh] flex flex-col">
+        <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800">Select Project Location</h3>
+            <p class="text-sm text-gray-600 mt-1">Click on the map to place a marker, or drag the marker to adjust the location</p>
+        </div>
+        <button type="button" id="close-map-popup" class="absolute top-6 right-6 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
+        <div id="popup-map" style="min-height:400px; height:70vh; background:#eee;" class="w-full flex-1"></div>
+        <div class="flex justify-between items-center gap-4 p-4 border-t border-gray-200">
+            <div class="text-sm text-gray-600">
+                <span class="font-semibold">Tip:</span> Click anywhere on the map to set the location, or drag the marker to fine-tune
+            </div>
+            <button type="button" id="close-map-popup-btn" class="px-8 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200">Done</button>
         </div>
     </div>
 </div>
@@ -2747,55 +2754,112 @@ function showPopupMap() {
         
         console.log('Initializing new map');
         popupMap = L.map('popup-map').setView([lat, lng], zoom);
+        
+        // Add tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
         }).addTo(popupMap);
+        
+        // Add click handler to set location
+        popupMap.on('click', function(e) {
+            const clickedLat = e.latlng.lat;
+            const clickedLng = e.latlng.lng;
+            console.log('Map clicked at:', clickedLat, clickedLng);
             
-            // Add click handler to set location
-            popupMap.on('click', function(e) {
-                const clickedLat = e.latlng.lat;
-                const clickedLng = e.latlng.lng;
-                console.log('Map clicked at:', clickedLat, clickedLng);
+            // Update input fields in the main form
+            const latInput = document.getElementById('latitude-input');
+            const lngInput = document.getElementById('longitude-input');
+            if (latInput) {
+                latInput.value = clickedLat.toFixed(6);
+                // Trigger input event to ensure form validation
+                latInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (lngInput) {
+                lngInput.value = clickedLng.toFixed(6);
+                // Trigger input event to ensure form validation
+                lngInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            // Update or create marker
+            if (popupMarker) { 
+                popupMarker.setLatLng([clickedLat, clickedLng]); 
+            } else { 
+                popupMarker = L.marker([clickedLat, clickedLng], {
+                    draggable: true
+                }).addTo(popupMap);
                 
-                // Update input fields
-                const latInput = document.getElementById('latitude-input');
-                const lngInput = document.getElementById('longitude-input');
-                if (latInput) latInput.value = clickedLat.toFixed(6);
-                if (lngInput) lngInput.value = clickedLng.toFixed(6);
-                
-                // Update or create marker
-                if (popupMarker) { 
-                    popupMarker.setLatLng([clickedLat, clickedLng]); 
-                } else { 
-                    popupMarker = L.marker([clickedLat, clickedLng]).addTo(popupMap);
-                }
-                
-                // Show location status
-                const locationStatus = document.getElementById('location-status');
-                if (locationStatus) {
-                    locationStatus.classList.remove('hidden');
-                }
-                
-                // Trigger recommendations if project type is selected
-                const projectTypeSelect = document.getElementById('project-type-select');
-                if (projectTypeSelect && projectTypeSelect.value) {
-                    setTimeout(() => fetchZoneRecommendations(), 500);
-                }
-            });
+                // Add drag handler for marker
+                popupMarker.on('dragend', function(e) {
+                    const marker = e.target;
+                    const position = marker.getLatLng();
+                    console.log('Marker dragged to:', position.lat, position.lng);
+                    
+                    // Update input fields
+                    const latInput = document.getElementById('latitude-input');
+                    const lngInput = document.getElementById('longitude-input');
+                    if (latInput) {
+                        latInput.value = position.lat.toFixed(6);
+                        latInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    if (lngInput) {
+                        lngInput.value = position.lng.toFixed(6);
+                        lngInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                });
+            }
+            
+            // Show location status in main form
+            const locationStatus = document.getElementById('location-status');
+            if (locationStatus) {
+                locationStatus.classList.remove('hidden');
+            }
+            
+            // Trigger recommendations if project type is selected
+            const projectTypeSelect = document.getElementById('project-type-select');
+            if (projectTypeSelect && projectTypeSelect.value) {
+                setTimeout(() => {
+                    if (typeof fetchZoneRecommendations === 'function') {
+                        fetchZoneRecommendations();
+                    }
+                }, 500);
+            }
+        });
         } else {
             console.log('Updating existing map view');
             popupMap.setView([lat, lng], zoom);
         }
 
-        // Update marker
+        // Update marker - show existing location if coordinates are set
         if (popupMarker) {
             popupMap.removeLayer(popupMarker);
             popupMarker = null;
         }
 
         if (lat && lng) {
-            popupMarker = L.marker([lat, lng]).addTo(popupMap);
+            popupMarker = L.marker([lat, lng], {
+                draggable: true
+            }).addTo(popupMap);
+            
+            // Add drag handler for marker
+            popupMarker.on('dragend', function(e) {
+                const marker = e.target;
+                const position = marker.getLatLng();
+                console.log('Marker dragged to:', position.lat, position.lng);
+                
+                // Update input fields
+                const latInput = document.getElementById('latitude-input');
+                const lngInput = document.getElementById('longitude-input');
+                if (latInput) {
+                    latInput.value = position.lat.toFixed(6);
+                    latInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                if (lngInput) {
+                    lngInput.value = position.lng.toFixed(6);
+                    lngInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+            
             console.log('Marker added at:', lat, lng);
         }
 
