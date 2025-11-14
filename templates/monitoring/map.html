@@ -260,6 +260,89 @@
 {% block extra_js %}
 {{ projects_data|json_script:"projects-data" }}
 
+<!-- Define openAddProjectModal function IMMEDIATELY, before anything else -->
+<script>
+(function() {
+    'use strict';
+    
+    // Define the function immediately, even before DOM is ready
+    window.openAddProjectModal = function() {
+        console.log('openAddProjectModal called');
+        try {
+            const modal = document.getElementById('project-modal');
+            if (!modal) {
+                console.error('Modal not found');
+                alert('Error: Project modal not found. Please refresh the page.');
+                return false;
+            }
+            
+            // Show modal
+            modal.style.display = 'flex';
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('opacity-100');
+            
+            // Initialize all modal buttons (if function exists)
+            if (typeof initializeModalButtons === 'function') {
+                initializeModalButtons();
+            }
+            
+            // Initialize and populate (if functions exist)
+            if (typeof populateEngineers === 'function') {
+                populateEngineers();
+            }
+            if (typeof populateProjectTypes === 'function') {
+                populateProjectTypes();
+            }
+            
+            // Set up event listeners for recommendations
+            if (typeof setupRecommendationEventListeners === 'function') {
+                setTimeout(() => {
+                    setupRecommendationEventListeners();
+                }, 100);
+            }
+            
+            // Re-initialize map button
+            setTimeout(() => {
+                const mapBtn = document.getElementById('map-fullscreen-btn');
+                if (mapBtn && typeof showPopupMap === 'function') {
+                    const newBtn = mapBtn.cloneNode(true);
+                    mapBtn.parentNode.replaceChild(newBtn, mapBtn);
+                    
+                    newBtn.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showPopupMap();
+                        return false;
+                    };
+                    
+                    newBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showPopupMap();
+                    }, true);
+                }
+            }, 200);
+            
+            // Hide recommendation section initially
+            const recSection = document.getElementById('zone-recommendation-section');
+            if (recSection) {
+                recSection.classList.add('hidden');
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error in openAddProjectModal:', error);
+            alert('Error opening project modal. Please refresh the page.');
+            return false;
+        }
+    };
+    
+    console.log('✓ openAddProjectModal function defined globally (early)');
+})();
+</script>
+
 <!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
 <!-- Add cache busting with timestamp to ensure latest version loads -->
 <script src="{% static 'js/simple_choropleth.js' %}?v=2.0"></script>
@@ -2468,86 +2551,8 @@ function setupAddProjectButton() {
     console.log('Add Project button setup complete with multiple handlers!');
 }
 
-// Ensure global function is available immediately - define it FIRST before anything else
-(function() {
-    'use strict';
-    
-    // Define the function immediately, even before DOM is ready
-    window.openAddProjectModal = function() {
-        console.log('openAddProjectModal called');
-        try {
-            const modal = document.getElementById('project-modal');
-            if (!modal) {
-                console.error('Modal not found');
-                alert('Error: Project modal not found. Please refresh the page.');
-                return false;
-            }
-            
-            // Show modal
-            modal.style.display = 'flex';
-            modal.style.opacity = '1';
-            modal.style.pointerEvents = 'auto';
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            modal.classList.add('opacity-100');
-            
-            // Initialize all modal buttons
-            if (typeof initializeModalButtons === 'function') {
-                initializeModalButtons();
-            }
-            
-            // Initialize and populate
-            if (typeof populateEngineers === 'function') {
-                populateEngineers();
-            }
-            if (typeof populateProjectTypes === 'function') {
-                populateProjectTypes();
-            }
-            
-            // Set up event listeners for recommendations
-            if (typeof setupRecommendationEventListeners === 'function') {
-                setTimeout(() => {
-                    setupRecommendationEventListeners();
-                }, 100);
-            }
-            
-            // Re-initialize map button
-            setTimeout(() => {
-                const mapBtn = document.getElementById('map-fullscreen-btn');
-                if (mapBtn && typeof showPopupMap === 'function') {
-                    const newBtn = mapBtn.cloneNode(true);
-                    mapBtn.parentNode.replaceChild(newBtn, mapBtn);
-                    
-                    newBtn.onclick = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        showPopupMap();
-                        return false;
-                    };
-                    
-                    newBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        showPopupMap();
-                    }, true);
-                }
-            }, 200);
-            
-            // Hide recommendation section initially
-            const recSection = document.getElementById('zone-recommendation-section');
-            if (recSection) {
-                recSection.classList.add('hidden');
-            }
-            
-            return false;
-        } catch (error) {
-            console.error('Error in openAddProjectModal:', error);
-            alert('Error opening project modal. Please refresh the page.');
-            return false;
-        }
-    };
-    
-    console.log('openAddProjectModal function defined globally');
-})();
+// Function is now defined at the top of the script block (before DOMContentLoaded)
+// This ensures it's available when the inline onclick handler fires
 
 // Run setup immediately and also on DOM ready
 if (document.readyState === 'loading') {
