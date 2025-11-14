@@ -1763,32 +1763,107 @@ function initializeModalButtons() {
 }
 
 function populateEngineers() {
-    fetch('/projeng/api/engineers/')
-        .then(response => response.json())
+    const engineersSelect = document.getElementById('assigned-engineers-select');
+    if (!engineersSelect) {
+        console.error('Assigned engineers select element not found');
+        return;
+    }
+    
+    console.log('Fetching engineers...');
+    
+    // Get CSRF token for the request
+    const csrftoken = document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    fetch('/projeng/api/engineers/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken || '',
+        },
+        credentials: 'same-origin', // Include cookies for authentication
+    })
+        .then(response => {
+            console.log('Engineers API response status:', response.status);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('API error response:', text);
+                    throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+                });
+            }
+            return response.json();
+        })
         .then(engineers => {
-            if (assignedEngineersSelect) {
-                assignedEngineersSelect.innerHTML = '';
-                if (engineers.error) {
-                    const option = document.createElement('option');
-                    option.textContent = 'No engineers available or not authorized';
-                    assignedEngineersSelect.appendChild(option);
-                    assignedEngineersSelect.disabled = true;
+            console.log('Engineers data received:', engineers);
+            
+            engineersSelect.innerHTML = '';
+            
+            // Check if response is an error object
+            if (engineers && engineers.error) {
+                console.error('API returned error:', engineers.error);
+                const option = document.createElement('option');
+                option.textContent = 'Error: ' + engineers.error;
+                engineersSelect.appendChild(option);
+                engineersSelect.disabled = true;
+                return;
+            }
+            
+            // Check if engineers is an array
+            if (!Array.isArray(engineers)) {
+                console.error('Unexpected engineers data format:', engineers);
+                const option = document.createElement('option');
+                option.textContent = 'Error: Unexpected response format';
+                engineersSelect.appendChild(option);
+                engineersSelect.disabled = true;
+                return;
+            }
+            
+            if (engineers.length === 0) {
+                console.warn('No engineers found');
+                const option = document.createElement('option');
+                option.textContent = 'No engineers available';
+                engineersSelect.appendChild(option);
+                engineersSelect.disabled = true;
+                return;
+            }
+            
+            engineersSelect.disabled = false;
+            const currentUsername = (window.currentUsername || '').trim().toLowerCase();
+            
+            let addedCount = 0;
+            engineers.forEach(engineer => {
+                const engineerUsername = (engineer.username || '').trim().toLowerCase();
+                // Skip current user
+                if (engineerUsername === currentUsername) {
+                    console.log('Skipping current user:', engineerUsername);
                     return;
                 }
-                assignedEngineersSelect.disabled = false;
-                const currentUsername = (window.currentUsername || '').trim().toLowerCase();
-                engineers.forEach(engineer => {
-                    const engineerUsername = (engineer.username || '').trim().toLowerCase();
-                    if (engineerUsername === currentUsername) return;
-                    const option = document.createElement('option');
-                    option.value = engineer.id;
-                    option.textContent = engineer.full_name || engineer.username;
-                    assignedEngineersSelect.appendChild(option);
-                });
+                
+                const option = document.createElement('option');
+                option.value = engineer.id;
+                option.textContent = engineer.full_name || engineer.username;
+                engineersSelect.appendChild(option);
+                addedCount++;
+            });
+            
+            console.log(`Loaded ${addedCount} engineers (${engineers.length} total, ${engineers.length - addedCount} skipped)`);
+            
+            if (addedCount === 0) {
+                const option = document.createElement('option');
+                option.textContent = 'No other engineers available';
+                engineersSelect.appendChild(option);
             }
         })
         .catch(err => {
             console.error('Failed to fetch engineers:', err);
+            if (engineersSelect) {
+                engineersSelect.innerHTML = '';
+                const option = document.createElement('option');
+                option.textContent = 'Error loading engineers. Please refresh the page.';
+                engineersSelect.appendChild(option);
+                engineersSelect.disabled = true;
+            }
         });
 }
 
