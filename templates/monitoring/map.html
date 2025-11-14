@@ -358,6 +358,19 @@
     };
     
     console.log('[OK] openAddProjectModal function defined globally (early)');
+    
+    // Define showPopupMap placeholder early (will be replaced with full implementation later)
+    window.showPopupMap = function() {
+        console.log('showPopupMap placeholder called - full implementation will be available after page loads');
+        const modalEl = document.getElementById('map-popup-modal');
+        if (modalEl) {
+            modalEl.classList.remove('hidden');
+            modalEl.style.display = 'flex';
+            modalEl.style.zIndex = '20001';
+        }
+    };
+    
+    console.log('[OK] showPopupMap function defined globally (early placeholder)');
 })();
 </script>
 
