@@ -409,9 +409,14 @@
 
 {% block extra_js %}
 {{ block.super }}
+{% if projects_data %}
 {{ projects_data|json_script:"projects-data" }}
+{% else %}
+<script id="projects-data" type="application/json">[]</script>
+{% endif %}
 <script>
 window.currentUsername = "{{ request.user.username|escapejs }}";
+console.log('Template: projects_data variable exists:', typeof projects_data !== 'undefined', 'Length:', projects_data|length);
 </script>
 <script>
 // Initialize window.projects as an array
