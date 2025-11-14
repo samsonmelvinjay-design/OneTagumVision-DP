@@ -4,7 +4,8 @@ from django.contrib.auth.admin import UserAdmin
 from .models import (
     Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, 
     BarangayMetadata, ZoningZone, ProjectMilestone,
-    LandSuitabilityAnalysis, SuitabilityCriteria
+    LandSuitabilityAnalysis, SuitabilityCriteria,
+    ProjectType, ZoneAllowedUse, ZoneRecommendation
 )
 from django.contrib.auth.models import Group
 
@@ -293,4 +294,127 @@ class SuitabilityCriteriaAdmin(admin.ModelAdmin):
         }),
     )
     list_per_page = 25
-    ordering = ['name'] 
+    ordering = ['name']
+
+@admin.register(ProjectType)
+class ProjectTypeAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Project Types.
+    """
+    list_display = [
+        'name',
+        'code',
+        'density_level',
+        'height_category',
+        'requires_residential',
+        'requires_commercial',
+        'requires_industrial'
+    ]
+    list_filter = [
+        'density_level',
+        'height_category',
+        'requires_residential',
+        'requires_commercial',
+        'requires_industrial'
+    ]
+    search_fields = ['name', 'code', 'description']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'code', 'description')
+        }),
+        ('Characteristics', {
+            'fields': ('density_level', 'height_category')
+        }),
+        ('Zone Requirements', {
+            'fields': ('requires_residential', 'requires_commercial', 'requires_industrial')
+        }),
+    )
+    list_per_page = 25
+    ordering = ['name']
+
+@admin.register(ZoneAllowedUse)
+class ZoneAllowedUseAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Zone Allowed Uses.
+    """
+    list_display = [
+        'zone_type',
+        'project_type',
+        'is_primary_use',
+        'is_conditional',
+        'max_density',
+        'max_height'
+    ]
+    list_filter = [
+        'zone_type',
+        'is_primary_use',
+        'is_conditional'
+    ]
+    search_fields = [
+        'zone_type',
+        'project_type__name',
+        'project_type__code',
+        'conditions'
+    ]
+    fieldsets = (
+        ('Zone and Project Type', {
+            'fields': ('zone_type', 'project_type')
+        }),
+        ('Permissions', {
+            'fields': ('is_primary_use', 'is_conditional', 'conditions')
+        }),
+        ('Restrictions', {
+            'fields': ('max_density', 'max_height')
+        }),
+    )
+    list_per_page = 25
+    ordering = ['zone_type', 'project_type__name']
+
+@admin.register(ZoneRecommendation)
+class ZoneRecommendationAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Zone Recommendations.
+    """
+    list_display = [
+        'project',
+        'recommended_zone',
+        'overall_score',
+        'rank',
+        'is_selected',
+        'created_at'
+    ]
+    list_filter = [
+        'recommended_zone',
+        'is_selected',
+        'created_at'
+    ]
+    search_fields = [
+        'project__name',
+        'project__prn',
+        'recommended_zone',
+        'reasoning'
+    ]
+    readonly_fields = ['created_at']
+    fieldsets = (
+        ('Project and Zone', {
+            'fields': ('project', 'recommended_zone', 'rank', 'is_selected')
+        }),
+        ('Scores', {
+            'fields': (
+                'overall_score',
+                'zoning_compliance_score',
+                'land_availability_score',
+                'accessibility_score',
+                'community_impact_score',
+                'infrastructure_score'
+            )
+        }),
+        ('Analysis', {
+            'fields': ('reasoning', 'advantages', 'constraints')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',)
+        }),
+    )
+    list_per_page = 25
+    ordering = ['project', 'rank'] 

@@ -591,4 +591,219 @@ class SuitabilityCriteria(models.Model):
     def save(self, *args, **kwargs):
         """Override save to validate weights"""
         self.full_clean()
-        super().save(*args, **kwargs) 
+        super().save(*args, **kwargs)
+
+
+class ProjectType(models.Model):
+    """Defines project types and their characteristics"""
+    
+    PROJECT_TYPE_CHOICES = [
+        # Residential
+        ('single_family_house', 'Single Family House'),
+        ('multi_family_house', 'Multi-Family House'),
+        ('apartment_building', 'Apartment Building (3-5 stories)'),
+        ('high_rise_residential', 'High-Rise Residential (6+ stories)'),
+        ('socialized_housing', 'Socialized Housing'),
+        # Commercial
+        ('retail_store', 'Retail Store'),
+        ('shopping_mall', 'Shopping Mall'),
+        ('office_building', 'Office Building'),
+        ('hotel', 'Hotel'),
+        ('restaurant', 'Restaurant'),
+        # Industrial
+        ('light_industrial', 'Light Industrial Facility'),
+        ('heavy_industrial', 'Heavy Industrial Facility'),
+        ('warehouse', 'Warehouse'),
+        ('factory', 'Factory'),
+        # Infrastructure
+        ('road', 'Road/Highway'),
+        ('bridge', 'Bridge'),
+        ('water_system', 'Water System'),
+        ('sewer_system', 'Sewer System'),
+        # Institutional
+        ('school', 'School'),
+        ('hospital', 'Hospital'),
+        ('government_building', 'Government Building'),
+        ('church', 'Church/Religious Building'),
+        # Other
+        ('park', 'Park/Recreation'),
+        ('cemetery', 'Cemetery'),
+    ]
+    
+    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=50, unique=True, choices=PROJECT_TYPE_CHOICES)
+    description = models.TextField(blank=True)
+    
+    # Characteristics
+    density_level = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low Density'),
+            ('medium', 'Medium Density'),
+            ('high', 'High Density'),
+        ],
+        help_text="Density level of this project type"
+    )
+    
+    height_category = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low (1-2 stories)'),
+            ('medium', 'Medium (3-5 stories)'),
+            ('high', 'High (6+ stories)'),
+        ],
+        blank=True,
+        null=True
+    )
+    
+    requires_industrial = models.BooleanField(
+        default=False,
+        help_text="Requires industrial zone"
+    )
+    
+    requires_commercial = models.BooleanField(
+        default=False,
+        help_text="Requires commercial zone"
+    )
+    
+    requires_residential = models.BooleanField(
+        default=False,
+        help_text="Requires residential zone"
+    )
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Project Type'
+        verbose_name_plural = 'Project Types'
+    
+    def __str__(self):
+        return self.name
+
+
+class ZoneAllowedUse(models.Model):
+    """Defines which project types are allowed in each zone"""
+    
+    ZONE_CHOICES = [
+        ('R1', 'Low Density Residential'),
+        ('R2', 'Medium Density Residential'),
+        ('R3', 'High Density Residential'),
+        ('SHZ', 'Socialized Housing Zone'),
+        ('C1', 'Major Commercial Zone'),
+        ('C2', 'Minor Commercial Zone'),
+        ('I1', 'Heavy Industrial Zone'),
+        ('I2', 'Light and Medium Industrial Zone'),
+        ('Al', 'Agro-Industrial'),
+        ('In', 'Institutional'),
+        ('Ag', 'Agricultural'),
+        ('Cu', 'Cultural'),
+    ]
+    
+    zone_type = models.CharField(max_length=10, choices=ZONE_CHOICES, db_index=True)
+    project_type = models.ForeignKey(
+        'ProjectType',
+        on_delete=models.CASCADE,
+        related_name='allowed_zones'
+    )
+    
+    # Permissions
+    is_primary_use = models.BooleanField(
+        default=True,
+        help_text="Primary allowed use (vs conditional use)"
+    )
+    
+    is_conditional = models.BooleanField(
+        default=False,
+        help_text="Requires special permit/approval"
+    )
+    
+    conditions = models.TextField(
+        blank=True,
+        help_text="Conditions or restrictions for this use"
+    )
+    
+    # Density restrictions
+    max_density = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Maximum density allowed (e.g., '50 units/hectare')"
+    )
+    
+    max_height = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Maximum height allowed (e.g., '5 stories')"
+    )
+    
+    class Meta:
+        unique_together = ['zone_type', 'project_type']
+        verbose_name = 'Zone Allowed Use'
+        verbose_name_plural = 'Zone Allowed Uses'
+        indexes = [
+            models.Index(fields=['zone_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.zone_type} - {self.project_type.name}"
+
+
+class ZoneRecommendation(models.Model):
+    """Stores zone recommendations for projects"""
+    
+    project = models.ForeignKey(
+        'Project',
+        on_delete=models.CASCADE,
+        related_name='zone_recommendations'
+    )
+    
+    recommended_zone = models.CharField(
+        max_length=10,
+        help_text="Recommended zone type"
+    )
+    
+    # Scores
+    overall_score = models.FloatField(
+        help_text="Overall MCDA score (0-100)"
+    )
+    
+    # Factor scores
+    zoning_compliance_score = models.FloatField(default=0)
+    land_availability_score = models.FloatField(default=0)
+    accessibility_score = models.FloatField(default=0)
+    community_impact_score = models.FloatField(default=0)
+    infrastructure_score = models.FloatField(default=0)
+    
+    # Ranking
+    rank = models.IntegerField(
+        help_text="Rank among all recommendations (1 = best)"
+    )
+    
+    # Reasoning
+    reasoning = models.TextField(
+        help_text="Why this zone is recommended"
+    )
+    
+    advantages = models.JSONField(
+        default=list,
+        help_text="List of advantages for this zone"
+    )
+    
+    constraints = models.JSONField(
+        default=list,
+        help_text="List of constraints or limitations"
+    )
+    
+    is_selected = models.BooleanField(
+        default=False,
+        help_text="Whether this recommendation was selected"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['project', 'rank']
+        unique_together = ['project', 'recommended_zone']
+        verbose_name = 'Zone Recommendation'
+        verbose_name_plural = 'Zone Recommendations'
+    
+    def __str__(self):
+        return f"{self.project.name} → {self.recommended_zone} (Score: {self.overall_score})" 
