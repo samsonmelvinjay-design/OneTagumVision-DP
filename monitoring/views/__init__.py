@@ -263,7 +263,7 @@ def dashboard_monthly_spending_data(request):
     })
 
 @login_required
-@prevent_project_engineer_access
+@head_engineer_required
 def project_list(request):
     
     if request.method == 'POST':

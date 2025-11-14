@@ -403,4 +403,192 @@ class ZoningZone(models.Model):
         """Return keywords as a list (for compatibility)"""
         if isinstance(self.keywords, list):
             return self.keywords
-        return [] 
+        return []
+
+
+class LandSuitabilityAnalysis(models.Model):
+    """Stores land suitability analysis results for projects"""
+    
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='suitability_analysis',
+        help_text="Project being analyzed"
+    )
+    
+    # Overall Suitability Score (0-100)
+    overall_score = models.FloatField(
+        help_text="Overall suitability score (0-100)"
+    )
+    
+    # Suitability Category
+    SUITABILITY_CHOICES = [
+        ('highly_suitable', 'Highly Suitable (80-100)'),
+        ('suitable', 'Suitable (60-79)'),
+        ('moderately_suitable', 'Moderately Suitable (40-59)'),
+        ('marginally_suitable', 'Marginally Suitable (20-39)'),
+        ('not_suitable', 'Not Suitable (0-19)'),
+    ]
+    suitability_category = models.CharField(
+        max_length=30,
+        choices=SUITABILITY_CHOICES,
+        help_text="Suitability category based on score"
+    )
+    
+    # Factor Scores (0-100 each)
+    zoning_compliance_score = models.FloatField(
+        help_text="Zoning compliance score (0-100)"
+    )
+    flood_risk_score = models.FloatField(
+        help_text="Flood risk assessment score (0-100, higher = less risk)"
+    )
+    infrastructure_access_score = models.FloatField(
+        help_text="Infrastructure access score (0-100)"
+    )
+    elevation_suitability_score = models.FloatField(
+        help_text="Elevation suitability score (0-100)"
+    )
+    economic_alignment_score = models.FloatField(
+        help_text="Economic zone alignment score (0-100)"
+    )
+    population_density_score = models.FloatField(
+        help_text="Population density appropriateness score (0-100)"
+    )
+    
+    # Risk Factors
+    has_flood_risk = models.BooleanField(default=False)
+    has_slope_risk = models.BooleanField(default=False)
+    has_zoning_conflict = models.BooleanField(default=False)
+    has_infrastructure_gap = models.BooleanField(default=False)
+    
+    # Recommendations and Constraints
+    recommendations = models.JSONField(
+        default=list,
+        help_text="List of recommendations for improving suitability"
+    )
+    constraints = models.JSONField(
+        default=list,
+        help_text="List of constraints or limitations"
+    )
+    
+    # Analysis Metadata
+    analyzed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    analysis_version = models.CharField(
+        max_length=20,
+        default='1.0',
+        help_text="Version of analysis algorithm used"
+    )
+    
+    class Meta:
+        verbose_name = "Land Suitability Analysis"
+        verbose_name_plural = "Land Suitability Analyses"
+        ordering = ['-analyzed_at']
+    
+    def __str__(self):
+        return f"{self.project.name} - {self.get_suitability_category_display()} ({self.overall_score:.1f})"
+    
+    def get_score_color(self):
+        """Get color class for suitability score"""
+        if self.overall_score >= 80:
+            return 'success'  # Green
+        elif self.overall_score >= 60:
+            return 'info'  # Blue
+        elif self.overall_score >= 40:
+            return 'warning'  # Yellow
+        elif self.overall_score >= 20:
+            return 'warning'  # Orange
+        else:
+            return 'danger'  # Red
+
+
+class SuitabilityCriteria(models.Model):
+    """Configurable criteria and weights for suitability analysis"""
+    
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        default='default',
+        help_text="Name of criteria configuration"
+    )
+    
+    # Weights for each factor (must sum to 1.0)
+    weight_zoning = models.FloatField(
+        default=0.30,
+        help_text="Weight for zoning compliance (0-1)"
+    )
+    weight_flood_risk = models.FloatField(
+        default=0.25,
+        help_text="Weight for flood risk (0-1)"
+    )
+    weight_infrastructure = models.FloatField(
+        default=0.20,
+        help_text="Weight for infrastructure access (0-1)"
+    )
+    weight_elevation = models.FloatField(
+        default=0.15,
+        help_text="Weight for elevation suitability (0-1)"
+    )
+    weight_economic = models.FloatField(
+        default=0.05,
+        help_text="Weight for economic alignment (0-1)"
+    )
+    weight_population = models.FloatField(
+        default=0.05,
+        help_text="Weight for population density (0-1)"
+    )
+    
+    # Project Type Specific Settings
+    PROJECT_TYPE_CHOICES = [
+        ('all', 'All Project Types'),
+        ('residential', 'Residential'),
+        ('commercial', 'Commercial'),
+        ('industrial', 'Industrial'),
+        ('infrastructure', 'Infrastructure'),
+        ('institutional', 'Institutional'),
+    ]
+    project_type = models.CharField(
+        max_length=20,
+        choices=PROJECT_TYPE_CHOICES,
+        default='all',
+        help_text="Project type this criteria applies to"
+    )
+    
+    # Additional parameters (stored as JSON for flexibility)
+    parameters = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Additional parameters for scoring (thresholds, ranges, etc.)"
+    )
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Suitability Criteria"
+        verbose_name_plural = "Suitability Criteria"
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_project_type_display()})"
+    
+    def clean(self):
+        """Validate that weights sum to approximately 1.0"""
+        from django.core.exceptions import ValidationError
+        total = (
+            self.weight_zoning +
+            self.weight_flood_risk +
+            self.weight_infrastructure +
+            self.weight_elevation +
+            self.weight_economic +
+            self.weight_population
+        )
+        if abs(total - 1.0) > 0.01:  # Allow small floating point errors
+            raise ValidationError(f"Weights must sum to 1.0, currently sum to {total:.2f}")
+    
+    def save(self, *args, **kwargs):
+        """Override save to validate weights"""
+        self.full_clean()
+        super().save(*args, **kwargs) 

@@ -263,7 +263,7 @@ else:
     if USE_SPACES:
         print("⚠️  WARNING: USE_SPACES is enabled but Spaces credentials are missing. Using local storage.")
     else:
-        print("ℹ️  Using local file storage for media files")
+        print("INFO: Using local file storage for media files")
 
 # Redirect after login
 LOGIN_REDIRECT_URL = '/dashboard/'

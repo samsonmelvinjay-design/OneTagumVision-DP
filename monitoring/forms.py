@@ -22,6 +22,16 @@ class ProjectForm(forms.ModelForm):
             # If the group doesn't exist, show no users in the dropdown
             self.fields['assigned_engineers'].queryset = User.objects.none()
         
+        # Make location required - must be selected via map picker
+        self.fields['latitude'].required = True
+        self.fields['longitude'].required = True
+        self.fields['latitude'].help_text = 'Click "Select Location on Map" to set coordinates'
+        self.fields['longitude'].help_text = 'Click "Select Location on Map" to set coordinates'
+        self.fields['latitude'].widget.attrs['readonly'] = True
+        self.fields['longitude'].widget.attrs['readonly'] = True
+        self.fields['latitude'].widget.attrs['placeholder'] = 'Click map to set'
+        self.fields['longitude'].widget.attrs['placeholder'] = 'Click map to set'
+        
         # Phase 4: Configure zone fields (if they exist in the form)
         if 'zone_type' in self.fields:
             self.fields['zone_type'].required = False
@@ -37,16 +47,37 @@ class ProjectForm(forms.ModelForm):
         barangay = cleaned_data.get('barangay')
         latitude = cleaned_data.get('latitude')
         longitude = cleaned_data.get('longitude')
+        
+        # Location is always required
+        errors = {}
+        if not latitude or latitude == '':
+            errors['latitude'] = 'Location is required. Please select a location on the map using the "Select Location on Map" button.'
+        if not longitude or longitude == '':
+            errors['longitude'] = 'Location is required. Please select a location on the map using the "Select Location on Map" button.'
+        
+        # Validate coordinate ranges (Tagum City is approximately 7.3-7.5°N, 125.7-125.9°E)
+        if latitude:
+            try:
+                lat_float = float(latitude)
+                if lat_float < 7.0 or lat_float > 8.0:
+                    errors['latitude'] = 'Latitude must be within Tagum City bounds (approximately 7.0-8.0°N). Please select a valid location on the map.'
+            except (ValueError, TypeError):
+                errors['latitude'] = 'Invalid latitude value. Please select a location on the map.'
+        
+        if longitude:
+            try:
+                lng_float = float(longitude)
+                if lng_float < 125.0 or lng_float > 126.0:
+                    errors['longitude'] = 'Longitude must be within Tagum City bounds (approximately 125.0-126.0°E). Please select a valid location on the map.'
+            except (ValueError, TypeError):
+                errors['longitude'] = 'Invalid longitude value. Please select a location on the map.'
+        
         if status == 'delayed':
-            errors = {}
             if not barangay:
                 errors['barangay'] = 'Barangay is required for delayed projects.'
-            if latitude is None or latitude == '':
-                errors['latitude'] = 'Latitude is required for delayed projects.'
-            if longitude is None or longitude == '':
-                errors['longitude'] = 'Longitude is required for delayed projects.'
-            if errors:
-                raise ValidationError(errors)
+        
+        if errors:
+            raise ValidationError(errors)
         return cleaned_data
 
 

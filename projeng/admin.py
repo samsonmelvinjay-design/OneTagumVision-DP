@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
-from .models import Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, BarangayMetadata, ZoningZone, ProjectMilestone
+from .models import (
+    Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, 
+    BarangayMetadata, ZoningZone, ProjectMilestone,
+    LandSuitabilityAnalysis, SuitabilityCriteria
+)
 from django.contrib.auth.models import Group
 
 @admin.register(Layer)
@@ -175,4 +179,118 @@ class BarangayMetadataAdmin(admin.ModelAdmin):
             'fields': ('data_source', 'data_year', 'created_at', 'updated_at')
         }),
     )
-    list_per_page = 25 
+    list_per_page = 25
+
+@admin.register(LandSuitabilityAnalysis)
+class LandSuitabilityAnalysisAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Land Suitability Analysis results.
+    """
+    list_display = [
+        'project',
+        'overall_score',
+        'suitability_category',
+        'zoning_compliance_score',
+        'flood_risk_score',
+        'has_zoning_conflict',
+        'has_flood_risk',
+        'analyzed_at'
+    ]
+    list_filter = [
+        'suitability_category',
+        'has_flood_risk',
+        'has_slope_risk',
+        'has_zoning_conflict',
+        'has_infrastructure_gap',
+        'analyzed_at'
+    ]
+    search_fields = [
+        'project__name',
+        'project__barangay',
+        'project__prn'
+    ]
+    readonly_fields = [
+        'analyzed_at',
+        'updated_at',
+        'analysis_version'
+    ]
+    fieldsets = (
+        ('Project', {
+            'fields': ('project',)
+        }),
+        ('Overall Assessment', {
+            'fields': ('overall_score', 'suitability_category', 'analysis_version')
+        }),
+        ('Factor Scores', {
+            'fields': (
+                'zoning_compliance_score',
+                'flood_risk_score',
+                'infrastructure_access_score',
+                'elevation_suitability_score',
+                'economic_alignment_score',
+                'population_density_score'
+            )
+        }),
+        ('Risk Factors', {
+            'fields': (
+                'has_flood_risk',
+                'has_slope_risk',
+                'has_zoning_conflict',
+                'has_infrastructure_gap'
+            )
+        }),
+        ('Analysis Results', {
+            'fields': ('recommendations', 'constraints')
+        }),
+        ('Timestamps', {
+            'fields': ('analyzed_at', 'updated_at')
+        }),
+    )
+    list_per_page = 25
+    ordering = ['-analyzed_at']
+
+@admin.register(SuitabilityCriteria)
+class SuitabilityCriteriaAdmin(admin.ModelAdmin):
+    """
+    Admin interface for Suitability Criteria configuration.
+    """
+    list_display = [
+        'name',
+        'project_type',
+        'weight_zoning',
+        'weight_flood_risk',
+        'weight_infrastructure',
+        'is_active',
+        'created_at'
+    ]
+    list_filter = [
+        'project_type',
+        'is_active',
+        'created_at'
+    ]
+    search_fields = ['name']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'project_type', 'is_active')
+        }),
+        ('Factor Weights (must sum to 1.0)', {
+            'fields': (
+                'weight_zoning',
+                'weight_flood_risk',
+                'weight_infrastructure',
+                'weight_elevation',
+                'weight_economic',
+                'weight_population'
+            ),
+            'description': 'All weights must sum to 1.0'
+        }),
+        ('Additional Parameters', {
+            'fields': ('parameters',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+    list_per_page = 25
+    ordering = ['name'] 
