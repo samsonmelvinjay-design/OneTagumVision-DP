@@ -169,8 +169,8 @@
         </div>
         {% endif %}
 
-        <!-- Budget Management Actions -->
-        {% if budget_utilization >= 80 %}
+        <!-- Budget Management Actions (only show if there's a pending budget request) -->
+        {% if budget_request_info %}
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
             <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
                 <svg class="w-6 h-6 mr-2 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,6 +178,7 @@
                 </svg>
                 Budget Management Actions
             </h3>
+            <p class="text-sm text-gray-600 mb-4">Review and respond to the budget increase request from the Head Engineer.</p>
             <div class="flex flex-col sm:flex-row gap-4">
                 <button type="button" 
                         onclick="showApproveBudgetModal()"
