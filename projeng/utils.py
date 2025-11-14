@@ -706,4 +706,63 @@ def get_project_from_notification(notification_message):
                     logger.info(f"[{model_name}] Found project by name (Generic budget, multiple): {project.id} - {project.name}")
                     return project.id
     
+    # Pattern 12: Budget Increase Approved/Rejected notifications
+    # Format: "✅ Budget Increase Approved: ProjectName (PRN: ...) Budget increased by..."
+    # Format: "❌ Budget Increase Rejected: ProjectName (PRN: ...) Budget increase request has been rejected..."
+    # Also handle without emoji prefix for robustness
+    budget_approval_patterns = [
+        r"(?:✅|❌)\s*Budget Increase (?:Approved|Rejected):\s*([^(]+?)\s*\(PRN:\s*([^)]+)\)",  # With emoji
+        r"Budget Increase (?:Approved|Rejected):\s*([^(]+?)\s*\(PRN:\s*([^)]+)\)",  # Without emoji
+    ]
+    
+    match = None
+    for pattern in budget_approval_patterns:
+        match = re.search(pattern, notification_message)
+        if match:
+            break
+    
+    if match:
+        project_text = match.group(1).strip()
+        prn = match.group(2).strip()
+        prn_normalized = re.sub(r'\s+', ' ', prn).strip()
+        
+        logger.info(f"Budget Increase Approved/Rejected: Extracted PRN='{prn_normalized}', project_text='{project_text}'")
+        
+        # Try both models
+        for ProjectModel, model_name in [(ProjengProject, "projeng"), (None, "monitoring")]:
+            if ProjectModel is None:
+                try:
+                    from monitoring.models import Project as MonitoringProject
+                    ProjectModel = MonitoringProject
+                except:
+                    continue
+            
+            # Try PRN first (more reliable)
+            try:
+                project = ProjectModel.objects.get(prn__iexact=prn_normalized)
+                logger.info(f"[{model_name}] Found project by PRN (Budget Increase Approved/Rejected): {project.id} - {project.name}")
+                return project.id
+            except ProjectModel.DoesNotExist:
+                pass
+            except ProjectModel.MultipleObjectsReturned:
+                project = ProjectModel.objects.filter(prn__iexact=prn_normalized).order_by('-created_at').first()
+                if project:
+                    logger.info(f"[{model_name}] Found project by PRN (Budget Increase Approved/Rejected, multiple): {project.id} - {project.name}")
+                    return project.id
+            
+            # Fallback to project name
+            project_name = project_text.strip()
+            try:
+                project = ProjectModel.objects.get(name__iexact=project_name)
+                logger.info(f"[{model_name}] Found project by name (Budget Increase Approved/Rejected): {project.id} - {project.name}")
+                return project.id
+            except ProjectModel.DoesNotExist:
+                pass
+            except ProjectModel.MultipleObjectsReturned:
+                project = ProjectModel.objects.filter(name__iexact=project_name).order_by('-created_at').first()
+                if project:
+                    logger.info(f"[{model_name}] Found project by name (Budget Increase Approved/Rejected, multiple): {project.id} - {project.name}")
+                    return project.id
+    
+    logger.warning(f"Could not extract project from notification: {notification_message[:200]}")
     return None 
