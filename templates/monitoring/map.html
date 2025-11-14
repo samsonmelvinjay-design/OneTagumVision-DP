@@ -1458,7 +1458,7 @@ function formatDate(dateStr) {
 <!-- Add/Edit Project Modal -->
 <div id="project-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto transition-opacity duration-300 opacity-0 pointer-events-none" style="z-index: 20000; display: none;">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-7xl p-0 relative mx-4 my-4 max-h-[95vh] overflow-y-auto animate-modal-scale">
-        <button id="close-modal" class="absolute top-6 right-6 z-30 w-12 h-12 flex items-center justify-center bg-blue-700 text-white text-3xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
+        <button id="close-modal" type="button" onclick="if(typeof window.closeProjectModal === 'function') { window.closeProjectModal(); } return false;" class="absolute top-6 right-6 z-30 w-12 h-12 flex items-center justify-center bg-blue-700 text-white text-3xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
         <form id="project-form" method="post" enctype="multipart/form-data" action="{% url 'project_list' %}" class="w-full p-8 md:p-10">
             {% csrf_token %}
             <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
