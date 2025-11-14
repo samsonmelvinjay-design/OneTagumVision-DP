@@ -1683,35 +1683,16 @@ function initializeModalButtons() {
             e.preventDefault();
             e.stopPropagation();
             console.log('Set Map Location button clicked');
+            // Set up map popup modal handlers before showing
+            setupMapPopupModal();
             showPopupMap();
         });
         console.log('Set Map Location button initialized');
     }
     
-    // Close map popup buttons
-    const closeMapPopup = document.getElementById('close-map-popup');
-    if (closeMapPopup) {
-        const newCloseMapPopup = closeMapPopup.cloneNode(true);
-        closeMapPopup.parentNode.replaceChild(newCloseMapPopup, closeMapPopup);
-        newCloseMapPopup.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Close map popup button clicked');
-            hidePopupMap();
-        });
-    }
-    
-    const closeMapPopupBtn = document.getElementById('close-map-popup-btn');
-    if (closeMapPopupBtn) {
-        const newCloseMapPopupBtn = closeMapPopupBtn.cloneNode(true);
-        closeMapPopupBtn.parentNode.replaceChild(newCloseMapPopupBtn, closeMapPopupBtn);
-        newCloseMapPopupBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Done button clicked');
-            hidePopupMap();
-        });
-    }
+    // Close map popup buttons - these are set up when map popup is shown
+    // But we can also set them up here as a fallback
+    setupMapPopupButtons();
     
     // Form submission handler
     const form = document.getElementById('project-form');
@@ -2331,6 +2312,60 @@ function hidePopupMap() {
     if (mapPopupModal) {
         mapPopupModal.classList.add('hidden');
         mapPopupModal.style.display = 'none';
+    }
+}
+
+// Set up map popup buttons and modal handlers
+function setupMapPopupButtons() {
+    initializeMapPopupElements();
+    
+    // Close map popup X button
+    if (closeMapPopup) {
+        const newCloseMapPopup = closeMapPopup.cloneNode(true);
+        closeMapPopup.parentNode.replaceChild(newCloseMapPopup, closeMapPopup);
+        closeMapPopup = newCloseMapPopup;
+        closeMapPopup.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Close map popup X button clicked');
+            hidePopupMap();
+        });
+    }
+    
+    // Done button
+    if (closeMapPopupBtn) {
+        const newCloseMapPopupBtn = closeMapPopupBtn.cloneNode(true);
+        closeMapPopupBtn.parentNode.replaceChild(newCloseMapPopupBtn, closeMapPopupBtn);
+        closeMapPopupBtn = newCloseMapPopupBtn;
+        closeMapPopupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Done button clicked');
+            hidePopupMap();
+        });
+    }
+}
+
+// Set up map popup modal click-outside-to-close
+function setupMapPopupModal() {
+    if (!mapPopupModal) {
+        initializeMapPopupElements();
+    }
+    if (mapPopupModal) {
+        // Remove existing listener if any by cloning
+        const newModal = mapPopupModal.cloneNode(true);
+        mapPopupModal.parentNode.replaceChild(newModal, mapPopupModal);
+        mapPopupModal = newModal;
+        
+        mapPopupModal.addEventListener('mousedown', function(e) {
+            if (e.target === mapPopupModal) {
+                console.log('Clicked outside map popup - closing');
+                hidePopupMap();
+            }
+        });
+        
+        // Also set up buttons
+        setupMapPopupButtons();
     }
 }
 
