@@ -1573,6 +1573,9 @@ function showModal() {
         modal.classList.add('opacity-100');
         modal.style.pointerEvents = 'auto';
         console.log('Modal shown');
+        
+        // Initialize all buttons when modal is shown
+        initializeModalButtons();
     } else {
         console.error('Project modal not found!');
     }
@@ -1614,6 +1617,9 @@ window.openAddProjectModal = function() {
         modal.classList.remove('opacity-0', 'pointer-events-none');
         modal.classList.add('opacity-100');
         
+        // Initialize all modal buttons
+        initializeModalButtons();
+        
         // Initialize and populate
         if (typeof populateEngineers === 'function') {
             populateEngineers();
@@ -1632,6 +1638,148 @@ window.openAddProjectModal = function() {
         alert('Error: Project modal not found. Please refresh the page.');
     }
 };
+
+// Function to initialize all modal buttons
+function initializeModalButtons() {
+    console.log('Initializing modal buttons...');
+    
+    // Close modal button (X)
+    const closeBtn = document.getElementById('close-modal');
+    if (closeBtn) {
+        // Remove existing listeners
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        
+        newCloseBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Close modal button clicked');
+            hideModal();
+        });
+        console.log('Close modal button initialized');
+    }
+    
+    // Cancel button
+    const cancelBtn = document.querySelector('button[type="button"][onclick="closeProjectModal()"]');
+    if (cancelBtn) {
+        cancelBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Cancel button clicked');
+            hideModal();
+            return false;
+        };
+        console.log('Cancel button initialized');
+    }
+    
+    // Set Map Location button
+    const mapBtn = document.getElementById('map-fullscreen-btn');
+    if (mapBtn) {
+        // Remove existing listeners
+        const newMapBtn = mapBtn.cloneNode(true);
+        mapBtn.parentNode.replaceChild(newMapBtn, mapBtn);
+        
+        newMapBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Set Map Location button clicked');
+            showPopupMap();
+        });
+        console.log('Set Map Location button initialized');
+    }
+    
+    // Close map popup buttons
+    const closeMapPopup = document.getElementById('close-map-popup');
+    if (closeMapPopup) {
+        const newCloseMapPopup = closeMapPopup.cloneNode(true);
+        closeMapPopup.parentNode.replaceChild(newCloseMapPopup, closeMapPopup);
+        newCloseMapPopup.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Close map popup button clicked');
+            hidePopupMap();
+        });
+    }
+    
+    const closeMapPopupBtn = document.getElementById('close-map-popup-btn');
+    if (closeMapPopupBtn) {
+        const newCloseMapPopupBtn = closeMapPopupBtn.cloneNode(true);
+        closeMapPopupBtn.parentNode.replaceChild(newCloseMapPopupBtn, closeMapPopupBtn);
+        newCloseMapPopupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Done button clicked');
+            hidePopupMap();
+        });
+    }
+    
+    // Form submission handler
+    const form = document.getElementById('project-form');
+    if (form) {
+        // Remove existing submit handler
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+        
+        newForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Form submitted');
+            
+            const formData = new FormData(newForm);
+            const csrftoken = document.cookie.split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+
+            if (!csrftoken) {
+                alert('Error: CSRF token not found. Please refresh the page.');
+                return false;
+            }
+
+            // Show loading state
+            const submitBtn = newForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+            }
+
+            fetch(newForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('Project created successfully!');
+                    hideModal();
+                    // Reload the page to show the new project on the map
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    return response.text().then(text => {
+                        console.error('Form submission error:', text);
+                        throw new Error('Failed to create project. Please check all required fields.');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while creating the project: ' + (error.message || 'Unknown error'));
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Save Project';
+                }
+            });
+            
+            return false;
+        });
+        console.log('Form submission handler initialized');
+    }
+    
+    console.log('All modal buttons initialized');
+}
 
 function populateEngineers() {
     fetch('/projeng/api/engineers/')
@@ -1844,15 +1992,19 @@ function fetchZoneRecommendations() {
         });
 }
 
-// Select recommended zone
-function selectRecommendedZone(zoneType) {
+// Select recommended zone - make it global
+window.selectRecommendedZone = function(zoneType) {
+    console.log('Selecting recommended zone:', zoneType);
     const zoneTypeSelect = document.getElementById('zone-type-select');
     if (zoneTypeSelect) {
         zoneTypeSelect.value = zoneType;
         // Trigger change event to update validation
         zoneTypeSelect.dispatchEvent(new Event('change'));
+        console.log('Zone selected:', zoneType);
+    } else {
+        console.error('Zone type select not found');
     }
-}
+};
 
 // Initialize project types and set up event listeners
 if (document.getElementById('project-type-select')) {
@@ -2080,29 +2232,51 @@ setTimeout(function() {
 // Popup Map Modal Logic
 let popupMap = null;
 let popupMarker = null;
-const mapPopupModal = document.getElementById('map-popup-modal');
-const popupMapDiv = document.getElementById('popup-map');
-const closeMapPopup = document.getElementById('close-map-popup');
-const closeMapPopupBtn = document.getElementById('close-map-popup-btn');
-const mapFullscreenBtn = document.getElementById('map-fullscreen-btn');
-const latInput = document.getElementById('latitude-input');
-const lngInput = document.getElementById('longitude-input');
+let mapPopupModal = null;
+let popupMapDiv = null;
+let closeMapPopup = null;
+let closeMapPopupBtn = null;
+let mapFullscreenBtn = null;
+let latInput = null;
+let lngInput = null;
+
+// Initialize map popup elements
+function initializeMapPopupElements() {
+    mapPopupModal = document.getElementById('map-popup-modal');
+    popupMapDiv = document.getElementById('popup-map');
+    closeMapPopup = document.getElementById('close-map-popup');
+    closeMapPopupBtn = document.getElementById('close-map-popup-btn');
+    mapFullscreenBtn = document.getElementById('map-fullscreen-btn');
+    latInput = document.getElementById('latitude-input');
+    lngInput = document.getElementById('longitude-input');
+}
 
 function showPopupMap() {
+    // Initialize elements if not already done
+    if (!mapPopupModal) {
+        initializeMapPopupElements();
+    }
+    
     if (mapPopupModal) {
         mapPopupModal.classList.remove('hidden');
+        mapPopupModal.style.display = 'flex';
         setTimeout(() => {
-            let lat = parseFloat(latInput.value) || 7.4475;
-            let lng = parseFloat(lngInput.value) || 125.8078;
+            // Get current inputs
+            const currentLatInput = document.getElementById('latitude-input');
+            const currentLngInput = document.getElementById('longitude-input');
+            const currentBarangaySelect = document.getElementById('modal-barangay-select');
+            
+            let lat = 7.4475;
+            let lng = 125.8078;
             let zoom = 13;
 
-            const selectedBarangay = modalBarangaySelect ? modalBarangaySelect.value : '';
+            const selectedBarangay = currentBarangaySelect ? currentBarangaySelect.value : '';
             if (selectedBarangay && barangayCoordinates[selectedBarangay]) {
                 [lat, lng] = barangayCoordinates[selectedBarangay];
                 zoom = 14;
-            } else if (latInput.value && lngInput.value) {
-                lat = parseFloat(latInput.value);
-                lng = parseFloat(lngInput.value);
+            } else if (currentLatInput && currentLatInput.value && currentLngInput && currentLngInput.value) {
+                lat = parseFloat(currentLatInput.value);
+                lng = parseFloat(currentLngInput.value);
                 zoom = 14;
             }
 
@@ -2117,10 +2291,14 @@ function showPopupMap() {
                 popupMap.on('click', function(e) {
                     const clickedLat = e.latlng.lat;
                     const clickedLng = e.latlng.lng;
-                    if (latInput) latInput.value = clickedLat;
-                    if (lngInput) lngInput.value = clickedLng;
-                    if (popupMarker) { popupMarker.setLatLng([clickedLat, clickedLng]); }
-                    else { popupMarker = L.marker([clickedLat, clickedLng]).addTo(popupMap); }
+                    if (currentLatInput) currentLatInput.value = clickedLat;
+                    if (currentLngInput) currentLngInput.value = clickedLng;
+                    if (popupMarker) { 
+                        popupMarker.setLatLng([clickedLat, clickedLng]); 
+                    } else { 
+                        popupMarker = L.marker([clickedLat, clickedLng]).addTo(popupMap); 
+                    }
+                    console.log('Location selected:', clickedLat, clickedLng);
                 });
             } else {
                 popupMap.setView([lat, lng], zoom);
@@ -2135,66 +2313,28 @@ function showPopupMap() {
                 popupMarker = L.marker([lat, lng]).addTo(popupMap);
             }
 
-            setTimeout(() => { if (popupMap) popupMap.invalidateSize(); }, 350);
+            setTimeout(() => { 
+                if (popupMap) {
+                    popupMap.invalidateSize(); 
+                }
+            }, 350);
         }, 100);
+    } else {
+        console.error('Map popup modal not found!');
     }
 }
 
 function hidePopupMap() {
+    if (!mapPopupModal) {
+        initializeMapPopupElements();
+    }
     if (mapPopupModal) {
         mapPopupModal.classList.add('hidden');
+        mapPopupModal.style.display = 'none';
     }
 }
 
-if (mapFullscreenBtn) {
-    mapFullscreenBtn.addEventListener('click', showPopupMap);
-}
-if (closeMapPopup) closeMapPopup.addEventListener('click', hidePopupMap);
-if (closeMapPopupBtn) closeMapPopupBtn.addEventListener('click', hidePopupMap);
-
-if (mapPopupModal) {
-    mapPopupModal.addEventListener('mousedown', function(e) {
-        if (e.target === mapPopupModal) {
-            hidePopupMap();
-        }
-    });
-}
-
-// Form submission handler
-if (projectForm) {
-    projectForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(projectForm);
-        const csrftoken = document.cookie.split('; ')
-            .find(row => row.startsWith('csrftoken='))
-            ?.split('=')[1];
-
-        fetch(projectForm.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken
-            },
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                showToast('Project created successfully!');
-                hideModal();
-                // Reload the page to show the new project on the map
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                return response.text().then(text => {
-                    throw new Error('Failed to create project');
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while creating the project: ' + (error.message || 'Unknown error'));
-        });
-    });
-}
+// Form submission is now handled in initializeModalButtons()
+// This ensures it's set up every time the modal opens
 </script>
 {% endblock %} 
