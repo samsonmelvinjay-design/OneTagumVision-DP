@@ -232,9 +232,10 @@ if SPACES_CONFIGURED:
     AWS_S3_VERIFY = True  # Verify SSL certificates
     
     # Force ACL on upload (important for Spaces)
+    # Note: ACL in OBJECT_PARAMETERS might not work with all versions of django-storages
+    # We'll rely on AWS_DEFAULT_ACL instead
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',  # Cache for 1 day
-        'ACL': 'public-read',  # Ensure files are publicly readable
     }
     
     # Add error logging for uploads
