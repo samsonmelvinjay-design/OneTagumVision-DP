@@ -2866,6 +2866,13 @@ window.showPopupMap = function() {
         }
     }, 350);
     }, 100);
+};
+
+// Also define as regular function for backward compatibility
+function showPopupMap() {
+    if (typeof window.showPopupMap === 'function') {
+        window.showPopupMap();
+    }
 }
 
 function hidePopupMap() {
