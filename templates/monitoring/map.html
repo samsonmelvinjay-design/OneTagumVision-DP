@@ -1619,8 +1619,15 @@ function populateProjectTypes() {
     const projectTypeSelect = document.getElementById('project-type-select');
     if (!projectTypeSelect) return;
     
-    fetch('{% url "projeng:project_types_api" %}')
-        .then(response => response.json())
+    // Use absolute URL to avoid template tag issues
+    const apiUrl = '/projeng/api/project-types/';
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.project_types) {
                 projectTypeSelect.innerHTML = '<option value="">---------</option>';
@@ -1634,6 +1641,10 @@ function populateProjectTypes() {
         })
         .catch(err => {
             console.error('Failed to fetch project types:', err);
+            // Show error to user
+            if (projectTypeSelect) {
+                projectTypeSelect.innerHTML = '<option value="">Error loading project types</option>';
+            }
         });
 }
 
@@ -1665,8 +1676,8 @@ function fetchZoneRecommendations() {
     recommendationsList.innerHTML = '';
     validationAlert.classList.add('hidden');
     
-    // Build API URL
-    let apiUrl = `{% url "projeng:zone_recommendation_api" %}?project_type_code=${encodeURIComponent(projectTypeCode)}&limit=5`;
+    // Build API URL - use absolute path to avoid template tag issues
+    let apiUrl = `/projeng/api/zone-recommendation/?project_type_code=${encodeURIComponent(projectTypeCode)}&limit=5`;
     if (selectedZone) {
         apiUrl += `&selected_zone=${encodeURIComponent(selectedZone)}`;
     }

@@ -494,71 +494,93 @@ def project_list(request):
 @login_required
 @prevent_project_engineer_access
 def map_view(request):
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-    # Only include projects with coordinates
-    projects_with_coords = projects.filter(latitude__isnull=False, longitude__isnull=False).prefetch_related('assigned_engineers')
-    
-    # Get latest progress for all projects
-    from django.db.models import Max
-    project_ids = [p.id for p in projects_with_coords]
-    latest_progress = {}
-    if project_ids:
-        from projeng.models import ProjectProgress
-        latest_progress_qs = ProjectProgress.objects.filter(
-            project_id__in=project_ids
-        ).values('project_id').annotate(
-            latest_date=Max('date'),
-            latest_created=Max('created_at')
-        )
-        for item in latest_progress_qs:
-            latest = ProjectProgress.objects.filter(
-                project_id=item['project_id'],
-                date=item['latest_date'],
-                created_at=item['latest_created']
-            ).order_by('-created_at').first()
-            if latest and latest.percentage_complete is not None:
-                latest_progress[item['project_id']] = int(latest.percentage_complete)
-    
-    projects_data = []
-    for p in projects_with_coords:
-        # Get assigned engineers as a list of usernames
-        assigned_engineers = [eng.username for eng in p.assigned_engineers.all()]
-        # Get progress - prefer latest progress update, fallback to project.progress field
-        progress_value = latest_progress.get(p.id)
-        if progress_value is None:
-            progress_value = getattr(p, 'progress', 0)
-            if progress_value is None:
-                progress_value = 0
+    try:
+        if is_head_engineer(request.user) or is_finance_manager(request.user):
+            projects = Project.objects.all()
+        elif is_project_engineer(request.user):
+            projects = Project.objects.filter(assigned_engineers=request.user)
+        else:
+            projects = Project.objects.none()
+        # Only include projects with coordinates
+        projects_with_coords = projects.filter(latitude__isnull=False, longitude__isnull=False).prefetch_related('assigned_engineers')
         
-        projects_data.append({
-            'id': p.id,
-            'name': p.name,
-            'latitude': float(p.latitude),
-            'longitude': float(p.longitude),
-            'barangay': p.barangay,
-            'status': p.status,
-            'description': p.description,
-            'project_cost': str(p.project_cost) if p.project_cost is not None else "",
-            'source_of_funds': p.source_of_funds,
-            'prn': p.prn,
-            'start_date': str(p.start_date) if p.start_date else "",
-            'end_date': str(p.end_date) if p.end_date else "",
-            'image': p.image.url if p.image else "",
-            'progress': progress_value,
-            'assigned_engineers': assigned_engineers,
-        })
-    # Pass user context for template permission checks
-    from gistagum.access_control import is_head_engineer
-    context = {
-        'projects_data': projects_data,
-        'is_head_engineer': is_head_engineer(request.user),
-    }
-    return render(request, 'monitoring/map.html', context)
+        # Get latest progress for all projects
+        from django.db.models import Max
+        project_ids = [p.id for p in projects_with_coords]
+        latest_progress = {}
+        if project_ids:
+            from projeng.models import ProjectProgress
+            latest_progress_qs = ProjectProgress.objects.filter(
+                project_id__in=project_ids
+            ).values('project_id').annotate(
+                latest_date=Max('date'),
+                latest_created=Max('created_at')
+            )
+            for item in latest_progress_qs:
+                latest = ProjectProgress.objects.filter(
+                    project_id=item['project_id'],
+                    date=item['latest_date'],
+                    created_at=item['latest_created']
+                ).order_by('-created_at').first()
+                if latest and latest.percentage_complete is not None:
+                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+        
+        projects_data = []
+        for p in projects_with_coords:
+            try:
+                # Get assigned engineers as a list of usernames
+                assigned_engineers = [eng.username for eng in p.assigned_engineers.all()]
+                # Get progress - prefer latest progress update, fallback to project.progress field
+                progress_value = latest_progress.get(p.id)
+                if progress_value is None:
+                    progress_value = getattr(p, 'progress', 0)
+                    if progress_value is None:
+                        progress_value = 0
+                
+                # Safely get image URL
+                image_url = ""
+                try:
+                    if p.image:
+                        image_url = p.image.url
+                except (ValueError, AttributeError):
+                    image_url = ""
+                
+                projects_data.append({
+                    'id': p.id,
+                    'name': p.name or '',
+                    'latitude': float(p.latitude) if p.latitude else 0.0,
+                    'longitude': float(p.longitude) if p.longitude else 0.0,
+                    'barangay': p.barangay or '',
+                    'status': p.status or '',
+                    'description': p.description or '',
+                    'project_cost': str(p.project_cost) if p.project_cost is not None else "",
+                    'source_of_funds': p.source_of_funds or '',
+                    'prn': p.prn or '',
+                    'start_date': str(p.start_date) if p.start_date else "",
+                    'end_date': str(p.end_date) if p.end_date else "",
+                    'image': image_url,
+                    'progress': progress_value,
+                    'assigned_engineers': assigned_engineers,
+                })
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Error processing project {p.id} in map_view: {str(e)}', exc_info=True)
+                continue
+        
+        # Pass user context for template permission checks
+        from gistagum.access_control import is_head_engineer
+        context = {
+            'projects_data': projects_data,
+            'is_head_engineer': is_head_engineer(request.user),
+        }
+        return render(request, 'monitoring/map.html', context)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in map_view: {str(e)}', exc_info=True)
+        from django.http import HttpResponseServerError
+        return HttpResponseServerError(f'Server Error: {str(e)}')
 
 @login_required
 @prevent_project_engineer_access
