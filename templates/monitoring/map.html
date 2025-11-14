@@ -32,13 +32,22 @@
   z-index: 10001 !important;
 }
 
-/* Floating Zoning Controls Styling */
-#zoning-controls-panel {
+/* Floating Controls Styling */
+#zoning-controls-panel,
+#view-mode-controls-panel {
   pointer-events: auto !important;
   z-index: 10002 !important;
   position: absolute !important;
+}
+
+#zoning-controls-panel {
   top: 16px !important;
   right: 16px !important;
+}
+
+#view-mode-controls-panel {
+  top: 16px !important;
+  left: 16px !important;
 }
 
 /* Ensure floating controls don't interfere with map interactions */
@@ -230,37 +239,47 @@
                             </div>
                         </div>
                     </div>
-                    <!-- View Mode Toggle -->
-                    <div class="mt-4 pt-4 border-t border-gray-200">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs font-semibold text-gray-600">View Mode</label>
-                            <div class="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                                <button id="view-mode-status" class="px-4 py-2 rounded-md font-semibold text-sm transition-all view-mode-btn active" data-mode="status">
-                                    <span class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        Status
-                                    </span>
-                                </button>
-                                <button id="view-mode-suitability" class="px-4 py-2 rounded-md font-semibold text-sm transition-all view-mode-btn" data-mode="suitability">
-                                    <span class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                        </svg>
-                                        Suitability
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Map Container with Floating Zoning Controls -->
+            <!-- Map Container with Floating Controls -->
             <div class="relative" style="position: relative;">
                 <div id="map" style="height: 75vh; width: 100%; z-index: 1; position: relative; background-color: #f0f0f0;"></div>
+                
+                <!-- Floating View Mode Controls Panel (Inside Map) -->
+                <div id="view-mode-controls-panel" class="absolute top-4 left-4 bg-white rounded-lg shadow-xl border border-gray-300 p-3 min-w-[260px] max-w-[300px]" style="position: absolute; top: 16px; left: 16px; z-index: 10002; pointer-events: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                    <!-- Panel Header -->
+                    <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        <span class="text-xs font-bold text-gray-700 uppercase tracking-wide">View Mode</span>
+                    </div>
+                    
+                    <!-- View Mode Toggle Buttons -->
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="radio" name="view-mode" id="view-mode-status-radio" value="status" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer" checked>
+                            <span class="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition-colors cursor-pointer flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Status
+                            </span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="radio" name="view-mode" id="view-mode-suitability-radio" value="suitability" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                            <span class="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition-colors cursor-pointer flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                Suitability
+                            </span>
+                        </label>
+                    </div>
+                </div>
                 
                 <!-- Floating Zoning Controls Panel (Inside Map) -->
                 <div id="zoning-controls-panel" class="absolute top-4 right-4 bg-white rounded-lg shadow-xl border border-gray-300 p-3 min-w-[260px] max-w-[300px]" style="position: absolute; top: 16px; right: 16px; z-index: 10002; pointer-events: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
@@ -1356,29 +1375,29 @@ document.addEventListener('DOMContentLoaded', function() {
         viewMode = mode;
         console.log('View mode changed to:', viewMode);
         
-        // Update button styles
-        const btnStatus = document.getElementById('view-mode-status');
-        const btnSuitability = document.getElementById('view-mode-suitability');
+        // Update radio button states
+        const radioStatus = document.getElementById('view-mode-status-radio');
+        const radioSuitability = document.getElementById('view-mode-suitability-radio');
         
-        if (btnStatus && btnSuitability) {
+        if (radioStatus && radioSuitability) {
             if (mode === 'status') {
-                btnStatus.classList.add('bg-blue-600', 'text-white');
-                btnStatus.classList.remove('bg-white', 'text-gray-700');
-                btnSuitability.classList.remove('bg-blue-600', 'text-white');
-                btnSuitability.classList.add('bg-white', 'text-gray-700');
+                radioStatus.checked = true;
+                radioSuitability.checked = false;
             } else {
-                btnSuitability.classList.add('bg-blue-600', 'text-white');
-                btnSuitability.classList.remove('bg-white', 'text-gray-700');
-                btnStatus.classList.remove('bg-blue-600', 'text-white');
-                btnStatus.classList.add('bg-white', 'text-gray-700');
+                radioSuitability.checked = true;
+                radioStatus.checked = false;
             }
         }
         
-        // Update legend
+        // Refresh markers and legend
         updateLegend();
         
         // Re-render markers with new view mode
-        renderMarkers();
+        if (typeof refreshMapMarkers === 'function') {
+            refreshMapMarkers();
+        } else if (typeof renderMarkers === 'function') {
+            renderMarkers();
+        }
     }
     
     // Update legend based on view mode
@@ -1442,19 +1461,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Initialize view mode toggle buttons
-    const btnViewStatus = document.getElementById('view-mode-status');
-    const btnViewSuitability = document.getElementById('view-mode-suitability');
-    
-    if (btnViewStatus) {
-        btnViewStatus.addEventListener('click', function() {
-            setViewMode('status');
-        });
+    function initializeViewModeControls() {
+        // View Mode Radio Button Event Listeners
+        const radioViewStatus = document.getElementById('view-mode-status-radio');
+        const radioViewSuitability = document.getElementById('view-mode-suitability-radio');
+        
+        if (radioViewStatus) {
+            radioViewStatus.addEventListener('change', function() {
+                if (this.checked) {
+                    setViewMode('status');
+                }
+            });
+        }
+        
+        if (radioViewSuitability) {
+            radioViewSuitability.addEventListener('change', function() {
+                if (this.checked) {
+                    setViewMode('suitability');
+                }
+            });
+        }
+        
+        // Also listen to clicks on the labels for better UX
+        const labelViewStatus = radioViewStatus?.closest('label');
+        const labelViewSuitability = radioViewSuitability?.closest('label');
+        
+        if (labelViewStatus) {
+            labelViewStatus.addEventListener('click', function(e) {
+                if (e.target !== radioViewStatus) {
+                    radioViewStatus.checked = true;
+                    setViewMode('status');
+                }
+            });
+        }
+        
+        if (labelViewSuitability) {
+            labelViewSuitability.addEventListener('click', function(e) {
+                if (e.target !== radioViewSuitability) {
+                    radioViewSuitability.checked = true;
+                    setViewMode('suitability');
+                }
+            });
+        }
     }
     
-    if (btnViewSuitability) {
-        btnViewSuitability.addEventListener('click', function() {
-            setViewMode('suitability');
-        });
+    // Initialize on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeViewModeControls);
+    } else {
+        initializeViewModeControls();
     }
     
     // Initialize legend on map load
