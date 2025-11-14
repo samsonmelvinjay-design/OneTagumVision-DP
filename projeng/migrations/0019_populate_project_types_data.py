@@ -280,7 +280,7 @@ def reverse_populate_project_types(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('projeng', '0018_zonealloweduse_zonerecommendation'),
+        ('projeng', '0018_project_project_type'),
     ]
 
     operations = [
