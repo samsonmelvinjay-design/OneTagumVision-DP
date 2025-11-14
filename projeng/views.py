@@ -2772,24 +2772,30 @@ def project_types_api(request):
     Returns JSON with list of project types.
     """
     from .models import ProjectType
+    import logging
+    logger = logging.getLogger(__name__)
     
     try:
         project_types = ProjectType.objects.all().order_by('name')
+        count = project_types.count()
+        logger.info(f"Found {count} project types in database")
+        
         data = [
             {
                 'code': pt.code,
                 'name': pt.name,
-                'description': pt.description,
-                'density_level': pt.density_level,
-                'height_category': pt.height_category,
+                'description': pt.description or '',
+                'density_level': pt.density_level or '',
+                'height_category': pt.height_category or '',
             }
             for pt in project_types
         ]
-        return JsonResponse({'project_types': data})
+        
+        logger.info(f"Serialized {len(data)} project types for API response")
+        response_data = {'project_types': data}
+        return JsonResponse(response_data)
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error getting project types: {e}")
+        logger.error(f"Error getting project types: {e}", exc_info=True)
         return JsonResponse({
             'error': str(e)
         }, status=500)
