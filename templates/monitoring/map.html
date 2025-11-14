@@ -1442,14 +1442,69 @@ function formatDate(dateStr) {
                 
                 <!-- Column 3: Location, Dates & Image -->
                 <div class="flex flex-col gap-4">
-                    <label class="font-semibold text-gray-700">Latitude</label>
-                    <input type="number" step="any" name="latitude" id="latitude-input" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                    <label class="font-semibold text-gray-700">Longitude</label>
-                    <input type="number" step="any" name="longitude" id="longitude-input" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                    <button type="button" id="map-fullscreen-btn" class="mt-2 mb-1 w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2.5 rounded-lg shadow transition flex items-center justify-center gap-2" title="Set map location">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" /></svg>
-                        Set Map Location
-                    </button>
+                    <!-- Location Section with Map Picker -->
+                    <div class="border-2 border-dashed border-blue-300 rounded-lg p-4 bg-blue-50">
+                        <label class="font-semibold text-blue-700 mb-2 block">
+                            📍 Project Location <span class="text-red-500">*</span>
+                        </label>
+                        <p class="text-sm text-gray-600 mb-3">
+                            Click the button below to select the exact location on the map
+                        </p>
+                        
+                        <!-- Location Display -->
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="text-xs font-medium text-gray-600">Latitude</label>
+                                <input 
+                                    type="number" 
+                                    step="any" 
+                                    name="latitude" 
+                                    id="latitude-input" 
+                                    class="w-full rounded-lg border-2 border-blue-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white" 
+                                    required
+                                    readonly
+                                    placeholder="Click map to set"
+                                />
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-600">Longitude</label>
+                                <input 
+                                    type="number" 
+                                    step="any" 
+                                    name="longitude" 
+                                    id="longitude-input" 
+                                    class="w-full rounded-lg border-2 border-blue-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white" 
+                                    required
+                                    readonly
+                                    placeholder="Click map to set"
+                                />
+                            </div>
+                        </div>
+                        
+                        <!-- Map Picker Button -->
+                        <button 
+                            type="button" 
+                            id="map-fullscreen-btn" 
+                            class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2 text-sm"
+                            title="Click to open map and select location"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span id="map-btn-text">Select Location on Map</span>
+                        </button>
+                        
+                        <!-- Location Status Indicator -->
+                        <div id="location-status" class="mt-2 text-xs hidden">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                Location selected
+                            </span>
+                        </div>
+                    </div>
                     <label class="font-semibold text-gray-700">Start Date</label>
                     {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
                     <input type="date" name="start_date" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
