@@ -1732,23 +1732,47 @@ function initializeModalButtons() {
         console.log('Cancel button initialized');
     }
     
-    // Set Map Location button
+    // Set Map Location button - use direct event delegation to avoid cloning issues
     const mapBtn = document.getElementById('map-fullscreen-btn');
     if (mapBtn) {
-        // Remove existing listeners by cloning
+        // Remove any existing event listeners by removing and re-adding
         const newMapBtn = mapBtn.cloneNode(true);
         mapBtn.parentNode.replaceChild(newMapBtn, mapBtn);
+        
+        // Add click handler with multiple methods to ensure it works
+        newMapBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Set Map Location button clicked (onclick)');
+            try {
+                initializeMapPopupElements();
+                setupMapPopupModal();
+                showPopupMap();
+            } catch (error) {
+                console.error('Error opening map popup:', error);
+                alert('Error opening map. Please try again.');
+            }
+            return false;
+        };
         
         newMapBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Set Map Location button clicked');
-            // Initialize map popup elements and handlers
-            initializeMapPopupElements();
-            setupMapPopupModal();
-            showPopupMap();
-        });
-        console.log('Set Map Location button initialized');
+            console.log('Set Map Location button clicked (addEventListener)');
+            try {
+                initializeMapPopupElements();
+                setupMapPopupModal();
+                showPopupMap();
+            } catch (error) {
+                console.error('Error opening map popup:', error);
+                alert('Error opening map. Please try again.');
+            }
+            return false;
+        }, true); // Use capture phase
+        
+        console.log('Set Map Location button initialized with both onclick and addEventListener');
+    } else {
+        console.warn('Map fullscreen button not found during initialization');
     }
     
     // Set up event listeners for zone recommendations
@@ -2466,15 +2490,21 @@ function showPopupMap() {
     // Always initialize elements to get fresh references
     initializeMapPopupElements();
     
-    if (!mapPopupModal) {
-        console.error('Map popup modal element not found after initialization!');
+    // Get fresh reference to modal
+    const modalEl = document.getElementById('map-popup-modal');
+    if (!modalEl) {
+        console.error('Map popup modal element not found!');
         alert('Error: Map popup modal not found. Please refresh the page.');
         return;
     }
     
     console.log('Showing map popup modal');
-    mapPopupModal.classList.remove('hidden');
-    mapPopupModal.style.display = 'flex';
+    modalEl.classList.remove('hidden');
+    modalEl.style.display = 'flex';
+    modalEl.style.zIndex = '20001';
+    
+    // Update global reference
+    mapPopupModal = modalEl;
     
     // Wait a bit for modal to be visible before initializing map
     setTimeout(() => {
@@ -2509,25 +2539,41 @@ function showPopupMap() {
         }
 
         // Initialize or update map
-        if (!popupMap) {
-            console.log('Initializing new map');
-            // Clean up any existing map instance
-            const mapDiv = document.getElementById('popup-map');
-            if (mapDiv && mapDiv._leaflet_id) {
-                try {
-                    const existingMap = L.map(mapDiv);
-                    existingMap.remove();
-                } catch (e) {
-                    console.log('No existing map to remove');
-                }
-                mapDiv._leaflet_id = null;
+        const mapDiv = document.getElementById('popup-map');
+        if (!mapDiv) {
+            console.error('Map div not found!');
+            return;
+        }
+        
+        // Clean up any existing map instance
+        if (popupMap) {
+            try {
+                popupMap.remove();
+                popupMap = null;
+            } catch (e) {
+                console.log('Error removing existing map:', e);
             }
-            
-            popupMap = L.map('popup-map').setView([lat, lng], zoom);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(popupMap);
+        }
+        
+        if (mapDiv._leaflet_id) {
+            try {
+                // Try to get existing map and remove it
+                const existingMap = L.map(mapDiv);
+                if (existingMap) {
+                    existingMap.remove();
+                }
+            } catch (e) {
+                console.log('No existing map to remove or already removed');
+            }
+            mapDiv._leaflet_id = null;
+        }
+        
+        console.log('Initializing new map');
+        popupMap = L.map('popup-map').setView([lat, lng], zoom);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(popupMap);
             
             // Add click handler to set location
             popupMap.on('click', function(e) {
@@ -2608,12 +2654,20 @@ function setupMapPopupButtons() {
         const newCloseMapPopup = closeMapPopupEl.cloneNode(true);
         closeMapPopupEl.parentNode.replaceChild(newCloseMapPopup, closeMapPopupEl);
         
-        newCloseMapPopup.addEventListener('click', function(e) {
+        newCloseMapPopup.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('Close map popup X button clicked');
             hidePopupMap();
-        });
+            return false;
+        };
+        
+        newCloseMapPopup.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Close map popup X button clicked (addEventListener)');
+            hidePopupMap();
+        }, true);
         console.log('Close map popup X button initialized');
     }
     
@@ -2623,12 +2677,20 @@ function setupMapPopupButtons() {
         const newCloseMapPopupBtn = closeMapPopupBtnEl.cloneNode(true);
         closeMapPopupBtnEl.parentNode.replaceChild(newCloseMapPopupBtn, closeMapPopupBtnEl);
         
-        newCloseMapPopupBtn.addEventListener('click', function(e) {
+        newCloseMapPopupBtn.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('Done button clicked');
             hidePopupMap();
-        });
+            return false;
+        };
+        
+        newCloseMapPopupBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Done button clicked (addEventListener)');
+            hidePopupMap();
+        }, true);
         console.log('Done button initialized');
     }
 }
@@ -2637,12 +2699,9 @@ function setupMapPopupButtons() {
 function setupMapPopupModal() {
     const mapPopupModalEl = document.getElementById('map-popup-modal');
     if (mapPopupModalEl) {
-        // Remove existing listener if any by cloning
-        const newModal = mapPopupModalEl.cloneNode(true);
-        mapPopupModalEl.parentNode.replaceChild(newModal, mapPopupModalEl);
-        
-        newModal.addEventListener('mousedown', function(e) {
-            if (e.target === newModal) {
+        // Set up click-outside handler (don't clone modal as it contains the map)
+        mapPopupModalEl.addEventListener('mousedown', function(e) {
+            if (e.target === mapPopupModalEl) {
                 console.log('Clicked outside map popup - closing');
                 hidePopupMap();
             }
