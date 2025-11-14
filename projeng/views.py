@@ -2758,13 +2758,71 @@ def suitability_dashboard_data_api(request):
     """
     API endpoint to get suitability data for dashboard widgets.
     Returns data formatted for dashboard visualization.
+    Works with both projeng and monitoring projects.
     """
     try:
         from django.db.models import Avg, Count, Q
         from collections import defaultdict
         
-        # Get all projects with suitability analysis
+        # Get all projects with suitability analysis from projeng app
         analyses = LandSuitabilityAnalysis.objects.select_related('project').all()
+        
+        # Also check monitoring projects and find their corresponding projeng projects
+        try:
+            from monitoring.models import Project as MonitoringProject
+            from .models import Project as ProjengProject
+            
+            # Get all monitoring projects that have location data
+            monitoring_projects = MonitoringProject.objects.filter(
+                latitude__isnull=False,
+                longitude__isnull=False,
+                barangay__isnull=False
+            ).exclude(barangay='')
+            
+            # For each monitoring project, try to find corresponding projeng project and its analysis
+            for mon_project in monitoring_projects:
+                # Try to find projeng project by PRN first
+                if mon_project.prn:
+                    try:
+                        projeng_project = ProjengProject.objects.get(prn=mon_project.prn)
+                        # Check if analysis exists for this projeng project
+                        if not analyses.filter(project=projeng_project).exists():
+                            # Try to create analysis for this project if it has location
+                            if projeng_project.latitude and projeng_project.longitude and projeng_project.barangay:
+                                try:
+                                    from .land_suitability import LandSuitabilityAnalyzer
+                                    analyzer = LandSuitabilityAnalyzer()
+                                    result = analyzer.analyze_project(projeng_project)
+                                    analyzer.save_analysis(projeng_project, result)
+                                    # Refresh analyses queryset
+                                    analyses = LandSuitabilityAnalysis.objects.select_related('project').all()
+                                except Exception as e:
+                                    import logging
+                                    logger = logging.getLogger(__name__)
+                                    logger.warning(f"Could not analyze monitoring project {mon_project.id}: {e}")
+                    except ProjengProject.DoesNotExist:
+                        # No corresponding projeng project found - skip
+                        pass
+                    except ProjengProject.MultipleObjectsReturned:
+                        # Multiple matches - use the first one
+                        projeng_project = ProjengProject.objects.filter(prn=mon_project.prn).first()
+                        if projeng_project and not analyses.filter(project=projeng_project).exists():
+                            if projeng_project.latitude and projeng_project.longitude and projeng_project.barangay:
+                                try:
+                                    from .land_suitability import LandSuitabilityAnalyzer
+                                    analyzer = LandSuitabilityAnalyzer()
+                                    result = analyzer.analyze_project(projeng_project)
+                                    analyzer.save_analysis(projeng_project, result)
+                                    analyses = LandSuitabilityAnalysis.objects.select_related('project').all()
+                                except Exception as e:
+                                    pass
+        except ImportError:
+            # Monitoring app not available - continue with projeng projects only
+            pass
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error checking monitoring projects: {e}")
         
         total_analyses = analyses.count()
         
