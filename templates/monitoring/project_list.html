@@ -420,23 +420,46 @@ window.projects = [];
 var projectsDataElement = document.getElementById('projects-data');
 if (projectsDataElement) {
     try {
-        const parsed = JSON.parse(projectsDataElement.textContent);
-        // Ensure it's an array
+        let rawContent = projectsDataElement.textContent.trim();
+        console.log('Raw projects-data content:', rawContent.substring(0, 100) + '...');
+        
+        // Parse the JSON
+        let parsed = JSON.parse(rawContent);
+        console.log('Parsed projects-data type:', typeof parsed, 'IsArray:', Array.isArray(parsed));
+        
+        // Handle different data types
         if (Array.isArray(parsed)) {
             window.projects = parsed;
+            console.log('✅ Loaded', parsed.length, 'projects from array');
         } else if (parsed && typeof parsed === 'object') {
             // If it's an object, try to convert to array
             window.projects = Object.values(parsed);
+            console.log('✅ Converted object to array, loaded', window.projects.length, 'projects');
+        } else if (typeof parsed === 'string') {
+            // If it's still a string, try parsing again
+            console.warn('⚠️ Parsed data is still a string, attempting re-parse...');
+            try {
+                parsed = JSON.parse(parsed);
+                if (Array.isArray(parsed)) {
+                    window.projects = parsed;
+                } else {
+                    window.projects = [];
+                }
+            } catch (e2) {
+                console.error('❌ Re-parse failed:', e2);
+                window.projects = [];
+            }
         } else {
-            console.warn('projects-data is not an array:', typeof parsed, parsed);
+            console.warn('⚠️ projects-data is not an array or object:', typeof parsed, parsed);
             window.projects = [];
         }
     } catch (e) {
-        console.error('Error parsing projects-data JSON:', e, projectsDataElement.textContent);
+        console.error('❌ Error parsing projects-data JSON:', e);
+        console.error('Raw content:', projectsDataElement.textContent.substring(0, 200));
         window.projects = [];
     }
 } else {
-    console.warn('projects-data element not found');
+    console.warn('⚠️ projects-data element not found');
     window.projects = [];
 }
 
