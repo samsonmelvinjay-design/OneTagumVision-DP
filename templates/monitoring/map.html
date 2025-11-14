@@ -2830,46 +2830,46 @@ function showPopupMap() {
         popupMap.setView([lat, lng], zoom);
     }
 
-        // Update marker - show existing location if coordinates are set
-        if (popupMarker) {
-            popupMap.removeLayer(popupMarker);
-            popupMarker = null;
-        }
+    // Update marker - show existing location if coordinates are set
+    if (popupMarker) {
+        popupMap.removeLayer(popupMarker);
+        popupMarker = null;
+    }
 
-        if (lat && lng) {
-            popupMarker = L.marker([lat, lng], {
-                draggable: true
-            }).addTo(popupMap);
+    if (lat && lng) {
+        popupMarker = L.marker([lat, lng], {
+            draggable: true
+        }).addTo(popupMap);
+        
+        // Add drag handler for marker
+        popupMarker.on('dragend', function(e) {
+            const marker = e.target;
+            const position = marker.getLatLng();
+            console.log('Marker dragged to:', position.lat, position.lng);
             
-            // Add drag handler for marker
-            popupMarker.on('dragend', function(e) {
-                const marker = e.target;
-                const position = marker.getLatLng();
-                console.log('Marker dragged to:', position.lat, position.lng);
-                
-                // Update input fields
-                const latInput = document.getElementById('latitude-input');
-                const lngInput = document.getElementById('longitude-input');
-                if (latInput) {
-                    latInput.value = position.lat.toFixed(6);
-                    latInput.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-                if (lngInput) {
-                    lngInput.value = position.lng.toFixed(6);
-                    lngInput.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            });
-            
-            console.log('Marker added at:', lat, lng);
-        }
-
-        // Invalidate size to ensure map renders correctly
-        setTimeout(() => { 
-            if (popupMap) {
-                popupMap.invalidateSize();
-                console.log('Map size invalidated');
+            // Update input fields
+            const latInput = document.getElementById('latitude-input');
+            const lngInput = document.getElementById('longitude-input');
+            if (latInput) {
+                latInput.value = position.lat.toFixed(6);
+                latInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
-        }, 350);
+            if (lngInput) {
+                lngInput.value = position.lng.toFixed(6);
+                lngInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+        
+        console.log('Marker added at:', lat, lng);
+    }
+
+    // Invalidate size to ensure map renders correctly
+    setTimeout(() => { 
+        if (popupMap) {
+            popupMap.invalidateSize();
+            console.log('Map size invalidated');
+        }
+    }, 350);
     }, 100);
 }
 
