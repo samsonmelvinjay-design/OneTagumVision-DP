@@ -276,25 +276,39 @@ def project_list(request):
             zone_type, confidence = project.detect_and_set_zone(save=False)
             
             # Log image upload info for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            
             if 'image' in request.FILES:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.info(f"Uploading image: {request.FILES['image'].name}, size: {request.FILES['image'].size} bytes")
+                logger.info(f"📤 Uploading image: {request.FILES['image'].name}, size: {request.FILES['image'].size} bytes")
+                logger.info(f"   Content type: {request.FILES['image'].content_type}")
             
             try:
+                # Save the project (this should trigger file upload to Spaces)
                 project.save()
                 form.save_m2m()  # Save assigned engineers
                 
                 # Log successful save and image URL
                 if project.image:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.info(f"Project saved successfully. Image URL: {project.image.url}")
-                    logger.info(f"Image name: {project.image.name}")
+                    logger.info(f"✅ Project saved successfully!")
+                    logger.info(f"   Image field value: {project.image}")
+                    logger.info(f"   Image name: {project.image.name}")
+                    try:
+                        image_url = project.image.url
+                        logger.info(f"   Image URL: {image_url}")
+                        
+                        # Try to verify the file exists in storage
+                        from django.core.files.storage import default_storage
+                        if default_storage.exists(project.image.name):
+                            logger.info(f"   ✅ File exists in storage: {project.image.name}")
+                        else:
+                            logger.error(f"   ❌ File does NOT exist in storage: {project.image.name}")
+                    except Exception as url_error:
+                        logger.error(f"   ❌ Error getting image URL: {str(url_error)}", exc_info=True)
+                else:
+                    logger.warning("⚠️  No image field set after save")
             except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Error saving project: {str(e)}", exc_info=True)
+                logger.error(f"❌ Error saving project: {str(e)}", exc_info=True)
                 raise
             
             # Log zone detection result (optional, for debugging)

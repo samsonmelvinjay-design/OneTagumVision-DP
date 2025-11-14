@@ -211,10 +211,7 @@ if SPACES_CONFIGURED:
     # Use DigitalOcean Spaces for media storage
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     
-    # Spaces-specific settings
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',  # Cache for 1 day
-    }
+    # Spaces-specific settings (removed - moved below to include ACL)
     
     # Use custom domain if provided (CDN endpoint), otherwise use endpoint URL
     if AWS_S3_CUSTOM_DOMAIN:
@@ -233,6 +230,12 @@ if SPACES_CONFIGURED:
     # Additional Spaces settings for proper file uploads
     AWS_S3_FILE_OVERWRITE = False  # Don't overwrite files with same name
     AWS_S3_VERIFY = True  # Verify SSL certificates
+    
+    # Force ACL on upload (important for Spaces)
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',  # Cache for 1 day
+        'ACL': 'public-read',  # Ensure files are publicly readable
+    }
     
     # Add error logging for uploads
     import logging
