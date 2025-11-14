@@ -30,11 +30,22 @@ def format_project_display(project):
         return f"{project_name} (PRN: {project.prn})"
     return project_name
 
+# Track syncing projects to prevent recursion
+_syncing_projects = set()
+
 @receiver(post_save, sender=Project)
 def sync_projeng_to_monitoring(sender, instance, **kwargs):
+    # Prevent recursion: if we're already syncing this project, skip
+    if instance.id in _syncing_projects:
+        return
+    
     print(f"SIGNAL: sync_projeng_to_monitoring called for Project id={instance.id}, prn={instance.prn}")
     try:
         if instance.prn:
+            # Mark this project as being synced
+            if instance.id:
+                _syncing_projects.add(instance.id)
+            
             monitoring_project, created = MonitoringProject.objects.get_or_create(
                 prn=instance.prn,
                 defaults={
@@ -64,14 +75,25 @@ def sync_projeng_to_monitoring(sender, instance, **kwargs):
                 monitoring_project.end_date = instance.end_date
                 if instance.image:
                     monitoring_project.image = instance.image
-                monitoring_project.save()
+                # Use update_fields to prevent triggering signals that might cause recursion
+                monitoring_project.save(update_fields=[
+                    'name', 'description', 'barangay', 'project_cost', 'source_of_funds',
+                    'status', 'latitude', 'longitude', 'start_date', 'end_date', 'image', 'updated_at'
+                ])
             # Sync assigned engineers
             if hasattr(monitoring_project, 'assigned_engineers'):
                 monitoring_project.assigned_engineers.set(instance.assigned_engineers.all())
             else:
                 print('Warning: MonitoringProject has no assigned_engineers field')
+            
+            # Remove from syncing set after completion
+            if instance.id:
+                _syncing_projects.discard(instance.id)
         print(f"SIGNAL: sync_projeng_to_monitoring completed for Project id={instance.id}, prn={instance.prn}")
     except Exception as e:
+        # Remove from syncing set on error
+        if instance.id:
+            _syncing_projects.discard(instance.id)
         print(f"SIGNAL ERROR: sync_projeng_to_monitoring failed for Project id={instance.id}, prn={instance.prn}: {e}")
 
 # Store old instance state before save
@@ -202,8 +224,15 @@ def notify_project_updates(sender, instance, created, **kwargs):
                         print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
             # Check if cost changed significantly
             elif old_state.get('project_cost') != instance.project_cost and instance.project_cost:
-                old_cost = old_state.get('project_cost') or 0
-                new_cost = instance.project_cost or 0
+                # Convert to float for formatting (handle both string and numeric types)
+                try:
+                    old_cost = float(old_state.get('project_cost') or 0)
+                except (ValueError, TypeError):
+                    old_cost = 0
+                try:
+                    new_cost = float(instance.project_cost or 0)
+                except (ValueError, TypeError):
+                    new_cost = 0
                 message = f"Project budget updated: {project_display} changed from ₱{old_cost:,.2f} to ₱{new_cost:,.2f} by {updater_name}"
                 notify_head_engineers(message)
                 notify_admins(message)
