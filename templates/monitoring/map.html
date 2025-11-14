@@ -1688,6 +1688,33 @@ window.openAddProjectModal = function() {
             setupRecommendationEventListeners();
         }, 100);
         
+        // Re-initialize map button after modal is shown (ensure it's attached)
+        setTimeout(() => {
+            const mapBtn = document.getElementById('map-fullscreen-btn');
+            if (mapBtn) {
+                // Remove and re-add event listener to ensure it works
+                const newBtn = mapBtn.cloneNode(true);
+                mapBtn.parentNode.replaceChild(newBtn, mapBtn);
+                
+                newBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Map button clicked (re-initialized in openAddProjectModal)');
+                    showPopupMap();
+                    return false;
+                };
+                
+                newBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Map button clicked (re-initialized addEventListener in openAddProjectModal)');
+                    showPopupMap();
+                }, true);
+                
+                console.log('Map button re-initialized after modal shown (openAddProjectModal)');
+            }
+        }, 200);
+        
         // Hide recommendation section initially
         const recSection = document.getElementById('zone-recommendation-section');
         if (recSection) {
