@@ -204,7 +204,7 @@
                                     <button id="btn-planned" class="flex-1 px-4 py-3 rounded-lg font-semibold border-2 border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 transition-all text-base h-[45px] whitespace-nowrap">Planned</button>
                                 </div>
                                 {% if is_head_engineer %}
-                                <button id="add-project-btn" type="button" onclick="window.openAddProjectModal && window.openAddProjectModal(); return false;" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg text-base h-[45px] flex-shrink-0 whitespace-nowrap cursor-pointer" style="z-index: 10; position: relative; pointer-events: auto !important;">
+                                <button id="add-project-btn" type="button" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg text-base h-[45px] flex-shrink-0 whitespace-nowrap cursor-pointer" style="z-index: 10; position: relative; pointer-events: auto !important;">
                                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
@@ -1661,11 +1661,18 @@ function hideModal() {
 
 window.closeProjectModal = hideModal;
 
-// Global function to open modal (can be called from onclick)
+// Global function to open modal (can be called from anywhere)
 window.openAddProjectModal = function() {
     console.log('openAddProjectModal called');
-    const modal = document.getElementById('project-modal');
-    if (modal) {
+    try {
+        const modal = document.getElementById('project-modal');
+        if (!modal) {
+            console.error('Modal not found in openAddProjectModal');
+            alert('Error: Project modal not found. Please refresh the page.');
+            return false;
+        }
+        
+        // Show modal
         modal.style.display = 'flex';
         modal.style.opacity = '1';
         modal.style.pointerEvents = 'auto';
@@ -1720,9 +1727,12 @@ window.openAddProjectModal = function() {
         if (recSection) {
             recSection.classList.add('hidden');
         }
-    } else {
-        console.error('Modal not found in openAddProjectModal');
-        alert('Error: Project modal not found. Please refresh the page.');
+        
+        return false;
+    } catch (error) {
+        console.error('Error in openAddProjectModal:', error);
+        alert('Error opening project modal. Please refresh the page.');
+        return false;
     }
 };
 
@@ -2403,65 +2413,72 @@ function setupAddProjectButton() {
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
-    // Add click handler
-    newBtn.addEventListener('click', function(e) {
+    // Create a unified click handler function
+    const handleClick = function(e) {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Add Project button CLICKED!');
+        console.log('Add Project button CLICKED! (handler:', e.type, ')');
         
-        // Get modal
-        const modal = document.getElementById('project-modal');
-        if (!modal) {
-            console.error('Modal not found!');
-            alert('Error: Project modal not found. Please refresh the page.');
-            return false;
-        }
-        
-        console.log('Modal found, showing...');
-        
-        // Show modal
-        modal.style.display = 'flex';
-        modal.style.opacity = '1';
-        modal.style.pointerEvents = 'auto';
-        modal.classList.remove('opacity-0', 'pointer-events-none');
-        modal.classList.add('opacity-100');
-        
-        // Initialize modal elements if needed
-        initializeProjectModal();
-        
-        // Populate dropdowns
-        populateEngineers();
-        populateProjectTypes();
-        
-        // Set up event listeners for recommendations (after a short delay to ensure elements exist)
-        setTimeout(() => {
-            setupRecommendationEventListeners();
-        }, 100);
-        
-        // Hide recommendation section initially
-        const recSection = document.getElementById('zone-recommendation-section');
-        if (recSection) {
-            recSection.classList.add('hidden');
+        try {
+            // Use the global function which has all the logic
+            if (typeof window.openAddProjectModal === 'function') {
+                window.openAddProjectModal();
+            } else {
+                // Fallback if function doesn't exist yet
+                const modal = document.getElementById('project-modal');
+                if (!modal) {
+                    console.error('Modal not found!');
+                    alert('Error: Project modal not found. Please refresh the page.');
+                    return false;
+                }
+                
+                console.log('Modal found, showing...');
+                modal.style.display = 'flex';
+                modal.style.opacity = '1';
+                modal.style.pointerEvents = 'auto';
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.classList.add('opacity-100');
+                
+                // Initialize modal elements
+                initializeProjectModal();
+                if (typeof populateEngineers === 'function') populateEngineers();
+                if (typeof populateProjectTypes === 'function') populateProjectTypes();
+            }
+        } catch (error) {
+            console.error('Error in Add Project button handler:', error);
+            alert('Error opening project modal. Please refresh the page.');
         }
         
         return false;
+    };
+    
+    // Add multiple event handlers to ensure it works
+    newBtn.onclick = handleClick;
+    newBtn.addEventListener('click', handleClick, false);
+    newBtn.addEventListener('click', handleClick, true); // Capture phase
+    
+    // Also add mousedown as backup
+    newBtn.addEventListener('mousedown', function(e) {
+        if (e.button === 0) { // Left mouse button only
+            e.preventDefault();
+            handleClick(e);
+        }
     });
     
-    // Also set onclick as backup
-    newBtn.onclick = function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('onclick backup triggered');
+    console.log('Add Project button setup complete with multiple handlers!');
+}
+
+// Ensure global function is available immediately
+if (typeof window.openAddProjectModal === 'undefined') {
+    window.openAddProjectModal = function() {
+        console.log('openAddProjectModal placeholder called - will be replaced');
         const modal = document.getElementById('project-modal');
         if (modal) {
             modal.style.display = 'flex';
             modal.style.opacity = '1';
             modal.style.pointerEvents = 'auto';
         }
-        return false;
     };
-    
-    console.log('Add Project button setup complete!');
 }
 
 // Run setup immediately and also on DOM ready
@@ -2477,15 +2494,35 @@ if (document.readyState === 'loading') {
     initializeProjectModal();
 }
 
-// Also try after a delay as fallback
+// Also try after multiple delays as fallback
 setTimeout(function() {
     const btn = document.getElementById('add-project-btn');
-    if (btn && !btn.hasAttribute('data-listener-attached')) {
-        console.log('Fallback: Setting up button after delay');
+    if (btn) {
+        console.log('Fallback 1s: Setting up button after delay');
         setupAddProjectButton();
-        btn.setAttribute('data-listener-attached', 'true');
     }
 }, 1000);
+
+setTimeout(function() {
+    const btn = document.getElementById('add-project-btn');
+    if (btn) {
+        console.log('Fallback 2s: Setting up button after delay');
+        setupAddProjectButton();
+    }
+}, 2000);
+
+// Use event delegation as ultimate fallback
+document.addEventListener('click', function(e) {
+    if (e.target && (e.target.id === 'add-project-btn' || e.target.closest('#add-project-btn'))) {
+        console.log('Event delegation: Add Project button clicked');
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.openAddProjectModal === 'function') {
+            window.openAddProjectModal();
+        }
+        return false;
+    }
+}, true);
 
 // Event listeners are now set up in initializeProjectModal()
 
