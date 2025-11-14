@@ -52,14 +52,32 @@ INSTALLED_APPS = [
     # 'django.contrib.gis',  # Temporarily disabled due to GDAL issues
     'projeng',
     'django_extensions',
-    'channels',  # Django Channels for WebSocket support (Phase 1: Safe addition)
-    'storages',  # Django Storages for DigitalOcean Spaces (S3-compatible storage)
 ]
+
+# Add optional dependencies only if installed
+try:
+    import storages
+    INSTALLED_APPS.append('storages')  # Django Storages for DigitalOcean Spaces (S3-compatible storage)
+except ImportError:
+    # Storages not installed - that's okay, it's optional
+    pass
+
+try:
+    import channels
+    INSTALLED_APPS.append('channels')  # Django Channels for WebSocket support (Phase 1: Safe addition)
+except ImportError:
+    # Channels not installed - that's okay, it's optional
+    pass
 
 # ASGI Application for WebSocket support (Phase 1: Safe addition)
 # This allows Django to handle WebSocket connections via Daphne
 # Gunicorn (WSGI) will still work for HTTP requests
-ASGI_APPLICATION = 'gistagum.asgi.application'
+try:
+    import channels
+    ASGI_APPLICATION = 'gistagum.asgi.application'
+except ImportError:
+    # Channels not installed - ASGI not needed
+    ASGI_APPLICATION = None
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
