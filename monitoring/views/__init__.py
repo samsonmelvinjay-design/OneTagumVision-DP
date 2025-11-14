@@ -404,30 +404,57 @@ def project_list(request):
     form = ProjectForm()
     # Build projects_data for modal and JS (use filtered projects)
     projects_data = []
+    import logging
+    logger = logging.getLogger(__name__)
+    
     for p in page_obj.object_list:
-        projects_data.append({
-            'id': p.id,
-            'name': p.name,
-            'prn': p.prn,
-            'description': p.description,
-            'barangay': p.barangay,
-            'latitude': float(p.latitude) if p.latitude else '',
-            'longitude': float(p.longitude) if p.longitude else '',
-            'project_cost': str(p.project_cost) if p.project_cost is not None else '',
-            'source_of_funds': p.source_of_funds,
-            'start_date': str(p.start_date) if p.start_date else '',
-            'end_date': str(p.end_date) if p.end_date else '',
-            'status': p.status,
-            'image': p.image.url if p.image else '',
-            'progress': getattr(p, 'progress', 0),
-            'assigned_engineers': [str(e) for e in p.assigned_engineers.all()] if hasattr(p, 'assigned_engineers') else [],
-        })
+        try:
+            # Safely get image URL
+            image_url = ''
+            if p.image:
+                try:
+                    image_url = p.image.url
+                except Exception as img_error:
+                    logger.warning(f"Error getting image URL for project {p.id}: {str(img_error)}")
+                    image_url = ''
+            
+            # Safely get assigned engineers
+            assigned_engineers = []
+            try:
+                if hasattr(p, 'assigned_engineers'):
+                    assigned_engineers = [str(e) for e in p.assigned_engineers.all()]
+            except Exception as eng_error:
+                logger.warning(f"Error getting assigned engineers for project {p.id}: {str(eng_error)}")
+                assigned_engineers = []
+            
+            projects_data.append({
+                'id': p.id,
+                'name': p.name or '',
+                'prn': p.prn or '',
+                'description': p.description or '',
+                'barangay': p.barangay or '',
+                'latitude': float(p.latitude) if p.latitude else '',
+                'longitude': float(p.longitude) if p.longitude else '',
+                'project_cost': str(p.project_cost) if p.project_cost is not None else '',
+                'source_of_funds': p.source_of_funds or '',
+                'start_date': str(p.start_date) if p.start_date else '',
+                'end_date': str(p.end_date) if p.end_date else '',
+                'status': p.status or '',
+                'image': image_url,
+                'progress': getattr(p, 'progress', 0) or 0,
+                'assigned_engineers': assigned_engineers,
+            })
+        except Exception as e:
+            logger.error(f"Error building project data for project {p.id}: {str(e)}", exc_info=True)
+            # Continue with other projects even if one fails
+            continue
     # Ensure projects_data is a list (not a string or other type)
     if not isinstance(projects_data, list):
-        import logging
-        logger = logging.getLogger(__name__)
         logger.warning(f"projects_data is not a list, converting. Type: {type(projects_data)}")
         projects_data = list(projects_data) if projects_data else []
+    
+    # Log how many projects we're sending to the template
+    logger.info(f"Sending {len(projects_data)} projects to template")
     
     return render(request, 'monitoring/project_list.html', {
         'page_obj': page_obj,
