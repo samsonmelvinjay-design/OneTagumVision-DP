@@ -2600,4 +2600,244 @@ def send_budget_alert(request, project_id):
         print(f"send_budget_alert: Traceback: {traceback.format_exc()}", file=sys.stderr)
         logging.error(f"Error in send_budget_alert: {str(e)}", exc_info=True)
         messages.error(request, f"An error occurred while sending the budget alert: {str(e)}")
-        return redirect('projeng:projeng_project_detail', pk=project_id) 
+        return redirect('projeng:projeng_project_detail', pk=project_id)
+
+
+# ============================================================================
+# SUITABILITY ANALYSIS API ENDPOINTS
+# ============================================================================
+
+@login_required
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
+@require_GET
+def suitability_analysis_api(request, project_id):
+    """
+    API endpoint to get suitability analysis for a specific project.
+    Returns JSON with suitability scores, factors, risks, and recommendations.
+    """
+    try:
+        project = get_object_or_404(Project, pk=project_id)
+        
+        # Check access permissions
+        if is_project_engineer(request.user):
+            if request.user not in project.assigned_engineers.all():
+                return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Get or create suitability analysis
+        try:
+            suitability = project.suitability_analysis
+        except LandSuitabilityAnalysis.DoesNotExist:
+            # Try to perform analysis on the fly
+            try:
+                if project.latitude and project.longitude and project.barangay:
+                    from .land_suitability import LandSuitabilityAnalyzer
+                    analyzer = LandSuitabilityAnalyzer()
+                    result = analyzer.analyze_project(project)
+                    suitability = analyzer.save_analysis(project, result)
+                else:
+                    return JsonResponse({
+                        'error': 'Project location data incomplete',
+                        'message': 'Project must have latitude, longitude, and barangay to perform suitability analysis'
+                    }, status=400)
+            except Exception as e:
+                return JsonResponse({
+                    'error': 'Analysis failed',
+                    'message': str(e)
+                }, status=500)
+        
+        # Build response
+        response_data = {
+            'project_id': project.id,
+            'project_name': project.name,
+            'overall_score': suitability.overall_score,
+            'suitability_category': suitability.suitability_category,
+            'suitability_category_display': suitability.get_suitability_category_display(),
+            'factor_scores': {
+                'zoning_compliance': suitability.zoning_compliance_score,
+                'flood_risk': suitability.flood_risk_score,
+                'infrastructure_access': suitability.infrastructure_access_score,
+                'elevation': suitability.elevation_suitability_score,
+                'economic_alignment': suitability.economic_alignment_score,
+                'population_density': suitability.population_density_score,
+            },
+            'risks': {
+                'has_flood_risk': suitability.has_flood_risk,
+                'has_slope_risk': suitability.has_slope_risk,
+                'has_zoning_conflict': suitability.has_zoning_conflict,
+                'has_infrastructure_gap': suitability.has_infrastructure_gap,
+            },
+            'recommendations': suitability.recommendations or [],
+            'constraints': suitability.constraints or [],
+            'analyzed_at': suitability.analyzed_at.isoformat() if suitability.analyzed_at else None,
+            'analysis_version': suitability.analysis_version,
+        }
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in suitability_analysis_api: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Internal server error'}, status=500)
+
+
+@login_required
+@user_passes_test(is_head_engineer, login_url='/accounts/login/')
+@require_GET
+def suitability_stats_api(request):
+    """
+    API endpoint to get overall suitability statistics.
+    Returns aggregate statistics about suitability scores across all projects.
+    """
+    try:
+        from django.db.models import Avg, Count, Min, Max, Q
+        
+        # Get all projects with suitability analysis
+        analyses = LandSuitabilityAnalysis.objects.select_related('project').all()
+        
+        total_analyses = analyses.count()
+        
+        if total_analyses == 0:
+            return JsonResponse({
+                'total_analyses': 0,
+                'message': 'No suitability analyses found'
+            })
+        
+        # Calculate statistics
+        avg_score = analyses.aggregate(Avg('overall_score'))['overall_score__avg'] or 0
+        min_score = analyses.aggregate(Min('overall_score'))['overall_score__min'] or 0
+        max_score = analyses.aggregate(Max('overall_score'))['overall_score__max'] or 0
+        
+        # Count by category
+        category_counts = {
+            'highly_suitable': analyses.filter(suitability_category='highly_suitable').count(),
+            'suitable': analyses.filter(suitability_category='suitable').count(),
+            'moderately_suitable': analyses.filter(suitability_category='moderately_suitable').count(),
+            'marginally_suitable': analyses.filter(suitability_category='marginally_suitable').count(),
+            'not_suitable': analyses.filter(suitability_category='not_suitable').count(),
+        }
+        
+        # Count risks
+        risk_counts = {
+            'flood_risk': analyses.filter(has_flood_risk=True).count(),
+            'slope_risk': analyses.filter(has_slope_risk=True).count(),
+            'zoning_conflict': analyses.filter(has_zoning_conflict=True).count(),
+            'infrastructure_gap': analyses.filter(has_infrastructure_gap=True).count(),
+        }
+        
+        # Average factor scores
+        avg_factors = {
+            'zoning_compliance': analyses.aggregate(Avg('zoning_compliance_score'))['zoning_compliance_score__avg'] or 0,
+            'flood_risk': analyses.aggregate(Avg('flood_risk_score'))['flood_risk_score__avg'] or 0,
+            'infrastructure_access': analyses.aggregate(Avg('infrastructure_access_score'))['infrastructure_access_score__avg'] or 0,
+            'elevation': analyses.aggregate(Avg('elevation_suitability_score'))['elevation_suitability_score__avg'] or 0,
+            'economic_alignment': analyses.aggregate(Avg('economic_alignment_score'))['economic_alignment_score__avg'] or 0,
+            'population_density': analyses.aggregate(Avg('population_density_score'))['population_density_score__avg'] or 0,
+        }
+        
+        return JsonResponse({
+            'total_analyses': total_analyses,
+            'score_statistics': {
+                'average': round(avg_score, 2),
+                'minimum': round(min_score, 2),
+                'maximum': round(max_score, 2),
+            },
+            'category_distribution': category_counts,
+            'risk_distribution': risk_counts,
+            'average_factor_scores': {k: round(v, 2) for k, v in avg_factors.items()},
+        })
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in suitability_stats_api: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Internal server error'}, status=500)
+
+
+@login_required
+@user_passes_test(is_head_engineer, login_url='/accounts/login/')
+@require_GET
+def suitability_dashboard_data_api(request):
+    """
+    API endpoint to get suitability data for dashboard widgets.
+    Returns data formatted for dashboard visualization.
+    """
+    try:
+        from django.db.models import Avg, Count, Q
+        from collections import defaultdict
+        
+        # Get all projects with suitability analysis
+        analyses = LandSuitabilityAnalysis.objects.select_related('project').all()
+        
+        total_analyses = analyses.count()
+        
+        if total_analyses == 0:
+            return JsonResponse({
+                'total_analyses': 0,
+                'category_distribution': {},
+                'risk_summary': {},
+                'top_projects': [],
+                'bottom_projects': [],
+            })
+        
+        # Category distribution (for pie chart)
+        category_distribution = {
+            'highly_suitable': analyses.filter(suitability_category='highly_suitable').count(),
+            'suitable': analyses.filter(suitability_category='suitable').count(),
+            'moderately_suitable': analyses.filter(suitability_category='moderately_suitable').count(),
+            'marginally_suitable': analyses.filter(suitability_category='marginally_suitable').count(),
+            'not_suitable': analyses.filter(suitability_category='not_suitable').count(),
+        }
+        
+        # Risk summary
+        risk_summary = {
+            'total_with_risks': analyses.filter(
+                Q(has_flood_risk=True) | Q(has_slope_risk=True) | 
+                Q(has_zoning_conflict=True) | Q(has_infrastructure_gap=True)
+            ).count(),
+            'flood_risk': analyses.filter(has_flood_risk=True).count(),
+            'slope_risk': analyses.filter(has_slope_risk=True).count(),
+            'zoning_conflict': analyses.filter(has_zoning_conflict=True).count(),
+            'infrastructure_gap': analyses.filter(has_infrastructure_gap=True).count(),
+        }
+        
+        # Top 5 projects by score
+        top_projects = analyses.order_by('-overall_score')[:5].values(
+            'project__id', 'project__name', 'overall_score', 'suitability_category'
+        )
+        
+        # Bottom 5 projects by score
+        bottom_projects = analyses.order_by('overall_score')[:5].values(
+            'project__id', 'project__name', 'overall_score', 'suitability_category'
+        )
+        
+        # Distribution by barangay (top 10)
+        barangay_distribution = defaultdict(lambda: {'count': 0, 'avg_score': 0, 'total_score': 0})
+        for analysis in analyses.select_related('project'):
+            barangay = analysis.project.barangay or 'Unknown'
+            barangay_distribution[barangay]['count'] += 1
+            barangay_distribution[barangay]['total_score'] += analysis.overall_score
+        
+        # Calculate averages
+        for barangay, data in barangay_distribution.items():
+            data['avg_score'] = round(data['total_score'] / data['count'], 2)
+            del data['total_score']
+        
+        # Sort by count and get top 10
+        top_barangays = sorted(
+            [{'barangay': k, **v} for k, v in barangay_distribution.items()],
+            key=lambda x: x['count'],
+            reverse=True
+        )[:10]
+        
+        return JsonResponse({
+            'total_analyses': total_analyses,
+            'category_distribution': category_distribution,
+            'risk_summary': risk_summary,
+            'top_projects': list(top_projects),
+            'bottom_projects': list(bottom_projects),
+            'top_barangays': top_barangays,
+        })
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in suitability_dashboard_data_api: {str(e)}', exc_info=True)
+        return JsonResponse({'error': 'Internal server error'}, status=500) 

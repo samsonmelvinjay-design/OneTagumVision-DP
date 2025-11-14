@@ -265,6 +265,59 @@
             </div>
         </div>
 
+        <!-- Land Suitability Analysis Section -->
+        <div class="mb-6" id="suitability-section">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Land Suitability Analysis</h2>
+            <p class="text-gray-600 text-sm">Project location suitability assessment and risk analysis</p>
+        </div>
+
+        <!-- Suitability Widgets -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8" id="suitability-widgets">
+            <!-- Suitability Overview Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Suitability Overview
+                </h3>
+                <div id="suitability-overview" class="space-y-3">
+                    <div class="text-center py-8 text-gray-500">
+                        <p>Loading suitability data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suitability Distribution Chart -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    Suitability Distribution
+                </h3>
+                <div class="chart-container" style="position: relative; height:250px; width:100%">
+                    <canvas id="suitabilityDistributionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Risk Summary Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    Risk Summary
+                </h3>
+                <div id="risk-summary" class="space-y-3">
+                    <div class="text-center py-8 text-gray-500">
+                        <p>Loading risk data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Zone Analytics Section -->
         <div class="mb-6">
             <h2 class="text-2xl font-bold text-gray-900 mb-2">Zoning Analytics</h2>
@@ -776,5 +829,143 @@
             console.warn('zoneCostChart element not found');
         }
     });
+
+    // Load Suitability Analysis Data
+    (function() {
+        fetch('{% url "projeng:suitability_dashboard_data_api" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.total_analyses === 0) {
+                    document.getElementById('suitability-overview').innerHTML = '<div class="text-center py-8 text-gray-500"><p>No suitability analyses available</p></div>';
+                    document.getElementById('risk-summary').innerHTML = '<div class="text-center py-8 text-gray-500"><p>No risk data available</p></div>';
+                    return;
+                }
+
+                // Update Overview Card
+                const overviewHtml = `
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                            <span class="text-gray-700 font-medium">Total Analyses</span>
+                            <span class="text-lg font-bold text-blue-600">${data.total_analyses}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                            <span class="text-gray-700 font-medium">Highly Suitable</span>
+                            <span class="text-lg font-bold text-green-600">${data.category_distribution.highly_suitable || 0}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                            <span class="text-gray-700 font-medium">Suitable</span>
+                            <span class="text-lg font-bold text-yellow-600">${data.category_distribution.suitable || 0}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                            <span class="text-gray-700 font-medium">Moderate</span>
+                            <span class="text-lg font-bold text-orange-600">${data.category_distribution.moderately_suitable || 0}</span>
+                        </div>
+                        ${data.category_distribution.not_suitable > 0 ? `
+                        <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                            <span class="text-gray-700 font-medium">Not Suitable</span>
+                            <span class="text-lg font-bold text-red-600">${data.category_distribution.not_suitable}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                document.getElementById('suitability-overview').innerHTML = overviewHtml;
+
+                // Update Risk Summary
+                const riskHtml = `
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                            <span class="text-gray-700 font-medium">Projects with Risks</span>
+                            <span class="text-lg font-bold text-red-600">${data.risk_summary.total_with_risks || 0}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 ${data.risk_summary.flood_risk > 0 ? 'bg-orange-50' : 'bg-gray-50'} rounded-lg">
+                            <span class="text-gray-700 font-medium">Flood Risk</span>
+                            <span class="text-lg font-bold ${data.risk_summary.flood_risk > 0 ? 'text-orange-600' : 'text-gray-600'}">${data.risk_summary.flood_risk || 0}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 ${data.risk_summary.slope_risk > 0 ? 'bg-orange-50' : 'bg-gray-50'} rounded-lg">
+                            <span class="text-gray-700 font-medium">Slope Risk</span>
+                            <span class="text-lg font-bold ${data.risk_summary.slope_risk > 0 ? 'text-orange-600' : 'text-gray-600'}">${data.risk_summary.slope_risk || 0}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 ${data.risk_summary.zoning_conflict > 0 ? 'bg-yellow-50' : 'bg-gray-50'} rounded-lg">
+                            <span class="text-gray-700 font-medium">Zoning Conflict</span>
+                            <span class="text-lg font-bold ${data.risk_summary.zoning_conflict > 0 ? 'text-yellow-600' : 'text-gray-600'}">${data.risk_summary.zoning_conflict || 0}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 ${data.risk_summary.infrastructure_gap > 0 ? 'bg-yellow-50' : 'bg-gray-50'} rounded-lg">
+                            <span class="text-gray-700 font-medium">Infrastructure Gap</span>
+                            <span class="text-lg font-bold ${data.risk_summary.infrastructure_gap > 0 ? 'text-yellow-600' : 'text-gray-600'}">${data.risk_summary.infrastructure_gap || 0}</span>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('risk-summary').innerHTML = riskHtml;
+
+                // Create Suitability Distribution Chart
+                const chartCtx = document.getElementById('suitabilityDistributionChart');
+                if (chartCtx) {
+                    const categoryLabels = {
+                        'highly_suitable': 'Highly Suitable',
+                        'suitable': 'Suitable',
+                        'moderately_suitable': 'Moderate',
+                        'marginally_suitable': 'Marginal',
+                        'not_suitable': 'Not Suitable'
+                    };
+                    
+                    const labels = Object.keys(data.category_distribution)
+                        .filter(key => data.category_distribution[key] > 0)
+                        .map(key => categoryLabels[key] || key);
+                    const values = Object.keys(data.category_distribution)
+                        .filter(key => data.category_distribution[key] > 0)
+                        .map(key => data.category_distribution[key]);
+                    
+                    const colors = {
+                        'highly_suitable': 'rgba(34, 197, 94, 0.8)',
+                        'suitable': 'rgba(59, 130, 246, 0.8)',
+                        'moderately_suitable': 'rgba(251, 146, 60, 0.8)',
+                        'marginally_suitable': 'rgba(249, 115, 22, 0.8)',
+                        'not_suitable': 'rgba(239, 68, 68, 0.8)'
+                    };
+                    
+                    const backgroundColors = Object.keys(data.category_distribution)
+                        .filter(key => data.category_distribution[key] > 0)
+                        .map(key => colors[key] || 'rgba(200, 200, 200, 0.8)');
+                    
+                    new Chart(chartCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Projects',
+                                data: values,
+                                backgroundColor: backgroundColors,
+                                borderColor: backgroundColors.map(c => c.replace('0.8', '1')),
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const total = values.reduce((a, b) => a + b, 0);
+                                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading suitability data:', error);
+                document.getElementById('suitability-overview').innerHTML = '<div class="text-center py-8 text-red-500"><p>Error loading suitability data</p></div>';
+                document.getElementById('risk-summary').innerHTML = '<div class="text-center py-8 text-red-500"><p>Error loading risk data</p></div>';
+            });
+    })();
 </script>
 {% endblock %} 

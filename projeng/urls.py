@@ -63,4 +63,9 @@ urlpatterns = [
     path('api/barangay-zone-data/', views.barangay_zone_data_api, name='barangay_zone_data_api'),
     # Phase 6: Zone Analytics API endpoint
     path('api/zone-analytics/', views.zone_analytics_api, name='zone_analytics_api'),
+    
+    # Suitability Analysis API endpoints
+    path('api/suitability/<int:project_id>/', views.suitability_analysis_api, name='suitability_analysis_api'),
+    path('api/suitability/stats/', views.suitability_stats_api, name='suitability_stats_api'),
+    path('api/suitability/dashboard-data/', views.suitability_dashboard_data_api, name='suitability_dashboard_data_api'),
 ] 
