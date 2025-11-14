@@ -1586,6 +1586,7 @@ function formatDate(dateStr) {
                         <button 
                             type="button" 
                             id="map-fullscreen-btn" 
+                            onclick="if(typeof showPopupMap === 'function') { showPopupMap(); } else { console.error('showPopupMap not available'); } return false;"
                             class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-3 rounded-lg shadow-lg transition flex items-center justify-center gap-2 text-sm"
                             title="Click to open map and select location"
                         >
@@ -2659,11 +2660,14 @@ function initializeMapPopupElements() {
     lngInput = document.getElementById('longitude-input');
 }
 
-function showPopupMap() {
+// Make showPopupMap globally available
+window.showPopupMap = function() {
     console.log('showPopupMap called');
     
     // Always initialize elements to get fresh references
-    initializeMapPopupElements();
+    if (typeof initializeMapPopupElements === 'function') {
+        initializeMapPopupElements();
+    }
     
     // Get fresh reference to modal
     const modalEl = document.getElementById('map-popup-modal');
