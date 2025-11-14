@@ -218,7 +218,6 @@ if SPACES_CONFIGURED:
     
     # Use custom domain if provided (CDN endpoint), otherwise use endpoint URL
     if AWS_S3_CUSTOM_DOMAIN:
-        AWS_S3_CUSTOM_DOMAIN = AWS_S3_CUSTOM_DOMAIN
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
     else:
         # Use endpoint URL directly
@@ -234,10 +233,18 @@ if SPACES_CONFIGURED:
     AWS_S3_FILE_OVERWRITE = False  # Don't overwrite files with same name
     AWS_S3_VERIFY = True  # Verify SSL certificates
     
+    # Important: Set location to empty string so files go to root of bucket
+    # The upload_to parameter in models will create the folder structure
+    AWS_LOCATION = ''
+    
     # Set MEDIA_ROOT to empty since we're using Spaces
     MEDIA_ROOT = ''
     
     print("✅ DigitalOcean Spaces configured for media storage")
+    print(f"   Bucket: {AWS_STORAGE_BUCKET_NAME}")
+    print(f"   Region: {AWS_S3_REGION_NAME}")
+    print(f"   Endpoint: {AWS_S3_ENDPOINT_URL}")
+    print(f"   CDN Domain: {AWS_S3_CUSTOM_DOMAIN or 'Not set'}")
 else:
     # Use local file storage (development or when Spaces is not configured)
     MEDIA_URL = '/media/'
