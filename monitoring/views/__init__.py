@@ -267,6 +267,9 @@ def dashboard_monthly_spending_data(request):
 def project_list(request):
     
     if request.method == 'POST':
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json'
+        
         form = ProjectForm(request.POST, request.FILES)
         if form.is_valid():
             project = form.save(commit=False)
@@ -338,6 +341,11 @@ def project_list(request):
                 print(f"❌ Error saving project: {str(e)}")
                 import traceback
                 print(f"Full traceback: {traceback.format_exc()}")
+                
+                # Return JSON error for AJAX requests
+                if is_ajax:
+                    from django.http import JsonResponse
+                    return JsonResponse({'success': False, 'error': f'Error saving project: {str(e)}'}, status=400)
                 raise
             
             # Log zone detection result (optional, for debugging)
@@ -346,10 +354,23 @@ def project_list(request):
                 logger = logging.getLogger(__name__)
                 logger.info(f"Zone detected for project '{project.name}': {zone_type} (confidence: {confidence}%)")
             
+            # Return JSON response for AJAX requests
+            if is_ajax:
+                from django.http import JsonResponse
+                return JsonResponse({'success': True, 'message': 'Project created successfully!', 'project_id': project.id})
+            
             # Optionally add a success message or redirect
             return redirect('project_list')
         else:
-            # Re-render with errors
+            # Return JSON errors for AJAX requests
+            if is_ajax:
+                from django.http import JsonResponse
+                errors = {}
+                for field, error_list in form.errors.items():
+                    errors[field] = error_list
+                return JsonResponse({'success': False, 'errors': errors, 'error': 'Please correct the errors below.'}, status=400)
+            
+            # Re-render with errors for non-AJAX requests
             if is_head_engineer(request.user) or is_finance_manager(request.user):
                 projects = Project.objects.all().order_by('-created_at')
             elif is_project_engineer(request.user):
