@@ -35,9 +35,17 @@ def format_project_display(project):
 _syncing_projects = set()
 
 @receiver(post_save, sender=Project)
-def sync_projeng_to_monitoring(sender, instance, **kwargs):
+def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
     # Prevent recursion: if we're already syncing this project, skip
     if instance.id in _syncing_projects:
+        return
+    
+    # Skip sync if this is a new project being created (optimize performance)
+    # The sync can happen asynchronously or on-demand
+    # Only sync on updates to avoid blocking project creation
+    if created:
+        # For new projects, skip immediate sync to improve performance
+        # Can be synced later if needed via a background task or manual sync
         return
     
     print(f"SIGNAL: sync_projeng_to_monitoring called for Project id={instance.id}, prn={instance.prn}")
