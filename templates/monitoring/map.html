@@ -1846,44 +1846,117 @@ function initializeModalButtons() {
                 e.stopPropagation();
                 console.log('Form submitted');
                 
+                // Get fresh reference to form in case it was replaced
+                const currentForm = document.getElementById('project-form');
+                if (!currentForm) {
+                    console.error('Form not found!');
+                    alert('Error: Form not found. Please refresh the page.');
+                    return false;
+                }
+                
+                // Use the current form reference
+                const formToUse = currentForm;
+                
                 // Get all form fields and their values directly from DOM elements
                 const formData = new FormData();
                 
-                // Get all form elements with names
-                const formElements = form.querySelectorAll('input, select, textarea');
+                // Get all form elements with names from the current form
+                const formElements = formToUse.querySelectorAll('input, select, textarea');
+                console.log(`Found ${formElements.length} form elements`);
                 
                 // First, collect all form data by reading directly from DOM
                 const formValues = {};
-                formElements.forEach(element => {
+                formElements.forEach((element, index) => {
                     const name = element.name;
                     if (name) {
+                        let value = '';
+                        
                         if (element.type === 'file') {
                             // Handle file inputs
                             if (element.files && element.files.length > 0) {
                                 formData.append(name, element.files[0]);
+                                console.log(`Added file ${name}: ${element.files[0].name}`);
                             }
                         } else if (element.type === 'checkbox') {
                             // Handle checkboxes
                             if (element.checked) {
-                                formData.append(name, element.value);
+                                value = element.value || 'on';
+                                formData.append(name, value);
+                                formValues[name] = value;
+                                console.log(`Added checkbox ${name}: ${value}`);
                             }
                         } else if (element.type === 'radio') {
                             // Handle radio buttons
                             if (element.checked) {
-                                formData.append(name, element.value);
+                                value = element.value || '';
+                                formData.append(name, value);
+                                formValues[name] = value;
+                                console.log(`Added radio ${name}: ${value}`);
                             }
                         } else {
-                            // Handle text, select, textarea, etc.
-                            const value = element.value || '';
+                            // Handle text, select, textarea, number, date, etc.
+                            value = element.value || '';
+                            // For readonly fields, try to get the value attribute as fallback
+                            if (!value && element.hasAttribute('readonly')) {
+                                value = element.getAttribute('value') || '';
+                            }
                             formValues[name] = value;
                             formData.append(name, value);
-                            console.log(`Added ${name}: ${value}`);
+                            console.log(`Added ${name} (type: ${element.type}): "${value}" (length: ${value.length})`);
                         }
+                    } else {
+                        console.warn(`Element at index ${index} has no name attribute:`, element);
                     }
                 });
                 
+                // Explicitly check critical fields by ID as well
+                const nameField = document.getElementById('project-form')?.querySelector('[name="name"]');
+                const statusField = document.getElementById('project-form')?.querySelector('[name="status"]');
+                const latField = document.getElementById('latitude-input');
+                const lngField = document.getElementById('longitude-input');
+                
+                console.log('Direct field checks:');
+                console.log('  name field:', nameField, 'value:', nameField?.value);
+                console.log('  status field:', statusField, 'value:', statusField?.value);
+                console.log('  latitude field:', latField, 'value:', latField?.value);
+                console.log('  longitude field:', lngField, 'value:', lngField?.value);
+                
+                // If values are missing, try to get them directly
+                if (nameField && (!formValues['name'] || !formValues['name'].trim())) {
+                    const directValue = nameField.value || '';
+                    if (directValue) {
+                        formValues['name'] = directValue;
+                        formData.set('name', directValue);
+                        console.log(`Fixed name from direct access: "${directValue}"`);
+                    }
+                }
+                if (statusField && (!formValues['status'] || !formValues['status'].trim())) {
+                    const directValue = statusField.value || '';
+                    if (directValue) {
+                        formValues['status'] = directValue;
+                        formData.set('status', directValue);
+                        console.log(`Fixed status from direct access: "${directValue}"`);
+                    }
+                }
+                if (latField && (!formValues['latitude'] || !formValues['latitude'].trim())) {
+                    const directValue = latField.value || '';
+                    if (directValue) {
+                        formValues['latitude'] = directValue;
+                        formData.set('latitude', directValue);
+                        console.log(`Fixed latitude from direct access: "${directValue}"`);
+                    }
+                }
+                if (lngField && (!formValues['longitude'] || !formValues['longitude'].trim())) {
+                    const directValue = lngField.value || '';
+                    if (directValue) {
+                        formValues['longitude'] = directValue;
+                        formData.set('longitude', directValue);
+                        console.log(`Fixed longitude from direct access: "${directValue}"`);
+                    }
+                }
+                
                 // Special handling for multi-select (assigned_engineers)
-                const assignedEngineersSelect = form.querySelector('[name="assigned_engineers"]');
+                const assignedEngineersSelect = formToUse.querySelector('[name="assigned_engineers"]');
                 if (assignedEngineersSelect && assignedEngineersSelect.options) {
                     const selectedEngineers = Array.from(assignedEngineersSelect.selectedOptions).map(opt => opt.value);
                     formData.delete('assigned_engineers'); // Remove if already added
@@ -1910,7 +1983,7 @@ function initializeModalButtons() {
                 }
                 
                 // Add CSRF token to formData (it might not be in form elements)
-                const csrfInput = form.querySelector('[name="csrfmiddlewaretoken"]');
+                const csrfInput = formToUse.querySelector('[name="csrfmiddlewaretoken"]');
                 if (csrfInput) {
                     formData.set('csrfmiddlewaretoken', csrfInput.value);
                 } else {
@@ -1937,18 +2010,18 @@ function initializeModalButtons() {
                 }
                 
                 // Clear previous error messages
-                const errorMessages = form.querySelectorAll('.error-message');
+                const errorMessages = formToUse.querySelectorAll('.error-message');
                 errorMessages.forEach(msg => msg.remove());
                 
                 // Remove error styling from fields
-                const errorFields = form.querySelectorAll('.border-red-500');
+                const errorFields = formToUse.querySelectorAll('.border-red-500');
                 errorFields.forEach(field => {
                     field.classList.remove('border-red-500');
                     field.classList.add('border-gray-300');
                 });
 
                 // Show loading state
-                const submitBtn = form.querySelector('button[type="submit"]');
+                const submitBtn = formToUse.querySelector('button[type="submit"]');
                 const originalBtnContent = submitBtn ? submitBtn.innerHTML : '';
                 
                 // If required fields are missing, show alert and stop
@@ -1966,7 +2039,7 @@ function initializeModalButtons() {
                     submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Saving...';
                 }
 
-                fetch(form.action, {
+                fetch(formToUse.action, {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': csrftoken,
