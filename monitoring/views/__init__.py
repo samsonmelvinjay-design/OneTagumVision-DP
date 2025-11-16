@@ -1248,7 +1248,22 @@ def head_engineer_project_detail(request, pk):
         # Get all cost entries with created_by prefetched
         costs = ProjectCost.objects.filter(project=project).select_related('created_by').order_by('date')
         # Get all documents with uploaded_by prefetched
-        documents = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
+        all_documents = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
+        
+        # Separate images from other documents
+        image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
+        image_documents = []
+        other_documents = []
+        
+        for doc in all_documents:
+            file_name_lower = doc.file.name.lower()
+            is_image = any(file_name_lower.endswith(ext) for ext in image_extensions)
+            if is_image:
+                image_documents.append(doc)
+            else:
+                other_documents.append(doc)
+        
+        documents = all_documents  # Keep for backward compatibility
         # Analytics & summary
         latest_progress = progress_updates.last() if progress_updates else None
         
@@ -1292,7 +1307,9 @@ def head_engineer_project_detail(request, pk):
             'progress_updates': progress_updates,
             'assigned_to': assigned_to,
             'costs': costs,
-            'documents': documents,  # Add documents for Head Engineer view
+            'documents': documents,  # All documents for backward compatibility
+            'image_documents': image_documents,  # Images only
+            'other_documents': other_documents,  # Non-image documents
             'latest_progress': latest_progress,
             'total_cost': total_cost,
             'budget_utilization': budget_utilization,
