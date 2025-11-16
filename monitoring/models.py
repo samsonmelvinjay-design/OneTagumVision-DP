@@ -1,7 +1,22 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 User = get_user_model()
+
+# Import custom storage backend
+def get_media_storage():
+    """Get the appropriate storage backend for media files"""
+    try:
+        if getattr(settings, 'SPACES_CONFIGURED', False):
+            from projeng.storage import PublicMediaStorage
+            if PublicMediaStorage:
+                return PublicMediaStorage()
+    except (ImportError, AttributeError):
+        pass
+    return None
+
+MEDIA_STORAGE = get_media_storage()
 
 class Project(models.Model):
     STATUS_CHOICES = [
@@ -25,7 +40,7 @@ class Project(models.Model):
     longitude = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    image = models.ImageField(upload_to='project_images/', blank=True, null=True)
+    image = models.ImageField(upload_to='project_images/', blank=True, null=True, storage=MEDIA_STORAGE)
     assigned_engineers = models.ManyToManyField(User, related_name="assigned_monitoring_projects", blank=True)
 
     def __str__(self):

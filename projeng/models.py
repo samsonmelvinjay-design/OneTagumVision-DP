@@ -4,6 +4,20 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
 
+# Import custom storage backend
+def get_media_storage():
+    """Get the appropriate storage backend for media files"""
+    try:
+        if getattr(settings, 'SPACES_CONFIGURED', False):
+            from .storage import PublicMediaStorage
+            if PublicMediaStorage:
+                return PublicMediaStorage()
+    except (ImportError, AttributeError):
+        pass
+    return None
+
+MEDIA_STORAGE = get_media_storage()
+
 class Layer(models.Model):
     LAYER_TYPES = [
         ('project', 'Project'),
@@ -45,7 +59,7 @@ class Project(models.Model):
     longitude = models.FloatField(blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
-    image = models.ImageField(upload_to='project_images/', blank=True, null=True)
+    image = models.ImageField(upload_to='project_images/', blank=True, null=True, storage=MEDIA_STORAGE)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_projects')
     assigned_engineers = models.ManyToManyField(User, related_name='assigned_projects', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -206,7 +220,7 @@ class ProjectCost(models.Model):
     cost_type = models.CharField(max_length=20, choices=COST_TYPES)
     description = models.TextField()
     amount = models.DecimalField(max_digits=15, decimal_places=2)
-    receipt = models.FileField(upload_to='cost_receipts/', blank=True, null=True)
+    receipt = models.FileField(upload_to='cost_receipts/', blank=True, null=True, storage=MEDIA_STORAGE)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -218,7 +232,7 @@ class ProjectCost(models.Model):
 
 class ProgressPhoto(models.Model):
     progress_update = models.ForeignKey(ProjectProgress, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='progress_photos/')
+    image = models.ImageField(upload_to='progress_photos/', storage=MEDIA_STORAGE)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -226,7 +240,7 @@ class ProgressPhoto(models.Model):
 
 class ProjectDocument(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='documents')
-    file = models.FileField(upload_to='project_documents/')
+    file = models.FileField(upload_to='project_documents/', storage=MEDIA_STORAGE)
     name = models.CharField(max_length=255)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
