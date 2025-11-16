@@ -293,8 +293,12 @@ window.openAddProjectModal = function() {
     } else {
         const modal = document.getElementById('project-modal');
         if (modal) {
+            modal.style.display = 'flex';
             modal.classList.remove('opacity-0', 'pointer-events-none');
-            setTimeout(() => modal.classList.add('opacity-100'), 10);
+            setTimeout(() => {
+                modal.classList.add('opacity-100');
+                modal.style.pointerEvents = 'auto';
+            }, 10);
         }
     }
 };
@@ -1706,8 +1710,14 @@ function showToast(message) {
 
 function showModal() {
     if (projectModal) {
+        // First show the modal by setting display
+        projectModal.style.display = 'flex';
+        // Then handle opacity transition
         projectModal.classList.remove('opacity-0', 'pointer-events-none');
-        setTimeout(() => projectModal.classList.add('opacity-100'), 10);
+        setTimeout(() => {
+            projectModal.classList.add('opacity-100');
+            projectModal.style.pointerEvents = 'auto';
+        }, 10);
         
         // Initialize modal buttons when shown
         if (typeof initializeModalButtons === 'function') {
