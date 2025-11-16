@@ -177,16 +177,17 @@ def notify_project_updates(sender, instance, created, **kwargs):
                 print(f"WARNING:  WebSocket broadcast failed (SSE still works): {e}")
         
         # Auto-analyze project suitability when created or updated
-        if SUITABILITY_ANALYSIS_AVAILABLE:
-            try:
-                # Only analyze if project has location and barangay
-                if instance.latitude and instance.longitude and instance.barangay:
-                    analyzer = LandSuitabilityAnalyzer()
-                    result = analyzer.analyze_project(instance)
-                    analyzer.save_analysis(instance, result)
-            except Exception as e:
-                # Fail gracefully - don't break project creation if analysis fails
-                print(f"WARNING: Suitability analysis failed for project {instance.id}: {e}")
+        # DISABLED: User is not using Land Suitability Analysis anymore
+        # if SUITABILITY_ANALYSIS_AVAILABLE:
+        #     try:
+        #         # Only analyze if project has location and barangay
+        #         if instance.latitude and instance.longitude and instance.barangay:
+        #             analyzer = LandSuitabilityAnalyzer()
+        #             result = analyzer.analyze_project(instance)
+        #             analyzer.save_analysis(instance, result)
+        #     except Exception as e:
+        #         # Fail gracefully - don't break project creation if analysis fails
+        #         print(f"WARNING: Suitability analysis failed for project {instance.id}: {e}")
     else:
         # Project updated - check if it's a significant update
         old_state = _old_project_state.pop(instance.pk, None) if instance.pk else None
@@ -290,14 +291,15 @@ def notify_project_updates(sender, instance, created, **kwargs):
                 notify_admins(message)
                 
                 # Re-analyze suitability if location/barangay changed
-                if SUITABILITY_ANALYSIS_AVAILABLE and old_state.get('barangay') != instance.barangay:
-                    try:
-                        if instance.latitude and instance.longitude and instance.barangay:
-                            analyzer = LandSuitabilityAnalyzer()
-                            result = analyzer.analyze_project(instance)
-                            analyzer.save_analysis(instance, result)
-                    except Exception as e:
-                        print(f"WARNING: Suitability re-analysis failed for project {instance.id}: {e}")
+                # DISABLED: User is not using Land Suitability Analysis anymore
+                # if SUITABILITY_ANALYSIS_AVAILABLE and old_state.get('barangay') != instance.barangay:
+                #     try:
+                #         if instance.latitude and instance.longitude and instance.barangay:
+                #             analyzer = LandSuitabilityAnalyzer()
+                #             result = analyzer.analyze_project(instance)
+                #             analyzer.save_analysis(instance, result)
+                #     except Exception as e:
+                #         print(f"WARNING: Suitability re-analysis failed for project {instance.id}: {e}")
         # If explicit notification flag is set, notify
         elif hasattr(instance, '_notify_update') and instance._notify_update:
             updater_name = getattr(instance, '_updated_by_username', None)

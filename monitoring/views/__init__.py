@@ -295,7 +295,19 @@ def project_list(request):
                 project.created_by = request.user
             
             # Phase 4: Auto-detect zone before saving
-            zone_type, confidence = project.detect_and_set_zone(save=False)
+            # Make zone detection optional/non-blocking - only run if coordinates are available
+            # This improves project creation performance
+            try:
+                if project.latitude and project.longitude:
+                    zone_type, confidence = project.detect_and_set_zone(save=False)
+                else:
+                    zone_type, confidence = None, 0
+            except Exception as e:
+                # Fail gracefully - don't block project creation if zone detection fails
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Zone detection failed for project: {str(e)}")
+                zone_type, confidence = None, 0
             
             # Log image upload info for debugging (use print() so it shows in runtime logs)
             if 'image' in request.FILES:
