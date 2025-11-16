@@ -649,6 +649,9 @@ def project_detail_view(request, pk):
         # Sort by timestamp (most recent first)
         activity_log.sort(key=lambda x: x['timestamp'], reverse=True)
         
+        # Limit to 10 most recent activities
+        activity_log = activity_log[:10]
+        
         # Progress Trends Data for Analytics
         progress_updates_for_chart = ProjectProgress.objects.filter(project=project).order_by('date', 'created_at')
         progress_timeline_data = []
