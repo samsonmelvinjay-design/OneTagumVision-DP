@@ -1903,25 +1903,53 @@ function initializeModalButtons() {
                             } else {
                                 // Handle validation errors
                                 console.error('Form submission error:', data);
+                                console.error('Validation errors details:', JSON.stringify(data.errors, null, 2));
                                 
                                 let errorMessage = data.error || 'Please correct the errors below.';
+                                let errorCount = 0;
+                                let errorSummary = [];
                                 
                                 // Display field-specific errors
                                 if (data.errors) {
                                     for (const [field, errors] of Object.entries(data.errors)) {
+                                        errorCount++;
+                                        const errorText = Array.isArray(errors) ? errors[0] : errors;
+                                        errorSummary.push(`${field}: ${errorText}`);
+                                        
                                         const fieldElement = form.querySelector(`[name="${field}"]`);
                                         if (fieldElement) {
                                             // Add error styling
                                             fieldElement.classList.remove('border-gray-300');
                                             fieldElement.classList.add('border-red-500');
                                             
+                                            // Remove any existing error message for this field
+                                            const existingError = fieldElement.parentNode.querySelector(`.error-message[data-field="${field}"]`);
+                                            if (existingError) {
+                                                existingError.remove();
+                                            }
+                                            
                                             // Add error message
                                             const errorDiv = document.createElement('div');
                                             errorDiv.className = 'error-message text-red-600 text-sm mt-1';
-                                            errorDiv.textContent = Array.isArray(errors) ? errors[0] : errors;
-                                            fieldElement.parentNode.insertBefore(errorDiv, fieldElement.nextSibling);
+                                            errorDiv.setAttribute('data-field', field);
+                                            errorDiv.textContent = errorText;
+                                            
+                                            // Insert after the field or its label
+                                            const label = fieldElement.previousElementSibling;
+                                            if (label && label.tagName === 'LABEL') {
+                                                fieldElement.parentNode.insertBefore(errorDiv, fieldElement.nextSibling);
+                                            } else {
+                                                fieldElement.parentNode.insertBefore(errorDiv, fieldElement.nextSibling);
+                                            }
+                                        } else {
+                                            console.warn(`Field element not found for: ${field}`);
                                         }
                                     }
+                                }
+                                
+                                // Show detailed error message
+                                if (errorSummary.length > 0) {
+                                    errorMessage = `Please correct the following errors:\n\n${errorSummary.join('\n')}`;
                                 }
                                 
                                 alert(errorMessage);
