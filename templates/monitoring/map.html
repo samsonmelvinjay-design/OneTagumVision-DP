@@ -375,21 +375,7 @@
                 } else {
                     console.warn('populateEngineers function not found');
                 }
-                
-                if (typeof populateProjectTypes === 'function') {
-                    console.log('Calling populateProjectTypes...');
-                    populateProjectTypes();
-                } else {
-                    console.warn('populateProjectTypes function not found');
-                }
             }, 100);
-            
-            // Set up event listeners for recommendations
-            if (typeof setupRecommendationEventListeners === 'function') {
-                setTimeout(() => {
-                    setupRecommendationEventListeners();
-                }, 100);
-            }
             
             // Re-initialize map button
             setTimeout(() => {
@@ -413,24 +399,6 @@
                 }
             }, 200);
             
-            // Hide recommendation section initially
-            const recSection = document.getElementById('zone-recommendation-section');
-            if (recSection) {
-                recSection.classList.add('hidden');
-            }
-            
-            // Clear validation alert when modal opens
-            const validationAlert = document.getElementById('zone-validation-alert');
-            if (validationAlert) {
-                validationAlert.classList.add('hidden');
-                validationAlert.innerHTML = '';
-            }
-            
-            // Hide suitability section initially
-            const suitabilitySection = document.getElementById('zone-suitability-section');
-            if (suitabilitySection) {
-                suitabilitySection.classList.add('hidden');
-            }
             
             return false;
         } catch (error) {
@@ -2205,12 +2173,11 @@ function initializeModalButtons() {
         console.warn('Map fullscreen button not found during initialization');
     }
     
-    // Set up event listeners for zone recommendations
-    setupRecommendationEventListeners();
-    
     // Close map popup buttons - these are set up when map popup is shown
     // But we can also set them up here as a fallback
-    setupMapPopupButtons();
+    if (typeof setupMapPopupButtons === 'function') {
+        setupMapPopupButtons();
+    }
     
     // Form submission handler
     const form = document.getElementById('project-form');
