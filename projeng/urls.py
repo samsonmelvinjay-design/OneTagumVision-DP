@@ -38,6 +38,8 @@ urlpatterns = [
     path('projects/<int:pk>/upload-photo/', views.upload_project_photo, name='projeng_upload_project_photo'),
     # URL for project document uploads
     path('projects/<int:pk>/upload-document/', views.upload_project_document, name='projeng_upload_project_document'),
+    # URL for getting project documents list
+    path('projects/<int:pk>/documents/', views.get_project_documents, name='projeng_get_project_documents'),
 
     path('map/api/projects/', views.map_projects_api, name='projeng_map_projects_api'),
 

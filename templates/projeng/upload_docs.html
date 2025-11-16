@@ -97,22 +97,40 @@
 
             // Assuming an API endpoint exists to get documents for a project
             // Example: /projeng/projects/{projectId}/documents/
-            fetch(`/projeng/projects/${projectId}/documents/`) // Replace with your actual API endpoint
+            fetch(`/projeng/projects/${projectId}/documents/`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to fetch documents');
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Failed to fetch documents');
+                        });
                     }
                     return response.json();
                 })
-                .then(documents => {
+                .then(data => {
                     uploadedDocumentsList.innerHTML = ''; // Clear previous list
+                    const documents = data.documents || [];
                     if (documents.length === 0) {
                         uploadedDocumentsList.innerHTML = '<p class="text-gray-700">No documents uploaded for this project yet.</p>';
                     } else {
                         const listHtml = documents.map(doc => `
-                            <div class="border-b border-gray-200 py-2 flex justify-between items-center">
-                                <a href="${doc.file_url}" class="text-blue-600 hover:underline" target="_blank">${doc.name}</a>
-                                <span class="text-sm text-gray-500">Uploaded by ${doc.uploaded_by} on ${doc.uploaded_at}</span>
+                            <div class="border-b border-gray-200 py-3 flex justify-between items-center hover:bg-gray-50 transition-colors">
+                                <div class="flex-1">
+                                    <a href="${doc.file_url}" class="text-blue-600 hover:underline font-medium" target="_blank">${doc.name}</a>
+                                    <p class="text-sm text-gray-500 mt-1">Uploaded by ${doc.uploaded_by} on ${doc.uploaded_at}</p>
+                                </div>
+                                <div class="flex items-center gap-2 ml-4">
+                                    <a href="${doc.file_url}" target="_blank" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                    </a>
+                                    <a href="${doc.file_url}" download class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Download">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                        </svg>
+                                    </a>
+                                </div>
                             </div>
                         `).join('');
                         uploadedDocumentsList.innerHTML = listHtml;
@@ -120,7 +138,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading documents:', error);
-                    uploadedDocumentsList.innerHTML = `<p class="text-red-600">Error loading documents: ${error.message}</p>`;
+                    uploadedDocumentsList.innerHTML = `<p class="text-red-600 font-medium">Error loading documents: ${error.message}</p>`;
                 });
         }
 

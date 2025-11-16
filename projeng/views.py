@@ -1788,6 +1788,39 @@ def upload_project_document(request, pk):
             }, status=400)
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
 
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
+@csrf_exempt
+def get_project_documents(request, pk):
+    """API endpoint to get all documents for a project"""
+    try:
+        project = Project.objects.get(pk=pk)
+        
+        # Check permissions
+        if not is_head_engineer(request.user):
+            if request.user not in project.assigned_engineers.all():
+                return JsonResponse({'error': 'You are not assigned to this project.'}, status=403)
+        
+        documents = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
+        
+        documents_data = []
+        for doc in documents:
+            documents_data.append({
+                'id': doc.id,
+                'name': doc.name,
+                'file_url': doc.file.url,
+                'uploaded_by': doc.uploaded_by.get_full_name() if doc.uploaded_by else 'Unknown',
+                'uploaded_at': doc.uploaded_at.strftime('%B %d, %Y %I:%M %p')
+            })
+        
+        return JsonResponse({'documents': documents_data}, status=200)
+    except Project.DoesNotExist:
+        return JsonResponse({'error': 'Project not found.'}, status=404)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching documents for project {pk}: {str(e)}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
 # Report Export Views
 @login_required
 def export_reports_csv(request):
