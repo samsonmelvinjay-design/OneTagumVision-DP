@@ -837,5 +837,33 @@ def get_project_from_notification(notification_message):
                     logger.info(f"[{model_name}] Found project by name (Budget Increase Approved/Rejected, multiple): {project.id} - {project.name}")
                     return project.id
     
+    # Pattern 13: Document uploaded notifications
+    # Format: "Document uploaded: {document_name} for project {project_name} by {uploader_name}"
+    match = re.search(r"Document uploaded: .+? for project (.+?)(?:\s+by|$)", notification_message, re.IGNORECASE)
+    if match:
+        project_name = match.group(1).strip()
+        logger.info(f"Document uploaded: Extracted project name '{project_name}' from message")
+        
+        # Try both models
+        for ProjectModel, model_name in [(ProjengProject, "projeng"), (None, "monitoring")]:
+            if ProjectModel is None:
+                try:
+                    from monitoring.models import Project as MonitoringProject
+                    ProjectModel = MonitoringProject
+                except:
+                    continue
+            
+            try:
+                project = ProjectModel.objects.get(name__iexact=project_name)
+                logger.info(f"[{model_name}] Found project by name (Document uploaded): {project.id} - {project.name}")
+                return project.id
+            except ProjectModel.DoesNotExist:
+                pass
+            except ProjectModel.MultipleObjectsReturned:
+                project = ProjectModel.objects.filter(name__iexact=project_name).order_by('-created_at').first()
+                if project:
+                    logger.info(f"[{model_name}] Found project by name (Document uploaded, multiple): {project.id} - {project.name}")
+                    return project.id
+    
     logger.warning(f"Could not extract project from notification: {notification_message[:200]}")
     return None 
