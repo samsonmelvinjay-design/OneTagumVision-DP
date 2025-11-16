@@ -2789,6 +2789,202 @@ def zone_validation_api(request):
 
 @login_required
 @require_GET
+def zone_suitability_analysis_api(request):
+    """
+    API endpoint to analyze suitability of a project type in a specific zone type.
+    
+    Query parameters:
+    - project_type_code: Code of the project type (required)
+    - zone_type: Zone type code (required)
+    - barangay: Optional barangay name for location-specific analysis
+    
+    Returns JSON with detailed suitability analysis.
+    """
+    from .zone_recommendation import ZoneCompatibilityEngine
+    from .models import ProjectType, BarangayMetadata
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    project_type_code = request.GET.get('project_type_code')
+    zone_type = request.GET.get('zone_type')
+    barangay = request.GET.get('barangay')
+    
+    if not project_type_code or not zone_type:
+        return JsonResponse({
+            'error': 'Both project_type_code and zone_type parameters are required'
+        }, status=400)
+    
+    try:
+        # Get project type
+        try:
+            project_type = ProjectType.objects.get(code=project_type_code)
+        except ProjectType.DoesNotExist:
+            return JsonResponse({
+                'error': f'Project type with code "{project_type_code}" not found'
+            }, status=404)
+        
+        # Get barangay metadata if provided
+        barangay_meta = None
+        if barangay:
+            try:
+                barangay_meta = BarangayMetadata.objects.get(barangay__name=barangay)
+            except BarangayMetadata.DoesNotExist:
+                pass
+        
+        # Initialize engines
+        zone_engine = ZoneCompatibilityEngine()
+        
+        # Validate zone compatibility
+        validation = zone_engine.validate_project_zone(project_type_code, zone_type)
+        
+        # Calculate comprehensive suitability scores
+        scores = zone_engine.calculate_mcda_score(
+            project_type_code=project_type_code,
+            zone_type=zone_type,
+            barangay=barangay
+        )
+        
+        # Get reasoning
+        reasoning, advantages, constraints = zone_engine.generate_reasoning(
+            project_type_code=project_type_code,
+            zone_type=zone_type,
+            scores=scores,
+            barangay=barangay
+        )
+        
+        # Determine suitability level
+        overall_score = scores['overall_score']
+        if overall_score >= 85:
+            suitability_level = 'Highly Suitable'
+            suitability_class = 'high'
+            suitability_color = 'green'
+        elif overall_score >= 70:
+            suitability_level = 'Suitable'
+            suitability_class = 'medium-high'
+            suitability_color = 'blue'
+        elif overall_score >= 55:
+            suitability_level = 'Moderately Suitable'
+            suitability_class = 'medium'
+            suitability_color = 'yellow'
+        elif overall_score >= 40:
+            suitability_level = 'Less Suitable'
+            suitability_class = 'low-medium'
+            suitability_color = 'orange'
+        else:
+            suitability_level = 'Not Suitable'
+            suitability_class = 'low'
+            suitability_color = 'red'
+        
+        # Determine if zone is allowed
+        is_allowed = validation['is_allowed']
+        is_primary = validation.get('is_primary', False)
+        is_conditional = validation.get('is_conditional', False)
+        
+        # Generate recommendations
+        recommendations = []
+        if not is_allowed:
+            recommendations.append({
+                'type': 'error',
+                'message': f'{project_type.name} is not allowed in {zone_engine.format_zone_type_for_display(zone_type)} zone',
+                'action': 'Consider selecting a different zone type'
+            })
+        elif is_conditional:
+            recommendations.append({
+                'type': 'warning',
+                'message': f'{project_type.name} is conditionally allowed in {zone_engine.format_zone_type_for_display(zone_type)} zone',
+                'action': 'Additional permits or conditions may be required'
+            })
+        elif overall_score < 70:
+            # Get top recommendations
+            top_zones = zone_engine.recommend_zones(
+                project_type_code=project_type_code,
+                barangay=barangay,
+                limit=3
+            )
+            if top_zones.get('recommendations'):
+                rec_zones = [z['zone_type'] for z in top_zones['recommendations'][:3]]
+                recommendations.append({
+                    'type': 'suggestion',
+                    'message': f'Consider these more suitable zones: {", ".join(rec_zones)}',
+                    'action': 'These zones have higher suitability scores for this project type'
+                })
+        
+        # Add factor-specific recommendations
+        if scores['zoning_compliance_score'] < 50:
+            recommendations.append({
+                'type': 'warning',
+                'message': 'Low zoning compliance score',
+                'action': 'This zone type may not be optimal for this project type'
+            })
+        if scores['land_availability_score'] < 40:
+            recommendations.append({
+                'type': 'info',
+                'message': 'Limited land availability',
+                'action': 'Consider alternative locations or zones'
+            })
+        if scores['accessibility_score'] < 50:
+            recommendations.append({
+                'type': 'info',
+                'message': 'Lower accessibility',
+                'action': 'Ensure adequate transportation access for project users'
+            })
+        
+        # Format zone type for display
+        display_zone_type = zone_engine.format_zone_type_for_display(zone_type)
+        zone_display_name = zone_engine.get_zone_display_name(zone_type) if hasattr(zone_engine, 'get_zone_display_name') else display_zone_type
+        
+        result = {
+            'project_type': {
+                'code': project_type.code,
+                'name': project_type.name,
+                'description': project_type.description or ''
+            },
+            'zone_type': {
+                'code': zone_type,
+                'display_code': display_zone_type,
+                'name': zone_display_name
+            },
+            'suitability': {
+                'overall_score': round(overall_score, 2),
+                'level': suitability_level,
+                'class': suitability_class,
+                'color': suitability_color
+            },
+            'compatibility': {
+                'is_allowed': is_allowed,
+                'is_primary': is_primary,
+                'is_conditional': is_conditional,
+                'message': validation['message']
+            },
+            'factor_scores': {
+                'zoning_compliance': round(scores['zoning_compliance_score'], 2),
+                'land_availability': round(scores['land_availability_score'], 2),
+                'accessibility': round(scores['accessibility_score'], 2),
+                'community_impact': round(scores['community_impact_score'], 2),
+                'infrastructure': round(scores['infrastructure_score'], 2)
+            },
+            'reasoning': reasoning,
+            'advantages': advantages,
+            'constraints': constraints,
+            'recommendations': recommendations,
+            'barangay_context': {
+                'name': barangay_meta.barangay.name if barangay_meta else None,
+                'elevation_type': barangay_meta.elevation_type if barangay_meta else None,
+                'barangay_class': barangay_meta.barangay_class if barangay_meta else None
+            } if barangay_meta else None
+        }
+        
+        return JsonResponse(result)
+    except Exception as e:
+        logger.error(f"Error analyzing zone suitability: {e}", exc_info=True)
+        return JsonResponse({
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_GET
 def project_types_api(request):
     """
     API endpoint to get all available project types.

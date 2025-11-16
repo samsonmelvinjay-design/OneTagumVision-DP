@@ -113,6 +113,50 @@ class ZoneCompatibilityEngine:
         # Special zones that don't need hyphenation
         return zone_type
     
+    @staticmethod
+    def get_zone_display_name(zone_type: str) -> str:
+        """
+        Get human-readable display name for a zone type.
+        
+        Args:
+            zone_type: Zone type code (can be R-1, R1, etc.)
+        
+        Returns:
+            Human-readable zone name
+        """
+        if not zone_type:
+            return zone_type
+        
+        # Normalize zone type first
+        normalized = ZoneCompatibilityEngine.normalize_zone_type(zone_type)
+        
+        # Zone name mapping
+        zone_names = {
+            'R1': 'Low Density Residential',
+            'R2': 'Medium Density Residential',
+            'R3': 'High Density Residential',
+            'SHZ': 'Socialized Housing',
+            'C1': 'Major Commercial',
+            'C2': 'Minor Commercial',
+            'I1': 'Heavy Industrial',
+            'I2': 'Light/Medium Industrial',
+            'Al': 'Agro-Industrial',
+            'AGRO': 'Agro-Industrial',
+            'In': 'Institutional',
+            'INS-1': 'Institutional',
+            'Ag': 'Agricultural',
+            'AGRICULTURAL': 'Agricultural / SAFDZ',
+            'Cu': 'Cultural',
+            'PARKS': 'Parks & Open Spaces',
+            'ECO-TOURISM': 'Eco-tourism',
+            'SPECIAL': 'Special Use',
+            'COASTAL': 'Coastal Zone',
+            'RECLAMATION': 'Reclamation Proposed Zone',
+            'CEMETERY': 'Cemetery / Memorial Park',
+        }
+        
+        return zone_names.get(normalized, zone_names.get(zone_type, zone_type))
+    
     def validate_project_zone(
         self,
         project_type_code: str,

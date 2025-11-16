@@ -1983,6 +1983,118 @@ function formatDate(dateStr) {
             </div>
             
             <!-- Zone Recommendation Section -->
+            <!-- Zone Suitability Analysis Section -->
+            <div id="zone-suitability-section" class="hidden mt-6 pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Zone Suitability Analysis
+                </h3>
+                
+                <!-- Suitability Score Display -->
+                <div id="suitability-score-display" class="hidden mb-4">
+                    <div class="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">Overall Suitability</h4>
+                                <div class="flex items-center gap-3">
+                                    <span id="suitability-score-value" class="text-3xl font-bold"></span>
+                                    <span id="suitability-level" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+                                </div>
+                            </div>
+                            <div id="suitability-icon" class="w-16 h-16 rounded-full flex items-center justify-center">
+                                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <!-- Compatibility Status -->
+                        <div id="compatibility-status" class="mb-4 p-3 rounded-lg border"></div>
+                        
+                        <!-- Factor Scores -->
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="text-xs font-semibold text-gray-600 mb-1">Zoning Compliance</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div id="score-zoning" class="h-2 rounded-full bg-blue-500"></div>
+                                    </div>
+                                    <span id="score-zoning-value" class="text-sm font-bold text-gray-700"></span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="text-xs font-semibold text-gray-600 mb-1">Land Availability</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div id="score-land" class="h-2 rounded-full bg-green-500"></div>
+                                    </div>
+                                    <span id="score-land-value" class="text-sm font-bold text-gray-700"></span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="text-xs font-semibold text-gray-600 mb-1">Accessibility</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div id="score-accessibility" class="h-2 rounded-full bg-purple-500"></div>
+                                    </div>
+                                    <span id="score-accessibility-value" class="text-sm font-bold text-gray-700"></span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="text-xs font-semibold text-gray-600 mb-1">Infrastructure</div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div id="score-infrastructure" class="h-2 rounded-full bg-orange-500"></div>
+                                    </div>
+                                    <span id="score-infrastructure-value" class="text-sm font-bold text-gray-700"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Reasoning -->
+                        <div id="suitability-reasoning" class="text-sm text-gray-700 mb-4"></div>
+                        
+                        <!-- Advantages -->
+                        <div id="suitability-advantages" class="hidden mb-4">
+                            <h5 class="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Advantages
+                            </h5>
+                            <ul id="advantages-list" class="text-sm text-gray-600 space-y-1 ml-5 list-disc"></ul>
+                        </div>
+                        
+                        <!-- Constraints -->
+                        <div id="suitability-constraints" class="hidden mb-4">
+                            <h5 class="text-sm font-semibold text-orange-700 mb-2 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                Constraints
+                            </h5>
+                            <ul id="constraints-list" class="text-sm text-gray-600 space-y-1 ml-5 list-disc"></ul>
+                        </div>
+                        
+                        <!-- Recommendations -->
+                        <div id="suitability-recommendations" class="space-y-2"></div>
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="suitability-loading" class="hidden text-center py-8 text-gray-500">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    <p class="mt-2">Analyzing zone suitability...</p>
+                </div>
+                
+                <!-- Error State -->
+                <div id="suitability-error" class="hidden text-center py-4 text-red-600 bg-red-50 rounded-lg border border-red-200">
+                    <p class="text-sm font-semibold"></p>
+                </div>
+            </div>
+            
             <div id="zone-recommendation-section" class="hidden mt-6 pt-6 border-t border-gray-200">
                 <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2796,13 +2908,246 @@ function fetchZoneRecommendations() {
         });
 }
 
+// Fetch and display zone suitability analysis
+function fetchZoneSuitabilityAnalysis() {
+    const projectTypeSelect = document.getElementById('project-type-select');
+    const zoneTypeSelect = document.getElementById('zone-type-select');
+    const barangaySelect = document.getElementById('modal-barangay-select');
+    const suitabilitySection = document.getElementById('zone-suitability-section');
+    const loadingDiv = document.getElementById('suitability-loading');
+    const scoreDisplay = document.getElementById('suitability-score-display');
+    const errorDiv = document.getElementById('suitability-error');
+    
+    console.log('=== fetchZoneSuitabilityAnalysis called ===');
+    
+    if (!projectTypeSelect || !zoneTypeSelect || !suitabilitySection) {
+        console.error('Missing required elements for suitability analysis');
+        return;
+    }
+    
+    const projectTypeCode = projectTypeSelect.value;
+    const zoneType = zoneTypeSelect.value;
+    const barangay = barangaySelect ? barangaySelect.value : '';
+    
+    // Hide section if either project type or zone type is not selected
+    if (!projectTypeCode || !zoneType) {
+        suitabilitySection.classList.add('hidden');
+        return;
+    }
+    
+    // Show loading state
+    suitabilitySection.classList.remove('hidden');
+    loadingDiv.classList.remove('hidden');
+    scoreDisplay.classList.add('hidden');
+    errorDiv.classList.add('hidden');
+    
+    // Build API URL
+    let apiUrl = `/projeng/api/zone-suitability/?project_type_code=${encodeURIComponent(projectTypeCode)}&zone_type=${encodeURIComponent(zoneType)}`;
+    if (barangay) {
+        apiUrl += `&barangay=${encodeURIComponent(barangay)}`;
+    }
+    
+    console.log('Fetching suitability analysis from:', apiUrl);
+    
+    fetch(apiUrl)
+        .then(response => {
+            console.log('Suitability API response status:', response.status);
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }).catch(() => {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadingDiv.classList.add('hidden');
+            scoreDisplay.classList.remove('hidden');
+            
+            console.log('Suitability analysis response:', data);
+            
+            // Update overall suitability score
+            const scoreValue = document.getElementById('suitability-score-value');
+            const suitabilityLevel = document.getElementById('suitability-level');
+            const suitabilityIcon = document.getElementById('suitability-icon');
+            const compatibilityStatus = document.getElementById('compatibility-status');
+            
+            const overallScore = data.suitability.overall_score;
+            const suitabilityLevelText = data.suitability.level;
+            const suitabilityColor = data.suitability.color;
+            
+            // Set score
+            if (scoreValue) scoreValue.textContent = overallScore.toFixed(1);
+            
+            // Set level badge with color
+            if (suitabilityLevel) {
+                suitabilityLevel.textContent = suitabilityLevelText;
+                // Set color classes based on suitability color
+                suitabilityLevel.className = 'px-3 py-1 rounded-full text-sm font-semibold';
+                if (suitabilityColor === 'green') {
+                    suitabilityLevel.classList.add('bg-green-100', 'text-green-800');
+                } else if (suitabilityColor === 'blue') {
+                    suitabilityLevel.classList.add('bg-blue-100', 'text-blue-800');
+                } else if (suitabilityColor === 'yellow') {
+                    suitabilityLevel.classList.add('bg-yellow-100', 'text-yellow-800');
+                } else if (suitabilityColor === 'orange') {
+                    suitabilityLevel.classList.add('bg-orange-100', 'text-orange-800');
+                } else if (suitabilityColor === 'red') {
+                    suitabilityLevel.classList.add('bg-red-100', 'text-red-800');
+                }
+            }
+            
+            // Set icon color
+            if (suitabilityIcon) {
+                suitabilityIcon.className = 'w-16 h-16 rounded-full flex items-center justify-center';
+                if (suitabilityColor === 'green') {
+                    suitabilityIcon.classList.add('bg-green-100', 'text-green-600');
+                } else if (suitabilityColor === 'blue') {
+                    suitabilityIcon.classList.add('bg-blue-100', 'text-blue-600');
+                } else if (suitabilityColor === 'yellow') {
+                    suitabilityIcon.classList.add('bg-yellow-100', 'text-yellow-600');
+                } else if (suitabilityColor === 'orange') {
+                    suitabilityIcon.classList.add('bg-orange-100', 'text-orange-600');
+                } else if (suitabilityColor === 'red') {
+                    suitabilityIcon.classList.add('bg-red-100', 'text-red-600');
+                }
+            }
+            
+            // Update compatibility status
+            if (compatibilityStatus) {
+                const compat = data.compatibility;
+                let statusClass = '';
+                let statusText = '';
+                
+                if (!compat.is_allowed) {
+                    statusClass = 'bg-red-50 border-red-300 text-red-800';
+                    statusText = `❌ ${compat.message || 'Not allowed in this zone'}`;
+                } else if (compat.is_conditional) {
+                    statusClass = 'bg-yellow-50 border-yellow-300 text-yellow-800';
+                    statusText = `⚠️ ${compat.message || 'Conditionally allowed'} - Additional permits may be required`;
+                } else if (compat.is_primary) {
+                    statusClass = 'bg-green-50 border-green-300 text-green-800';
+                    statusText = `✅ ${compat.message || 'Primary use - Fully allowed'}`;
+                } else {
+                    statusClass = 'bg-blue-50 border-blue-300 text-blue-800';
+                    statusText = `✓ ${compat.message || 'Allowed in this zone'}`;
+                }
+                
+                compatibilityStatus.className = `mb-4 p-3 rounded-lg border ${statusClass}`;
+                compatibilityStatus.textContent = statusText;
+            }
+            
+            // Update factor scores
+            const factorScores = data.factor_scores;
+            
+            // Zoning compliance
+            updateFactorScore('zoning', factorScores.zoning_compliance, 'blue');
+            // Land availability
+            updateFactorScore('land', factorScores.land_availability, 'green');
+            // Accessibility
+            updateFactorScore('accessibility', factorScores.accessibility, 'purple');
+            // Infrastructure
+            updateFactorScore('infrastructure', factorScores.infrastructure, 'orange');
+            
+            // Update reasoning
+            const reasoningEl = document.getElementById('suitability-reasoning');
+            if (reasoningEl && data.reasoning) {
+                reasoningEl.textContent = data.reasoning;
+            }
+            
+            // Update advantages
+            const advantagesEl = document.getElementById('suitability-advantages');
+            const advantagesList = document.getElementById('advantages-list');
+            if (data.advantages && data.advantages.length > 0) {
+                advantagesEl.classList.remove('hidden');
+                advantagesList.innerHTML = data.advantages.map(a => `<li>${a}</li>`).join('');
+            } else {
+                advantagesEl.classList.add('hidden');
+            }
+            
+            // Update constraints
+            const constraintsEl = document.getElementById('suitability-constraints');
+            const constraintsList = document.getElementById('constraints-list');
+            if (data.constraints && data.constraints.length > 0) {
+                constraintsEl.classList.remove('hidden');
+                constraintsList.innerHTML = data.constraints.map(c => `<li>${c}</li>`).join('');
+            } else {
+                constraintsEl.classList.add('hidden');
+            }
+            
+            // Update recommendations
+            const recommendationsEl = document.getElementById('suitability-recommendations');
+            if (recommendationsEl && data.recommendations && data.recommendations.length > 0) {
+                recommendationsEl.innerHTML = data.recommendations.map(rec => {
+                    let recClass = '';
+                    if (rec.type === 'error') {
+                        recClass = 'bg-red-50 border-red-300 text-red-800';
+                    } else if (rec.type === 'warning') {
+                        recClass = 'bg-yellow-50 border-yellow-300 text-yellow-800';
+                    } else if (rec.type === 'suggestion') {
+                        recClass = 'bg-blue-50 border-blue-300 text-blue-800';
+                    } else {
+                        recClass = 'bg-gray-50 border-gray-300 text-gray-800';
+                    }
+                    
+                    return `
+                        <div class="p-3 rounded-lg border ${recClass}">
+                            <p class="text-sm font-semibold mb-1">${rec.message}</p>
+                            <p class="text-xs">${rec.action}</p>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                recommendationsEl.innerHTML = '';
+            }
+        })
+        .catch(err => {
+            loadingDiv.classList.add('hidden');
+            scoreDisplay.classList.add('hidden');
+            errorDiv.classList.remove('hidden');
+            
+            const errorMsg = err.message || 'Unknown error occurred';
+            console.error('Failed to fetch suitability analysis:', err);
+            
+            const errorP = errorDiv.querySelector('p');
+            if (errorP) {
+                errorP.textContent = `Error loading suitability analysis: ${errorMsg}`;
+            }
+        });
+}
+
+// Helper function to update factor score display
+function updateFactorScore(factor, score, color) {
+    const scoreBar = document.getElementById(`score-${factor}`);
+    const scoreValue = document.getElementById(`score-${factor}-value`);
+    
+    if (scoreBar) {
+        scoreBar.style.width = `${score}%`;
+        // Set color class based on color parameter
+        const colorClasses = {
+            'blue': 'bg-blue-500',
+            'green': 'bg-green-500',
+            'purple': 'bg-purple-500',
+            'orange': 'bg-orange-500',
+            'red': 'bg-red-500',
+            'yellow': 'bg-yellow-500'
+        };
+        scoreBar.className = `h-2 rounded-full ${colorClasses[color] || 'bg-gray-500'}`;
+    }
+    
+    if (scoreValue) {
+        scoreValue.textContent = score.toFixed(1);
+    }
+}
+
 // Select recommended zone - make it global
 window.selectRecommendedZone = function(zoneType) {
     console.log('Selecting recommended zone:', zoneType);
     const zoneTypeSelect = document.getElementById('zone-type-select');
     if (zoneTypeSelect) {
         zoneTypeSelect.value = zoneType;
-        // Trigger change event to update validation
+        // Trigger change event to update validation and suitability
         zoneTypeSelect.dispatchEvent(new Event('change'));
         console.log('Zone selected:', zoneType);
     } else {
@@ -2824,6 +3169,7 @@ function setupRecommendationEventListeners() {
         newProjectTypeSelect.addEventListener('change', function(e) {
             console.log('Project type changed:', e.target.value);
             fetchZoneRecommendations();
+            fetchZoneSuitabilityAnalysis(); // Also fetch suitability analysis
         });
         console.log('Project type event listener attached');
     } else {
@@ -2840,6 +3186,7 @@ function setupRecommendationEventListeners() {
         newZoneTypeSelect.addEventListener('change', function(e) {
             console.log('Zone type changed:', e.target.value);
             fetchZoneRecommendations();
+            fetchZoneSuitabilityAnalysis(); // Also fetch suitability analysis
         });
         console.log('Zone type event listener attached');
     } else {
@@ -2856,6 +3203,7 @@ function setupRecommendationEventListeners() {
         newBarangaySelect.addEventListener('change', function(e) {
             console.log('Barangay changed:', e.target.value);
             fetchZoneRecommendations();
+            fetchZoneSuitabilityAnalysis(); // Also fetch suitability analysis
         });
         console.log('Barangay event listener attached');
     } else {

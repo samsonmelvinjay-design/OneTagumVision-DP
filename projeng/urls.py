@@ -76,6 +76,7 @@ urlpatterns = [
     # Zone Compatibility Recommendation API endpoints
     path('api/zone-recommendation/', views.zone_recommendation_api, name='zone_recommendation_api'),
     path('api/zone-validation/', views.zone_validation_api, name='zone_validation_api'),
+    path('api/zone-suitability/', views.zone_suitability_analysis_api, name='zone_suitability_analysis_api'),
     path('api/project-types/', views.project_types_api, name='project_types_api'),
     path('api/projects/<int:project_id>/zone-recommendations/', views.project_zone_recommendations_api, name='project_zone_recommendations_api'),
 ] 
