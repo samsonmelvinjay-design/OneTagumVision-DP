@@ -2561,7 +2561,20 @@ function fetchZoneRecommendations() {
     const recommendationsList = document.getElementById('zone-recommendations-list');
     const validationAlert = document.getElementById('zone-validation-alert');
     
-    if (!projectTypeSelect || !barangaySelect || !recommendationSection) return;
+    // DEBUG LOGGING
+    console.log('=== fetchZoneRecommendations called ===');
+    console.log('projectTypeSelect:', projectTypeSelect, 'value:', projectTypeSelect?.value);
+    console.log('barangaySelect:', barangaySelect, 'value:', barangaySelect?.value);
+    console.log('recommendationSection:', recommendationSection);
+    
+    if (!projectTypeSelect || !barangaySelect || !recommendationSection) {
+        console.error('Missing required elements:', {
+            projectTypeSelect: !projectTypeSelect,
+            barangaySelect: !barangaySelect,
+            recommendationSection: !recommendationSection
+        });
+        return;
+    }
     
     const projectTypeCode = projectTypeSelect.value;
     const selectedZone = zoneTypeSelect ? zoneTypeSelect.value : '';
@@ -2588,10 +2601,37 @@ function fetchZoneRecommendations() {
         apiUrl += `&barangay=${encodeURIComponent(barangay)}`;
     }
     
+    console.log('Fetching recommendations from:', apiUrl);
+    console.log('Request params:', {
+        project_type_code: projectTypeCode,
+        selected_zone: selectedZone || '(none)',
+        barangay: barangay || '(none)'
+    });
+    
     fetch(apiUrl)
-        .then(response => response.json())
+        .then(response => {
+            // CHECK RESPONSE STATUS FIRST
+            console.log('API Response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                // Try to get error message from response
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }).catch(() => {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                });
+            }
+            
+            return response.json();
+        })
         .then(data => {
             loadingDiv.classList.add('hidden');
+            
+            // DEBUG: Log the response
+            console.log('Zone recommendation API response:', data);
+            console.log('Recommendations array:', data.recommendations);
+            console.log('Allowed zones:', data.allowed_zones);
+            console.log('Number of recommendations:', data.recommendations?.length || 0);
             
             // Show validation alert if zone is selected
             if (selectedZone && data.selected_zone_validation) {
@@ -2633,6 +2673,7 @@ function fetchZoneRecommendations() {
             
             // Display recommendations
             if (data.recommendations && data.recommendations.length > 0) {
+                console.log(`Displaying ${data.recommendations.length} recommendations`);
                 recommendationsList.innerHTML = '';
                 data.recommendations.forEach(rec => {
                     const recCard = document.createElement('div');
@@ -2659,10 +2700,10 @@ function fetchZoneRecommendations() {
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2 mb-3 text-xs">
-                            <div><span class="font-semibold">Zoning:</span> ${rec.factor_scores.zoning_compliance.toFixed(0)}</div>
-                            <div><span class="font-semibold">Land:</span> ${rec.factor_scores.land_availability.toFixed(0)}</div>
-                            <div><span class="font-semibold">Access:</span> ${rec.factor_scores.accessibility.toFixed(0)}</div>
-                            <div><span class="font-semibold">Infra:</span> ${rec.factor_scores.infrastructure.toFixed(0)}</div>
+                            <div><span class="font-semibold">Zoning:</span> ${rec.factor_scores?.zoning_compliance?.toFixed(0) || 'N/A'}</div>
+                            <div><span class="font-semibold">Land:</span> ${rec.factor_scores?.land_availability?.toFixed(0) || 'N/A'}</div>
+                            <div><span class="font-semibold">Access:</span> ${rec.factor_scores?.accessibility?.toFixed(0) || 'N/A'}</div>
+                            <div><span class="font-semibold">Infra:</span> ${rec.factor_scores?.infrastructure?.toFixed(0) || 'N/A'}</div>
                         </div>
                         ${rec.advantages && rec.advantages.length > 0 ? `
                             <div class="mb-2">
@@ -2680,21 +2721,78 @@ function fetchZoneRecommendations() {
                                 </ul>
                             </div>
                         ` : ''}
-                        <button type="button" onclick="selectRecommendedZone('${rec.zone_type}')" 
-                                class="w-full mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
-                            Select This Zone
-                        </button>
+                        ${selectedZone !== rec.zone_type ? `
+                            <button type="button" onclick="selectRecommendedZone('${rec.zone_type}')" 
+                                    class="w-full mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                                Select This Zone
+                            </button>
+                        ` : ''}
                     `;
                     recommendationsList.appendChild(recCard);
                 });
             } else {
-                recommendationsList.innerHTML = '<p class="text-center text-gray-500 py-4">No zone recommendations available.</p>';
+                // IMPROVED ERROR MESSAGE - works for all project types
+                let errorMessage = 'No zone recommendations available.';
+                let errorClass = 'text-gray-500';
+                let showHelp = false;
+                
+                if (data.error) {
+                    errorMessage = `Error: ${data.error}`;
+                    errorClass = 'text-red-500';
+                    showHelp = true;
+                } else if (data.allowed_zones && data.allowed_zones.length === 0) {
+                    const projectTypeName = projectTypeSelect.options[projectTypeSelect.selectedIndex]?.text || projectTypeCode;
+                    errorMessage = `No zones are configured for "${projectTypeName}" project type. Please contact administrator to configure zone mappings.`;
+                    errorClass = 'text-orange-600';
+                    showHelp = true;
+                } else if (data.allowed_zones && data.allowed_zones.length > 0) {
+                    errorMessage = `Recommendations could not be generated. Try selecting a barangay for location-specific recommendations.`;
+                    errorClass = 'text-yellow-600';
+                    showHelp = false;
+                } else {
+                    errorMessage = `No recommendations available for this project type. Check console for details.`;
+                    errorClass = 'text-gray-500';
+                    showHelp = true;
+                }
+                
+                console.warn('No recommendations returned:', {
+                    project_type: projectTypeCode,
+                    allowed_zones_count: data.allowed_zones?.length || 0,
+                    recommendations_count: data.recommendations?.length || 0,
+                    error: data.error || 'none'
+                });
+                
+                recommendationsList.innerHTML = `
+                    <div class="text-center py-4">
+                        <p class="${errorClass} mb-2">${errorMessage}</p>
+                        ${showHelp ? `
+                            <p class="text-xs text-gray-400 mt-2">
+                                Run: <code class="bg-gray-100 px-2 py-1 rounded text-xs">python manage.py check_zone_data --project-type ${projectTypeCode}</code>
+                            </p>
+                        ` : ''}
+                    </div>
+                `;
             }
         })
         .catch(err => {
             loadingDiv.classList.add('hidden');
-            recommendationsList.innerHTML = `<p class="text-center text-red-500 py-4">Error loading recommendations: ${err.message}</p>`;
+            const errorMsg = err.message || 'Unknown error occurred';
             console.error('Failed to fetch zone recommendations:', err);
+            console.error('API URL was:', apiUrl);
+            console.error('Full error:', err);
+            
+            recommendationsList.innerHTML = `
+                <div class="text-center py-4">
+                    <p class="text-red-500 mb-2">Error loading recommendations: ${errorMsg}</p>
+                    <p class="text-xs text-gray-400 mt-2">
+                        Check browser console (F12) for details. 
+                        If this persists, contact administrator.
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1">
+                        API Endpoint: <code class="bg-gray-100 px-1 rounded text-xs">${apiUrl}</code>
+                    </p>
+                </div>
+            `;
         });
 }
 

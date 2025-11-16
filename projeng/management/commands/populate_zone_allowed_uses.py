@@ -28,7 +28,8 @@ class Command(BaseCommand):
         # Define allowed uses for each zone
         # Format: (zone_type, project_type_code, is_primary, is_conditional, conditions, max_density, max_height)
         allowed_uses = [
-            # Roads/Highways - Allowed in all zones (infrastructure)
+            # Infrastructure - Allowed in all zones (infrastructure projects)
+            # Roads/Highways - Allowed in all zones
             ('R1', 'road', True, False, '', '', ''),
             ('R2', 'road', True, False, '', '', ''),
             ('R3', 'road', True, False, '', '', ''),
@@ -41,6 +42,48 @@ class Command(BaseCommand):
             ('In', 'road', True, False, '', '', ''),
             ('Ag', 'road', True, False, '', '', ''),
             ('Cu', 'road', True, False, '', '', ''),
+            
+            # Bridges - Allowed in all zones (infrastructure)
+            ('R1', 'bridge', True, False, '', '', ''),
+            ('R2', 'bridge', True, False, '', '', ''),
+            ('R3', 'bridge', True, False, '', '', ''),
+            ('SHZ', 'bridge', True, False, '', '', ''),
+            ('C1', 'bridge', True, False, '', '', ''),
+            ('C2', 'bridge', True, False, '', '', ''),
+            ('I1', 'bridge', True, False, '', '', ''),
+            ('I2', 'bridge', True, False, '', '', ''),
+            ('Al', 'bridge', True, False, '', '', ''),
+            ('In', 'bridge', True, False, '', '', ''),
+            ('Ag', 'bridge', True, False, '', '', ''),
+            ('Cu', 'bridge', True, False, '', '', ''),
+            
+            # Water Systems - Allowed in all zones (infrastructure)
+            ('R1', 'water_system', True, False, '', '', ''),
+            ('R2', 'water_system', True, False, '', '', ''),
+            ('R3', 'water_system', True, False, '', '', ''),
+            ('SHZ', 'water_system', True, False, '', '', ''),
+            ('C1', 'water_system', True, False, '', '', ''),
+            ('C2', 'water_system', True, False, '', '', ''),
+            ('I1', 'water_system', True, False, '', '', ''),
+            ('I2', 'water_system', True, False, '', '', ''),
+            ('Al', 'water_system', True, False, '', '', ''),
+            ('In', 'water_system', True, False, '', '', ''),
+            ('Ag', 'water_system', True, False, '', '', ''),
+            ('Cu', 'water_system', True, False, '', '', ''),
+            
+            # Sewer Systems - Allowed in all zones (infrastructure)
+            ('R1', 'sewer_system', True, False, '', '', ''),
+            ('R2', 'sewer_system', True, False, '', '', ''),
+            ('R3', 'sewer_system', True, False, '', '', ''),
+            ('SHZ', 'sewer_system', True, False, '', '', ''),
+            ('C1', 'sewer_system', True, False, '', '', ''),
+            ('C2', 'sewer_system', True, False, '', '', ''),
+            ('I1', 'sewer_system', True, False, '', '', ''),
+            ('I2', 'sewer_system', True, False, '', '', ''),
+            ('Al', 'sewer_system', True, False, '', '', ''),
+            ('In', 'sewer_system', True, False, '', '', ''),
+            ('Ag', 'sewer_system', True, False, '', '', ''),
+            ('Cu', 'sewer_system', True, False, '', '', ''),
             
             # R1 - Low Density Residential
             ('R1', 'single_family_house', True, False, '', '', '2 stories'),
