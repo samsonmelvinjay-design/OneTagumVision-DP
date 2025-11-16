@@ -2917,12 +2917,6 @@ window.showPopupMap = function() {
                 locationStatus.classList.remove('hidden');
             }
             
-            // Trigger recommendations if project type is selected
-            const projectTypeSelect = document.getElementById('project-type-select');
-            if (projectTypeSelect && projectTypeSelect.value) {
-                setTimeout(() => {
-                }, 500);
-            }
         });
         
         // Invalidate size multiple times to ensure map renders correctly after modal is fully visible
