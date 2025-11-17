@@ -309,6 +309,9 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 # Redirect to dual login after logout
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# Password reset settings
+PASSWORD_RESET_TIMEOUT = 259200  # 3 days in seconds (default Django value)
+
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
