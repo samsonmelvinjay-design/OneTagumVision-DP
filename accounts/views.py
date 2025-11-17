@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.views import PasswordResetView
+from django.contrib.auth.views import PasswordResetView, PasswordResetConfirmView
 from django.core.mail import send_mail
 import logging
 
@@ -120,3 +120,20 @@ class CustomPasswordResetView(PasswordResetView):
             # Still redirect to done page (Django's default behavior)
             # but the error is now logged
             return super().form_valid(form)
+
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    """Custom password reset confirm view with logging"""
+    template_name = 'registration/password_reset_confirm.html'
+    success_url = '/accounts/reset/done/'
+    
+    def dispatch(self, *args, **kwargs):
+        uidb64 = kwargs.get('uidb64', '')
+        token = kwargs.get('token', '')
+        print(f"🔐 Password reset confirm - uidb64: {uidb64}, token: {token[:20]}...")
+        return super().dispatch(*args, **kwargs)
+    
+    def get(self, request, *args, **kwargs):
+        result = super().get(request, *args, **kwargs)
+        if hasattr(self, 'validlink'):
+            print(f"   Valid link: {self.validlink}")
+        return result
