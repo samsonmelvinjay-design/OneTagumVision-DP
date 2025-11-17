@@ -134,34 +134,94 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
         return super().dispatch(*args, **kwargs)
     
     def get(self, request, *args, **kwargs):
+        """Override get to prevent redirects and add detailed logging"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.contrib.auth.forms import SetPasswordForm
+        from django.shortcuts import render
+        
+        self.validlink = False
+        uidb64 = kwargs.get('uidb64', '')
+        token = kwargs.get('token', '')
+        
         try:
-            # Check if link is valid before rendering
-            self.validlink = False
+            # Try to get the user
             try:
-                user = self.get_user(kwargs['uidb64'])
-            except (TypeError, ValueError, OverflowError):
+                user = self.get_user(uidb64)
+                print(f"   👤 User found: {user.username if user else 'None'}")
+            except (TypeError, ValueError, OverflowError) as e:
                 user = None
-                print(f"   ❌ Invalid uidb64: {kwargs.get('uidb64')}")
+                print(f"   ❌ Invalid uidb64 '{uidb64}': {str(e)}")
             
+            # Check if token is valid
             if user is not None:
-                token = kwargs['token']
-                # Check if token is valid
-                from django.contrib.auth.tokens import default_token_generator
                 if default_token_generator.check_token(user, token):
                     self.validlink = True
-                    print(f"   ✅ Token is valid for user: {user.username}")
+                    print(f"   ✅ Token is VALID for user: {user.username}")
                 else:
-                    print(f"   ❌ Token is invalid for user: {user.username}")
+                    print(f"   ❌ Token is INVALID for user: {user.username}")
+                    print(f"   🔍 Token check failed - token might be expired or already used")
             else:
-                print(f"   ❌ User not found")
+                print(f"   ❌ User not found for uidb64: {uidb64}")
             
-            result = super().get(request, *args, **kwargs)
-            print(f"   Response status: {result.status_code}")
-            if hasattr(result, 'url'):
-                print(f"   Redirect URL: {result.url}")
-            return result
+            # Set the user and validlink for the template
+            self.user = user
+            context = {
+                'form': SetPasswordForm(user) if self.validlink else None,
+                'validlink': self.validlink,
+            }
+            
+            # Render the template directly (no redirect)
+            return render(request, self.template_name, context)
+            
         except Exception as e:
             print(f"   ❌ ERROR in get(): {str(e)}")
             import traceback
             print(traceback.format_exc())
-            raise
+            # Still render the template with error
+            context = {
+                'form': None,
+                'validlink': False,
+            }
+            return render(request, self.template_name, context)
+    
+    def post(self, request, *args, **kwargs):
+        """Handle form submission"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.contrib.auth.forms import SetPasswordForm
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        
+        uidb64 = kwargs.get('uidb64', '')
+        token = kwargs.get('token', '')
+        
+        try:
+            user = self.get_user(uidb64)
+            if user is None:
+                messages.error(request, 'Invalid password reset link.')
+                return redirect('password_reset')
+            
+            # Verify token is still valid
+            if not default_token_generator.check_token(user, token):
+                messages.error(request, 'Password reset link is invalid or has expired.')
+                return redirect('password_reset')
+            
+            # Process the form
+            form = SetPasswordForm(user, request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Your password has been reset successfully.')
+                return redirect(self.success_url)
+            
+            # Form is invalid, re-render with errors
+            context = {
+                'form': form,
+                'validlink': True,
+            }
+            return render(request, self.template_name, context)
+            
+        except Exception as e:
+            print(f"   ❌ ERROR in post(): {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            messages.error(request, 'An error occurred while resetting your password.')
+            return redirect('password_reset')
