@@ -22,7 +22,7 @@
             {% endif %}
 
             <!-- Form -->
-            <form method="post" class="space-y-6">
+            <form method="post" id="engineer-edit-form" class="space-y-6">
                 {% csrf_token %}
                 
                 <!-- Username (Read-only) -->
@@ -181,5 +181,17 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('engineer-edit-form');
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                if (!confirm('Save these changes for this engineer?')) {
+                    event.preventDefault();
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
 

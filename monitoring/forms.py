@@ -166,6 +166,10 @@ class EngineerCreateForm(forms.ModelForm):
 
 class EngineerEditForm(forms.ModelForm):
     """Form for editing an existing Project Engineer account"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.password_updated = False
+
     phone = forms.CharField(
         required=False,
         max_length=20,
@@ -188,7 +192,6 @@ class EngineerEditForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={'placeholder': 'Confirm new password'}),
         label='Confirm New Password'
     )
-
     class Meta:
         model = User
         fields = ['email', 'first_name', 'last_name']
@@ -228,9 +231,11 @@ class EngineerEditForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         new_password = self.cleaned_data.get('new_password')
+        self.password_updated = False
 
         if new_password:
             user.set_password(new_password)
+            self.password_updated = True
 
         if commit:
             user.save()

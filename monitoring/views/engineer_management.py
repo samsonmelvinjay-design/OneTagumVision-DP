@@ -199,14 +199,19 @@ def engineer_edit(request, engineer_id):
         form = EngineerEditForm(request.POST, instance=engineer)
         if form.is_valid():
             form.save()
+            password_updated = getattr(form, 'password_updated', False)
+            success_message = f'Engineer account "{engineer.username}" has been updated successfully!'
+            if password_updated:
+                success_message += ' Password was changed.'
             if is_ajax:
                 from django.http import JsonResponse
                 return JsonResponse({
                     'success': True,
-                    'message': f'Engineer account "{engineer.username}" has been updated successfully!',
+                    'message': success_message,
+                    'password_updated': password_updated,
                     'redirect_url': request.META.get('HTTP_REFERER', f'/dashboard/engineers/{engineer.id}/')
                 })
-            messages.success(request, f'Engineer account "{engineer.username}" has been updated successfully!')
+            messages.success(request, success_message)
             return redirect('engineer_detail', engineer_id=engineer.id)
     else:
         form = EngineerEditForm(instance=engineer)

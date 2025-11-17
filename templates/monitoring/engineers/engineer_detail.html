@@ -252,6 +252,10 @@ function loadEditEngineerForm(engineerId) {
 }
 
 function handleEditEngineerSubmit(e, engineerId) {
+    if (!confirm('Save these changes for this engineer?')) {
+        e.preventDefault();
+        return;
+    }
     e.preventDefault();
     const form = e.target;
     const formData = new FormData(form);
