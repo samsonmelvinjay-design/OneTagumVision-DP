@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from .finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications
 from .engineer_management import (
     engineer_list, engineer_create, engineer_detail,
-    engineer_edit, engineer_deactivate, engineer_activate
+    engineer_edit, engineer_deactivate, engineer_activate,
+    engineer_delete
 )
 from .budget_notifications import forward_budget_alert_to_finance_view
 from projeng.models import Project, ProjectProgress, ProjectCost
