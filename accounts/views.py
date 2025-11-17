@@ -99,17 +99,37 @@ class CustomPasswordResetView(PasswordResetView):
     email_template_name = 'registration/password_reset_email.html'
     subject_template_name = 'registration/password_reset_subject.txt'
     template_name = 'registration/password_reset_form.html'
-    success_url = '/accounts/password_reset/done/'
+    success_url = '/accounts/login/'  # Redirect to login page instead of done page
     
     def form_valid(self, form):
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        
         email = form.cleaned_data['email']
         print(f"📧 Password reset requested for email: {email}")
         
         try:
             # Call parent's form_valid which sends the email
-            result = super().form_valid(form)
+            # We override to add a success message and redirect to login
+            opts = {
+                'use_https': self.request.is_secure(),
+                'token_generator': self.token_generator,
+                'from_email': self.from_email,
+                'email_template_name': self.email_template_name,
+                'subject_template_name': self.subject_template_name,
+                'request': self.request,
+                'html_email_template_name': self.html_email_template_name,
+                'extra_email_context': self.extra_email_context,
+            }
+            form.save(**opts)
             print(f"✅ Password reset email sent successfully to: {email}")
-            return result
+            
+            # Add success message and redirect to login
+            messages.success(
+                self.request,
+                'If an account exists with that email, you will receive password reset instructions shortly. Please check your inbox and spam folder.'
+            )
+            return redirect(self.success_url)
         except Exception as e:
             # Log the error
             error_msg = f"❌ ERROR sending password reset email to {email}: {str(e)}"
@@ -117,9 +137,12 @@ class CustomPasswordResetView(PasswordResetView):
             import traceback
             print(f"Full traceback:\n{traceback.format_exc()}")
             logging.error(error_msg, exc_info=True)
-            # Still redirect to done page (Django's default behavior)
-            # but the error is now logged
-            return super().form_valid(form)
+            # Still show success message (for security, don't reveal if email exists)
+            messages.success(
+                self.request,
+                'If an account exists with that email, you will receive password reset instructions shortly. Please check your inbox and spam folder.'
+            )
+            return redirect(self.success_url)
 
 class CustomPasswordResetConfirmView(PasswordResetConfirmView):
     """Custom password reset confirm view with logging"""
