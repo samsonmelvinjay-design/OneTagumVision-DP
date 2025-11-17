@@ -123,6 +123,22 @@ class CustomPasswordResetView(PasswordResetView):
             }
             form.save(**opts)
             print(f"✅ Password reset email sent successfully to: {email}")
+            # Debug: Print the generated reset URL format
+            from django.contrib.auth.tokens import default_token_generator
+            from django.utils.encoding import force_bytes
+            from django.utils.http import urlsafe_base64_encode
+            try:
+                user = form.get_users(email).__next__()
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                from django.contrib.sites.shortcuts import get_current_site
+                site = get_current_site(self.request)
+                protocol = 'https' if self.request.is_secure() else 'http'
+                reset_url = f"{protocol}://{site.domain}/accounts/reset/{uid}/{token}/"
+                print(f"🔗 Generated reset URL format: {reset_url}")
+                print(f"   uid length: {len(uid)}, token length: {len(token)}")
+            except Exception as e:
+                print(f"   ⚠️ Could not generate debug URL: {e}")
             
             # Add success message and redirect to login
             messages.success(
