@@ -58,7 +58,7 @@ This objective is achieved through:
 **Objective 3: Integrate map zoning to assist in smart urban planning**
 
 This is accomplished through:
-- **Zone Integration:** All projects are automatically assigned to zones (R-1, R-2, C-1, I-1, etc.) based on Tagum City Ordinance No. 45, S-2002
+- **Zone Integration:** All projects are assigned to zones (R-1, R-2, C-1, I-1, etc.) based on Tagum City Ordinance No. 45, S-2002. The system provides zone recommendations to help Head Engineers select the appropriate zone, ensuring compliance with zoning regulations
 - **Administrative Insights:** The system provides analytics showing project distribution by zone, helping city planners understand development patterns
 - **Strategic Development Support:** Zone compatibility recommendations help ensure projects are placed in appropriate zones, supporting smart urban planning
 - **Zoning Analytics:** Comprehensive reports on zone compliance, validation status, and zone conflicts enable data-driven planning decisions
@@ -84,7 +84,7 @@ Collaboration is enabled through:
 **How These Objectives Work Together:**
 
 These five objectives are not separate features - they work together as an integrated system. For example:
-- When a project is created (Objective 1), it's automatically geolocated and assigned to a zone (Objective 3)
+- When a project is created (Objective 1), it's automatically geolocated and the system provides zone recommendations to help select the appropriate zone (Objective 3)
 - Real-time tracking (Objective 2) enables better collaboration (Objective 5)
 - The data collected enables comprehensive reporting (Objective 4)
 - All of this supports smart urban planning (Objective 3)
@@ -128,6 +128,262 @@ Let me show you the map view..."
 - **Real-time Updates** - When a project is updated, the map reflects those changes instantly
 
 The clustering you see here is powered by our Administrative Spatial Analysis algorithm, which brings me to our first major component: the clustering algorithm."
+
+---
+
+### **ACCOUNT TYPES & PAGE EXPLANATIONS (5-6 minutes)**
+
+"Before diving into the algorithms, let me explain the three different account types in the system and demonstrate all the pages available to each. This shows how the system supports different user roles with appropriate access levels, which directly fulfills **Objective 5** - facilitating project collaboration among cross-functional teams.
+
+Let me start by showing you each account type in detail."
+
+---
+
+## **🎤 DEMONSTRATION SCRIPT: HEAD ENGINEER ACCOUNT**
+
+**[Switch to Head Engineer account/login]**
+
+"Let me demonstrate the Head Engineer account. Head Engineers have the most comprehensive access, managing all projects across all 23 barangays of Tagum City. This role is designed for city-wide oversight and management.
+
+**[Navigate to `/dashboard/`]**
+
+**1. Main Dashboard**
+
+This is the main dashboard - the central hub for Head Engineers. As you can see, it provides a comprehensive overview of all projects across the entire city. Here we have real-time project statistics showing the total number of projects, how many are completed, in progress, planned, and delayed. These metrics update in real-time, which supports **Objective 2** - real-time project tracking.
+
+You can see recent projects listed here, and we have budget utilization charts showing how much of the allocated budget has been spent. The cost breakdown visualization helps identify spending patterns, and the monthly spending trends chart shows financial activity over time. This directly addresses **Objective 4** - generating reports on budget utilization.
+
+**[Click on "Projects" in navigation]**
+
+**2. All Projects List**
+
+This page shows a complete list of all projects across all 23 barangays. Notice the search and filter capabilities - I can filter by barangay, status, project type, and zone. Each project card displays key information: the project name, location, current status, budget, and progress percentage.
+
+This page supports **Objective 1** - viewing and tracking project locations and status. I can quickly view details, edit projects, or delete them if needed. For large datasets, we have pagination, and all this data can be exported for reporting purposes.
+
+**[Click on "Map" in navigation]**
+
+**3. Interactive Map View**
+
+Here's the interactive GIS map showing all project locations across Tagum City. This is a powerful visualization tool that directly fulfills **Objective 1** - the GIS-driven platform for viewing project locations. 
+
+Notice how projects are clustered by barangay - this is our Administrative Spatial Analysis algorithm in action. When I zoom in, the clusters expand to show individual project markers. Each marker is color-coded by status - green for completed, blue for in progress, yellow for planned, and red for delayed.
+
+I can filter projects by status, zone type, barangay, or suitability level. When I click on a marker, I get detailed project information. The map updates in real-time when projects change, supporting **Objective 2** - real-time visualization.
+
+**[Click on "Reports" in navigation]**
+
+**4. Reports Page**
+
+This comprehensive reports page allows Head Engineers to generate detailed project reports. I can filter by barangay, status, and date range. The system generates project progress reports and timeline adherence reports, which directly addresses **Objective 4** - generating reports on project progress and timeline adherence.
+
+All reports can be exported in multiple formats - CSV, Excel, and PDF - making it easy to prepare documentation for city council meetings or other stakeholders.
+
+**[Click on "Budget Reports"]**
+
+**5. Budget Reports**
+
+This dedicated budget reports page provides detailed budget utilization analysis. Here we can see budget versus actual spending for each project, project-by-project budget breakdowns, remaining budget calculations, and budget alerts when projects are approaching their limits.
+
+This directly fulfills **Objective 4** - generating reports on budget utilization. The export functionality allows Head Engineers to create financial documentation for budget reviews and planning.
+
+**[Click on "Analytics" in navigation, then "All Projects Analytics"]**
+
+**6. Head Engineer Analytics**
+
+This is the comprehensive analytics dashboard. It provides four categories of analytics that support decision-making:
+
+First, **Zoning Analytics** - showing zone distribution, validation status, and compliance issues. This supports **Objective 3** - map zoning integration for smart urban planning.
+
+Second, **Clustering Analytics** - displaying projects per barangay and cluster quality metrics. This shows how well our Administrative Spatial Analysis algorithm is performing.
+
+Third, **Suitability Analytics** - showing suitability distribution and risk factors. This helps identify problematic project locations before construction begins.
+
+And fourth, **Integrated Analytics** - providing project health scores and trend analysis. This combines all metrics to give a holistic view of project status.
+
+I can search and filter projects, and get detailed analytics for each individual project.
+
+**[Click on "Notifications" in navigation]**
+
+**7. Notifications**
+
+The notifications page keeps Head Engineers informed about important system events. Here we receive project status change alerts, budget alerts and warnings, delay notifications, and engineer assignment notifications. This supports **Objective 5** - facilitating collaboration by keeping everyone informed.
+
+Notifications can be marked as read or unread, and deleted when no longer needed.
+
+**[Click on a project from the projects list]**
+
+**8. Project Detail View**
+
+This comprehensive project detail view provides all information about a specific project. Here we can see the project timeline and milestones, budget tracking with all cost entries, progress updates with photos uploaded by Project Engineers, and the suitability analysis breakdown showing all six factors.
+
+The zone recommendations section shows which zones are compatible with this project type, supporting **Objective 3** - zone integration. We can see the assigned engineers list, manage project documents, and export comprehensive project reports in PDF, Excel, or CSV formats.
+
+**[Navigate to "Delayed Projects" from menu]**
+
+**9. Delayed Projects**
+
+This page automatically lists all projects that are behind schedule. The system automatically detects delays based on end dates and calculates delay duration. Projects are sorted by priority, with the most urgent delays at the top. This supports **Objective 2** - ensuring timely completion by flagging delays.
+
+**[Navigate to "Engineers" in navigation]**
+
+**10. Engineer Management**
+
+This is the engineer management section, which is exclusive to Head Engineers. Here we can see a list of all Project Engineers in the system. Head Engineers can create new engineer accounts, edit engineer information, and most importantly, assign engineers to specific barangays.
+
+This is where our GEO-RBAC - Geographic Role-Based Access Control - is implemented. When I assign an engineer to a barangay, they can only see and manage projects in that barangay. This ensures accountability and proper resource allocation, supporting **Objective 5** - facilitating collaboration with clear role assignments.
+
+Engineers can be activated or deactivated, and we can view their details and see which projects they're assigned to.
+
+**[Navigate to analytics for a specific engineer]**
+
+**11. Project Engineer Analytics**
+
+For each Project Engineer, Head Engineers can view individual performance analytics. This shows projects assigned to that engineer, progress tracking, budget utilization, and completion rates. This helps Head Engineers monitor team performance and identify areas that need attention.
+
+---
+
+## **🎤 DEMONSTRATION SCRIPT: PROJECT ENGINEER ACCOUNT**
+
+**[Switch to Project Engineer account/login]**
+
+"Now let me demonstrate the Project Engineer account. Project Engineers have access limited to their assigned barangays only. This ensures accountability and proper resource allocation, which is crucial for government systems.
+
+**[Navigate to `/projeng/dashboard/`]**
+
+**1. Project Engineer Dashboard**
+
+This is the personalized dashboard for Project Engineers. Notice how it only shows projects assigned to this engineer - in this case, projects in Magugpo Poblacion and Magugpo East. This is the GEO-RBAC system in action - the engineer can only see projects in their assigned barangays.
+
+The dashboard shows an overview of their assigned projects, recent activity, progress statistics, and budget utilization for their projects. This supports **Objective 5** - collaboration by giving engineers clear visibility of their responsibilities.
+
+**[Click on "My Projects"]**
+
+**2. My Projects**
+
+This page lists all projects assigned to this engineer, filtered by their assigned barangays only. Notice that projects from other barangays are not visible - this is enforced at both the view level and database level for security.
+
+Each project card shows key information, and the engineer can search and filter their projects. Status indicators and progress bars help them track their work. They can quickly view details, update status, or add progress updates.
+
+**[Click on "Map"]**
+
+**3. Project Engineer Map View**
+
+This GIS map shows only the projects assigned to this engineer. The spatial visualization helps them see the geographic distribution of their projects within their assigned barangays. Interactive markers show their projects, and they can filter by status and project type.
+
+This supports **Objective 1** - viewing and tracking project locations, but with geographic restrictions appropriate to their role.
+
+**[Click on "My Reports"]**
+
+**4. My Reports**
+
+Project Engineers can generate reports for their assigned projects only. This includes progress reports, budget utilization reports, and timeline adherence reports. All reports can be exported in CSV, Excel, or PDF formats.
+
+This supports **Objective 4** - generating reports, but scoped to their assigned projects, ensuring they can document their work without accessing city-wide data.
+
+**[Click on "Notifications"]**
+
+**5. Project Engineer Notifications**
+
+Engineers receive notifications specific to their assigned projects. This includes project assignment notifications, status change alerts, and budget alerts. This keeps them informed about their projects and supports **Objective 5** - collaboration through communication.
+
+**[Click on a project]**
+
+**6. Project Detail View**
+
+This is the project detail view for Project Engineers. Here they can update project status, add progress updates with photos - which is crucial for documenting work in the field - and add cost entries to track expenses.
+
+They can upload project documents, view the project timeline, see suitability analysis, and view budget information. If they notice budget concerns, they can send budget alerts directly to Head Engineers, which supports **Objective 5** - cross-functional collaboration.
+
+**[Navigate to "Upload Documents"]**
+
+**7. Upload Documents**
+
+This page allows Project Engineers to manage documents for their assigned projects. They can upload documents, view uploaded files, delete documents, and categorize them. This helps maintain project documentation and supports **Objective 1** - comprehensive project tracking.
+
+**[Navigate to project analytics]**
+
+**8. Project Analytics**
+
+For each assigned project, engineers can view detailed analytics including progress over time charts, budget utilization charts, cost breakdown analysis, and timeline adherence metrics. This helps them monitor their projects and make informed decisions.
+
+**Additional Features:**
+
+Project Engineers can add progress updates with photos - this is essential for field documentation. They can add cost entries to record expenses, update project status as work progresses, and send budget alerts to Head Engineers when they notice budget concerns. They can also upload project photos and documents to maintain comprehensive project records.
+
+All of these features support **Objective 5** - facilitating collaboration by enabling Project Engineers to update project information in real-time, which Head Engineers and Finance Managers can see immediately.
+
+---
+
+## **🎤 DEMONSTRATION SCRIPT: FINANCE MANAGER ACCOUNT**
+
+**[Switch to Finance Manager account/login]**
+
+"Finally, let me demonstrate the Finance Manager account. Finance Managers have access to financial information across all projects. They work with Head Engineers to manage budgets and approve budget requests, supporting **Objective 4** - budget utilization reporting.
+
+**[Navigate to `/dashboard/finance/dashboard/`]**
+
+**1. Finance Dashboard**
+
+This is the Finance Manager's dashboard, providing a comprehensive financial overview of all projects. Here we can see the total budget across all projects, total spent amount, remaining budget, and budget utilization percentage.
+
+The dashboard includes several visualizations: a bar chart showing the top 10 projects by budget, a pie chart showing spending by cost type, a line chart showing cumulative spending over time, and a doughnut chart showing budget utilization. These visualizations help Finance Managers quickly understand the financial health of all projects.
+
+**[Click on "Finance Projects"]**
+
+**2. Finance Projects View**
+
+This page lists all projects with their financial information. Finance Managers can filter by barangay and status to focus on specific areas or project types. Each project shows budget, spent amount, and remaining budget.
+
+Notice the color-coded budget threshold indicators - projects approaching their budget limits are highlighted, helping Finance Managers identify projects that need attention. This supports **Objective 4** - monitoring budget utilization.
+
+**[Click on "Cost Management"]**
+
+**3. Cost Management**
+
+This is the comprehensive cost management interface. Finance Managers can filter by PRN - Project Reference Number - barangay, and budget status. The system categorizes projects as over budget, within budget, or under budget, with counts for each category.
+
+This page provides detailed project financials, budget alerts, and quick access to project details. This directly supports **Objective 4** - generating reports on budget utilization and identifying budget issues.
+
+**[Click on "Notifications"]**
+
+**4. Finance Notifications**
+
+Finance Managers receive financial notifications, including budget review requests from Head Engineers. When a Head Engineer requests a budget increase, the Finance Manager receives a notification here. They also receive budget alert notifications and notifications about budget approvals or rejections.
+
+Notifications are clickable and link directly to the relevant project, making it easy to review and respond to budget requests. This supports **Objective 5** - cross-functional collaboration between Finance Managers and Head Engineers.
+
+**[Click on a project with a budget request]**
+
+**5. Finance Project Detail**
+
+This detailed financial view shows complete budget information for a project. Finance Managers can see all cost entries with dates and types, total spent versus allocated budget, remaining budget calculation, and budget utilization percentage.
+
+The cost breakdown by type is shown in a pie chart, and budget threshold indicators help identify projects that need attention. Most importantly, if there's a pending budget request, Finance Managers can see the requested amount and the Head Engineer's assessment.
+
+Here, Finance Managers can approve or reject budget increase requests. When they approve, the budget is updated and Head Engineers are notified. When they reject, they can provide a reason, and Head Engineers are notified of the rejection.
+
+This workflow directly supports **Objective 4** - budget utilization reporting and management, and **Objective 5** - collaboration between Finance Managers and Head Engineers.
+
+**Additional Features:**
+
+Finance Managers can approve or reject budget requests, view Head Engineer assessments for budget requests, access comprehensive financial reports, monitor budget utilization across all projects, and analyze spending patterns and cost types.
+
+All of these features work together to support **Objective 4** - generating reports on budget utilization, and **Objective 5** - facilitating collaboration among cross-functional teams.
+
+---
+
+## **🔐 ACCESS CONTROL SUMMARY**
+
+"Let me summarize the access control system:
+
+**Head Engineers** have full access to all Head Engineer pages, can also access Project Engineer pages for oversight, can access Finance Manager pages for financial oversight, can manage engineers and assign barangays, and have city-wide access to all 23 barangays.
+
+**Project Engineers** have access only to Project Engineer pages, cannot access Head Engineer pages - they're automatically redirected if they try, cannot access Finance Manager pages, are limited to assigned barangays only, and can update assigned projects and add progress.
+
+**Finance Managers** have access to Finance Manager pages, can access Head Engineer dashboard and reports for financial oversight, cannot access Project Engineer pages, cannot access Head Engineer analytics which is restricted, can approve or reject budget requests, and can view financial data across all projects.
+
+This role-based access control ensures that each user type has appropriate access to the information and functions they need, while maintaining security and accountability throughout the system. This directly supports **Objective 5** - facilitating project collaboration among cross-functional teams by ensuring each team member has the right tools and information for their role."
 
 ---
 
@@ -210,130 +466,7 @@ That's why Administrative Spatial Analysis is the right choice for a government 
 
 ---
 
-### **ALGORITHM 2: LAND SUITABILITY ANALYSIS (4-5 minutes)**
 
-**[Have models.py ready, show LandSuitabilityAnalysis model]**
-
-"The second major algorithm is **Land Suitability Analysis** using Multi-Criteria Decision Analysis, or MCDA. This algorithm evaluates whether a project location is appropriate based on multiple spatial and administrative criteria.
-
-**Purpose:**
-When a project is created or updated, the system automatically evaluates its location to determine if it's suitable. This helps city officials make informed decisions about where to place infrastructure projects.
-
-**How It Works:**
-
-The algorithm evaluates **six weighted factors**, each scored from 0 to 100:
-
-**1. Zoning Compliance (30% weight)** - This is the most important factor. It checks if the project type matches the zone requirements according to Tagum City Ordinance No. 45, S-2002. For example, a residential building in an R-2 zone gets a perfect score of 100, while a factory in a residential zone would get a low score.
-
-**2. Flood Risk (25% weight)** - This assesses the location's vulnerability to flooding based on elevation data from barangay metadata. Highland areas get higher scores, while low-lying or coastal areas get lower scores. This is critical for infrastructure safety.
-
-**3. Infrastructure Access (20% weight)** - This evaluates whether utilities, roads, healthcare facilities, and educational institutions are available in the area. Urban barangays with good infrastructure get higher scores.
-
-**4. Elevation Suitability (15% weight)** - This checks if the terrain is appropriate for the project type. For residential projects, plains are ideal, while highland areas may require additional engineering.
-
-**5. Economic Alignment (5% weight)** - This matches the project with the barangay's economic development classification. Projects in growth centers align better with development plans.
-
-**6. Population Density (5% weight)** - This ensures the project density matches the area's population density. For example, medium-density residential projects work best in areas with moderate population density.
-
-**Scoring Calculation:**
-
-The system calculates a weighted sum of all factors. Let me show you an example:
-
-**[Show calculation example on screen or whiteboard]**
-
-For a residential project in Visayan Village:
-- Zoning: 100 × 30% = 30.0 points
-- Flood Risk: 60 × 25% = 15.0 points
-- Infrastructure: 80 × 20% = 16.0 points
-- Elevation: 85 × 15% = 12.75 points
-- Economic: 90 × 5% = 4.5 points
-- Population: 85 × 5% = 4.25 points
-- **Total: 82.5/100 - Highly Suitable**
-
-**Suitability Categories:**
-
-The system categorizes projects into five levels:
-- **Highly Suitable (80-100):** ✅ Proceed with confidence
-- **Suitable (60-79):** ✅ Generally good, minor considerations
-- **Moderately Suitable (40-59):** ⚠️ Review required
-- **Marginally Suitable (20-39):** ⚠️ Significant concerns
-- **Not Suitable (0-19):** ❌ Not recommended
-
-**Why This Matters:**
-
-This analysis helps city officials:
-- Identify risky project locations before construction begins
-- Prioritize infrastructure improvements in areas with low suitability
-- Make evidence-based decisions about project placement
-- Ensure projects are built in safe and appropriate locations
-
-The suitability analysis runs automatically when projects are created or updated, and the results are stored in the database for reporting and analytics."
-
----
-
-### **ALGORITHM 3: ZONE COMPATIBILITY RECOMMENDATIONS (3-4 minutes)**
-
-**[Have zone_recommendation.py ready]**
-
-"The third algorithm provides **Zone Compatibility Recommendations** using MCDA. This algorithm helps Head Engineers select the best zone for a project when creating it.
-
-**Purpose:**
-When a Head Engineer creates a new project, they need to know which zones are appropriate for that project type. This algorithm automatically identifies all suitable zones and ranks them, making the decision-making process faster and more accurate.
-
-**How It Works:**
-
-When a project is created, the system:
-
-**Step 1: Identifies Allowed Zones**
-The system queries the ZoneAllowedUse model, which contains the zone compatibility matrix from Tagum City Ordinance No. 45, S-2002. It finds all zones where the project type is allowed - either as a primary use or conditional use.
-
-**Step 2: Scores Each Zone Using MCDA**
-For each allowed zone, the system evaluates five factors:
-
-1. **Zoning Compliance (40% weight)** - Is the project type fully allowed, conditionally allowed, or not allowed? Primary uses get 100 points, conditional uses get 70 points.
-
-2. **Land Availability (20% weight)** - How much land is available in this zone type? Zones with more available land get higher scores.
-
-3. **Accessibility (20% weight)** - How accessible is this zone? This considers road networks, proximity to major routes, and transportation infrastructure.
-
-4. **Community Impact (10% weight)** - Will this project have a positive impact on the community? For example, a hospital in a residential area has high community impact.
-
-5. **Infrastructure (10% weight)** - Does the zone have adequate infrastructure support? This considers utilities, services, and existing development.
-
-**Step 3: Ranks Zones and Provides Reasoning**
-The system ranks all zones by their overall score and provides:
-- **Reasoning** - Why this zone is recommended
-- **Advantages** - Benefits of choosing this zone
-- **Constraints** - Limitations or considerations
-
-**Example Output:**
-
-For a residential building project, the system might recommend:
-1. **R-2 Zone (Score: 92)** - Primary use, excellent infrastructure, high land availability
-2. **R-3 Zone (Score: 85)** - Primary use, good infrastructure, moderate land availability
-3. **R-1 Zone (Score: 78)** - Primary use, but limited land availability
-
-Each recommendation includes detailed reasoning, so Head Engineers understand why each zone is recommended.
-
-**Validation and Conflict Detection:**
-
-The system also validates the selected zone:
-- If the selected zone has a score above 70, it's automatically validated
-- If the score is between 30-70, it requires manual validation
-- If the score is below 30, it flags a potential conflict
-
-This ensures that all projects comply with zoning regulations while providing flexibility for special cases that require manual review.
-
-**Integration with Other Algorithms:**
-
-This algorithm works together with the suitability analysis:
-- Zone recommendations help select the right zone
-- Suitability analysis evaluates the specific location within that zone
-- Together, they ensure both zone compliance and location appropriateness
-
-This is based on **Tagum City Ordinance No. 45, S-2002**, ensuring all recommendations comply with official regulations."
-
----
 
 ### **ANALYTICS SYSTEM (3-4 minutes)**
 
@@ -367,18 +500,7 @@ This measures the quality and effectiveness of our spatial clustering algorithm.
 **Example Use Case:**
 If Magugpo Poblacion has 28 projects with a Silhouette Score of 0.89, this tells us that projects in this barangay are well-clustered and properly organized. If another barangay has a low score, we know we need to review project assignments there.
 
-**3. Suitability Analytics**
 
-This evaluates whether project locations are appropriate based on multiple factors.
-
-**Key Metrics:**
-- **Suitability Distribution** - Categorizes projects as Highly Suitable (80-100), Suitable (60-79), Moderately Suitable (40-59), Marginally Suitable (20-39), or Not Suitable (0-19)
-- **Risk Factor Analysis** - Identifies common risk factors like flood risk, infrastructure gaps, or zoning conflicts
-- **Factor Breakdown** - Shows which of the six factors (zoning, flood risk, infrastructure, elevation, economic alignment, population density) are affecting suitability scores
-- **Suitability by Zone/Barangay** - Shows which areas have the most suitable project locations
-
-**Example Use Case:**
-If we see that 45 projects have flood risk concerns, city officials can prioritize flood mitigation infrastructure in those areas. Or if a barangay consistently shows low suitability scores, it indicates we need to improve infrastructure there before approving new projects.
 
 **4. Integrated Analytics**
 
@@ -516,107 +638,132 @@ This setup provides scalability, reliability, and security. The system can handl
 
 ---
 
-### **DEMONSTRATION (4-5 minutes)**
+### **DEMONSTRATION (5-6 minutes)**
 
 **[Live demo - be prepared! Have everything ready before starting]**
 
-"Let me demonstrate the system in action. I'll show you the key workflows that city officials use daily:
+"Let me demonstrate the system in action. I'll show you the key workflows that city officials use daily, and I'll point out which project objectives are being fulfilled by each feature:
 
 **1. Creating a Project** 
 
 **[Show project creation form]**
 
-"When a Head Engineer creates a new project, they fill in the basic information: project name, description, location, budget, and project type.
+"This demonstrates **Objective 1** - the GIS-driven platform for tracking and monitoring projects. When a Head Engineer creates a new project, they fill in the basic information: project name, description, location, budget, and project type.
 
-Notice what happens when I select a project type - the system automatically shows zone recommendations. Here you can see the top 5 recommended zones, each with a score and reasoning. This helps the Head Engineer make an informed decision.
+Notice what happens when I select a project type - the system automatically shows zone recommendations. This addresses **Objective 3** - map zoning integration for smart urban planning. Here you can see the top 5 recommended zones, each with a score and reasoning. This helps the Head Engineer make an informed decision based on Tagum City Ordinance No. 45, S-2002.
 
 Once I select a zone and location, the system automatically:
-- Validates the zone selection
-- Runs suitability analysis in the background
-- Assigns the project to the appropriate barangay cluster
-- Sets up access control based on the location
+- Validates the zone selection against the project type (Objective 3 - zoning integration)
+- Runs suitability analysis in the background (Objective 3 - smart urban planning)
+- Assigns the project to the appropriate barangay cluster (Objective 1 - location tracking)
+- Sets up access control based on the location (Objective 5 - team collaboration)
 
 **[Submit the form]**
 
-The project is now created, and you can see it appears in the dashboard immediately.
+The project is now created, and you can see it appears in the dashboard immediately. This fulfills **Objective 1** - centralized infrastructure tracking.
 
 **2. Real-time Updates**
 
 **[Open two browser windows side by side]**
 
-"This is one of the most powerful features. I have the same dashboard open in two windows. Watch what happens when I update a project status in this window..."
+"This demonstrates **Objective 2** - real-time project tracking and visualization. This is one of the most powerful features. I have the same dashboard open in two windows, simulating two different users. Watch what happens when I update a project status in this window..."
 
 **[Update a project status in one window]**
 
-"...and you can see it updates instantly in the other window. This uses WebSocket technology, which maintains a persistent connection between the browser and server. This means:
-- No page refresh needed
-- Multiple users can collaborate in real-time
-- Field engineers can update project status, and everyone sees it immediately
-- Reduces communication delays and improves coordination
+"...and you can see it updates instantly in the other window. This uses WebSocket technology, which maintains a persistent connection between the browser and server. This directly fulfills **Objective 2** by:
+- Enabling real-time tracking without page refresh
+- Improving monitoring efficiency - status changes are visible instantly
+- Supporting **Objective 5** - facilitating collaboration among team members
+- Ensuring timely completion monitoring through instant status updates
+
+This also supports **Objective 5** - project collaboration, as multiple users can work simultaneously and see each other's updates in real-time.
 
 **3. Map Visualization**
 
 **[Switch to map view]**
 
-"Here's the interactive map. As you can see, projects are clustered by barangay. When I zoom in..."
+"This map visualization directly addresses **Objective 1** - viewing and tracking project locations. Here's the interactive map. As you can see, projects are clustered by barangay. When I zoom in..."
 
 **[Zoom in on a cluster]**
 
-"...the cluster expands to show individual project markers. Each marker is color-coded by status - green for completed, blue for in progress, yellow for planned, and red for delayed.
+"...the cluster expands to show individual project markers. Each marker is color-coded by status - green for completed, blue for in progress, yellow for planned, and red for delayed. This status visualization fulfills **Objective 1** - monitoring project status (ongoing, incoming, delayed, and completed projects).
 
 **[Click on a marker]**
 
 "When I click on a marker, I can see:
-- Project details
-- Current status and progress
-- Suitability score and factors
-- Assigned engineers
-- Budget information
+- Project details (Objective 1 - project tracking)
+- Current status and progress (Objective 1 - status monitoring, Objective 4 - progress reporting)
+- Suitability score and factors (Objective 3 - smart urban planning)
+- Assigned engineers (Objective 5 - team collaboration)
+- Budget information (Objective 4 - budget utilization reporting)
 
 **[Show filtering options]**
 
 "I can also filter projects by:
-- Status (planned, in progress, completed, etc.)
-- Zone type (R-1, R-2, C-1, etc.)
-- Barangay
-- Suitability level
+- Status (planned, in progress, completed, etc.) - This supports **Objective 1** - tracking different project statuses
+- Zone type (R-1, R-2, C-1, etc.) - This addresses **Objective 3** - zoning integration
+- Barangay - This supports **Objective 1** - location-based tracking
+- Suitability level - This fulfills **Objective 3** - smart urban planning insights
 
-This makes it easy to find specific projects or analyze patterns across the city.
+This makes it easy to find specific projects or analyze patterns across the city, supporting both **Objective 1** (tracking) and **Objective 3** (urban planning insights).
 
-**4. Analytics Dashboard**
+**4. Analytics Dashboard and Reporting**
 
 **[Switch to analytics view]**
 
-"Here's the analytics dashboard, which provides comprehensive insights:
+"This analytics dashboard directly fulfills **Objective 4** - generating reports on project progress, budget utilization, and timeline adherence. Here's the analytics dashboard, which provides comprehensive insights:
 
 **[Point to different sections]**
 
-- **Zoning Analytics:** Shows project distribution by zone, validation status, and compliance issues
-- **Clustering Analytics:** Displays cluster quality metrics, projects per barangay, and spatial distribution
-- **Suitability Analytics:** Shows suitability distribution, risk factors, and factor breakdowns
-- **Integrated Analytics:** Provides project health scores and trend analysis
+- **Zoning Analytics:** Shows project distribution by zone, validation status, and compliance issues - This addresses **Objective 3** (zoning integration) and **Objective 4** (reporting)
+- **Clustering Analytics:** Displays cluster quality metrics, projects per barangay, and spatial distribution - This supports **Objective 1** (location tracking) and **Objective 4** (progress reporting)
+- **Suitability Analytics:** Shows suitability distribution, risk factors, and factor breakdowns - This fulfills **Objective 3** (smart urban planning) and **Objective 4** (reporting)
+- **Integrated Analytics:** Provides project health scores and trend analysis - This directly addresses **Objective 4** (comprehensive reporting)
+
+**[Show export functionality if available]**
+
+"These analytics can be exported in multiple formats - CSV, Excel, or PDF - which directly fulfills **Objective 4** - generating reports for city council presentations and documentation.
 
 These analytics help city officials:
-- Identify areas that need attention
-- Track compliance with regulations
-- Make data-driven decisions about resource allocation
-- Monitor trends over time
+- Identify areas that need attention (Objective 3 - strategic development)
+- Track compliance with regulations (Objective 3 - zoning compliance)
+- Make data-driven decisions about resource allocation (Objective 3 - smart urban planning)
+- Monitor trends over time (Objective 4 - timeline adherence reporting)
 
 **5. Project Detail View**
 
 **[Click on a project]**
 
-"When viewing a project in detail, you can see:
-- Complete project information
-- Suitability analysis breakdown showing all six factors
-- Zone recommendations with reasoning
-- Progress updates and photos
-- Budget tracking
-- Assigned engineers
+"This comprehensive project detail view addresses multiple objectives simultaneously. When viewing a project in detail, you can see:
+- Complete project information (Objective 1 - project tracking)
+- Suitability analysis breakdown showing all six factors (Objective 3 - smart urban planning)
+- Zone recommendations with reasoning (Objective 3 - zoning integration)
+- Progress updates and photos (Objective 1 - status monitoring, Objective 4 - progress reporting)
+- Budget tracking (Objective 4 - budget utilization reporting)
+- Assigned engineers (Objective 5 - team collaboration)
 
-This comprehensive view gives city officials all the information they need to manage projects effectively.
+**[Show budget section]**
 
-The system is designed to be intuitive and efficient, reducing the time needed for administrative tasks and allowing officials to focus on decision-making."
+"Here you can see the budget utilization - allocated budget, spent amount, and remaining budget. This directly fulfills **Objective 4** - generating reports on budget utilization.
+
+**[Show timeline section]**
+
+"And here's the timeline tracking - start date, end date, and current status. The system automatically flags delays when projects exceed their planned timelines. This addresses **Objective 2** - ensuring timely completion and flagging delays, as well as **Objective 4** - timeline adherence reporting.
+
+**[Show team assignment section]**
+
+"This shows the assigned engineers for this project. This supports **Objective 5** - facilitating project collaboration among cross-functional teams, as team members can see who's responsible for what and coordinate accordingly.
+
+**Summary of Objectives Demonstrated:**
+
+Throughout this demonstration, we've seen how the system fulfills all five objectives:
+- **Objective 1:** GIS-driven platform for viewing, tracking, and monitoring - demonstrated through map visualization, project creation, and status tracking
+- **Objective 2:** Real-time tracking and visualization - demonstrated through instant updates and timeline monitoring
+- **Objective 3:** Map zoning integration - demonstrated through zone recommendations, zoning analytics, and suitability analysis
+- **Objective 4:** Report generation - demonstrated through analytics dashboard, budget tracking, and timeline reporting
+- **Objective 5:** Team collaboration - demonstrated through real-time updates, team assignments, and cross-functional visibility
+
+The system is designed to be intuitive and efficient, reducing the time needed for administrative tasks and allowing officials to focus on decision-making, while fulfilling all the project objectives simultaneously."
 
 ---
 
