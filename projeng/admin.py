@@ -182,47 +182,6 @@ class BarangayMetadataAdmin(admin.ModelAdmin):
     )
     list_per_page = 25
 
-@admin.register(ZoneRecommendation)
-class ZoneRecommendationAdmin(admin.ModelAdmin):
-    """
-    Admin interface for Zone Recommendations.
-    """
-    list_display = [
-        'project',
-        'recommended_zone',
-        'overall_score',
-        'rank',
-        'is_selected',
-        'created_at'
-    ]
-    list_filter = [
-        'recommended_zone',
-        'is_selected',
-        'created_at'
-    ]
-    search_fields = [
-        'project__name',
-        'project__prn',
-        'recommended_zone',
-        'reasoning'
-    ]
-    readonly_fields = ['created_at']
-    fieldsets = (
-        ('Project', {
-            'fields': ('project',)
-        }),
-        ('Recommendation', {
-            'fields': ('recommended_zone', 'rank', 'overall_score', 'is_selected')
-        }),
-        ('Details', {
-            'fields': ('reasoning', 'advantages', 'constraints')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at',)
-        }),
-    )
-    list_per_page = 25
-
 @admin.register(ProjectType)
 class ProjectTypeAdmin(admin.ModelAdmin):
     """
