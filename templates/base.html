@@ -16,6 +16,28 @@
     <!-- Custom styles -->
 </head>
 <body class="bg-gray-100 text-gray-900 h-screen">
+    <!-- Login Success Modal - Positioned outside main to ensure it's on top -->
+    {% if show_login_success_modal %}
+    <div id="login-success-modal" class="fixed inset-0 z-[99999] flex items-center justify-center bg-black bg-opacity-50" style="z-index: 99999 !important;">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all animate-modal-scale">
+            <div class="flex flex-col items-center text-center">
+                <!-- Success Icon -->
+                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <!-- Success Message -->
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Successfully Logged In!</h2>
+                <p class="text-gray-600 mb-6">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
+                <!-- Close Button -->
+                <button id="close-login-success-modal" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+                    Continue
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     <div class="flex h-screen">
         <!-- Sidebar -->
         <aside class="w-64 bg-gray-900 text-gray-100 flex flex-col items-center py-8 h-screen fixed top-0 left-0 overflow-y-auto z-50">
@@ -133,29 +155,6 @@
         </aside>
         <!-- Main Content -->
         <main class="flex-1 h-full bg-gray-100 text-gray-900 ml-64">
-            <!-- Login Success Modal -->
-            {% if show_login_success_modal %}
-            <div id="login-success-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-50">
-                <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all animate-modal-scale">
-                    <div class="flex flex-col items-center text-center">
-                        <!-- Success Icon -->
-                        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                            <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                        </div>
-                        <!-- Success Message -->
-                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Successfully Logged In!</h2>
-                        <p class="text-gray-600 mb-6">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
-                        <!-- Close Button -->
-                        <button id="close-login-success-modal" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
-                            Continue
-                        </button>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            
             <!-- Toast Notification Container - Positioned to be visible above all content -->
             <div id="toast-notification" class="fixed top-4 right-4 z-[9999] hidden" style="margin-right: 1rem;">
                 <div class="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] max-w-[500px] animate-slide-in">

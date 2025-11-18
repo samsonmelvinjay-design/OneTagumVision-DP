@@ -12,7 +12,7 @@
 
 ## 🏗️ System Overview
 
-### **Project Name:** ONETAGUMVISION / GISTAGUM
+### **Project Name:** A GIS-driven platform: A project monitoring and visualization for tagum city
 **Purpose:** GIS-Driven Project Monitoring Platform for Tagum City Government
 
 ### **Core Technologies:**

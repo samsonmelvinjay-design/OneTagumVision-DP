@@ -2672,13 +2672,15 @@ def project_zone_recommendations_api(request, project_id):
             'error': 'Project not found'
         }, status=404)
     
-    # For now, we'll need to infer project type from project name/description
-    # TODO: Add project_type field to Project model
-    project_type_code = request.GET.get('project_type_code')
-    if not project_type_code:
-        return JsonResponse({
-            'error': 'project_type_code parameter is required. Project model does not have project_type field yet.'
-        }, status=400)
+    # Get project type from project model if available, otherwise from request parameter
+    if project.project_type:
+        project_type_code = project.project_type.code
+    else:
+        project_type_code = request.GET.get('project_type_code')
+        if not project_type_code:
+            return JsonResponse({
+                'error': 'project_type_code parameter is required. Either set project.project_type or provide project_type_code in request.'
+            }, status=400)
     
     try:
         engine = ZoneCompatibilityEngine()

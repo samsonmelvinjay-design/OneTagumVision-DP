@@ -1,4 +1,4 @@
-# GIS-Driven Project Monitoring Platform for Tagum Government
+# A GIS-driven platform: A project monitoring and visualization for tagum city
 
 A Django-based platform for monitoring and visualizing government projects using Leaflet and OpenStreetMap.
 
