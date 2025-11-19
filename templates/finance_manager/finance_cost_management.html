@@ -4,7 +4,7 @@
 <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Finance Management</h1>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Architect Management</h1>
         <p class="text-gray-600">Monitor and manage project budgets and spending</p>
     </div>
 
@@ -108,13 +108,19 @@
                     <option value="under" {% if selected_budget_status == 'under' %}selected{% endif %}>Under Budget</option>
                 </select>
             </div>
-            <div class="flex items-end">
+            <div class="flex items-end gap-2">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg flex items-center">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
                     Filter
                 </button>
+                <a href="{% url 'finance_cost_management' %}" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Clear
+                </a>
             </div>
         </form>
     </div>
@@ -129,65 +135,65 @@
                 Project Budget Details
             </h2>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+        <div class="overflow-visible">
+            <table class="w-full divide-y divide-gray-200 table-auto">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barangay</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved Budget</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Spent</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 30%;">Project</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 12%;">Barangay</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 12%;">Approved Budget</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 12%;">Total Spent</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 12%;">Remaining</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Status</th>
+                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 12%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for proj in project_financials %}
                     <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ proj.name }}</div>
+                        <td class="px-3 py-3">
+                            <div class="text-sm font-medium text-gray-900 break-words" style="max-width: 300px;">{{ proj.name }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-3 whitespace-nowrap">
                             <div class="text-sm text-gray-600">{{ proj.barangay|default:"N/A" }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-3 whitespace-nowrap">
                             <div class="text-sm font-semibold text-blue-700">₱{{ proj.budget|floatformat:2|intcomma }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-3 whitespace-nowrap">
                             <div class="text-sm font-semibold text-green-700">₱{{ proj.spent|floatformat:2|intcomma }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-3 whitespace-nowrap">
                             <div class="text-sm font-semibold {% if proj.remaining < 0 %}text-red-700{% elif proj.remaining < proj.threshold %}text-yellow-600{% else %}text-green-700{% endif %}">
                                 ₱{{ proj.remaining|floatformat:2|intcomma }}
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3 py-3 whitespace-nowrap">
                             {% if proj.budget_status == 'over' %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                    Over Budget
+                                <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full bg-red-100 text-red-800">
+                                    Over
                                 </span>
                             {% elif proj.budget_status == 'within' %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Within Budget
+                                <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Within
                                 </span>
                             {% elif proj.budget_status == 'under' %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    Under Budget
+                                <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    Under
                                 </span>
                             {% else %}
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full bg-gray-100 text-gray-800">
                                     N/A
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td class="px-3 py-3 whitespace-nowrap text-sm font-medium">
                             <a href="{% url 'finance_project_detail' proj.id %}" class="text-blue-600 hover:text-blue-900 font-semibold transition-colors flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                 </svg>
-                                View Details
+                                <span class="whitespace-nowrap">View</span>
                             </a>
                         </td>
                     </tr>
@@ -205,6 +211,51 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination Controls -->
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2">
+            <div class="text-sm text-gray-700 mr-4">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} projects
+            </div>
+            <div class="flex gap-1">
+                {% if page_obj.has_previous %}
+                <a href="?{% if selected_prn %}prn={{ selected_prn }}&{% endif %}{% if selected_barangay %}barangay={{ selected_barangay }}&{% endif %}{% if selected_budget_status %}budget_status={{ selected_budget_status }}&{% endif %}page={{ page_obj.previous_page_number }}" 
+                   class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Previous
+                </a>
+                {% else %}
+                <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
+                    Previous
+                </span>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <span class="px-3 py-2 bg-blue-600 border border-blue-600 rounded-md text-sm font-medium text-white">
+                        {{ num }}
+                    </span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?{% if selected_prn %}prn={{ selected_prn }}&{% endif %}{% if selected_barangay %}barangay={{ selected_barangay }}&{% endif %}{% if selected_budget_status %}budget_status={{ selected_budget_status }}&{% endif %}page={{ num }}" 
+                       class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                        {{ num }}
+                    </a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <a href="?{% if selected_prn %}prn={{ selected_prn }}&{% endif %}{% if selected_barangay %}barangay={{ selected_barangay }}&{% endif %}{% if selected_budget_status %}budget_status={{ selected_budget_status }}&{% endif %}page={{ page_obj.next_page_number }}" 
+                   class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Next
+                </a>
+                {% else %}
+                <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
+                    Next
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

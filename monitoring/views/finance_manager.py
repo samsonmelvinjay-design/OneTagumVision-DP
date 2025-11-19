@@ -5,6 +5,7 @@ from projeng.models import Project, ProjectCost
 from django.db.models import Sum
 from collections import defaultdict
 from django.db.models.functions import TruncMonth
+from django.core.paginator import Paginator
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -239,26 +240,38 @@ def finance_cost_management(request):
                 logger.error(f"Error processing project {project.id}: {str(e)}", exc_info=True)
                 continue
         
-        # Apply budget status filter AFTER counting
+        # Store total count before filtering by budget status
+        total_projects_before_status_filter = len(project_financials)
+        
+        # Apply budget status filter to the displayed list (but keep counts for all projects)
         if budget_status_filter:
             project_financials = [p for p in project_financials if p['budget_status'] == budget_status_filter]
-            # Recalculate counts based on filtered results
-            over_budget_count = len([p for p in project_financials if p['budget_status'] == 'over'])
-            within_budget_count = len([p for p in project_financials if p['budget_status'] == 'within'])
-            under_budget_count = len([p for p in project_financials if p['budget_status'] == 'under'])
         
+        # Total projects in the filtered list (for display)
         total_projects = len(project_financials)
         
-        # For filters
-        all_barangays = [
-            'Apokon', 'Bincungan', 'Busaon', 'Canocotan', 'Cuambogan', 'La Filipina', 'Liboganon',
-            'Madaum', 'Magdum', 'Magugpo East', 'Magugpo North', 'Magugpo Poblacion', 'Magugpo South',
-            'Magugpo West', 'Mankilam', 'New Balamban', 'Nueva Fuerza', 'Pagsabangan', 'Pandapan',
-            'San Agustin', 'San Isidro', 'San Miguel', 'Visayan Village'
-        ]
+        # Pagination - 25 items per page
+        paginator = Paginator(project_financials, 25)
+        page_number = request.GET.get('page', 1)
+        try:
+            page_obj = paginator.get_page(page_number)
+        except:
+            page_obj = paginator.get_page(1)
+        
+        # For filters - get unique barangays from all projects
+        all_barangays = sorted(Project.objects.exclude(barangay__isnull=True).exclude(barangay='').values_list('barangay', flat=True).distinct())
+        # Fallback to hardcoded list if no projects exist
+        if not all_barangays:
+            all_barangays = [
+                'Apokon', 'Bincungan', 'Busaon', 'Canocotan', 'Cuambogan', 'La Filipina', 'Liboganon',
+                'Madaum', 'Magdum', 'Magugpo East', 'Magugpo North', 'Magugpo Poblacion', 'Magugpo South',
+                'Magugpo West', 'Mankilam', 'New Balamban', 'Nueva Fuerza', 'Pagsabangan', 'Pandapan',
+                'San Agustin', 'San Isidro', 'San Miguel', 'Visayan Village'
+            ]
         
         context = {
-            'project_financials': project_financials,
+            'project_financials': list(page_obj.object_list),
+            'page_obj': page_obj,
             'total_projects': total_projects,
             'over_budget_count': over_budget_count,
             'within_budget_count': within_budget_count,
