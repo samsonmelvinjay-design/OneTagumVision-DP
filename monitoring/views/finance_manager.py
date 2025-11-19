@@ -259,7 +259,11 @@ def finance_cost_management(request):
             page_obj = paginator.get_page(1)
         
         # For filters - get unique barangays from all projects
-        all_barangays = sorted(Project.objects.exclude(barangay__isnull=True).exclude(barangay='').values_list('barangay', flat=True).distinct())
+        # Get all barangays, strip whitespace, convert to set for uniqueness, then sort
+        barangay_list = Project.objects.exclude(barangay__isnull=True).exclude(barangay='').values_list('barangay', flat=True).distinct()
+        # Normalize: strip whitespace and filter out empty strings
+        all_barangays = sorted(set([b.strip() for b in barangay_list if b and b.strip()]))
+        
         # Fallback to hardcoded list if no projects exist
         if not all_barangays:
             all_barangays = [

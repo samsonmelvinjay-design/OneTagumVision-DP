@@ -258,4 +258,62 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[method="get"]');
+    const prnInput = document.getElementById('prn');
+    const barangaySelect = document.getElementById('barangay');
+    const budgetStatusSelect = document.getElementById('budget_status');
+    
+    // Function to submit form with page reset
+    function submitForm() {
+        // Remove existing page input if any
+        const existingPageInput = form.querySelector('input[name="page"]');
+        if (existingPageInput) {
+            existingPageInput.remove();
+        }
+        
+        // Add page=1 to reset pagination when filtering
+        const pageInput = document.createElement('input');
+        pageInput.type = 'hidden';
+        pageInput.name = 'page';
+        pageInput.value = '1';
+        form.appendChild(pageInput);
+        
+        form.submit();
+    }
+    
+    // Debounce function for PRN input
+    let prnTimeout;
+    function debounceSubmit() {
+        clearTimeout(prnTimeout);
+        prnTimeout = setTimeout(submitForm, 500); // Wait 500ms after user stops typing
+    }
+    
+    // Auto-submit on PRN input change (with debounce)
+    if (prnInput) {
+        prnInput.addEventListener('input', debounceSubmit);
+    }
+    
+    // Auto-submit on barangay change
+    if (barangaySelect) {
+        barangaySelect.addEventListener('change', submitForm);
+    }
+    
+    // Auto-submit on budget status change
+    if (budgetStatusSelect) {
+        budgetStatusSelect.addEventListener('change', submitForm);
+    }
+    
+    // Keep the Filter button for manual submission if needed
+    const filterButton = form.querySelector('button[type="submit"]');
+    if (filterButton) {
+        filterButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            submitForm();
+        });
+    }
+});
+</script>
 {% endblock %}
