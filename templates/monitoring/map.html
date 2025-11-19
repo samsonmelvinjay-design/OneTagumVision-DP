@@ -234,24 +234,31 @@
                         <span class="text-xs font-bold text-gray-700 uppercase tracking-wide">Zoning Controls</span>
                     </div>
                     
-                    <!-- Zoning Overlay Toggle -->
-                    <div class="mb-2">
-                        <label class="flex items-center gap-2 cursor-pointer group">
-                            <input type="checkbox" id="zoning-overlay-toggle" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer">
-                            <span class="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition-colors cursor-pointer">Show Overlay</span>
-                        </label>
-                    </div>
-                    
-                    <!-- Zoning View Type Selector (Visible when overlay is enabled) -->
-                    <div id="zoning-view-controls" class="hidden mt-2 pt-2 border-t border-gray-200">
+                    <!-- Zoning View Type Selector (Always visible) -->
+                    <div id="zoning-view-controls" class="mt-2">
                         <label class="block text-xs font-semibold mb-1.5 text-gray-700">View Type</label>
-                        <select id="zoning-view-selector" class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-400 cursor-pointer">
-                            <option value="projects">Projects (Default)</option>
-                            <option value="urban_rural">Urban / Rural</option>
-                            <option value="economic">Economic Classification</option>
-                            <option value="elevation">Elevation Type</option>
-                            <option value="zone_type">Zone Type</option>
-                        </select>
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="radio" name="zoning-view-type" value="projects" id="view-projects" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer" checked>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Projects (Default)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="radio" name="zoning-view-type" value="urban_rural" id="view-urban-rural" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Urban / Rural</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="radio" name="zoning-view-type" value="economic" id="view-economic" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Economic Classification</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="radio" name="zoning-view-type" value="elevation" id="view-elevation" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Elevation Type</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="radio" name="zoning-view-type" value="zone_type" id="view-zone-type" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Zone Type</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -502,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let markers = null;
     let choroplethMap = null;
     let choroplethMapReady = false; // Flag to track if choropleth map is ready
-    let zoningOverlayEnabled = false; // Track if zoning overlay is enabled
+    let zoningOverlayEnabled = true; // Zoning overlay is always enabled
     let statusFilter = '';
     let isFullscreen = false;
     let fullscreenButton = null;
@@ -768,6 +775,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the map
     initMap();
     
+    // Initialize zoning overlay after map is ready (always enabled)
+    initializeZoningOverlay();
+    
     // Get filter section element once (reuse throughout)
     const filterSection = document.getElementById('filter-section');
     
@@ -957,99 +967,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Toggle zoning overlay on/off (combined view approach)
-    function toggleZoningOverlay(enabled) {
-        console.log('Toggling zoning overlay:', enabled);
-        zoningOverlayEnabled = enabled;
+    // Initialize zoning overlay (always enabled)
+    function initializeZoningOverlay() {
+        console.log('Initializing zoning overlay');
         
-        const zoningViewControls = document.getElementById('zoning-view-controls');
-        if (zoningViewControls) {
-            if (enabled) {
-                zoningViewControls.classList.remove('hidden');
-            } else {
-                zoningViewControls.classList.add('hidden');
+        // Initialize choropleth map if not already done
+        if (!choroplethMap) {
+            if (typeof SimpleChoropleth === 'undefined') {
+                console.error('SimpleChoropleth class is not loaded! Script should be loaded statically.');
+                console.error('Please check if simple_choropleth.js is included in the template.');
+                return;
             }
-        }
-        
-        if (enabled) {
-            // Show zoning overlay
-            if (!choroplethMap) {
-                // Initialize choropleth map if not already done
-                if (typeof SimpleChoropleth === 'undefined') {
-                    console.error('SimpleChoropleth class is not loaded! Script should be loaded statically.');
-                    console.error('Please check if simple_choropleth.js is included in the template.');
-                    return;
-                }
-                try {
-                    choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
-                    choroplethMapReady = false; // Reset flag
-                    // Initialize asynchronously and wait for it to complete
-                    choroplethMap.initialize().then(() => {
-                        choroplethMapReady = true; // Mark as ready
-                        console.log('Choropleth map initialized successfully and ready');
-                        console.log('switchView method available:', typeof choroplethMap.switchView === 'function');
-                        // Get current view type from selector
-                        const viewSelector = document.getElementById('zoning-view-selector');
-                        if (viewSelector) {
-                            const viewType = viewSelector.value || 'projects';
-                            if (typeof choroplethMap.switchView === 'function') {
-                                choroplethMap.switchView(viewType);
-                }
+            try {
+                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
+                choroplethMapReady = false; // Reset flag
+                // Initialize asynchronously and wait for it to complete
+                choroplethMap.initialize().then(() => {
+                    choroplethMapReady = true; // Mark as ready
+                    console.log('Choropleth map initialized successfully and ready');
+                    console.log('switchView method available:', typeof choroplethMap.switchView === 'function');
+                    // Get current view type from radio buttons
+                    const selectedRadio = document.querySelector('input[name="zoning-view-type"]:checked');
+                    if (selectedRadio) {
+                        const viewType = selectedRadio.value || 'projects';
+                        if (typeof choroplethMap.switchView === 'function') {
+                            choroplethMap.switchView(viewType);
                         }
-                    }).catch((error) => {
-                        choroplethMapReady = false;
-                        console.error('Error during choropleth initialization:', error);
-                    });
-                } catch (e) {
+                    }
+                }).catch((error) => {
                     choroplethMapReady = false;
-                    console.error('Error creating choropleth map:', e);
-                }
-            } else if (choroplethMap && choroplethMapReady) {
-                // Choropleth already exists, just show it
-                const viewSelector = document.getElementById('zoning-view-selector');
-                if (viewSelector) {
-                    const viewType = viewSelector.value || 'projects';
-                    if (typeof choroplethMap.switchView === 'function') {
-                        choroplethMap.switchView(viewType);
-                }
-                }
+                    console.error('Error during choropleth initialization:', error);
+                });
+            } catch (e) {
+                choroplethMapReady = false;
+                console.error('Error creating choropleth map:', e);
             }
-        } else {
-            // Hide zoning overlay (but keep choroplethMap instance for faster re-enabling)
-            if (choroplethMap && choroplethMap.choroplethLayer) {
-                try {
-                    map.removeLayer(choroplethMap.choroplethLayer);
-                    if (choroplethMap.legend) {
-                        map.removeControl(choroplethMap.legend);
-                }
-                    if (choroplethMap.summaryPanel) {
-                        map.removeControl(choroplethMap.summaryPanel);
-            }
-        } catch (e) {
-                    console.log('Error hiding choropleth layer:', e);
+        } else if (choroplethMap && choroplethMapReady) {
+            // Choropleth already exists, just update view
+            const selectedRadio = document.querySelector('input[name="zoning-view-type"]:checked');
+            if (selectedRadio) {
+                const viewType = selectedRadio.value || 'projects';
+                if (typeof choroplethMap.switchView === 'function') {
+                    choroplethMap.switchView(viewType);
                 }
             }
         }
-        }
-        
-    // Zoning overlay toggle event listener
-    const zoningOverlayToggle = document.getElementById('zoning-overlay-toggle');
-    if (zoningOverlayToggle) {
-        zoningOverlayToggle.addEventListener('change', function(e) {
-            toggleZoningOverlay(e.target.checked);
-        });
     }
 
     // Phase 3: Zoning view selector event listener
     // This function will be called when the selector changes
     function handleZoningViewChange(viewType) {
         console.log('handleZoningViewChange called with:', viewType);
-        
-        // Check if zoning overlay is enabled
-        if (!zoningOverlayEnabled) {
-            console.warn('Zoning overlay is not enabled');
-            return;
-        }
         
         // Wait for choropleth map to be ready
         if (!choroplethMap || !choroplethMapReady) {
@@ -1103,13 +1071,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Attach event listener to zoning view selector
-    const zoningViewSelector = document.getElementById('zoning-view-selector');
-    if (zoningViewSelector) {
-        zoningViewSelector.addEventListener('change', function(e) {
-            const viewType = e.target.value;
-            console.log('Zoning view selector changed to:', viewType);
-            handleZoningViewChange(viewType);
+    // Attach event listeners to zoning view radio buttons
+    const zoningViewRadios = document.querySelectorAll('input[name="zoning-view-type"]');
+    if (zoningViewRadios.length > 0) {
+        zoningViewRadios.forEach(radio => {
+            radio.addEventListener('change', function(e) {
+                const viewType = e.target.value;
+                console.log('Zoning view changed to:', viewType);
+                handleZoningViewChange(viewType);
+            });
         });
     }
 
