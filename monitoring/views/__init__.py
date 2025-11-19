@@ -1305,25 +1305,8 @@ def head_engineer_analytics(request):
     if barangay_filter:
         projects = projects.filter(barangay=barangay_filter)
     
-    # Apply status filter
+    # Get status filter (but don't apply yet - we need to calculate status first)
     status_filter = request.GET.get('status', '')
-    if status_filter:
-        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
-        if status_filter == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        elif status_filter == 'delayed':
-            # For delayed, we need to filter projects that are either:
-            # 1. Already marked as delayed in database, OR
-            # 2. Should be delayed (in_progress/ongoing + end_date passed + progress < 99%)
-            # We'll filter in Python after getting progress data
-            # First get projects that are marked as delayed
-            delayed_marked = projects.filter(status='delayed')
-            # Also get in_progress/ongoing projects that might be delayed
-            potentially_delayed = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-            # We'll filter these in the loop below
-            projects = delayed_marked | potentially_delayed
-        else:
-            projects = projects.filter(status=status_filter)
     
     # Count totals (before filtering for pagination) - calculate dynamically
     from django.utils import timezone
@@ -1332,7 +1315,7 @@ def head_engineer_analytics(request):
     total_projects_all = all_projects.count()
     
     # Get latest progress for all projects to calculate delayed status
-    all_project_ids = [p.id for p in all_projects]
+    all_project_ids = list(all_projects.values_list('id', flat=True))
     latest_progress_all = {}
     if all_project_ids:
         latest_progress_qs = ProjectProgress.objects.filter(
@@ -1350,39 +1333,88 @@ def head_engineer_analytics(request):
             if latest and latest.percentage_complete is not None:
                 latest_progress_all[item['project_id']] = int(latest.percentage_complete)
     
-    # Calculate status counts dynamically
+    # Calculate status counts dynamically for summary cards
     today = timezone.now().date()
     completed_projects = 0
     ongoing_projects = 0
     planned_projects = 0
     delayed_projects = 0
     
-    for p in all_projects:
+    # Dictionary to store calculated statuses for all projects (for filtering)
+    calculated_statuses = {}
+    
+    # Get all projects as a list to iterate (more efficient)
+    all_projects_list = list(all_projects)
+    for p in all_projects_list:
         progress = latest_progress_all.get(p.id, 0)
         stored_status = p.status or ''
         
         # Calculate actual status dynamically
+        calculated_status = stored_status
         if progress >= 99:
+            calculated_status = 'completed'
             completed_projects += 1
         elif stored_status == 'delayed':
+            calculated_status = 'delayed'
             delayed_projects += 1
         elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+            calculated_status = 'delayed'
             delayed_projects += 1
         elif stored_status in ['in_progress', 'ongoing']:
+            calculated_status = 'in_progress'
             ongoing_projects += 1
         elif stored_status in ['planned', 'pending']:
+            calculated_status = 'planned'
             planned_projects += 1
         elif stored_status == 'completed':
+            calculated_status = 'completed'
             completed_projects += 1
+        
+        calculated_statuses[p.id] = calculated_status
+    
+    # Now apply status filter based on calculated statuses (after search/barangay filters)
+    if status_filter:
+        # Get filtered project IDs (projects that match search and barangay)
+        filtered_project_ids = set(projects.values_list('id', flat=True))
+        
+        if status_filter == 'in_progress':
+            # Filter to only projects that are in_progress (excluding delayed)
+            matching_ids = [pid for pid, status in calculated_statuses.items() 
+                          if status == 'in_progress' and pid in filtered_project_ids]
+            if matching_ids:
+                projects = projects.filter(id__in=matching_ids)
+            else:
+                projects = projects.none()
+        elif status_filter == 'delayed':
+            # Filter to only projects that are delayed
+            matching_ids = [pid for pid, status in calculated_statuses.items() 
+                          if status == 'delayed' and pid in filtered_project_ids]
+            if matching_ids:
+                projects = projects.filter(id__in=matching_ids)
+            else:
+                projects = projects.none()
+        elif status_filter == 'completed':
+            matching_ids = [pid for pid, status in calculated_statuses.items() 
+                          if status == 'completed' and pid in filtered_project_ids]
+            if matching_ids:
+                projects = projects.filter(id__in=matching_ids)
+            else:
+                projects = projects.none()
+        elif status_filter == 'planned':
+            matching_ids = [pid for pid, status in calculated_statuses.items() 
+                          if status == 'planned' and pid in filtered_project_ids]
+            if matching_ids:
+                projects = projects.filter(id__in=matching_ids)
+            else:
+                projects = projects.none()
     
     # Order by created_at descending
     projects = projects.order_by('-created_at')
     
-    # Get all project IDs for batch queries (before pagination if filtering by delayed)
-    all_project_ids_for_page = [p.id for p in projects]
+    # Get all project IDs for batch queries (after filtering)
+    all_project_ids_for_page = list(projects.values_list('id', flat=True))
     
-    # Batch fetch latest progress for all projects (before pagination if filtering by delayed)
-    from django.db.models import Max
+    # Batch fetch latest progress for filtered projects
     latest_progress_dict = {}
     if all_project_ids_for_page:
         # Get the latest progress update for each project
