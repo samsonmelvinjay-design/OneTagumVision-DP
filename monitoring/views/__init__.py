@@ -491,6 +491,14 @@ def project_list(request):
         # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
         if status_filter == 'in_progress':
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        elif status_filter == 'delayed':
+            # For delayed, we need to filter projects that are either:
+            # 1. Already marked as delayed in database, OR
+            # 2. Should be delayed (in_progress/ongoing + end_date passed + progress < 99%)
+            # We'll filter these in Python after getting progress data
+            delayed_marked = projects.filter(status='delayed')
+            potentially_delayed = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+            projects = delayed_marked | potentially_delayed
         else:
             projects = projects.filter(status=status_filter)
     
@@ -534,6 +542,43 @@ def project_list(request):
     # Order by created_at descending
     projects = projects.order_by('-created_at')
     
+    # Get latest progress for all projects to calculate delayed status
+    from django.utils import timezone
+    from django.db.models import Max
+    from projeng.models import ProjectProgress
+    project_ids = [p.id for p in projects]
+    latest_progress = {}
+    if project_ids:
+        latest_progress_qs = ProjectProgress.objects.filter(
+            project_id__in=project_ids
+        ).values('project_id').annotate(
+            latest_date=Max('date'),
+            latest_created=Max('created_at')
+        )
+        for item in latest_progress_qs:
+            latest = ProjectProgress.objects.filter(
+                project_id=item['project_id'],
+                date=item['latest_date'],
+                created_at=item['latest_created']
+            ).order_by('-created_at').first()
+            if latest and latest.percentage_complete is not None:
+                latest_progress[item['project_id']] = int(latest.percentage_complete)
+    
+    today = timezone.now().date()
+    
+    # If filtering by delayed, filter the queryset to only include delayed projects
+    if status_filter == 'delayed':
+        delayed_project_ids = []
+        for p in projects:
+            progress = latest_progress.get(p.id, 0)
+            stored_status = p.status or ''
+            # Check if project should be delayed
+            if stored_status == 'delayed':
+                delayed_project_ids.append(p.id)
+            elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+                delayed_project_ids.append(p.id)
+        projects = projects.filter(id__in=delayed_project_ids)
+    
     paginator = Paginator(projects, 15)  # Show 15 projects per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -545,6 +590,28 @@ def project_list(request):
     
     for p in page_obj.object_list:
         try:
+            # Get progress
+            progress = latest_progress.get(p.id, 0)
+            if progress == 0:
+                progress = getattr(p, 'progress', 0) or 0
+            
+            # Calculate actual status dynamically (including delayed)
+            stored_status = p.status or ''
+            calculated_status = stored_status
+            
+            # Priority: completed > delayed > in_progress > planned
+            if progress >= 99:
+                calculated_status = 'completed'
+            elif stored_status == 'delayed':
+                calculated_status = 'delayed'
+            elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+                # Project is delayed if: end_date passed, progress < 99%, and status is in_progress/ongoing
+                calculated_status = 'delayed'
+            elif stored_status in ['in_progress', 'ongoing']:
+                calculated_status = 'in_progress'
+            elif stored_status in ['planned', 'pending']:
+                calculated_status = 'planned'
+            
             # Safely get image URL
             image_url = ''
             if p.image:
@@ -575,9 +642,9 @@ def project_list(request):
                 'source_of_funds': p.source_of_funds or '',
                 'start_date': str(p.start_date) if p.start_date else '',
                 'end_date': str(p.end_date) if p.end_date else '',
-                'status': p.status or '',
+                'status': calculated_status,  # Use calculated_status instead of stored status
                 'image': image_url,
-                'progress': getattr(p, 'progress', 0) or 0,
+                'progress': progress,
                 'assigned_engineers': assigned_engineers,
             })
         except Exception as e:
@@ -589,6 +656,19 @@ def project_list(request):
         logger.warning(f"projects_data is not a list, converting. Type: {type(projects_data)}")
         projects_data = list(projects_data) if projects_data else []
     
+    # Create a dictionary mapping project IDs to calculated statuses for template use
+    calculated_statuses = {}
+    for p_data in projects_data:
+        calculated_statuses[p_data['id']] = p_data['status']
+    
+    # Update project objects in page_obj with calculated status for template display
+    for project in page_obj.object_list:
+        if project.id in calculated_statuses:
+            # Temporarily set the status attribute for template display
+            project.calculated_status = calculated_statuses[project.id]
+        else:
+            project.calculated_status = project.status or ''
+    
     # Log how many projects we're sending to the template
     logger.info(f"Sending {len(projects_data)} projects to template")
     
@@ -596,6 +676,9 @@ def project_list(request):
         'page_obj': page_obj,
         'form': form,
         'projects_data': projects_data,
+        'status_filter': status_filter,
+        'barangay_filter': barangay_filter,
+        'duration_filter': duration_filter,
     })
 
 @login_required

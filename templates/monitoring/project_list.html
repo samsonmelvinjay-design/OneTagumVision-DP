@@ -59,6 +59,7 @@
                         <option value="planned" {% if request.GET.status == 'planned' %}selected{% endif %}>Planned</option>
                         <option value="in_progress" {% if request.GET.status == 'in_progress' or request.GET.status == 'ongoing' %}selected{% endif %}>In Progress</option>
                         <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="delayed" {% if request.GET.status == 'delayed' %}selected{% endif %}>Delayed</option>
                     </select>
                 </div>
                 <div>
@@ -112,17 +113,19 @@
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-600 project-funds">{{ project.source_of_funds|default_if_none:'—' }}</td>
                             <td class="px-4 py-4 text-center project-status">
-                                {% if project.status == 'completed' %}
+                                {% with calculated_status=project.calculated_status|default:project.status %}
+                                {% if calculated_status == 'completed' %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Completed</span>
-                                {% elif project.status == 'ongoing' or project.status == 'in_progress' %}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Ongoing</span>
-                                {% elif project.status == 'planned' or project.status == 'pending' %}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Planned</span>
-                                {% elif project.status == 'delayed' %}
+                                {% elif calculated_status == 'delayed' %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Delayed</span>
+                                {% elif calculated_status == 'ongoing' or calculated_status == 'in_progress' %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Ongoing</span>
+                                {% elif calculated_status == 'planned' or calculated_status == 'pending' %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Planned</span>
                                 {% else %}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ project.status|title }}</span>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ calculated_status|title }}</span>
                                 {% endif %}
+                                {% endwith %}
                             </td>
                             <td class="px-4 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
