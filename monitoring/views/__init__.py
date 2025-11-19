@@ -817,6 +817,88 @@ def map_view(request):
         logger = logging.getLogger(__name__)
         logger.error(f'Error in map_view: {str(e)}', exc_info=True)
         from django.http import HttpResponseServerError
+        return HttpResponseServerError('An error occurred while loading the map view.')
+
+@login_required
+def overall_project_metrics_api(request):
+    """API endpoint to fetch overall project metrics - accessible to all authenticated users"""
+    try:
+        from projeng.models import Project, ProjectProgress
+        from django.db.models import Max
+        from django.utils import timezone
+        
+        # Role-based queryset - get ALL projects (not just those with coordinates)
+        if is_head_engineer(request.user) or is_finance_manager(request.user):
+            projects = Project.objects.all()
+        elif is_project_engineer(request.user):
+            projects = Project.objects.filter(assigned_engineers=request.user)
+        else:
+            projects = Project.objects.none()
+        
+        # Get latest progress for all projects
+        project_ids = [p.id for p in projects]
+        latest_progress = {}
+        if project_ids:
+            latest_progress_qs = ProjectProgress.objects.filter(
+                project_id__in=project_ids
+            ).values('project_id').annotate(
+                latest_date=Max('date'),
+                latest_created=Max('created_at')
+            )
+            for item in latest_progress_qs:
+                latest = ProjectProgress.objects.filter(
+                    project_id=item['project_id'],
+                    date=item['latest_date'],
+                    created_at=item['latest_created']
+                ).order_by('-created_at').first()
+                if latest and latest.percentage_complete is not None:
+                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+        
+        # Calculate status counts dynamically
+        today = timezone.now().date()
+        total_projects = 0
+        completed_count = 0
+        in_progress_count = 0
+        planned_count = 0
+        delayed_count = 0
+        
+        for p in projects:
+            total_projects += 1
+            progress = latest_progress.get(p.id, 0)
+            stored_status = p.status or ''
+            
+            # Calculate actual status dynamically
+            # Priority: completed > delayed > in_progress > planned
+            if progress >= 99:
+                completed_count += 1
+            elif stored_status == 'delayed':
+                delayed_count += 1
+            elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+                # Project is delayed if: end_date passed, progress < 99%, and status is in_progress/ongoing
+                delayed_count += 1
+            elif stored_status in ['in_progress', 'ongoing']:
+                in_progress_count += 1
+            elif stored_status in ['planned', 'pending']:
+                planned_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'metrics': {
+                'total_projects': total_projects,
+                'completed': completed_count,
+                'in_progress': in_progress_count,
+                'planned': planned_count,
+                'delayed': delayed_count
+            }
+        })
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in overall_project_metrics_api: {str(e)}', exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
         return HttpResponseServerError(f'Server Error: {str(e)}')
 
 @login_required
