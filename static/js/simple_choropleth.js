@@ -287,7 +287,7 @@ class SimpleChoropleth {
 
     async fetchOverallMetrics() {
         try {
-            const response = await fetch('/monitoring/api/overall-project-metrics/', {
+            const response = await fetch('/dashboard/api/overall-project-metrics/', {
                 method: 'GET',
                 credentials: 'same-origin',
                 headers: {
