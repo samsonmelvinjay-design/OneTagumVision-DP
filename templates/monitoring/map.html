@@ -979,6 +979,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize zoning overlay (always enabled)
     function initializeZoningOverlay() {
         console.log('Initializing zoning overlay');
+        console.log('window.projects available:', window.projects ? window.projects.length : 0, 'projects');
         
         // Initialize choropleth map if not already done
         if (!choroplethMap) {
@@ -988,7 +989,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             try {
-                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", window.projects);
+                // Ensure we have projects data
+                const projectsToUse = window.projects || [];
+                console.log('Creating SimpleChoropleth with', projectsToUse.length, 'projects');
+                if (projectsToUse.length > 0) {
+                    console.log('Sample project:', projectsToUse[0]);
+                }
+                
+                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse);
                 choroplethMapReady = false; // Reset flag
                 // Initialize asynchronously and wait for it to complete
                 choroplethMap.initialize().then(() => {

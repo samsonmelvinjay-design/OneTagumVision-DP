@@ -19,18 +19,98 @@ class SimpleChoropleth {
             economic: null,
             elevation: null
         };
+        
+        console.log('SimpleChoropleth constructor - projectsData:', this.projectsData ? this.projectsData.length : 0, 'projects');
+    }
+    
+    // Method to update projects data and recalculate stats
+    updateProjectsData(projectsData) {
+        console.log('Updating projects data:', projectsData ? projectsData.length : 0, 'projects');
+        this.projectsData = projectsData || [];
+        // Recalculate stats if barangay data is already loaded
+        if (this.barangayData && this.barangayData.length > 0) {
+            this.calculateBarangayStats();
+            // If a layer is already created, we might want to refresh it
+            // But for now, just recalculate stats
+        }
     }
 
     calculateBarangayStats() {
         // Calculate statistics for each barangay
         this.barangayStats = {};
         
+        console.log('=== calculateBarangayStats START ===');
+        console.log('Projects data length:', this.projectsData ? this.projectsData.length : 0);
+        console.log('Barangay data length:', this.barangayData ? this.barangayData.length : 0);
+        
+        // Normalize barangay names from GeoJSON for matching
+        const normalizedBarangayNames = new Map();
+        if (this.barangayData && this.barangayData.length > 0) {
+            this.barangayData.forEach(feature => {
+                const name = feature.properties.name;
+                if (name) {
+                    // Store normalized version (lowercase, trimmed) -> original name
+                    const normalized = name.toLowerCase().trim();
+                    normalizedBarangayNames.set(normalized, name);
+                }
+            });
+            console.log('GeoJSON barangay names:', Array.from(normalizedBarangayNames.values()));
+        } else {
+            console.warn('No barangay data available for normalization!');
+        }
+        
+        if (!this.projectsData || this.projectsData.length === 0) {
+            console.warn('No projects data available!');
+            return;
+        }
+        
+        let projectsWithBarangay = 0;
+        let projectsWithoutBarangay = 0;
+        const unmatchedBarangays = new Set();
+        
         this.projectsData.forEach(project => {
-            const barangay = project.barangay;
-            if (!barangay) return;
+            let barangay = project.barangay;
+            if (!barangay) {
+                projectsWithoutBarangay++;
+                return;
+            }
             
-            if (!this.barangayStats[barangay]) {
-                this.barangayStats[barangay] = {
+            projectsWithBarangay++;
+            
+            // Normalize project barangay name for matching
+            const normalizedProjectBarangay = barangay.toLowerCase().trim();
+            
+            // Try to find matching barangay name from GeoJSON (case-insensitive)
+            let matchedBarangay = null;
+            if (normalizedBarangayNames.has(normalizedProjectBarangay)) {
+                matchedBarangay = normalizedBarangayNames.get(normalizedProjectBarangay);
+            } else {
+                // Try to find by partial match or fuzzy match
+                for (const [normalized, original] of normalizedBarangayNames.entries()) {
+                    // Check if names are similar (one contains the other or vice versa)
+                    if (normalized.includes(normalizedProjectBarangay) || normalizedProjectBarangay.includes(normalized)) {
+                        matchedBarangay = original;
+                        break;
+                    }
+                    // Also try removing common suffixes/prefixes
+                    const normalizedClean = normalized.replace(/^(barangay|brgy|brg)\s*/i, '').trim();
+                    const projectClean = normalizedProjectBarangay.replace(/^(barangay|brgy|brg)\s*/i, '').trim();
+                    if (normalizedClean === projectClean || normalizedClean.includes(projectClean) || projectClean.includes(normalizedClean)) {
+                        matchedBarangay = original;
+                        break;
+                    }
+                }
+            }
+            
+            // Use matched barangay name or fallback to original (normalized)
+            const statsKey = matchedBarangay || barangay.trim();
+            
+            if (!matchedBarangay) {
+                unmatchedBarangays.add(barangay);
+            }
+            
+            if (!this.barangayStats[statsKey]) {
+                this.barangayStats[statsKey] = {
                     totalProjects: 0,
                     totalCost: 0,
                     completedProjects: 0,
@@ -39,29 +119,37 @@ class SimpleChoropleth {
                 };
             }
             
-            this.barangayStats[barangay].totalProjects++;
+            this.barangayStats[statsKey].totalProjects++;
             
             // Parse project cost
             let cost = 0;
             if (project.project_cost) {
                 // Remove currency symbols and commas, then parse
-                const costStr = project.project_cost.toString().replace(/[₱,]/g, '');
+                const costStr = project.project_cost.toString().replace(/[₱,]/g, '').trim();
                 cost = parseFloat(costStr) || 0;
             }
-            this.barangayStats[barangay].totalCost += cost;
+            this.barangayStats[statsKey].totalCost += cost;
             
-            // Count by status
-            const status = project.status?.toLowerCase();
-            if (status === 'completed') {
-                this.barangayStats[barangay].completedProjects++;
-            } else if (status === 'ongoing' || status === 'in_progress') {
-                this.barangayStats[barangay].ongoingProjects++;
-            } else if (status === 'planned' || status === 'pending') {
-                this.barangayStats[barangay].plannedProjects++;
+            // Count by status - handle all possible status values
+            const status = (project.status || '').toLowerCase().trim();
+            if (status === 'completed' || status === 'complete') {
+                this.barangayStats[statsKey].completedProjects++;
+            } else if (status === 'ongoing' || status === 'in_progress' || status === 'in-progress' || status === 'in progress') {
+                this.barangayStats[statsKey].ongoingProjects++;
+            } else if (status === 'planned' || status === 'pending' || status === 'not started') {
+                this.barangayStats[statsKey].plannedProjects++;
             }
         });
         
+        console.log('Projects with barangay:', projectsWithBarangay);
+        console.log('Projects without barangay:', projectsWithoutBarangay);
+        if (unmatchedBarangays.size > 0) {
+            console.warn('Unmatched barangay names from projects:', Array.from(unmatchedBarangays));
+        }
         console.log('Barangay statistics calculated:', this.barangayStats);
+        console.log('Total barangays with stats:', Object.keys(this.barangayStats).length);
+        console.log('Sample stats:', Object.entries(this.barangayStats).slice(0, 3));
+        console.log('=== calculateBarangayStats END ===');
     }
 
     formatCurrency(amount) {
@@ -99,8 +187,10 @@ class SimpleChoropleth {
             return;
         }
 
-        // Calculate barangay statistics
-        this.calculateBarangayStats();
+        // Calculate barangay statistics if not already calculated
+        if (!this.barangayStats || Object.keys(this.barangayStats).length === 0) {
+            this.calculateBarangayStats();
+        }
 
         // Clear existing choropleth layer
         if (this.choroplethLayer) {
@@ -121,13 +211,29 @@ class SimpleChoropleth {
             },
             onEachFeature: (feature, layer) => {
                 const name = feature.properties.name || 'Unknown';
-                const stats = this.barangayStats[name] || {
-                    totalProjects: 0,
-                    totalCost: 0,
-                    completedProjects: 0,
-                    ongoingProjects: 0,
-                    plannedProjects: 0
-                };
+                
+                // Try to find stats with case-insensitive matching
+                let stats = this.barangayStats[name];
+                if (!stats) {
+                    // Try case-insensitive match
+                    const normalizedName = name.toLowerCase().trim();
+                    const matchingKey = Object.keys(this.barangayStats).find(key => 
+                        key.toLowerCase().trim() === normalizedName
+                    );
+                    stats = matchingKey ? this.barangayStats[matchingKey] : null;
+                }
+                
+                // Default to zeros if no stats found
+                if (!stats) {
+                    stats = {
+                        totalProjects: 0,
+                        totalCost: 0,
+                        completedProjects: 0,
+                        ongoingProjects: 0,
+                        plannedProjects: 0
+                    };
+                }
+                
                 const barangay = this.zoningData ? this.zoningData[name] : null;
                 
                 // Use enhanced popup with zoning info
@@ -470,16 +576,27 @@ class SimpleChoropleth {
 
     async initialize() {
         try {
-            console.log('Initializing choropleth...');
+            console.log('=== SimpleChoropleth.initialize() START ===');
+            console.log('Projects data passed to constructor:', this.projectsData ? this.projectsData.length : 0, 'projects');
+            
             await this.loadData();
+            console.log('GeoJSON data loaded:', this.barangayData.length, 'features');
+            
             // Phase 3: Load zoning data
             await this.loadZoningData();
             // Phase 5: Load zone data (R-1, R-2, etc.)
             await this.loadZoneData();
+            
+            // Calculate barangay stats before creating any layer
+            // This must happen after loadData() so we have barangay names for matching
+            this.calculateBarangayStats();
+            
             this.createChoropleth();
             console.log('Choropleth initialized successfully');
             console.log('Zoning data available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
+            console.log('Barangay stats calculated for', Object.keys(this.barangayStats).length, 'barangays');
             console.log('switchView method available:', typeof this.switchView === 'function');
+            console.log('=== SimpleChoropleth.initialize() END ===');
             return true; // Return success
         } catch (error) {
             console.error('Failed to initialize choropleth:', error);
@@ -699,6 +816,12 @@ class SimpleChoropleth {
             console.error('No zoning data available');
             return;
         }
+        
+        // Ensure stats are calculated before creating the layer
+        if (!this.barangayStats || Object.keys(this.barangayStats).length === 0) {
+            console.log('Barangay stats not calculated yet, calculating now...');
+            this.calculateBarangayStats();
+        }
 
         // Clear existing layer
         if (this.choroplethLayer) {
@@ -791,13 +914,28 @@ class SimpleChoropleth {
                 const name = feature.properties.name || 'Unknown';
                 const barangay = this.zoningData[name];
                 const zoneInfo = this.zoneData ? this.zoneData[name] : null;
-                const stats = this.barangayStats[name] || {
-                    totalProjects: 0,
-                    totalCost: 0,
-                    completedProjects: 0,
-                    ongoingProjects: 0,
-                    plannedProjects: 0
-                };
+                
+                // Try to find stats with case-insensitive matching
+                let stats = this.barangayStats[name];
+                if (!stats) {
+                    // Try case-insensitive match
+                    const normalizedName = name.toLowerCase().trim();
+                    const matchingKey = Object.keys(this.barangayStats).find(key => 
+                        key.toLowerCase().trim() === normalizedName
+                    );
+                    stats = matchingKey ? this.barangayStats[matchingKey] : null;
+                }
+                
+                // Default to zeros if no stats found
+                if (!stats) {
+                    stats = {
+                        totalProjects: 0,
+                        totalCost: 0,
+                        completedProjects: 0,
+                        ongoingProjects: 0,
+                        plannedProjects: 0
+                    };
+                }
                 
                 // Create popup with both project stats and zoning info
                 const popupContent = this.createZoningPopup(name, barangay, stats, zoneInfo, viewType);
