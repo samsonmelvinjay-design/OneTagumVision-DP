@@ -1105,6 +1105,7 @@ def budget_reports(request):
     utilizations = []
     over_count = 0
     under_count = 0
+    within_count = 0
     total_budget_sum = 0
     total_spent_sum = 0
     at_risk_count = 0
@@ -1117,11 +1118,22 @@ def budget_reports(request):
         budget = float(p.project_cost) if p.project_cost else 0
         remaining = budget - spent
         utilization = (spent / budget * 100) if budget > 0 else 0
-        over_under = 'Over' if spent > budget else 'Under'
-        if over_under == 'Over':
-            over_count += 1
+        
+        # Determine budget status using same logic as finance_cost_management
+        if budget > 0:
+            if spent > budget:
+                over_under = 'Over'
+                over_count += 1
+            elif utilization >= 80:
+                over_under = 'Within'
+                within_count += 1
+            else:
+                over_under = 'Under'
+                under_count += 1
         else:
+            over_under = 'Under'
             under_count += 1
+        
         # Calculate summary totals
         total_budget_sum += budget
         total_spent_sum += spent
@@ -1159,6 +1171,15 @@ def budget_reports(request):
         project_names.append(p.name)
         utilizations.append(utilization)
     
+    # For chart: Get top 20 projects by utilization (or budget if utilization is 0)
+    chart_data = sorted(
+        zip(project_names, utilizations, [p['budget'] for p in project_data]),
+        key=lambda x: x[1] if x[1] > 0 else x[2],
+        reverse=True
+    )[:20]
+    chart_project_names = [item[0] for item in chart_data]
+    chart_utilizations = [item[1] for item in chart_data]
+    
     # Pagination - 20 items per page
     paginator = Paginator(project_data, 20)
     page_number = request.GET.get('page', 1)
@@ -1176,10 +1197,11 @@ def budget_reports(request):
     context = {
         'project_data': paginated_project_data,
         'project_data_json': json.dumps(paginated_project_data),  # For JavaScript modal
-        'project_names': json.dumps(project_names),
-        'utilizations': json.dumps(utilizations),
+        'project_names': json.dumps(chart_project_names),
+        'utilizations': json.dumps(chart_utilizations),
         'over_count': over_count,
         'under_count': under_count,
+        'within_count': within_count,
         'total_budget_sum': total_budget_sum,
         'total_spent_sum': total_spent_sum,
         'total_remaining_sum': total_budget_sum - total_spent_sum,

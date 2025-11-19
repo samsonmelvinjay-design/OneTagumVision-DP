@@ -39,47 +39,47 @@
         <!-- Financial Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <!-- Approved Budget Card -->
-            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-blue-100 text-sm font-medium">Approved Budget</span>
-                    <svg class="w-8 h-8 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-white text-sm font-semibold">Approved Budget</span>
+                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold">₱{{ project.project_cost|floatformat:2|intcomma }}</p>
+                <p class="text-3xl font-bold text-white">₱{{ project.project_cost|floatformat:2|intcomma }}</p>
             </div>
 
             <!-- Total Spent Card -->
-            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-green-100 text-sm font-medium">Total Spent</span>
-                    <svg class="w-8 h-8 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-white text-sm font-semibold">Total Spent</span>
+                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold">₱{{ total_spent|floatformat:2|intcomma }}</p>
+                <p class="text-3xl font-bold text-white">₱{{ total_spent|floatformat:2|intcomma }}</p>
             </div>
 
             <!-- Remaining Budget Card -->
-            <div class="bg-gradient-to-br {% if remaining < 0 %}from-red-500 to-red-600{% elif remaining < threshold %}from-yellow-500 to-yellow-600{% else %}from-emerald-500 to-emerald-600{% endif %} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="bg-gradient-to-br {% if remaining < 0 %}from-red-600 to-red-700{% elif remaining < threshold %}from-amber-600 to-amber-700{% else %}from-teal-600 to-teal-700{% endif %} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="{% if remaining < 0 %}text-red-100{% elif remaining < threshold %}text-yellow-100{% else %}text-emerald-100{% endif %} text-sm font-medium">Remaining Budget</span>
-                    <svg class="w-8 h-8 {% if remaining < 0 %}text-red-200{% elif remaining < threshold %}text-yellow-200{% else %}text-emerald-200{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-white text-sm font-semibold">Remaining Budget</span>
+                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold">₱{{ remaining|floatformat:2|intcomma }}</p>
+                <p class="text-3xl font-bold text-white">₱{{ remaining|floatformat:2|intcomma }}</p>
             </div>
 
             <!-- Utilization Card -->
-            <div class="bg-gradient-to-br {% if budget_utilization >= 100 %}from-red-500 to-red-600{% elif budget_utilization >= 80 %}from-orange-500 to-orange-600{% elif budget_utilization >= 50 %}from-yellow-500 to-yellow-600{% else %}from-green-500 to-green-600{% endif %} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="bg-gradient-to-br {% if budget_utilization >= 100 %}from-red-600 to-red-700{% elif budget_utilization >= 80 %}from-orange-600 to-orange-700{% elif budget_utilization >= 50 %}from-amber-600 to-amber-700{% else %}from-green-600 to-green-700{% endif %} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="{% if budget_utilization >= 100 %}text-red-100{% elif budget_utilization >= 80 %}text-orange-100{% elif budget_utilization >= 50 %}text-yellow-100{% else %}text-green-100{% endif %} text-sm font-medium">Budget Utilization</span>
-                    <svg class="w-8 h-8 {% if budget_utilization >= 100 %}text-red-200{% elif budget_utilization >= 80 %}text-orange-200{% elif budget_utilization >= 50 %}text-yellow-200{% else %}text-green-200{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-white text-sm font-semibold">Budget Utilization</span>
+                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold">{{ budget_utilization|floatformat:1 }}%</p>
+                <p class="text-3xl font-bold text-white">{{ budget_utilization|floatformat:1 }}%</p>
             </div>
         </div>
 
