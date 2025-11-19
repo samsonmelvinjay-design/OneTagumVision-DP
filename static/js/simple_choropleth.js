@@ -285,6 +285,29 @@ class SimpleChoropleth {
         console.log('Legend created for view:', this.currentView);
     }
 
+    async fetchOverallMetrics() {
+        try {
+            const response = await fetch('/monitoring/api/overall-project-metrics/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.success && data.metrics) {
+                return data.metrics;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching overall metrics:', error);
+            return null;
+        }
+    }
+
     createSummaryPanel() {
         // Remove existing summary panel
         if (this.summaryPanel) {
@@ -306,25 +329,90 @@ class SimpleChoropleth {
             console.warn('Delayed projects not shown on the map (missing coords or invalid barangay):', delayedMissing);
         }
 
+        // Calculate metrics from visible projects (fallback)
         const totalProjects = visibleProjects.length;
-        const completedProjects = visibleProjects.filter(p => p.status?.toLowerCase() === 'completed').length;
-        const ongoingProjects = visibleProjects.filter(p => p.status?.toLowerCase() === 'ongoing' || p.status?.toLowerCase() === 'in_progress').length;
-        const plannedProjects = visibleProjects.filter(p => p.status?.toLowerCase() === 'planned' || p.status?.toLowerCase() === 'pending').length;
-        const delayedProjects = visibleProjects.filter(p => p.status?.toLowerCase() === 'delayed').length;
+        const completedProjects = visibleProjects.filter(p => {
+            const status = p.status?.toLowerCase() || p.calculated_status?.toLowerCase();
+            return status === 'completed';
+        }).length;
+        const ongoingProjects = visibleProjects.filter(p => {
+            const status = p.status?.toLowerCase() || p.calculated_status?.toLowerCase();
+            return status === 'ongoing' || status === 'in_progress';
+        }).length;
+        const plannedProjects = visibleProjects.filter(p => {
+            const status = p.status?.toLowerCase() || p.calculated_status?.toLowerCase();
+            return status === 'planned' || status === 'pending';
+        }).length;
+        const delayedProjects = visibleProjects.filter(p => {
+            const status = p.status?.toLowerCase() || p.calculated_status?.toLowerCase();
+            return status === 'delayed';
+        }).length;
 
-        // Create summary panel
-        this.summaryPanel = L.control({ position: 'topleft' });
+        // Fetch overall metrics from API (includes ALL projects, not just visible ones)
+        this.fetchOverallMetrics().then(metrics => {
+            if (metrics) {
+                // Update panel with API metrics
+                this.updateSummaryPanel(metrics);
+            } else {
+                // Use fallback metrics from visible projects
+                this.updateSummaryPanel({
+                    total_projects: totalProjects,
+                    completed: completedProjects,
+                    in_progress: ongoingProjects,
+                    planned: plannedProjects,
+                    delayed: delayedProjects
+                });
+            }
+        }).catch(() => {
+            // On error, use fallback metrics
+            this.updateSummaryPanel({
+                total_projects: totalProjects,
+                completed: completedProjects,
+                in_progress: ongoingProjects,
+                planned: plannedProjects,
+                delayed: delayedProjects
+            });
+        });
 
-        this.summaryPanel.onAdd = (map) => {
-            const div = L.DomUtil.create('div', 'info summary-panel');
-            div.style.backgroundColor = 'white';
-            div.style.padding = '18px 18px 10px 18px';
-            div.style.border = '2px solid #ccc';
-            div.style.borderRadius = '10px';
-            div.style.fontSize = '14px';
-            div.style.minWidth = '240px';
-            div.style.boxShadow = '0 2px 8px rgba(0,0,0,0.07)';
-            div.innerHTML = `
+        // Create initial panel with fallback metrics (will be updated if API call succeeds)
+        this.updateSummaryPanel({
+            total_projects: totalProjects,
+            completed: completedProjects,
+            in_progress: ongoingProjects,
+            planned: plannedProjects,
+            delayed: delayedProjects
+        });
+    }
+
+    updateSummaryPanel(metrics) {
+        const totalProjects = metrics.total_projects || 0;
+        const completedProjects = metrics.completed || 0;
+        const ongoingProjects = metrics.in_progress || 0;
+        const plannedProjects = metrics.planned || 0;
+        const delayedProjects = metrics.delayed || 0;
+
+        // Create or update summary panel
+        if (!this.summaryPanel) {
+            this.summaryPanel = L.control({ position: 'topleft' });
+            this.summaryPanel.onAdd = (map) => {
+                const div = L.DomUtil.create('div', 'info summary-panel');
+                div.id = 'summary-panel-content';
+                div.style.backgroundColor = 'white';
+                div.style.padding = '18px 18px 10px 18px';
+                div.style.border = '2px solid #ccc';
+                div.style.borderRadius = '10px';
+                div.style.fontSize = '14px';
+                div.style.minWidth = '240px';
+                div.style.boxShadow = '0 2px 8px rgba(0,0,0,0.07)';
+                return div;
+            };
+            this.summaryPanel.addTo(this.map);
+        }
+
+        // Update panel content
+        const panelDiv = document.getElementById('summary-panel-content');
+        if (panelDiv) {
+            panelDiv.innerHTML = `
                 <div style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#222;">Overall Project Metrics</div>
                 <div style="background:#e8f0fe;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
                   <span style="color:#3b82f6;font-size:20px;">&#128202;</span>
@@ -352,11 +440,8 @@ class SimpleChoropleth {
                   <span style="color:#333;">Delayed</span>
                 </div>
             `;
-            return div;
-        };
-
-        this.summaryPanel.addTo(this.map);
-        console.log('Summary panel created');
+        }
+        console.log('Summary panel updated with metrics:', metrics);
     }
 
     cleanup() {
