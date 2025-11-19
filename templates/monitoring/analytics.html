@@ -110,6 +110,15 @@
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all">
                         </div>
                         <div class="flex-1 min-w-[150px]">
+                            <select id="filter-status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
+                                <option value="">All Statuses</option>
+                                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="planned" {% if status_filter == 'planned' %}selected{% endif %}>Planned</option>
+                                <option value="delayed" {% if status_filter == 'delayed' %}selected{% endif %}>Delayed</option>
+                            </select>
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
                             <select id="filter-barangay" name="barangay" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="">All Barangays</option>
                                 <option value="Apokon" {% if barangay_filter == 'Apokon' %}selected{% endif %}>Apokon</option>
@@ -469,6 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-apply filters on change
     const filterForm = utils.getElement('filter-form');
     const searchInput = utils.getElement('search-input');
+    const filterStatus = utils.getElement('filter-status');
     const filterBarangay = utils.getElement('filter-barangay');
     
     // Debounce function for search input
@@ -487,6 +497,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     filterForm.submit();
                 }
             }, 500); // 500ms debounce
+        });
+    }
+    
+    // Auto-submit on status change
+    if (filterStatus) {
+        filterStatus.addEventListener('change', function() {
+            if (filterForm) {
+                // Reset to page 1 when filtering
+                const pageInput = document.createElement('input');
+                pageInput.type = 'hidden';
+                pageInput.name = 'page';
+                pageInput.value = '1';
+                filterForm.appendChild(pageInput);
+                filterForm.submit();
+            }
         });
     }
     
