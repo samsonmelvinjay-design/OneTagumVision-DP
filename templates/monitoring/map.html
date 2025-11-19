@@ -784,7 +784,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the map
     initMap();
     
-    // Initialize zoning overlay after map is ready (always enabled)
+    // IMPORTANT: Load projects data FIRST before initializing choropleth
+    // Use projects data from json_script tag
+    const projectsDataElement = document.getElementById('projects-data');
+    if (projectsDataElement) {
+        try {
+            window.projects = JSON.parse(projectsDataElement.textContent);
+            console.log('Initialized window.projects:', window.projects ? window.projects.length : 0, 'projects');
+            if (window.projects && window.projects.length > 0) {
+                console.log('Sample project:', window.projects[0]);
+            }
+        } catch (e) {
+            console.error('Error parsing projects data:', e);
+            window.projects = [];
+        }
+    } else {
+        console.error('Projects data element not found');
+        window.projects = [];
+    }
+    
+    // Initialize zoning overlay after map is ready and projects data is loaded (always enabled)
     initializeZoningOverlay();
     
     // Get filter section element once (reuse throughout)
@@ -802,21 +821,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Map size invalidated after initialization');
         }
     }, 200);
-
-    // Use projects data from json_script tag
-    const projectsDataElement = document.getElementById('projects-data');
-    if (projectsDataElement) {
-        try {
-            window.projects = JSON.parse(projectsDataElement.textContent);
-            console.log('Initialized window.projects:', window.projects);
-        } catch (e) {
-            console.error('Error parsing projects data:', e);
-            window.projects = [];
-        }
-    } else {
-        console.error('Projects data element not found');
-        window.projects = [];
-    }
 
     // Function to create modern custom marker icon with shadow
     function createMarkerIcon(status) {
