@@ -587,6 +587,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('Map initialized successfully');
         
+        // Initialize Overall Project Metrics Panel
+        initOverallMetricsPanel();
+        
         // Initialize legend after map is ready
         setTimeout(() => {
             if (typeof updateLegend === 'function') {
@@ -2748,5 +2751,134 @@ function setupMapPopupModal() {
 
 // Form submission is now handled in initializeModalButtons()
 // This ensures it's set up every time the modal opens
+
+    // Overall Project Metrics Panel
+    var metricsPanel = null;
+
+    // Function to initialize Overall Project Metrics Panel
+    function initOverallMetricsPanel() {
+        // Wait for map to be ready
+        if (!map) {
+            setTimeout(initOverallMetricsPanel, 100);
+            return;
+        }
+        
+        // Fetch and display metrics on page load
+        fetchOverallMetrics();
+        // Refresh metrics every 10 seconds
+        setInterval(fetchOverallMetrics, 10000);
+    }
+
+    // Function to fetch overall project metrics
+    async function fetchOverallMetrics() {
+        try {
+            const response = await fetch('/monitoring/api/overall-project-metrics/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('HTTP error! status:', response.status, 'Response:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log('Overall metrics API response:', data);
+            if (data.success && data.metrics) {
+                updateMetricsPanel(data.metrics);
+                return data.metrics;
+            } else {
+                console.warn('API returned success=false or missing metrics:', data);
+                // Still update panel with zeros if API fails
+                updateMetricsPanel({
+                    total_projects: 0,
+                    completed: 0,
+                    in_progress: 0,
+                    planned: 0,
+                    delayed: 0
+                });
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching overall metrics:', error);
+            // Show zeros on error
+            updateMetricsPanel({
+                total_projects: 0,
+                completed: 0,
+                in_progress: 0,
+                planned: 0,
+                delayed: 0
+            });
+            return null;
+        }
+    }
+
+    // Function to create/update metrics panel
+    function updateMetricsPanel(metrics) {
+        if (!map) {
+            console.warn('Map not ready, cannot update metrics panel');
+            return;
+        }
+        
+        const totalProjects = metrics.total_projects || 0;
+        const completedProjects = metrics.completed || 0;
+        const ongoingProjects = metrics.in_progress || 0;
+        const plannedProjects = metrics.planned || 0;
+        const delayedProjects = metrics.delayed || 0;
+
+        // Create or update summary panel
+        if (!metricsPanel) {
+            metricsPanel = L.control({ position: 'topleft' });
+            metricsPanel.onAdd = (map) => {
+                const div = L.DomUtil.create('div', 'info summary-panel');
+                div.id = 'summary-panel-content';
+                div.style.backgroundColor = 'white';
+                div.style.padding = '18px 18px 10px 18px';
+                div.style.border = '2px solid #ccc';
+                div.style.borderRadius = '10px';
+                div.style.fontSize = '14px';
+                div.style.minWidth = '240px';
+                div.style.boxShadow = '0 2px 8px rgba(0,0,0,0.07)';
+                div.style.zIndex = '10003';
+                return div;
+            };
+            metricsPanel.addTo(map);
+        }
+
+        // Update panel content
+        const panelDiv = document.getElementById('summary-panel-content');
+        if (panelDiv) {
+            panelDiv.innerHTML = `
+                <div style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#222;">Overall Project Metrics</div>
+                <div style="background:#e8f0fe;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+                  <span style="color:#3b82f6;font-size:20px;">&#128202;</span>
+                  <span style="font-size:20px;font-weight:bold;">${totalProjects}</span>
+                  <span style="color:#333;">Total Projects</span>
+                </div>
+                <div style="background:#d1fae5;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+                  <span style="color:#10b981;font-size:20px;">&#10003;</span>
+                  <span style="font-size:20px;font-weight:bold;">${completedProjects}</span>
+                  <span style="color:#333;">Completed</span>
+                </div>
+                <div style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+                  <span style="color:#f59e0b;font-size:20px;">&#9201;</span>
+                  <span style="font-size:20px;font-weight:bold;">${ongoingProjects}</span>
+                  <span style="color:#333;">In Progress</span>
+                </div>
+                <div style="background:#ede9fe;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+                  <span style="color:#8b5cf6;font-size:20px;">&#128197;</span>
+                  <span style="font-size:20px;font-weight:bold;">${plannedProjects}</span>
+                  <span style="color:#333;">Planned</span>
+                </div>
+                <div style="background:#fee2e2;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+                  <span style="color:#ef4444;font-size:20px;">&#9201;</span>
+                  <span style="font-size:20px;font-weight:bold;">${delayedProjects}</span>
+                  <span style="color:#333;">Delayed</span>
+                </div>
+            `;
+        }
+    }
 </script>
 {% endblock %} 
