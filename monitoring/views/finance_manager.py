@@ -80,6 +80,10 @@ def finance_projects(request):
     logger = logging.getLogger(__name__)
     
     try:
+        from django.db.models import Q
+        from django.utils import timezone
+        from projeng.models import ProjectProgress
+        
         # Filters
         barangay_filter = request.GET.get('barangay')
         status_filter = request.GET.get('status')
@@ -87,10 +91,36 @@ def finance_projects(request):
         if barangay_filter:
             projects = projects.filter(barangay=barangay_filter)
         if status_filter:
-            projects = projects.filter(status=status_filter)
+            
+            if status_filter == 'delayed':
+                # Include projects with status='delayed' OR projects that are dynamically delayed
+                # (overdue projects with status 'in_progress' or 'ongoing' and progress < 98%)
+                today = timezone.now().date()
+                # Get projects explicitly marked as delayed
+                delayed_projects = projects.filter(status='delayed')
+                # Get projects that are dynamically delayed (overdue but not yet flagged)
+                overdue_projects = projects.filter(
+                    Q(status='in_progress') | Q(status='ongoing'),
+                    end_date__lt=today
+                )
+                # Filter overdue projects to only include those with progress < 98%
+                dynamically_delayed_ids = []
+                for project in overdue_projects:
+                    latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+                    latest_progress_pct = latest_progress.percentage_complete if latest_progress else 0
+                    if latest_progress_pct < 98:
+                        dynamically_delayed_ids.append(project.id)
+                # Combine both sets
+                projects = delayed_projects | projects.filter(id__in=dynamically_delayed_ids)
+            elif status_filter == 'in_progress':
+                # Include both 'in_progress' and 'ongoing' statuses
+                projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+            else:
+                projects = projects.filter(status=status_filter)
         
         # List of projects with their financials
         project_financials = []
+        today = timezone.now().date()
         for project in projects:
             try:
                 spent = ProjectCost.objects.filter(project=project).aggregate(total=Sum('amount'))['total'] or 0
@@ -101,13 +131,21 @@ def finance_projects(request):
                 # Calculate threshold (20% of budget) for color coding
                 threshold = budget_float * 0.2
                 
+                # Determine actual status (check if dynamically delayed)
+                actual_status = project.status or 'planned'
+                if actual_status in ['in_progress', 'ongoing'] and project.end_date and project.end_date < today:
+                    latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
+                    latest_progress_pct = latest_progress.percentage_complete if latest_progress else 0
+                    if latest_progress_pct < 98:
+                        actual_status = 'delayed'
+                
                 project_financials.append({
                     'name': project.name,
                     'barangay': project.barangay or '',
                     'budget': budget_float,
                     'spent': spent_float,
                     'remaining': remaining_proj,
-                    'status': project.status or 'planned',
+                    'status': actual_status,
                     'threshold': threshold,
                 })
             except Exception as e:
