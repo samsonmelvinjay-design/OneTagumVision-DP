@@ -882,20 +882,26 @@ def overall_project_metrics_api(request):
             
             # Calculate actual status dynamically
             # Priority: completed > delayed > in_progress > planned
-            if progress >= 99:
+            # Check for completed: either progress >= 99 OR stored status is 'completed'
+            if progress >= 99 or stored_status == 'completed':
                 completed_count += 1
+                logger.debug(f'Project {p.id} ({p.name}): COMPLETED - progress={progress}%, status="{p.status}"')
             elif stored_status == 'delayed':
                 delayed_count += 1
+                logger.debug(f'Project {p.id} ({p.name}): DELAYED - progress={progress}%, status="{p.status}"')
             elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
                 # Project is delayed if: end_date passed, progress < 99%, and status is in_progress/ongoing
                 delayed_count += 1
+                logger.debug(f'Project {p.id} ({p.name}): DELAYED (overdue) - progress={progress}%, status="{p.status}", end_date={p.end_date}')
             elif stored_status in ['in_progress', 'ongoing']:
                 in_progress_count += 1
+                logger.debug(f'Project {p.id} ({p.name}): IN PROGRESS - progress={progress}%, status="{p.status}"')
             elif stored_status in ['planned', 'pending']:
                 planned_count += 1
+                logger.debug(f'Project {p.id} ({p.name}): PLANNED - progress={progress}%, status="{p.status}"')
             else:
                 # If status doesn't match any category, default to planned or log it
-                logger.warning(f'Project {p.id} ({p.name}) has unrecognized status: "{p.status}", defaulting to planned')
+                logger.warning(f'Project {p.id} ({p.name}) has unrecognized status: "{p.status}", defaulting to planned. Progress: {progress}%')
                 planned_count += 1
         
         metrics = {
