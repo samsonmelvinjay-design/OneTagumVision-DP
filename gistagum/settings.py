@@ -173,14 +173,16 @@ if DATABASE_URL and DATABASE_URL.strip():
         }
 else:
     # Use local Postgres for development when no DATABASE_URL is set
+    # IMPORTANT: Do not hardcode local DB credentials in the repo.
+    # Configure via environment variables (or a local, untracked .env file).
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'gistagumnew',
-            'USER': 'postgres',
-            'PASSWORD': '0613',  # Your local Postgres password
-            'HOST': 'localhost',
-            'PORT': '5432',
+            'NAME': os.environ.get('DB_NAME', 'gistagumnew'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
 

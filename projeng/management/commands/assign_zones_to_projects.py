@@ -153,3 +153,5 @@ class Command(BaseCommand):
         if not dry_run and assigned_count > 0:
             self.stdout.write(f'\n💡 Next step: Run "python manage.py export_zone_analytics" to export the data')
 
+
+

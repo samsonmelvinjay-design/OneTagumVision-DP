@@ -27,7 +27,8 @@ services:
   #     cpu_percent:
   #       target: 70
   # Performance optimizations
-  run_command: gunicorn gistagum.wsgi:application --config gunicorn_config.py
+  # Use the container CMD (start.sh) so migrations + collectstatic run on deploy.
+  run_command: /app/start.sh
   envs:
   - key: DJANGO_SETTINGS_MODULE
     scope: RUN_AND_BUILD_TIME

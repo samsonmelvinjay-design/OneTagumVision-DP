@@ -45,6 +45,21 @@ db.sqlite3-journal
 staticfiles/
 media/
 
+# Database dumps / exports (keep these out of git)
+*.sql
+*.dump
+*.backup
+*.whl
+geospatial-wheels-main/
+
+# Data exports / analytics artifacts (generated)
+*_analytics_*.json
+all_analytics_*.json
+all_projects_data_*.csv
+cost_data_*.csv
+progress_data_*.csv
+analytics_summary_*.txt
+
 # Virtual Environment
 ENV/
 Scripts/
