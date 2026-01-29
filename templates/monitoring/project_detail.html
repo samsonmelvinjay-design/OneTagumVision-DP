@@ -1,3 +1,4 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -20,10 +21,16 @@
         {% endif %}
         <div class="value"><span class="label">PRN:</span> {{ project.prn }}</div>
         <div class="value"><span class="label">Name:</span> {{ project.name }}</div>
-        <div class="value"><span class="label">Description:</span> {{ project.description }}</div>
+        <div class="value"><span class="label">Description:</span> {{ project.description|default:"—" }}</div>
         <div class="value"><span class="label">Barangay:</span> {{ project.barangay }}</div>
-        <div class="value"><span class="label">Project Cost:</span> {{ project.project_cost }}</div>
-        <div class="value"><span class="label">Source of Funds:</span> {{ project.source_of_funds }}</div>
+        <div class="value"><span class="label">Project Cost:</span>
+            {% if project.project_cost %}
+                ₱{{ project.project_cost|floatformat:2|intcomma }}
+            {% else %}
+                —
+            {% endif %}
+        </div>
+        <div class="value"><span class="label">Source of Funds:</span> {{ project.source_of_funds|default:"—" }}</div>
         <div class="value"><span class="label">Status:</span> {{ project.get_status_display }}</div>
         <div class="value"><span class="label">Progress:</span> 
             {% if latest_progress %}

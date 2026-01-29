@@ -270,6 +270,96 @@
 {% block extra_js %}
 {{ projects_data|json_script:"projects-data" }}
 
+<script>
+// --- Purok dropdown (simple, defense-friendly) ---
+window.populatePurokOptions = function(selectEl, currentValue = '') {
+    if (!selectEl) return;
+    const normalizedCurrent = (currentValue || '').trim();
+    const options = [''].concat(Array.from({ length: 20 }, (_, i) => `Purok ${i + 1}`)).concat(['Other']);
+    selectEl.innerHTML = '';
+    options.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val ? val : 'Select Purok (optional)';
+        selectEl.appendChild(opt);
+    });
+    if (normalizedCurrent && !options.includes(normalizedCurrent)) {
+        const opt = document.createElement('option');
+        opt.value = normalizedCurrent;
+        opt.textContent = normalizedCurrent;
+        selectEl.appendChild(opt);
+    }
+    selectEl.value = normalizedCurrent || '';
+};
+
+// --- Barangay boundary validation helpers ---
+let _barangayGeo = null;
+let _barangayGeomByName = null; // normalized name -> geometry
+function _normalizeBarangayName(name) { return (name || '').toLowerCase().trim(); }
+async function _ensureBarangayGeoLoaded() {
+    if (_barangayGeomByName) return;
+    try {
+        const res = await fetch("{% url 'barangay_geojson' %}");
+        if (!res.ok) throw new Error(`GeoJSON fetch failed: ${res.status}`);
+        _barangayGeo = await res.json();
+        _barangayGeomByName = new Map();
+        if (_barangayGeo && Array.isArray(_barangayGeo.features)) {
+            _barangayGeo.features.forEach(f => {
+                const n = _normalizeBarangayName(f && f.properties ? f.properties.name : '');
+                if (n && f.geometry) _barangayGeomByName.set(n, f.geometry);
+            });
+        }
+    } catch (e) {
+        console.warn('Could not load barangay GeoJSON for boundary validation:', e);
+        _barangayGeomByName = new Map();
+    }
+}
+function _pointInRing(lat, lng, ringLngLat) {
+    let inside = false;
+    for (let i = 0, j = ringLngLat.length - 1; i < ringLngLat.length; j = i++) {
+        const xi = ringLngLat[i][0], yi = ringLngLat[i][1];
+        const xj = ringLngLat[j][0], yj = ringLngLat[j][1];
+        const intersect = ((yi > lat) !== (yj > lat)) &&
+            (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+function _pointInPolygonGeometry(lat, lng, geom) {
+    if (!geom) return true;
+    if (geom.type === 'Polygon') {
+        const rings = geom.coordinates || [];
+        if (!rings.length) return true;
+        return _pointInRing(lat, lng, rings[0]);
+    }
+    if (geom.type === 'MultiPolygon') {
+        const polys = geom.coordinates || [];
+        return polys.some(poly => poly && poly[0] && _pointInRing(lat, lng, poly[0]));
+    }
+    return true;
+}
+async function _isInsideSelectedBarangay(lat, lng) {
+    await _ensureBarangayGeoLoaded();
+    const barangaySelect = document.getElementById('modal-barangay-select');
+    const barangay = barangaySelect ? barangaySelect.value : '';
+    if (!barangay) return false;
+    const geom = _barangayGeomByName.get(_normalizeBarangayName(barangay));
+    if (!geom) return true;
+    return _pointInPolygonGeometry(lat, lng, geom);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const purokSelect = document.getElementById('modal-purok-select');
+    const barangaySelect = document.getElementById('modal-barangay-select');
+    if (barangaySelect && purokSelect) {
+        window.populatePurokOptions(purokSelect, purokSelect.value || '');
+        barangaySelect.addEventListener('change', function() {
+            window.populatePurokOptions(purokSelect, '');
+        });
+    }
+});
+</script>
+
 <!-- Simple modal functions matching project_list.html -->
 <script>
 // Define simple modal functions matching project_list.html
@@ -424,6 +514,14 @@ window.hidePopupMap = function() {
                         <div class="bg-white rounded-lg p-2 shadow-sm">
                             <div class="text-xs text-gray-500 uppercase mb-1">Project Cost</div>
                             <div class="text-xs font-semibold text-gray-800" id="details-cost">—</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-2 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Total Spent</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-spent">—</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-2 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Remaining Funds</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-remaining">—</div>
                         </div>
                         <div class="bg-white rounded-lg p-2 shadow-sm">
                             <div class="text-xs text-gray-500 uppercase mb-1">Source of Funds</div>
@@ -1505,6 +1603,8 @@ window.openDetailsModal = function(id) {
     const detailsBarangay = document.getElementById('details-barangay');
     const detailsZoneType = document.getElementById('details-zone-type');
     const detailsCost = document.getElementById('details-cost');
+    const detailsSpent = document.getElementById('details-spent');
+    const detailsRemaining = document.getElementById('details-remaining');
     const detailsFunds = document.getElementById('details-funds');
     const detailsDescription = document.getElementById('details-description');
     const detailsLatitude = document.getElementById('details-latitude');
@@ -1536,7 +1636,19 @@ window.openDetailsModal = function(id) {
         if (detailsPrn) detailsPrn.textContent = `PRN#: ${project.prn || 'N/A'}`;
         if (detailsBarangay) detailsBarangay.textContent = project.barangay || '';
         if (detailsZoneType) detailsZoneType.textContent = project.zone_type || 'Not assigned';
-        if (detailsCost) detailsCost.textContent = project.project_cost || '';
+        const fmtMoney = (val) => `₱${parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (detailsCost) detailsCost.textContent = project.project_cost ? fmtMoney(project.project_cost) : '—';
+        if (detailsSpent) detailsSpent.textContent = project.total_spent ? fmtMoney(project.total_spent) : '—';
+        if (detailsRemaining) {
+            if (project.remaining_funds !== undefined && project.remaining_funds !== null && project.remaining_funds !== '') {
+                const remainingNum = parseFloat(project.remaining_funds);
+                detailsRemaining.textContent = isNaN(remainingNum) ? '—' : fmtMoney(remainingNum);
+                detailsRemaining.classList.toggle('text-red-700', !isNaN(remainingNum) && remainingNum < 0);
+                detailsRemaining.classList.toggle('text-gray-800', isNaN(remainingNum) || remainingNum >= 0);
+            } else {
+                detailsRemaining.textContent = '—';
+            }
+        }
         if (detailsFunds) detailsFunds.textContent = project.source_of_funds || '';
         if (detailsDescription) detailsDescription.textContent = project.description || 'No description';
         if (detailsLatitude) detailsLatitude.textContent = project.latitude || '';
@@ -1672,7 +1784,14 @@ function formatDate(dateStr) {
                     <label class="font-semibold text-gray-700">Name</label>
                     <input type="text" name="name" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
                     <label class="font-semibold text-gray-700">Description</label>
-                    <textarea name="description" rows="3" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none" required></textarea>
+                    <textarea name="description"
+                              rows="3"
+                              placeholder="Example: Multi-purpose hall rehabilitation; includes roof repair, painting, and electrical rewiring. Location: near barangay hall."
+                              class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none"
+                              required></textarea>
+                    <p class="text-xs text-gray-500 -mt-2">
+                        Tip: Write the scope, key materials/works, and expected output.
+                    </p>
                     <label class="font-semibold text-gray-700">Barangay</label>
                     <select name="barangay" id="modal-barangay-select" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
                         <option value="">---------</option>
@@ -1700,6 +1819,10 @@ function formatDate(dateStr) {
                         <option value="San Miguel">San Miguel</option>
                         <option value="Visayan Village">Visayan Village</option>
                     </select>
+                    <label class="font-semibold text-gray-700">Purok</label>
+                    <select name="purok" id="modal-purok-select" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none">
+                        <option value="">Select Purok (optional)</option>
+                    </select>
                 </div>
                 
                 <!-- Column 2: Financial & Status -->
@@ -1707,7 +1830,14 @@ function formatDate(dateStr) {
                     <label class="font-semibold text-gray-700">Project Cost</label>
                     <input type="number" step="0.01" name="project_cost" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
                     <label class="font-semibold text-gray-700">Source of Funds</label>
-                    <input type="text" name="source_of_funds" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                    <select name="source_of_funds" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
+                        <option value="">Select source of funds</option>
+                        {% for sof in source_of_funds_options %}
+                            <option value="{{ sof.name }}">{{ sof.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Or add new source of funds</label>
+                    <input type="text" name="source_of_funds_new" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" placeholder="Type new source of funds (optional)" />
                     <label class="font-semibold text-gray-700">Status</label>
                     <select name="status" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
                         <option value="">---------</option>
@@ -2683,12 +2813,21 @@ window.showPopupMap = function() {
             popupMarker = L.marker([lat, lng], {
                 draggable: true
             }).addTo(popupMap);
+            let lastValidLatLng = { lat: lat, lng: lng };
             
             // Add drag handler for marker
-            popupMarker.on('dragend', function(e) {
+            popupMarker.on('dragend', async function(e) {
                 const marker = e.target;
                 const position = marker.getLatLng();
                 console.log('Marker dragged to:', position.lat, position.lng);
+
+                const ok = await _isInsideSelectedBarangay(position.lat, position.lng);
+                if (!ok) {
+                    alert('Marker is outside the chosen barangay boundary. It will be returned to the last valid position.');
+                    if (lastValidLatLng) popupMarker.setLatLng(lastValidLatLng);
+                    return;
+                }
+                lastValidLatLng = { lat: position.lat, lng: position.lng };
                 
                 // Update input fields
                 const latInput = document.getElementById('latitude-input');
@@ -2707,10 +2846,17 @@ window.showPopupMap = function() {
         }
         
         // Add click handler to set location
-        popupMap.on('click', function(e) {
+        let lastValidLatLngForClick = null;
+        popupMap.on('click', async function(e) {
             const clickedLat = e.latlng.lat;
             const clickedLng = e.latlng.lng;
             console.log('Map clicked at:', clickedLat, clickedLng);
+
+            const ok = await _isInsideSelectedBarangay(clickedLat, clickedLng);
+            if (!ok) {
+                alert('Selected point is outside the chosen barangay boundary. Please pin inside the selected barangay.');
+                return;
+            }
             
             // Update input fields in the main form
             const latInput = document.getElementById('latitude-input');
@@ -2733,12 +2879,21 @@ window.showPopupMap = function() {
                 popupMarker = L.marker([clickedLat, clickedLng], {
                     draggable: true
                 }).addTo(popupMap);
+                lastValidLatLngForClick = { lat: clickedLat, lng: clickedLng };
                 
                 // Add drag handler for marker
-                popupMarker.on('dragend', function(e) {
+                popupMarker.on('dragend', async function(e) {
                     const marker = e.target;
                     const position = marker.getLatLng();
                     console.log('Marker dragged to:', position.lat, position.lng);
+
+                    const okDrag = await _isInsideSelectedBarangay(position.lat, position.lng);
+                    if (!okDrag) {
+                        alert('Marker is outside the chosen barangay boundary. It will be returned to the last valid position.');
+                        if (lastValidLatLngForClick) popupMarker.setLatLng(lastValidLatLngForClick);
+                        return;
+                    }
+                    lastValidLatLngForClick = { lat: position.lat, lng: position.lng };
                     
                     // Update input fields
                     const latInput = document.getElementById('latitude-input');
@@ -2753,6 +2908,8 @@ window.showPopupMap = function() {
                     }
                 });
             }
+
+            lastValidLatLngForClick = { lat: clickedLat, lng: clickedLng };
             
             // Show location status in main form
             const locationStatus = document.getElementById('location-status');

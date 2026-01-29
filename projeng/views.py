@@ -10,7 +10,8 @@ import json
 from .models import (
     Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument,
     Notification, BarangayMetadata, ZoningZone,
-    BudgetRequest, BudgetRequestAttachment, BudgetRequestStatusHistory
+    BudgetRequest, BudgetRequestAttachment, BudgetRequestStatusHistory,
+    ProjectProgressEditHistory
 )
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
@@ -269,7 +270,18 @@ def my_projects_view(request):
     if is_head_engineer(request.user):
         projects_queryset = Project.objects.all()
     else:
-        projects_queryset = Project.objects.filter(assigned_engineers=request.user)
+        # Panel #24: allow filtering "combined" vs "own" projects
+        scope = (request.GET.get('scope') or 'assigned').strip().lower()
+        if scope == 'own':
+            projects_queryset = Project.objects.filter(created_by=request.user)
+        elif scope == 'combined':
+            projects_queryset = Project.objects.filter(
+                Q(assigned_engineers=request.user) | Q(created_by=request.user)
+            ).distinct()
+        else:
+            # default: assigned projects only
+            scope = 'assigned'
+            projects_queryset = Project.objects.filter(assigned_engineers=request.user)
     
     # Get all project IDs first for efficient querying
     project_ids = list(projects_queryset.values_list('id', flat=True))
@@ -327,6 +339,7 @@ def my_projects_view(request):
     # Calculate status counts and delayed status dynamically
     today = timezone.now().date()
     delayed_count = 0
+    planned_pending_count = 0
     
     # Calculate the most recent update time and status for each project
     projects_with_updates = []
@@ -349,6 +362,7 @@ def my_projects_view(request):
             calculated_status = 'in_progress'
         elif stored_status in ['planned', 'pending']:
             calculated_status = 'planned'
+            planned_pending_count += 1
         elif stored_status == 'completed':
             calculated_status = 'completed'
         
@@ -393,7 +407,9 @@ def my_projects_view(request):
     
     return render(request, 'projeng/my_projects.html', {
         'projects': projects_with_updates,
-        'delayed_count': delayed_count
+        'delayed_count': delayed_count,
+        'planned_pending_count': planned_pending_count,
+        'scope': request.GET.get('scope', 'assigned'),
     })
 
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
@@ -649,6 +665,7 @@ def project_detail_view(request, pk):
             
             activity_log.append({
                 'type': 'progress_update',
+                'progress_id': progress.id,
                 'timestamp': progress.created_at,
                 'user': progress.created_by,
                 'message': f'Progress updated to {progress.percentage_complete}%{milestone_info}',
@@ -829,6 +846,21 @@ def project_detail_view(request, pk):
         remaining_budget = project_cost - total_cost_float if project_cost > 0 else None
         budget_utilization = (total_cost_float / project_cost * 100) if project_cost > 0 else 0
         over_budget_amount = abs(remaining_budget) if remaining_budget is not None and remaining_budget < 0 else 0
+
+        # Ratios for comprehensive analytics (panel: #11/#19/#29)
+        expected_progress_pct = None
+        actual_progress_pct = None
+        performance_ratio = None
+        efficiency_ratio = None
+        if timeline_comparison:
+            expected_progress_pct = timeline_comparison.get('expected_progress')
+            actual_progress_pct = timeline_comparison.get('actual_progress')
+        if actual_progress_pct is None:
+            actual_progress_pct = project.progress or 0
+        if expected_progress_pct and expected_progress_pct > 0:
+            performance_ratio = float(actual_progress_pct) / float(expected_progress_pct)
+        if budget_utilization and budget_utilization > 0:
+            efficiency_ratio = float(actual_progress_pct) / float(budget_utilization)
         
         # Determine budget status for color coding
         budget_status = 'normal'
@@ -857,10 +889,13 @@ def project_detail_view(request, pk):
             'activity_log': activity_log,
             'documents': documents,  # Pass documents for dedicated section
             'budget_requests': budget_requests,
+            'can_edit_any_progress': is_head_engineer(request.user),
             'progress_timeline_data': progress_timeline_data,
             'progress_dates': progress_dates_json,
             'progress_percentages': progress_percentages_json,
             'timeline_comparison': timeline_comparison,
+            'performance_ratio': performance_ratio,
+            'efficiency_ratio': efficiency_ratio,
             'expected_dates_json': expected_dates_json,
             'expected_progress_data_json': expected_progress_data_json,
             'actual_progress_aligned_json': actual_progress_aligned_json,
@@ -1106,6 +1141,10 @@ def project_analytics(request, pk):
                 'expected_dates': [project.start_date.isoformat()],
                 'actual_progress_aligned': [total_progress],
             }
+
+        # Ratios for comprehensive analytics (panel: #11/#19/#29)
+        performance_ratio = (float(total_progress) / float(timeline_comparison['expected_progress'])) if (timeline_comparison and timeline_comparison.get('expected_progress')) else None
+        efficiency_ratio = (float(total_progress) / float(budget_utilization)) if budget_utilization > 0 else None
         
         # Convert to JSON for JavaScript
         import json
@@ -1134,6 +1173,8 @@ def project_analytics(request, pk):
             'progress_dates': progress_dates_json,
             'progress_percentages': progress_percentages_json,
             'timeline_comparison': timeline_comparison,
+            'performance_ratio': performance_ratio,
+            'efficiency_ratio': efficiency_ratio,
             'expected_dates_json': expected_dates_json,
             'expected_progress_data_json': expected_progress_data_json,
             'actual_progress_aligned_json': actual_progress_aligned_json,
@@ -1397,6 +1438,157 @@ def add_progress_update(request, pk):
             logging.exception("Error adding progress update")
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
+@transaction.atomic
+def edit_progress_update(request, pk, update_id):
+    project = get_object_or_404(Project, pk=pk)
+    progress = get_object_or_404(
+        ProjectProgress.objects.select_related('created_by', 'milestone').prefetch_related('photos'),
+        pk=update_id,
+        project=project,
+    )
+
+    # Permissions: head engineers can edit any; project engineers must be assigned
+    if not is_head_engineer(request.user):
+        if request.user not in project.assigned_engineers.all():
+            raise PermissionDenied("You are not assigned to this project.")
+
+    from projeng.models import ProjectMilestone
+    milestones = ProjectMilestone.objects.filter(project=project).order_by('target_date', 'created_at')
+
+    if request.method == 'GET':
+        return render(request, 'projeng/edit_progress_update.html', {
+            'project': project,
+            'progress_update': progress,
+            'milestones': milestones,
+        })
+
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['GET', 'POST'])
+
+    raw_percentage = request.POST.get('percentage_complete')
+    try:
+        new_percentage = int(raw_percentage)
+        if not (0 <= new_percentage <= 100):
+            raise ValueError("Percentage out of range")
+    except Exception:
+        return HttpResponseBadRequest("Invalid percentage value. Please enter a number between 0 and 100.")
+
+    new_description = (request.POST.get('description') or '').strip()
+    new_justification = (request.POST.get('justification') or '').strip()
+    edit_reason = (request.POST.get('edit_reason') or '').strip()
+
+    if not new_description:
+        return HttpResponseBadRequest("Description is required.")
+    if not edit_reason:
+        return HttpResponseBadRequest("Edit reason is required.")
+
+    milestone_id = (request.POST.get('milestone') or '').strip()
+    milestone = None
+    if milestone_id:
+        try:
+            milestone = ProjectMilestone.objects.get(pk=int(milestone_id), project=project)
+        except Exception:
+            milestone = None
+
+    uploaded_photos = request.FILES.getlist('photos')
+
+    old_percentage = progress.percentage_complete
+    delta = new_percentage - old_percentage
+
+    # Validation: prevent unrealistic jumps (more than 30% change in one edit)
+    if delta > 30:
+        return HttpResponseBadRequest(
+            f"Progress increase is too large. Maximum allowed increase is 30% per edit (up to {old_percentage + 30}%)."
+        )
+    if delta < -30:
+        return HttpResponseBadRequest(
+            f"Progress decrease is too large. Maximum allowed decrease is 30% per edit (down to {old_percentage - 30}%)."
+        )
+
+    # Validation: require justification/photos for significant increases
+    if delta > 10:
+        if not new_justification:
+            return HttpResponseBadRequest(
+                f"Justification is required for progress increases greater than 10% (increase: {delta}%)."
+            )
+        existing_photo_count = progress.photos.count()
+        if existing_photo_count + len(uploaded_photos) == 0:
+            return HttpResponseBadRequest(
+                "At least one photo is required for progress increases greater than 10%."
+            )
+
+    # Validation: require justification for any decrease (correction)
+    if delta < 0 and not new_justification:
+        return HttpResponseBadRequest("Justification is required when decreasing progress (correction).")
+
+    # Timeline validation (same idea as add): use the update's date
+    if project.start_date and project.end_date and progress.date:
+        total_days = (project.end_date - project.start_date).days
+        elapsed_days = (progress.date - project.start_date).days
+        if total_days > 0 and elapsed_days >= 0:
+            elapsed_percent = (elapsed_days / total_days) * 100
+            allowed_progress = elapsed_percent + 10  # 10% buffer
+            if new_percentage > allowed_progress:
+                return HttpResponseBadRequest(
+                    f"Progress ({new_percentage}%) exceeds what is reasonable for the update date "
+                    f"(allowed up to {allowed_progress:.1f}%)."
+                )
+
+    # Create audit history record
+    ProjectProgressEditHistory.objects.create(
+        progress_update=progress,
+        edited_by=request.user,
+        from_percentage=old_percentage,
+        to_percentage=new_percentage,
+        from_description=progress.description,
+        to_description=new_description,
+        from_justification=progress.justification,
+        to_justification=new_justification or None,
+        edit_reason=edit_reason,
+        added_photos_count=len(uploaded_photos),
+    )
+
+    # Apply edits
+    progress.percentage_complete = new_percentage
+    progress.description = new_description
+    progress.justification = new_justification or None
+    progress.milestone = milestone
+    progress.updated_by = request.user
+    progress.is_edited = True
+    progress.last_edit_reason = edit_reason
+    progress.save()
+
+    for photo in uploaded_photos:
+        ProgressPhoto.objects.create(progress_update=progress, image=photo)
+
+    # Recalculate the project's current progress from latest update
+    latest_progress = (
+        ProjectProgress.objects
+        .filter(project=project)
+        .order_by('-date', '-created_at')
+        .first()
+    )
+    project.progress = latest_progress.percentage_complete if latest_progress else (project.progress or 0)
+    project._updated_by_username = request.user.get_full_name() or request.user.username
+    project.save(update_fields=["progress"])
+
+    # Sync monitoring project if it exists
+    try:
+        monitoring_project = MonitoringProject.objects.get(name=project.name, barangay=project.barangay)
+        monitoring_project.progress = project.progress
+        if project.progress >= 99 and monitoring_project.status != 'completed':
+            monitoring_project.status = 'completed'
+            monitoring_project.save(update_fields=["status", "progress"])
+        else:
+            monitoring_project.save(update_fields=["progress"])
+    except MonitoringProject.DoesNotExist:
+        pass
+
+    messages.success(request, "Progress update edited successfully.")
+    return redirect('projeng:projeng_project_detail', pk=project.pk)
 
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 @csrf_exempt

@@ -1,3 +1,4 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -285,17 +286,17 @@
             <div class="summary-card">
                 <div class="card">
                     <div class="card-title">Total Budget</div>
-                    <div class="card-value">₱{{ budget|floatformat:2|default:"0.00" }}</div>
+                    <div class="card-value">₱{{ budget|floatformat:2|default:"0.00"|intcomma }}</div>
                 </div>
                 <div class="card">
                     <div class="card-title">Total Spent</div>
-                    <div class="card-value">₱{{ total_cost|floatformat:2|default:"0.00" }}</div>
+                    <div class="card-value">₱{{ total_cost|floatformat:2|default:"0.00"|intcomma }}</div>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="card">
                     <div class="card-title">Remaining Budget</div>
-                    <div class="card-value">₱{{ remaining_budget|floatformat:2|default:"0.00" }}</div>
+                    <div class="card-value">₱{{ remaining_budget|floatformat:2|default:"0.00"|intcomma }}</div>
                 </div>
                 <div class="card">
                     <div class="card-title">Budget Utilization</div>
@@ -331,7 +332,7 @@
             </div>
             <div>
                 {% if budget_utilization > 100 %}
-                    This project has exceeded its allocated budget by ₱{{ remaining_budget|floatformat:2|default:"0.00" }}.
+                    This project has exceeded its allocated budget by ₱{{ remaining_budget|floatformat:2|default:"0.00"|intcomma }}.
                     Immediate review and approval for additional funding may be required.
                 {% else %}
                     This project has utilized {{ budget_utilization|floatformat:1 }}% of its budget. 
@@ -359,11 +360,11 @@
                     {% for br in budget_requests %}
                     <tr>
                         <td>{{ br.created_at|date:"M d, Y" }}</td>
-                        <td>₱{{ br.requested_amount|floatformat:2 }}</td>
+                        <td>₱{{ br.requested_amount|floatformat:2|intcomma }}</td>
                         <td>{{ br.get_status_display }}</td>
                         <td>
                             {% if br.approved_amount %}
-                                ₱{{ br.approved_amount|floatformat:2 }}
+                                ₱{{ br.approved_amount|floatformat:2|intcomma }}
                             {% else %}
                                 -
                             {% endif %}
@@ -379,7 +380,7 @@
                             {% if br.attachments.all %}
                                 <strong>Proof:</strong>
                                 {% for att in br.attachments.all %}
-                                    {{ att.file.name }}{% if not forloop.last %}, {% endif %}
+                                        {{ att.file.name }}{% if not forloop.last %}, {% endif %}
                                 {% endfor %}
                             {% endif %}
                         </td>
@@ -425,6 +426,47 @@
     </div>
 
     <div class="section">
+        <div class="section-title">MEANS OF VERIFICATION (PROGRESS PHOTOS)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Update Date</th>
+                    <th>Progress %</th>
+                    <th>Photo Count</th>
+                    <th>Photo Files</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if progress_updates %}
+                    {% for update in progress_updates %}
+                        <tr>
+                            <td>{{ update.date|date:"M d, Y" }}</td>
+                            <td>{{ update.percentage_complete }}%</td>
+                            <td>{% if update.photos.all %}{{ update.photos.all|length }}{% else %}0{% endif %}</td>
+                            <td>
+                                {% if update.photos.all %}
+                                    {% for photo in update.photos.all %}
+                                        {{ photo.image.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center;">No progress photos available</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        <div style="font-size: 8pt; color: #6b7280; margin-top: 6px;">
+            Note: Photos are listed by filename as proof of progress. If media storage is enabled, these files are available in the system.
+        </div>
+    </div>
+
+    <div class="section">
         <div class="section-title">COST BREAKDOWN BY CATEGORY</div>
         <table>
             <thead>
@@ -439,7 +481,7 @@
                     {% for category, amount in cost_breakdown.items %}
                     <tr>
                         <td>{{ category }}</td>
-                        <td>₱{{ amount|floatformat:2 }}</td>
+                        <td>₱{{ amount|floatformat:2|intcomma }}</td>
                         <td>
                             {% if budget > 0 %}
                                 {% widthratio amount budget 100 as percentage %}
@@ -452,7 +494,7 @@
                     {% endfor %}
                     <tr style="font-weight: bold; background-color: #e5e7eb;">
                         <td>TOTAL</td>
-                        <td>₱{{ total_cost|floatformat:2 }}</td>
+                        <td>₱{{ total_cost|floatformat:2|intcomma }}</td>
                         <td>{{ budget_utilization|floatformat:2 }}%</td>
                     </tr>
                 {% else %}
@@ -482,12 +524,12 @@
                         <td>{{ cost.date|date:"M d, Y" }}</td>
                         <td>{{ cost.get_cost_type_display }}</td>
                         <td>{{ cost.description|default:"-"|truncatewords:15 }}</td>
-                        <td>₱{{ cost.amount|floatformat:2 }}</td>
+                        <td>₱{{ cost.amount|floatformat:2|intcomma }}</td>
                     </tr>
                     {% endfor %}
                     <tr style="font-weight: bold; background-color: #e5e7eb;">
                         <td colspan="3" style="text-align: right;">TOTAL:</td>
-                        <td>₱{{ total_cost|floatformat:2 }}</td>
+                        <td>₱{{ total_cost|floatformat:2|intcomma }}</td>
                     </tr>
                 {% else %}
                     <tr>
@@ -502,25 +544,53 @@
         <div class="section-title">PROGRESS vs BUDGET ANALYSIS</div>
         <div class="card">
             <div style="margin-bottom: 10px;">
-                <strong>Progress Completion:</strong> {{ total_progress }}%<br>
-                <strong>Budget Utilization:</strong> {{ budget_utilization|floatformat:2 }}%
+                <strong>Progress Completion (Actual):</strong> {{ total_progress }}%<br>
+                <strong>Budget Utilization:</strong> {{ budget_used_pct|floatformat:2 }}% ({{ budget_status_label }})<br>
+                {% if expected_progress is not None %}
+                    <strong>Expected Progress (Timeline):</strong> {{ expected_progress|floatformat:2 }}%<br>
+                    <strong>Progress Variance:</strong> {{ progress_variance|floatformat:2 }}%<br>
+                {% else %}
+                    <strong>Expected Progress (Timeline):</strong> N/A (missing dates)<br>
+                {% endif %}
             </div>
-            <div>
-                {% if budget_utilization > 0 %}
-                    {% widthratio total_progress budget_utilization 1 as efficiency %}
-                    <strong>Efficiency Ratio:</strong> 
-                    {% if efficiency >= 0.95 and efficiency <= 1.05 %}
-                        {{ efficiency|floatformat:2 }} (Excellent - Progress and budget are well aligned)
-                    {% elif efficiency >= 0.85 and efficiency < 0.95 %}
-                        {{ efficiency|floatformat:2 }} (Good - Slightly ahead on budget)
-                    {% elif efficiency > 1.05 and efficiency <= 1.15 %}
-                        {{ efficiency|floatformat:2 }} (Good - Slightly behind on budget)
+
+            <div style="margin-bottom: 8px;">
+                <strong>Performance Ratio (Schedule):</strong>
+                {% if performance_ratio is not None %}
+                    {{ performance_ratio|floatformat:2 }} ({{ performance_label }})
+                {% else %}
+                    N/A
+                {% endif %}
+                <br>
+                <strong>Budget Ratio (Spent ÷ Budget):</strong>
+                {% if project_budget_ratio is not None %}
+                    {{ project_budget_ratio|floatformat:2 }}
+                {% else %}
+                    N/A
+                {% endif %}
+                <br>
+                <strong>Efficiency Ratio (Progress ÷ Budget Used):</strong>
+                {% if efficiency_ratio is not None %}
+                    {{ efficiency_ratio|floatformat:2 }}
+                    {% if efficiency_ratio >= 0.95 and efficiency_ratio <= 1.05 %}
+                        (Excellent - Progress and budget are aligned)
+                    {% elif efficiency_ratio >= 0.85 and efficiency_ratio < 0.95 %}
+                        (Good - Slightly ahead on budget usage)
+                    {% elif efficiency_ratio > 1.05 and efficiency_ratio <= 1.15 %}
+                        (Good - Slightly behind on budget usage)
                     {% else %}
-                        {{ efficiency|floatformat:2 }} (Needs attention - Progress and budget are not aligned)
+                        (Needs attention - Progress and budget are not aligned)
                     {% endif %}
                 {% else %}
-                    N/A (No budget data available)
+                    N/A
                 {% endif %}
+            </div>
+
+            <div style="font-size: 8pt; color: #6b7280; margin-top: 8px;">
+                <strong>Basis / Formula:</strong><br>
+                - Budget Used % = (Total Spent ÷ Total Budget) × 100<br>
+                - Efficiency Ratio = Actual Progress % ÷ Budget Used %<br>
+                - Performance Ratio (Schedule) = Actual Progress % ÷ Expected Progress % (based on time elapsed)
             </div>
         </div>
     </div>

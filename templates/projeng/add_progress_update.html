@@ -43,15 +43,23 @@
                             Percentage Complete (%)
                             <span class="text-red-500">*</span>
                         </label>
-                        <input type="number" 
-                               id="percentage_complete" 
-                               name="percentage_complete" 
-                               min="0" 
-                               max="100" 
-                               required 
-                               placeholder="0-100"
-                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
-                        <p class="text-xs text-gray-500 mt-1">Enter a value between 0 and 100</p>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs text-gray-500">
+                                <span class="font-medium">0%</span>
+                                <span id="percentage_complete_value" class="text-sm font-bold text-gray-800">0%</span>
+                                <span class="font-medium">100%</span>
+                            </div>
+                            <input type="range"
+                                   id="percentage_complete"
+                                   name="percentage_complete"
+                                   min="0"
+                                   max="100"
+                                   step="1"
+                                   value="0"
+                                   required
+                                   class="w-full accent-blue-600">
+                            <p class="text-xs text-gray-500">Use the slider to set the new completion percentage</p>
+                        </div>
                     </div>
                 </div>
 
@@ -150,9 +158,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const photoCount = document.getElementById('photo-count');
     const photoCountNumber = document.getElementById('photo-count-number');
     const photoUploadArea = document.getElementById('photo-upload-area');
+    const percentageInput = document.getElementById('percentage_complete');
+    const percentageValueEl = document.getElementById('percentage_complete_value');
     
     // Store selected files
     let selectedFiles = [];
+
+    // Progress slider live display
+    function syncProgressValue() {
+        if (!percentageInput || !percentageValueEl) return;
+        const val = parseInt(percentageInput.value, 10);
+        percentageValueEl.textContent = `${isNaN(val) ? 0 : val}%`;
+    }
+    if (percentageInput) {
+        percentageInput.addEventListener('input', syncProgressValue);
+        percentageInput.addEventListener('change', syncProgressValue);
+        syncProgressValue();
+    }
     
     // Update photo count display
     function updatePhotoCount() {

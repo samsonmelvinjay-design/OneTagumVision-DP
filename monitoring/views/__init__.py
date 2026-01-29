@@ -118,6 +118,25 @@ def dashboard(request):
                 planned_count += 1
             elif stored_status == 'completed':
                 completed_count += 1
+        # Projects created per month (last 12 months)
+        from django.db.models import Count
+        from django.db.models.functions import TruncMonth
+        from datetime import timedelta
+
+        twelve_months_ago = timezone.now() - timedelta(days=365)
+        created_by_month_qs = (
+            projects.filter(created_at__gte=twelve_months_ago)
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(total=Count('id'))
+            .order_by('month')
+        )
+        projects_created_labels = [row['month'].strftime('%b %Y') for row in created_by_month_qs if row.get('month')]
+        projects_created_counts = [int(row['total']) for row in created_by_month_qs]
+        if not projects_created_labels:
+            projects_created_labels = ['No Data']
+            projects_created_counts = [0]
+
         # Collaborative analytics
         collab_by_barangay = defaultdict(int)
         collab_by_status = defaultdict(int)
@@ -152,6 +171,8 @@ def dashboard(request):
             'completion_rate': round(completion_rate, 1),
             'collab_by_barangay': dict(collab_by_barangay),
             'collab_by_status': dict(collab_by_status),
+            'projects_created_labels': projects_created_labels,
+            'projects_created_counts': projects_created_counts,
         }
         return render(request, 'monitoring/dashboard.html', context)
     except Exception as e:
@@ -229,10 +250,20 @@ def dashboard_cost_breakdown_data(request):
     from projeng.models import ProjectCost
     from django.db.models import Sum
     from django.http import JsonResponse
+    from datetime import timedelta
     
     if is_head_engineer(request.user) or is_finance_manager(request.user):
-        # Get cost breakdown by type across all projects
-        cost_by_type = ProjectCost.objects.all().values('cost_type').annotate(
+        period = (request.GET.get('period') or 'month').strip().lower()
+        now = timezone.now().date()
+        if period == 'week':
+            start_date = now - timedelta(days=7)
+        elif period == 'year':
+            start_date = now - timedelta(days=365)
+        else:
+            start_date = now - timedelta(days=30)
+
+        # Get cost breakdown by type within selected period
+        cost_by_type = ProjectCost.objects.filter(date__gte=start_date).values('cost_type').annotate(
             total=Sum('amount')
         ).order_by('-total')
     else:
@@ -266,41 +297,79 @@ def dashboard_cost_breakdown_data(request):
 @login_required
 @prevent_project_engineer_access
 def dashboard_monthly_spending_data(request):
-    """API endpoint for Monthly Spending Trend chart"""
+    """API endpoint for Spending Trend chart (week/month/year)"""
     from projeng.models import ProjectCost
     from django.db.models import Sum
-    from django.db.models.functions import TruncMonth
+    from django.db.models.functions import TruncMonth, TruncYear
     from django.http import JsonResponse
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     from django.utils import timezone
     
     if is_head_engineer(request.user) or is_finance_manager(request.user):
-        # Get spending for the last 12 months
-        twelve_months_ago = timezone.now() - timedelta(days=365)
-        monthly_spending = (
-            ProjectCost.objects
-            .filter(date__gte=twelve_months_ago)
-            .annotate(month=TruncMonth('date'))
-            .values('month')
-            .annotate(total=Sum('amount'))
-            .order_by('month')
-        )
+        period = (request.GET.get('period') or 'month').strip().lower()
+
+        if period == 'year':
+            start = timezone.now() - timedelta(days=365 * 5)
+            qs = (
+                ProjectCost.objects.filter(date__gte=start)
+                .annotate(bucket=TruncYear('date'))
+                .values('bucket')
+                .annotate(total=Sum('amount'))
+                .order_by('bucket')
+            )
+            labels = [item['bucket'].strftime('%Y') for item in qs if item.get('bucket')]
+            totals = [float(item['total']) for item in qs]
+            series_label = 'Yearly Spending (₱)'
+        elif period == 'week':
+            # TruncWeek isn't available in all Django versions; fall back to day if missing
+            try:
+                from django.db.models.functions import TruncWeek  # type: ignore
+                start = timezone.now() - timedelta(days=7 * 12)
+                qs = (
+                    ProjectCost.objects.filter(date__gte=start)
+                    .annotate(bucket=TruncWeek('date'))
+                    .values('bucket')
+                    .annotate(total=Sum('amount'))
+                    .order_by('bucket')
+                )
+                labels = [item['bucket'].strftime('Wk of %b %d') for item in qs if item.get('bucket')]
+                totals = [float(item['total']) for item in qs]
+                series_label = 'Weekly Spending (₱)'
+            except Exception:
+                start = timezone.now() - timedelta(days=7 * 12)
+                qs = (
+                    ProjectCost.objects.filter(date__gte=start)
+                    .values('date')
+                    .annotate(total=Sum('amount'))
+                    .order_by('date')
+                )
+                labels = [str(item['date']) for item in qs if item.get('date')]
+                totals = [float(item['total']) for item in qs]
+                series_label = 'Daily Spending (₱)'
+        else:
+            # Default: last 12 months
+            start = timezone.now() - timedelta(days=365)
+            qs = (
+                ProjectCost.objects.filter(date__gte=start)
+                .annotate(bucket=TruncMonth('date'))
+                .values('bucket')
+                .annotate(total=Sum('amount'))
+                .order_by('bucket')
+            )
+            labels = [item['bucket'].strftime('%b %Y') for item in qs if item.get('bucket')]
+            totals = [float(item['total']) for item in qs]
+            series_label = 'Monthly Spending (₱)'
     else:
-        monthly_spending = []
+        labels, totals, series_label = [], [], 'Spending (₱)'
     
-    # Format data
-    months = [item['month'].strftime('%b %Y') for item in monthly_spending]
-    totals = [float(item['total']) for item in monthly_spending]
-    
-    # If no data, return empty chart
-    if not months:
-        months = ['No Data']
+    if not labels:
+        labels = ['No Data']
         totals = [0]
     
     return JsonResponse({
-        'labels': months,
+        'labels': labels,
         'datasets': [{
-            'label': 'Monthly Spending (₱)',
+            'label': series_label,
             'data': totals,
             'borderColor': 'rgba(59, 130, 246, 1)',
             'backgroundColor': 'rgba(59, 130, 246, 0.1)',
@@ -313,10 +382,28 @@ def dashboard_monthly_spending_data(request):
 @login_required
 @head_engineer_required
 def project_list(request):
+    from projeng.models import SourceOfFunds, ProjectType
     
     if request.method == 'POST':
         # Check if this is an AJAX request
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json'
+        
+        # Allow "Add new source of funds" while keeping a dropdown UI
+        post_data = request.POST.copy()
+        new_source_of_funds = (post_data.get('source_of_funds_new') or '').strip()
+        selected_source_of_funds = (post_data.get('source_of_funds') or '').strip()
+        if new_source_of_funds:
+            # Case-insensitive de-dupe
+            existing = SourceOfFunds.objects.filter(name__iexact=new_source_of_funds).first()
+            if not existing:
+                SourceOfFunds.objects.create(name=new_source_of_funds)
+            post_data['source_of_funds'] = new_source_of_funds
+        elif not selected_source_of_funds:
+            if is_ajax:
+                return JsonResponse({'success': False, 'errors': {'source_of_funds': ['Source of Funds is required.']}}, status=400)
+            from django.contrib import messages
+            messages.error(request, 'Source of Funds is required.')
+            return redirect('project_list')
         
         # Check if this is an edit operation
         project_id = request.POST.get('project_id')
@@ -326,7 +413,7 @@ def project_list(request):
             # Get existing project for editing
             try:
                 existing_project = Project.objects.get(pk=project_id)
-                form = ProjectForm(request.POST, request.FILES, instance=existing_project)
+                form = ProjectForm(post_data, request.FILES, instance=existing_project)
             except Project.DoesNotExist:
                 from django.http import JsonResponse
                 if is_ajax:
@@ -335,7 +422,7 @@ def project_list(request):
                 messages.error(request, 'Project not found.')
                 return redirect('project_list')
         else:
-            form = ProjectForm(request.POST, request.FILES)
+            form = ProjectForm(post_data, request.FILES)
         
         if form.is_valid():
             project = form.save(commit=False)
@@ -478,12 +565,32 @@ def project_list(request):
         projects = Project.objects.filter(assigned_engineers=request.user)
     else:
         projects = Project.objects.none()
+
+    # Ensure SourceOfFunds master list is seeded from existing projects (one-time)
+    if not SourceOfFunds.objects.exists():
+        existing_sources = (
+            Project.objects.exclude(source_of_funds__isnull=True)
+            .exclude(source_of_funds='')
+            .values_list('source_of_funds', flat=True)
+            .distinct()
+        )
+        for name in existing_sources:
+            cleaned = (name or '').strip()
+            if cleaned and not SourceOfFunds.objects.filter(name__iexact=cleaned).exists():
+                SourceOfFunds.objects.create(name=cleaned)
+    source_of_funds_options = SourceOfFunds.objects.filter(is_active=True).order_by('name')
+    project_type_options = ProjectType.objects.all().order_by('name')
     
     # Apply filters
     from django.db.models import Q
+    from decimal import Decimal, InvalidOperation
     barangay_filter = request.GET.get('barangay')
     duration_filter = request.GET.get('duration')
     status_filter = request.GET.get('status')
+    source_of_funds_filter = (request.GET.get('source_of_funds') or '').strip()
+    project_type_filter = (request.GET.get('project_type') or '').strip()
+    cost_min_raw = (request.GET.get('cost_min') or '').strip()
+    cost_max_raw = (request.GET.get('cost_max') or '').strip()
     search_query = request.GET.get('search', '').strip()
     
     # Barangay filter
@@ -505,6 +612,29 @@ def project_list(request):
             projects = delayed_marked | potentially_delayed
         else:
             projects = projects.filter(status=status_filter)
+
+    # Source of Funds filter (case-insensitive exact match)
+    if source_of_funds_filter:
+        projects = projects.filter(source_of_funds__iexact=source_of_funds_filter)
+
+    # Project type filter
+    if project_type_filter:
+        try:
+            projects = projects.filter(project_type_id=int(project_type_filter))
+        except (TypeError, ValueError):
+            pass
+
+    # Project cost min/max filters
+    if cost_min_raw:
+        try:
+            projects = projects.filter(project_cost__gte=Decimal(cost_min_raw))
+        except (InvalidOperation, ValueError):
+            pass
+    if cost_max_raw:
+        try:
+            projects = projects.filter(project_cost__lte=Decimal(cost_max_raw))
+        except (InvalidOperation, ValueError):
+            pass
     
     # Search filter (search in name, PRN, description)
     if search_query:
@@ -591,6 +721,19 @@ def project_list(request):
     projects_data = []
     import logging
     logger = logging.getLogger(__name__)
+
+    # Pre-calculate spent/remaining for current page projects
+    from django.db.models import Sum
+    from decimal import Decimal
+    page_project_ids = [p.id for p in page_obj.object_list]
+    spent_by_project_id = {}
+    if page_project_ids:
+        for row in (
+            ProjectCost.objects.filter(project_id__in=page_project_ids)
+            .values('project_id')
+            .annotate(total_spent=Sum('amount'))
+        ):
+            spent_by_project_id[row['project_id']] = row['total_spent'] or Decimal('0.00')
     
     for p in page_obj.object_list:
         try:
@@ -646,15 +789,22 @@ def project_list(request):
                     logger.warning(f"Zone detection failed for project {p.id}: {str(zone_error)}")
                     # Continue without zone type if detection fails
             
+            budget_val = p.project_cost if p.project_cost is not None else None
+            spent_val = spent_by_project_id.get(p.id, Decimal('0.00'))
+            remaining_val = (budget_val - spent_val) if budget_val is not None else None
+
             projects_data.append({
                 'id': p.id,
                 'name': p.name or '',
                 'prn': p.prn or '',
                 'description': p.description or '',
                 'barangay': p.barangay or '',
+                'purok': getattr(p, 'purok', '') or '',
                 'latitude': float(p.latitude) if p.latitude else '',
                 'longitude': float(p.longitude) if p.longitude else '',
-                'project_cost': str(p.project_cost) if p.project_cost is not None else '',
+                'project_cost': f"{budget_val:.2f}" if budget_val is not None else '',
+                'total_spent': f"{spent_val:.2f}",
+                'remaining_funds': f"{remaining_val:.2f}" if remaining_val is not None else '',
                 'source_of_funds': p.source_of_funds or '',
                 'start_date': str(p.start_date) if p.start_date else '',
                 'end_date': str(p.end_date) if p.end_date else '',
@@ -696,12 +846,19 @@ def project_list(request):
         'status_filter': status_filter,
         'barangay_filter': barangay_filter,
         'duration_filter': duration_filter,
+        'source_of_funds_filter': source_of_funds_filter,
+        'source_of_funds_options': source_of_funds_options,
+        'project_type_options': project_type_options,
+        'project_type_filter': project_type_filter,
+        'cost_min': cost_min_raw,
+        'cost_max': cost_max_raw,
     })
 
 @login_required
 @prevent_project_engineer_access
 def map_view(request):
     try:
+        from projeng.models import SourceOfFunds
         if is_head_engineer(request.user) or is_finance_manager(request.user):
             projects = Project.objects.all()
         elif is_project_engineer(request.user):
@@ -710,6 +867,19 @@ def map_view(request):
             projects = Project.objects.none()
         # Only include projects with coordinates
         projects_with_coords = projects.filter(latitude__isnull=False, longitude__isnull=False).prefetch_related('assigned_engineers')
+
+        # Seed SourceOfFunds master list if empty (so dropdown isn't blank)
+        if not SourceOfFunds.objects.exists():
+            existing_sources = (
+                Project.objects.exclude(source_of_funds__isnull=True)
+                .exclude(source_of_funds='')
+                .values_list('source_of_funds', flat=True)
+                .distinct()
+            )
+            for name in existing_sources:
+                cleaned = (name or '').strip()
+                if cleaned and not SourceOfFunds.objects.filter(name__iexact=cleaned).exists():
+                    SourceOfFunds.objects.create(name=cleaned)
         
         # Get latest progress for all projects
         from django.db.models import Max
@@ -735,6 +905,19 @@ def map_view(request):
         
         today = timezone.now().date()
         projects_data = []
+        # Pre-calculate spent/remaining for projects in map
+        from django.db.models import Sum
+        from decimal import Decimal
+        map_project_ids = list(projects_with_coords.values_list('id', flat=True))
+        spent_by_project_id = {}
+        if map_project_ids:
+            for row in (
+                ProjectCost.objects.filter(project_id__in=map_project_ids)
+                .values('project_id')
+                .annotate(total_spent=Sum('amount'))
+            ):
+                spent_by_project_id[row['project_id']] = row['total_spent'] or Decimal('0.00')
+
         for p in projects_with_coords:
             try:
                 # Get assigned engineers as a list of usernames
@@ -782,15 +965,22 @@ def map_view(request):
                         logger.warning(f"Zone detection failed for project {p.id} in map_view: {str(zone_error)}")
                         # Continue without zone type if detection fails
                 
+                budget_val = p.project_cost if p.project_cost is not None else None
+                spent_val = spent_by_project_id.get(p.id, Decimal('0.00'))
+                remaining_val = (budget_val - spent_val) if budget_val is not None else None
+
                 projects_data.append({
                     'id': p.id,
                     'name': p.name or '',
                     'latitude': float(p.latitude) if p.latitude else 0.0,
                     'longitude': float(p.longitude) if p.longitude else 0.0,
                     'barangay': p.barangay or '',
+                    'purok': getattr(p, 'purok', '') or '',
                     'status': calculated_status,  # Use calculated_status instead of p.status
                     'description': p.description or '',
-                    'project_cost': str(p.project_cost) if p.project_cost is not None else "",
+                    'project_cost': f"{budget_val:.2f}" if budget_val is not None else "",
+                    'total_spent': f"{spent_val:.2f}",
+                    'remaining_funds': f"{remaining_val:.2f}" if remaining_val is not None else "",
                     'source_of_funds': p.source_of_funds or '',
                     'prn': p.prn or '',
                     'start_date': str(p.start_date) if p.start_date else "",
@@ -811,6 +1001,7 @@ def map_view(request):
         context = {
             'projects_data': projects_data,
             'is_head_engineer': is_head_engineer(request.user),
+            'source_of_funds_options': SourceOfFunds.objects.filter(is_active=True).order_by('name'),
         }
         return render(request, 'monitoring/map.html', context)
     except Exception as e:
@@ -1221,7 +1412,9 @@ def project_get_api(request, pk):
     """Get a single project's data as JSON for editing"""
     from django.http import JsonResponse
     from django.shortcuts import get_object_or_404
+    from django.db.models import Sum
     import logging
+    from decimal import Decimal
     
     logger = logging.getLogger(__name__)
     
@@ -1250,15 +1443,21 @@ def project_get_api(request, pk):
             assigned_engineers = []
             assigned_engineer_ids = []
         
+        total_spent = ProjectCost.objects.filter(project=project).aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+        remaining_funds = (project.project_cost - total_spent) if project.project_cost is not None else None
+
         project_data = {
             'id': project.id,
             'name': project.name or '',
             'prn': project.prn or '',
             'description': project.description or '',
             'barangay': project.barangay or '',
+            'purok': getattr(project, 'purok', '') or '',
             'latitude': float(project.latitude) if project.latitude else '',
             'longitude': float(project.longitude) if project.longitude else '',
-            'project_cost': str(project.project_cost) if project.project_cost is not None else '',
+            'project_cost': f"{project.project_cost:.2f}" if project.project_cost is not None else '',
+            'total_spent': f"{total_spent:.2f}",
+            'remaining_funds': f"{remaining_funds:.2f}" if remaining_funds is not None else '',
             'source_of_funds': project.source_of_funds or '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
@@ -2535,8 +2734,15 @@ def export_project_comprehensive_pdf(request, pk):
     except Project.DoesNotExist:
         return HttpResponse('Project not found.', status=404)
     
-    # Get all progress updates
-    progress_updates = ProjectProgress.objects.filter(project=project).order_by('date', 'id').distinct()
+    # Get all progress updates (include related photos as means of verification)
+    progress_updates = (
+        ProjectProgress.objects
+        .filter(project=project)
+        .prefetch_related('photos')
+        .select_related('created_by')
+        .order_by('date', 'id')
+        .distinct()
+    )
     
     # Get all cost entries
     costs = ProjectCost.objects.filter(project=project).order_by('date')
@@ -2548,12 +2754,42 @@ def export_project_comprehensive_pdf(request, pk):
     budget = float(project.project_cost) if project.project_cost else 0
     remaining_budget = budget - total_cost
     budget_utilization = (total_cost / budget * 100) if budget > 0 else 0
+
+    # Progress vs budget metrics (panel: efficiency/performance ratios)
+    budget_used_pct = float(budget_utilization) if budget_utilization else 0.0
+    efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
+    project_budget_ratio = (float(total_cost) / float(budget)) if budget > 0 else None
     
     # Calculate timeline
     today = timezone.now().date()
     days_elapsed = (today - project.start_date).days if project.start_date else 0
     total_days = (project.end_date - project.start_date).days if project.start_date and project.end_date else 0
     days_remaining = total_days - days_elapsed if total_days > 0 else 0
+
+    expected_progress = None
+    progress_variance = None
+    performance_ratio = None
+    if project.start_date and project.end_date and total_days > 0:
+        elapsed_days = max(0, min(total_days, days_elapsed))
+        expected_progress = min(100.0, (elapsed_days / total_days) * 100.0)
+        progress_variance = float(total_progress) - float(expected_progress)
+        performance_ratio = (float(total_progress) / float(expected_progress)) if expected_progress > 0 else None
+
+    # Simple status labels for report readability
+    budget_status_label = 'UNDER BUDGET'
+    if budget_used_pct > 100:
+        budget_status_label = 'OVER BUDGET'
+    elif budget_used_pct >= 90:
+        budget_status_label = 'AT RISK'
+
+    performance_label = 'N/A'
+    if performance_ratio is not None:
+        if performance_ratio >= 1.05:
+            performance_label = 'Ahead of schedule'
+        elif performance_ratio >= 0.95:
+            performance_label = 'On schedule'
+        else:
+            performance_label = 'Behind schedule'
     
     # Cost breakdown by category
     from collections import defaultdict
@@ -2590,12 +2826,21 @@ def export_project_comprehensive_pdf(request, pk):
         'budget': budget,
         'remaining_budget': remaining_budget,
         'budget_utilization': budget_utilization,
+        'budget_used_pct': budget_used_pct,
+        'project_budget_ratio': project_budget_ratio,
+        'efficiency_ratio': efficiency_ratio,
+        'expected_progress': expected_progress,
+        'progress_variance': progress_variance,
+        'performance_ratio': performance_ratio,
+        'budget_status_label': budget_status_label,
+        'performance_label': performance_label,
         'days_elapsed': days_elapsed,
         'total_days': total_days,
         'days_remaining': days_remaining,
         'cost_breakdown': dict(cost_breakdown),
         'assigned_engineers': assigned_engineers,
         'budget_requests': budget_requests,
+        'has_progress_photos': any(getattr(u, 'photos', None) and u.photos.all() for u in progress_updates),
         'generated_by': request.user.get_full_name() or request.user.username,
         'generated_at': timezone.now(),
     }
@@ -2625,8 +2870,15 @@ def export_project_comprehensive_excel(request, pk):
     except Project.DoesNotExist:
         return HttpResponse('Project not found.', status=404)
     
-    # Get all progress updates
-    progress_updates = ProjectProgress.objects.filter(project=project).order_by('date', 'id').distinct()
+    # Get all progress updates (include related photos as means of verification)
+    progress_updates = (
+        ProjectProgress.objects
+        .filter(project=project)
+        .prefetch_related('photos')
+        .select_related('created_by')
+        .order_by('date', 'id')
+        .distinct()
+    )
     
     # Get all cost entries
     costs = ProjectCost.objects.filter(project=project).order_by('date')
@@ -2673,6 +2925,27 @@ def export_project_comprehensive_excel(request, pk):
             update.description or '',
             engineer_name
         ])
+
+    # Sheet 2b: Progress Photos (Means of Verification)
+    ws2b = wb.create_sheet("Progress Photos")
+    ws2b.append(['Update Date', 'Progress %', 'Photo Uploaded At', 'Photo File', 'Photo URL'])
+    for update in progress_updates:
+        photos_qs = getattr(update, 'photos', None)
+        photos = list(photos_qs.all()) if photos_qs is not None else []
+        if not photos:
+            continue
+        for photo in photos:
+            try:
+                url = photo.image.url
+            except Exception:
+                url = ''
+            ws2b.append([
+                str(update.date),
+                update.percentage_complete,
+                timezone.localtime(photo.uploaded_at).strftime('%Y-%m-%d %H:%M') if photo.uploaded_at else '',
+                getattr(photo.image, 'name', ''),
+                url,
+            ])
     
     # Sheet 3: Budget Details
     ws3 = wb.create_sheet("Budget Details")
@@ -2755,8 +3028,15 @@ def export_project_comprehensive_csv(request, pk):
     except Project.DoesNotExist:
         return HttpResponse('Project not found.', status=404)
     
-    # Get all progress updates
-    progress_updates = ProjectProgress.objects.filter(project=project).order_by('date', 'id').distinct()
+    # Get all progress updates (include related photos as means of verification)
+    progress_updates = (
+        ProjectProgress.objects
+        .filter(project=project)
+        .prefetch_related('photos')
+        .select_related('created_by')
+        .order_by('date', 'id')
+        .distinct()
+    )
     
     # Get all cost entries
     costs = ProjectCost.objects.filter(project=project).order_by('date')
@@ -2801,46 +3081,19 @@ def export_project_comprehensive_csv(request, pk):
     
     # Progress Details
     writer.writerow(['PROGRESS DETAILS'])
-    writer.writerow(['Date', 'Progress %', 'Description', 'Engineer'])
+    writer.writerow(['Date', 'Progress %', 'Description', 'Engineer', 'Photo Count', 'Photo Files'])
     for update in progress_updates:
         engineer_name = update.created_by.get_full_name() or update.created_by.username if update.created_by else 'N/A'
+        photos_qs = getattr(update, 'photos', None)
+        photos = list(photos_qs.all()) if photos_qs is not None else []
+        photo_files = ', '.join([getattr(p.image, 'name', '') for p in photos if getattr(p, 'image', None)])
         writer.writerow([
             str(update.date),
             update.percentage_complete,
             update.description or '',
-            engineer_name
-        ])
-    writer.writerow([])
-    
-    # Budget Details
-    writer.writerow(['BUDGET DETAILS'])
-    writer.writerow(['Date', 'Category', 'Description', 'Amount'])
-    for cost in costs:
-        writer.writerow([
-            str(cost.date),
-            cost.get_cost_type_display(),
-            cost.description or '',
-            float(cost.amount)
-        ])
-    writer.writerow([])
-    writer.writerow(['TOTAL', '', '', f'₱{total_cost:,.2f}'])
-    
-    return response
-
-    writer.writerow(['Remaining', f'₱{remaining_budget:,.2f}'])
-    writer.writerow(['Utilization', f'{budget_utilization:.2f}%'])
-    writer.writerow([])
-    
-    # Progress Details
-    writer.writerow(['PROGRESS DETAILS'])
-    writer.writerow(['Date', 'Progress %', 'Description', 'Engineer'])
-    for update in progress_updates:
-        engineer_name = update.created_by.get_full_name() or update.created_by.username if update.created_by else 'N/A'
-        writer.writerow([
-            str(update.date),
-            update.percentage_complete,
-            update.description or '',
-            engineer_name
+            engineer_name,
+            len(photos),
+            photo_files,
         ])
     writer.writerow([])
     

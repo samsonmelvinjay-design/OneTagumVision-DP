@@ -3,12 +3,13 @@ from django.contrib.admin.exceptions import AlreadyRegistered
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from .models import (
-    Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, 
+    Layer, Project, ProjectProgress, ProjectProgressEditHistory, ProjectCost, ProgressPhoto, 
     BarangayMetadata, ZoningZone, ProjectMilestone,
     ProjectType, ZoneAllowedUse, ZoneRecommendation,
     UserSpatialAssignment,
     BudgetRequest, BudgetRequestAttachment, BudgetRequestStatusHistory,
-    LandSuitabilityAnalysis, SuitabilityCriteria
+    LandSuitabilityAnalysis, SuitabilityCriteria,
+    SourceOfFunds
 )
 from django.contrib.auth.models import Group
 
@@ -71,14 +72,27 @@ class ProjectProgressAdmin(admin.ModelAdmin):
     list_display = ('project', 'date', 'percentage_complete', 'milestone', 'created_by', 'created_at')
     list_filter = ('date', 'created_at', 'milestone')
     search_fields = ('project__name', 'description', 'justification')
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Progress Information', {
             'fields': ('project', 'date', 'percentage_complete', 'description', 'milestone', 'justification')
         }),
         ('Metadata', {
-            'fields': ('created_by', 'created_at')
+            'fields': ('created_by', 'created_at', 'updated_at', 'updated_by', 'is_edited', 'last_edit_reason')
         }),
+    )
+
+@admin.register(ProjectProgressEditHistory)
+class ProjectProgressEditHistoryAdmin(admin.ModelAdmin):
+    list_display = ('progress_update', 'edited_at', 'edited_by', 'from_percentage', 'to_percentage', 'added_photos_count')
+    list_filter = ('edited_at',)
+    search_fields = ('progress_update__project__name', 'edit_reason')
+    readonly_fields = (
+        'progress_update', 'edited_by', 'edited_at',
+        'from_percentage', 'to_percentage',
+        'from_description', 'to_description',
+        'from_justification', 'to_justification',
+        'edit_reason', 'added_photos_count',
     )
 
 @admin.register(ProjectCost)
@@ -122,6 +136,14 @@ class BudgetRequestStatusHistoryAdmin(admin.ModelAdmin):
     search_fields = ('budget_request__project__name', 'budget_request__project__prn', 'notes')
     readonly_fields = ('created_at',)
     list_select_related = ('budget_request', 'action_by')
+
+
+@admin.register(SourceOfFunds)
+class SourceOfFundsAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(SuitabilityCriteria)

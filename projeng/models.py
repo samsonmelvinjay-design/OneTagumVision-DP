@@ -53,6 +53,7 @@ class Project(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     barangay = models.CharField(max_length=255, blank=True, null=True)
+    purok = models.CharField(max_length=100, blank=True, null=True)
     project_cost = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
     source_of_funds = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planned')
@@ -142,6 +143,27 @@ class Project(models.Model):
         
         return zone_type, confidence
 
+
+class SourceOfFunds(models.Model):
+    """
+    Master list of allowed source-of-funds values.
+    Projects still store `source_of_funds` as a string for compatibility,
+    but UI dropdowns are driven from this table.
+    """
+
+    name = models.CharField(max_length=255, unique=True, db_index=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = "Sources of Funds"
+
+    def __str__(self):
+        return self.name
+
+
 class ProjectProgress(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='progress_updates')
     date = models.DateField()
@@ -165,6 +187,16 @@ class ProjectProgress(models.Model):
     )
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='progress_updates_edited'
+    )
+    is_edited = models.BooleanField(default=False)
+    last_edit_reason = models.TextField(blank=True, null=True)
 
     class Meta:
         ordering = ['-date']
@@ -172,6 +204,29 @@ class ProjectProgress(models.Model):
 
     def __str__(self):
         return f"{self.project.name} - {self.date} ({self.percentage_complete}%)"
+
+
+class ProjectProgressEditHistory(models.Model):
+    """Audit trail for edits to ProjectProgress."""
+    progress_update = models.ForeignKey(ProjectProgress, on_delete=models.CASCADE, related_name='edit_history')
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    edited_at = models.DateTimeField(auto_now_add=True)
+
+    from_percentage = models.IntegerField()
+    to_percentage = models.IntegerField()
+    from_description = models.TextField(blank=True, null=True)
+    to_description = models.TextField(blank=True, null=True)
+    from_justification = models.TextField(blank=True, null=True)
+    to_justification = models.TextField(blank=True, null=True)
+
+    edit_reason = models.TextField(help_text="Reason for editing this progress update")
+    added_photos_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-edited_at']
+
+    def __str__(self):
+        return f"Edit for {self.progress_update.project.name} ({self.from_percentage}%→{self.to_percentage}%)"
 
 class ProjectMilestone(models.Model):
     """Milestones for tracking project deliverables and progress"""
@@ -665,6 +720,7 @@ class ProjectType(models.Model):
         # Other
         ('park', 'Park/Recreation'),
         ('cemetery', 'Cemetery'),
+        ('gad', 'GAD (Gender and Development)'),
     ]
     
     name = models.CharField(max_length=100, unique=True)

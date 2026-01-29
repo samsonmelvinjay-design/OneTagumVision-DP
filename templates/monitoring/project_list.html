@@ -22,7 +22,7 @@
 
         <!-- Filters Card -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <form id="barangay-filter-form" method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <form id="barangay-filter-form" method="get" class="grid grid-cols-1 md:grid-cols-8 gap-4">
                 <div>
                     <label for="barangay-filter" class="block text-sm font-semibold text-gray-700 mb-2">Barangay</label>
                     <select id="barangay-filter" name="barangay" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300" onchange="this.form.submit()">
@@ -71,10 +71,41 @@
                         <option value="gt12" {% if request.GET.duration == 'gt12' %}selected{% endif %}>> 1 year</option>
                     </select>
                 </div>
+                <div>
+                    <label for="source-of-funds-filter" class="block text-sm font-semibold text-gray-700 mb-2">Source of Funds</label>
+                    <select id="source-of-funds-filter" name="source_of_funds" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300" onchange="this.form.submit()">
+                        <option value="" {% if not request.GET.source_of_funds %}selected{% endif %}>All Sources</option>
+                        {% for sof in source_of_funds_options %}
+                            <option value="{{ sof.name }}" {% if request.GET.source_of_funds == sof.name %}selected{% endif %}>{{ sof.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="project-type-filter" class="block text-sm font-semibold text-gray-700 mb-2">Project Type</label>
+                    <select id="project-type-filter" name="project_type" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300" onchange="this.form.submit()">
+                        <option value="" {% if not request.GET.project_type %}selected{% endif %}>All Types</option>
+                        {% for pt in project_type_options %}
+                            <option value="{{ pt.id }}" {% if request.GET.project_type == pt.id|stringformat:"s" %}selected{% endif %}>{{ pt.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="cost-min-filter" class="block text-sm font-semibold text-gray-700 mb-2">Cost Min</label>
+                    <input id="cost-min-filter" name="cost_min" type="number" step="0.01" inputmode="decimal" value="{{ request.GET.cost_min }}" placeholder="₱ min" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300" />
+                </div>
+                <div>
+                    <label for="cost-max-filter" class="block text-sm font-semibold text-gray-700 mb-2">Cost Max</label>
+                    <input id="cost-max-filter" name="cost_max" type="number" step="0.01" inputmode="decimal" value="{{ request.GET.cost_max }}" placeholder="₱ max" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300" />
+                </div>
                 <div class="flex items-end">
-                    <a href="{% url 'project_list' %}" class="w-full px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-200 text-center">
-                        Clear Filters
-                    </a>
+                    <div class="w-full flex gap-2">
+                        <button type="submit" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center">
+                            Apply
+                        </button>
+                        <a href="{% url 'project_list' %}" class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-200 text-center">
+                            Clear
+                        </a>
+                    </div>
                 </div>
             </form>
         </div>
@@ -236,7 +267,14 @@
                         <label class="font-semibold text-gray-700">Name</label>
                         <input type="text" name="name" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
                         <label class="font-semibold text-gray-700">Description</label>
-                        <textarea name="description" rows="3" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none" required></textarea>
+                        <textarea name="description"
+                                  rows="3"
+                                  placeholder="Example: Road concreting (200m) along Purok 3 access road; includes drainage and shoulder works. Target beneficiaries: residents of Brgy. Apokon."
+                                  class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none"
+                                  required></textarea>
+                        <p class="text-xs text-gray-500 -mt-2">
+                            Include scope (what), location details (where), and key outputs (e.g., length/quantity).
+                        </p>
                         <label class="font-semibold text-gray-700">Barangay</label>
                         <select name="barangay" id="modal-barangay-select" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
                             <option value="">---------</option>
@@ -264,6 +302,10 @@
                             <option value="San Miguel">San Miguel</option>
                             <option value="Visayan Village">Visayan Village</option>
                         </select>
+                        <label class="font-semibold text-gray-700">Purok</label>
+                        <select name="purok" id="modal-purok-select" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none">
+                            <option value="">Select Purok (optional)</option>
+                        </select>
                     </div>
                     
                     <!-- Column 2: Financial & Status -->
@@ -271,7 +313,14 @@
                         <label class="font-semibold text-gray-700">Project Cost</label>
                         <input type="number" step="0.01" name="project_cost" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
                         <label class="font-semibold text-gray-700">Source of Funds</label>
-                        <input type="text" name="source_of_funds" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                        <select name="source_of_funds" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
+                            <option value="">Select source of funds</option>
+                            {% for sof in source_of_funds_options %}
+                                <option value="{{ sof.name }}">{{ sof.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Or add new source of funds</label>
+                        <input type="text" name="source_of_funds_new" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" placeholder="Type new source of funds (optional)" />
                         <label class="font-semibold text-gray-700">Status</label>
                         <select name="status" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
                             <option value="">---------</option>
@@ -421,6 +470,14 @@
                             <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Project Cost</div>
                                 <div class="text-xs font-semibold text-gray-800" id="details-cost">—</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                                <div class="text-xs text-gray-500 uppercase mb-1">Total Spent</div>
+                                <div class="text-xs font-semibold text-gray-800" id="details-spent">—</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                                <div class="text-xs text-gray-500 uppercase mb-1">Remaining Funds</div>
+                                <div class="text-xs font-semibold text-gray-800" id="details-remaining">—</div>
                             </div>
                             <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Source of Funds</div>
@@ -827,6 +884,8 @@ window.openDetailsModal = function(id) {
     const detailsZoneTypeEl = document.getElementById('details-zone-type');
     if (detailsZoneTypeEl) detailsZoneTypeEl.textContent = '—';
     document.getElementById('details-cost').textContent = '—';
+    if (document.getElementById('details-spent')) document.getElementById('details-spent').textContent = '—';
+    if (document.getElementById('details-remaining')) document.getElementById('details-remaining').textContent = '—';
     document.getElementById('details-funds').textContent = '—';
     document.getElementById('details-description').textContent = 'Loading project data...';
     document.getElementById('details-latitude').textContent = '—';
@@ -864,7 +923,21 @@ window.openDetailsModal = function(id) {
             document.getElementById('details-barangay').textContent = project.barangay || '—';
             const detailsZoneTypeEl = document.getElementById('details-zone-type');
             if (detailsZoneTypeEl) detailsZoneTypeEl.textContent = project.zone_type || 'Not assigned';
-            document.getElementById('details-cost').textContent = project.project_cost ? `₱${parseFloat(project.project_cost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—';
+            const fmtMoney = (val) => `₱${parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('details-cost').textContent = project.project_cost ? fmtMoney(project.project_cost) : '—';
+            if (document.getElementById('details-spent')) {
+                document.getElementById('details-spent').textContent = project.total_spent ? fmtMoney(project.total_spent) : '—';
+            }
+            if (document.getElementById('details-remaining')) {
+                if (project.remaining_funds !== undefined && project.remaining_funds !== null && project.remaining_funds !== '') {
+                    const remainingNum = parseFloat(project.remaining_funds);
+                    document.getElementById('details-remaining').textContent = isNaN(remainingNum) ? '—' : fmtMoney(remainingNum);
+                    document.getElementById('details-remaining').classList.toggle('text-red-700', !isNaN(remainingNum) && remainingNum < 0);
+                    document.getElementById('details-remaining').classList.toggle('text-gray-800', isNaN(remainingNum) || remainingNum >= 0);
+                } else {
+                    document.getElementById('details-remaining').textContent = '—';
+                }
+            }
             document.getElementById('details-funds').textContent = project.source_of_funds || '—';
             document.getElementById('details-description').textContent = project.description || 'No description';
             document.getElementById('details-latitude').textContent = project.latitude || '—';
@@ -1106,6 +1179,92 @@ function updateCoordinateDisplays() {
     }
 }
 
+// --- Purok dropdown (simple, defense-friendly) ---
+// Default to Purok 1..20 for any barangay (can be refined later per barangay).
+window.populatePurokOptions = function(selectEl, currentValue = '') {
+    if (!selectEl) return;
+    const normalizedCurrent = (currentValue || '').trim();
+    const options = [''].concat(Array.from({ length: 20 }, (_, i) => `Purok ${i + 1}`)).concat(['Other']);
+    selectEl.innerHTML = '';
+    options.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val ? val : 'Select Purok (optional)';
+        selectEl.appendChild(opt);
+    });
+    if (normalizedCurrent && !options.includes(normalizedCurrent)) {
+        const opt = document.createElement('option');
+        opt.value = normalizedCurrent;
+        opt.textContent = normalizedCurrent;
+        selectEl.appendChild(opt);
+    }
+    selectEl.value = normalizedCurrent || '';
+};
+
+// --- Barangay boundary validation helpers ---
+let _barangayGeo = null; // raw GeoJSON FeatureCollection
+let _barangayGeomByName = null; // normalized name -> geometry
+
+function _normalizeBarangayName(name) {
+    return (name || '').toLowerCase().trim();
+}
+
+async function _ensureBarangayGeoLoaded() {
+    if (_barangayGeomByName) return;
+    try {
+        const res = await fetch("{% url 'barangay_geojson' %}");
+        if (!res.ok) throw new Error(`GeoJSON fetch failed: ${res.status}`);
+        _barangayGeo = await res.json();
+        _barangayGeomByName = new Map();
+        if (_barangayGeo && Array.isArray(_barangayGeo.features)) {
+            _barangayGeo.features.forEach(f => {
+                const n = _normalizeBarangayName(f?.properties?.name);
+                if (n && f.geometry) _barangayGeomByName.set(n, f.geometry);
+            });
+        }
+    } catch (e) {
+        console.warn('Could not load barangay GeoJSON for boundary validation:', e);
+        _barangayGeomByName = new Map(); // avoid retry loop
+    }
+}
+
+function _pointInRing(lat, lng, ringLngLat) {
+    // ringLngLat: [[lng,lat], ...]
+    let inside = false;
+    for (let i = 0, j = ringLngLat.length - 1; i < ringLngLat.length; j = i++) {
+        const xi = ringLngLat[i][0], yi = ringLngLat[i][1];
+        const xj = ringLngLat[j][0], yj = ringLngLat[j][1];
+        const intersect = ((yi > lat) !== (yj > lat)) &&
+            (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function _pointInPolygonGeometry(lat, lng, geom) {
+    if (!geom) return true;
+    if (geom.type === 'Polygon') {
+        const rings = geom.coordinates || [];
+        if (!rings.length) return true;
+        // Basic check: must be inside outer ring; ignore holes for simplicity
+        return _pointInRing(lat, lng, rings[0]);
+    }
+    if (geom.type === 'MultiPolygon') {
+        const polys = geom.coordinates || [];
+        return polys.some(poly => poly && poly[0] && _pointInRing(lat, lng, poly[0]));
+    }
+    return true;
+}
+
+async function _isInsideSelectedBarangay(lat, lng) {
+    await _ensureBarangayGeoLoaded();
+    const barangay = modalBarangaySelect ? modalBarangaySelect.value : '';
+    if (!barangay) return false; // must choose barangay first
+    const geom = _barangayGeomByName.get(_normalizeBarangayName(barangay));
+    if (!geom) return true; // if unknown, don't block
+    return _pointInPolygonGeometry(lat, lng, geom);
+}
+
 function showPopupMap() {
     if (mapPopupModal) {
         mapPopupModal.classList.remove('hidden');
@@ -1138,9 +1297,17 @@ function showPopupMap() {
                 }).addTo(popupMap);
                 
                 // Add click listener to update coordinates
-                popupMap.on('click', function(e) {
+                let lastValidLatLng = null;
+
+                popupMap.on('click', async function(e) {
                     const clickedLat = e.latlng.lat;
                     const clickedLng = e.latlng.lng;
+
+                    const ok = await _isInsideSelectedBarangay(clickedLat, clickedLng);
+                    if (!ok) {
+                        alert('Selected point is outside the chosen barangay boundary. Please pin inside the selected barangay.');
+                        return;
+                    }
                     
                     // Update inputs with 6 decimal precision
                     if (latInput) latInput.value = clickedLat.toFixed(6);
@@ -1158,13 +1325,22 @@ function showPopupMap() {
                         }).addTo(popupMap);
                         
                         // Allow dragging marker
-                        popupMarker.on('dragend', function(e) {
+                        popupMarker.on('dragend', async function(e) {
                             const pos = popupMarker.getLatLng();
+                            const okDrag = await _isInsideSelectedBarangay(pos.lat, pos.lng);
+                            if (!okDrag) {
+                                alert('Marker is outside the chosen barangay boundary. It will be returned to the last valid position.');
+                                if (lastValidLatLng) popupMarker.setLatLng(lastValidLatLng);
+                                return;
+                            }
+                            lastValidLatLng = { lat: pos.lat, lng: pos.lng };
                             if (latInput) latInput.value = pos.lat.toFixed(6);
                             if (lngInput) lngInput.value = pos.lng.toFixed(6);
                             updateCoordinateDisplays();
                         });
                     }
+
+                    lastValidLatLng = { lat: clickedLat, lng: clickedLng };
                     
                     // Show popup with coordinates
                     popupMarker.bindPopup(`
@@ -1200,12 +1376,21 @@ function showPopupMap() {
                     </div>
                 `).openPopup();
                 
+                let lastValidLatLng = { lat: markerLat, lng: markerLng };
                 // Allow dragging
                 popupMarker.on('dragend', function(e) {
                     const pos = popupMarker.getLatLng();
-                    if (latInput) latInput.value = pos.lat.toFixed(6);
-                    if (lngInput) lngInput.value = pos.lng.toFixed(6);
-                    updateCoordinateDisplays();
+                    _isInsideSelectedBarangay(pos.lat, pos.lng).then(ok => {
+                        if (!ok) {
+                            alert('Marker is outside the chosen barangay boundary. It will be returned to the last valid position.');
+                            if (lastValidLatLng) popupMarker.setLatLng(lastValidLatLng);
+                            return;
+                        }
+                        lastValidLatLng = { lat: pos.lat, lng: pos.lng };
+                        if (latInput) latInput.value = pos.lat.toFixed(6);
+                        if (lngInput) lngInput.value = pos.lng.toFixed(6);
+                        updateCoordinateDisplays();
+                    });
                 });
             }
             
@@ -1214,6 +1399,18 @@ function showPopupMap() {
         }, 100);
     }
 }
+
+// Populate purok options when barangay changes
+document.addEventListener('DOMContentLoaded', function() {
+    const purokSelect = document.getElementById('modal-purok-select');
+    const barangaySelect = document.getElementById('modal-barangay-select');
+    if (barangaySelect && purokSelect) {
+        window.populatePurokOptions(purokSelect, purokSelect.value || '');
+        barangaySelect.addEventListener('change', function() {
+            window.populatePurokOptions(purokSelect, '');
+        });
+    }
+});
 
 function hidePopupMap() {
     if (mapPopupModal) {
@@ -1413,8 +1610,34 @@ window.openEditModal = function(id) {
             projectForm.elements['name'].value = project.name || '';
             projectForm.elements['description'].value = project.description || '';
             projectForm.elements['barangay'].value = project.barangay || '';
+            // Purok dropdown (populate defaults, then set)
+            if (typeof window.populatePurokOptions === 'function') {
+                window.populatePurokOptions(projectForm.elements['purok'], project.purok || '');
+            } else if (projectForm.elements['purok']) {
+                projectForm.elements['purok'].value = project.purok || '';
+            }
             projectForm.elements['project_cost'].value = project.project_cost || '';
-            projectForm.elements['source_of_funds'].value = project.source_of_funds || '';
+            // Source of Funds (select): if value isn't in options, add it dynamically
+            const fundsSelect = projectForm.elements['source_of_funds'];
+            const fundsValue = project.source_of_funds || '';
+            if (fundsSelect && fundsSelect.tagName === 'SELECT') {
+                if (fundsValue) {
+                    const hasOption = Array.from(fundsSelect.options).some(o => o.value === fundsValue);
+                    if (!hasOption) {
+                        const opt = document.createElement('option');
+                        opt.value = fundsValue;
+                        opt.textContent = fundsValue;
+                        fundsSelect.appendChild(opt);
+                    }
+                    fundsSelect.value = fundsValue;
+                } else {
+                    fundsSelect.value = '';
+                }
+            }
+            // Clear add-new input in edit mode
+            if (projectForm.elements['source_of_funds_new']) {
+                projectForm.elements['source_of_funds_new'].value = '';
+            }
             projectForm.elements['status'].value = project.status || '';
             projectForm.elements['latitude'].value = project.latitude || '';
             projectForm.elements['longitude'].value = project.longitude || '';

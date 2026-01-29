@@ -1,3 +1,4 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -74,9 +75,9 @@
                 <td>{{ p.project.prn|default:"" }}</td>
                 <td>{{ p.project.name|default:"" }}</td>
                 <td>{{ p.project.barangay|default:"" }}</td>
-                <td class="text-right">₱{{ p.budget|floatformat:2 }}</td>
-                <td class="text-right">₱{{ p.spent|floatformat:2 }}</td>
-                <td class="text-right">₱{{ p.remaining|floatformat:2 }}</td>
+                <td class="text-right">₱{{ p.budget|floatformat:2|intcomma }}</td>
+                <td class="text-right">₱{{ p.spent|floatformat:2|intcomma }}</td>
+                <td class="text-right">₱{{ p.remaining|floatformat:2|intcomma }}</td>
                 <td class="text-center">{{ p.utilization|floatformat:2 }}%</td>
                 <td>{{ p.project.get_status_display|default:"" }}</td>
                 <td class="text-center">{{ p.over_under }}</td>

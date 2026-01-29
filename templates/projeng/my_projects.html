@@ -238,6 +238,17 @@ window.setBarangayFilter = function(barangay) {
                         <option value="Visayan Village">Visayan Village</option>
                     </select>
                 </div>
+
+                <!-- Scope Filter (Panel #24) -->
+                <div class="w-full lg:w-auto">
+                    <select id="scope-filter"
+                            onchange="window.location.search = (function() { const p = new URLSearchParams(window.location.search); p.set('scope', this.value); return '?' + p.toString(); }).call(this)"
+                            class="w-full lg:w-48 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                        <option value="assigned" {% if scope == 'assigned' or not scope %}selected{% endif %}>Assigned (default)</option>
+                        <option value="combined" {% if scope == 'combined' %}selected{% endif %}>Combined</option>
+                        <option value="own" {% if scope == 'own' %}selected{% endif %}>Own (created by me)</option>
+                    </select>
+                </div>
             </div>
             
             <!-- Status Filter Buttons -->
@@ -246,7 +257,7 @@ window.setBarangayFilter = function(barangay) {
                     All
                 </button>
                 <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
-                    Planned
+                    Planned ({{ planned_pending_count|default:0 }})
                 </button>
                 <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
                     In Progress

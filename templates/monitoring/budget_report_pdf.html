@@ -1,3 +1,4 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -115,11 +116,11 @@
                 <div class="summary-label">Total Projects</div>
             </div>
             <div class="summary-item">
-                <div class="summary-value">₱{{ total_budget|floatformat:2 }}</div>
+                <div class="summary-value">₱{{ total_budget|floatformat:2|intcomma }}</div>
                 <div class="summary-label">Total Budget</div>
             </div>
             <div class="summary-item">
-                <div class="summary-value">₱{{ total_spent|floatformat:2 }}</div>
+                <div class="summary-value">₱{{ total_spent|floatformat:2|intcomma }}</div>
                 <div class="summary-label">Total Spent</div>
             </div>
             <div class="summary-item">
