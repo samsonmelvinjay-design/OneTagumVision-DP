@@ -219,21 +219,26 @@ window.clearServerFilters = function() {
         
         <!-- Filters Section -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-            <div class="flex flex-wrap gap-3 items-start lg:items-center">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
                 <!-- Search Bar -->
-                <div class="flex-1 w-full min-w-[240px]">
+                <div class="lg:col-span-3">
+                    <label for="search-projects" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Search</label>
                     <div class="relative">
                         <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        <input type="text" id="search-projects" oninput="window.searchTerm = this.value.toLowerCase(); if (typeof window.filterProjects === 'function') window.filterProjects();" placeholder="Search projects by name or description..." 
-                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <input type="text"
+                               id="search-projects"
+                               oninput="window.searchTerm = this.value.toLowerCase(); if (typeof window.filterProjects === 'function') window.filterProjects();"
+                               placeholder="Search projects..."
+                               class="h-11 w-full pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                     </div>
                 </div>
-                
+
                 <!-- Barangay Filter -->
-                <div class="w-full sm:w-56">
-                    <select id="barangay-filter" onchange="window.setBarangayFilter(this.value)" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                <div class="lg:col-span-2">
+                    <label for="barangay-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Barangay</label>
+                    <select id="barangay-filter" onchange="window.setBarangayFilter(this.value)" class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                         <option value="">All Barangays</option>
                         <option value="Apokon">Apokon</option>
                         <option value="Bincungan">Bincungan</option>
@@ -262,10 +267,11 @@ window.clearServerFilters = function() {
                 </div>
 
                 <!-- Scope Filter (Panel #24) -->
-                <div class="w-full sm:w-48">
+                <div class="lg:col-span-2">
+                    <label for="scope-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Scope</label>
                     <select id="scope-filter"
                             onchange="window.location.search = (function() { const p = new URLSearchParams(window.location.search); p.set('scope', this.value); return '?' + p.toString(); }).call(this)"
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                            class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                         <option value="assigned" {% if scope == 'assigned' or not scope %}selected{% endif %}>Assigned (default)</option>
                         <option value="combined" {% if scope == 'combined' %}selected{% endif %}>Combined</option>
                         <option value="own" {% if scope == 'own' %}selected{% endif %}>Own (created by me)</option>
@@ -273,9 +279,10 @@ window.clearServerFilters = function() {
                 </div>
 
                 <!-- Panel #4: Project Type + Cost Range filters (server-side) -->
-                <div class="w-full sm:w-64">
+                <div class="lg:col-span-2">
+                    <label for="project-type-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Project Type</label>
                     <select id="project-type-filter"
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                            class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                         <option value="">All Project Types</option>
                         {% for pt in project_type_options %}
                             <option value="{{ pt.id }}" {% if selected_project_type|default:'' == pt.id|stringformat:'s' %}selected{% endif %}>
@@ -284,43 +291,52 @@ window.clearServerFilters = function() {
                         {% endfor %}
                     </select>
                 </div>
-                <div class="w-full sm:w-auto flex gap-2">
+
+                <div class="lg:col-span-1">
+                    <label for="cost-min-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Min</label>
                     <input id="cost-min-filter" type="number" step="0.01" min="0"
-                           placeholder="Cost min" value="{{ cost_min|default:'' }}"
-                           class="w-full sm:w-40 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                    <input id="cost-max-filter" type="number" step="0.01" min="0"
-                           placeholder="Cost max" value="{{ cost_max|default:'' }}"
-                           class="w-full sm:w-40 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                           placeholder="0"
+                           value="{{ cost_min|default:'' }}"
+                           class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                 </div>
-                <div class="w-full sm:w-auto flex gap-2">
+                <div class="lg:col-span-1">
+                    <label for="cost-max-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Max</label>
+                    <input id="cost-max-filter" type="number" step="0.01" min="0"
+                           placeholder="0"
+                           value="{{ cost_max|default:'' }}"
+                           class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                </div>
+
+                <div class="lg:col-span-1 flex gap-2 justify-start lg:justify-end">
                     <button type="button"
                             onclick="window.applyServerFilters && window.applyServerFilters()"
-                            class="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-semibold">
+                            class="h-11 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-semibold">
                         Apply
                     </button>
                     <button type="button"
                             onclick="window.clearServerFilters && window.clearServerFilters()"
-                            class="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold">
+                            class="h-11 px-4 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold">
                         Clear
                     </button>
                 </div>
             </div>
             
             <!-- Status Filter Buttons -->
-            <div class="mt-4 flex flex-wrap gap-2">
-                <button type="button" id="filter-all" onclick="window.setStatusFilter('')" class="filter-btn active px-4 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100" style="cursor: pointer;">
+            <div class="mt-4 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-2">
+                <span class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mr-1">Status</span>
+                <button type="button" id="filter-all" onclick="window.setStatusFilter('')" class="filter-btn active px-3 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100" style="cursor: pointer;">
                     All
                 </button>
-                <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
+                <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
                     Planned ({{ planned_pending_count|default:0 }})
                 </button>
-                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
+                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
                     In Progress
                 </button>
-                <button type="button" id="filter-completed" onclick="window.setStatusFilter('completed')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100" style="cursor: pointer;">
+                <button type="button" id="filter-completed" onclick="window.setStatusFilter('completed')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100" style="cursor: pointer;">
                     Completed
                 </button>
-                <button type="button" id="filter-delayed" onclick="window.setStatusFilter('delayed')" class="filter-btn px-4 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100" style="cursor: pointer;">
+                <button type="button" id="filter-delayed" onclick="window.setStatusFilter('delayed')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100" style="cursor: pointer;">
                     Delayed
                 </button>
             </div>
