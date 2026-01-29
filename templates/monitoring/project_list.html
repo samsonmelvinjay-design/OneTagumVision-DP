@@ -329,6 +329,15 @@
                             <option value="completed">Completed</option>
                         </select>
                         <label class="font-semibold text-gray-700">Assigned Engineers</label>
+                        <!-- Searchable engineer selector (panel #17) -->
+                        <input
+                            type="text"
+                            id="assigned-engineers-search"
+                            class="rounded-lg border border-gray-300 px-4 py-2.5 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                            placeholder="Search engineer name..."
+                            autocomplete="off"
+                        />
+                        <div id="assigned-engineers-chips" class="flex flex-wrap gap-2"></div>
                         <select name="assigned_engineers" id="assigned-engineers-select" class="rounded-lg border border-gray-300 px-4 py-2.5 w-full" multiple required style="height: 110px; min-width: 180px;">
                             <!-- Options will be populated by JavaScript -->
                         </select>
@@ -759,6 +768,73 @@ const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const successToast = document.getElementById('success-toast');
 const modalBarangaySelect = document.getElementById('modal-barangay-select');
 const assignedEngineersSelect = document.getElementById('assigned-engineers-select');
+const assignedEngineersSearch = document.getElementById('assigned-engineers-search');
+const assignedEngineersChips = document.getElementById('assigned-engineers-chips');
+
+function _normalizeText(val) {
+    return (val || '').toString().trim().toLowerCase();
+}
+
+function renderAssignedEngineerChips() {
+    if (!assignedEngineersSelect || !assignedEngineersChips) return;
+    assignedEngineersChips.innerHTML = '';
+    const selected = Array.from(assignedEngineersSelect.selectedOptions || []);
+    if (selected.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'text-xs text-gray-500';
+        empty.textContent = 'No engineers selected yet.';
+        assignedEngineersChips.appendChild(empty);
+        return;
+    }
+    selected.forEach(opt => {
+        const chip = document.createElement('span');
+        chip.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-sm';
+        chip.textContent = opt.textContent || opt.value;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-blue-700 hover:text-blue-900 font-bold leading-none';
+        btn.setAttribute('aria-label', `Remove ${opt.textContent || 'engineer'}`);
+        btn.textContent = '×';
+        btn.addEventListener('click', () => {
+            opt.selected = false;
+            assignedEngineersSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        chip.appendChild(btn);
+        assignedEngineersChips.appendChild(chip);
+    });
+}
+
+function filterAssignedEngineersOptions() {
+    if (!assignedEngineersSelect || !assignedEngineersSearch) return;
+    const q = _normalizeText(assignedEngineersSearch.value);
+    Array.from(assignedEngineersSelect.options || []).forEach(opt => {
+        // Keep selected visible so users can always unselect
+        if (opt.selected) {
+            opt.hidden = false;
+            return;
+        }
+        const label = _normalizeText(opt.textContent);
+        opt.hidden = q ? !label.includes(q) : false;
+    });
+}
+
+function initAssignedEngineersSelectorOnce() {
+    if (!assignedEngineersSelect) return;
+    if (assignedEngineersSelect.dataset.enhanced === '1') return;
+    assignedEngineersSelect.dataset.enhanced = '1';
+
+    if (assignedEngineersSearch) {
+        assignedEngineersSearch.addEventListener('input', filterAssignedEngineersOptions);
+    }
+    assignedEngineersSelect.addEventListener('change', () => {
+        renderAssignedEngineerChips();
+        // If user deselects everything, unhide all options
+        filterAssignedEngineersOptions();
+    });
+    renderAssignedEngineerChips();
+}
 
 function showToast(message) {
     if (successToast) {
@@ -786,6 +862,8 @@ function hideModal() {
     projectForm.setAttribute('data-mode', 'add');
     // Clear assigned engineers options
     assignedEngineersSelect.innerHTML = '';
+    if (assignedEngineersSearch) assignedEngineersSearch.value = '';
+    if (assignedEngineersChips) assignedEngineersChips.innerHTML = '';
     // Reset button text to default
     const submitBtn = projectForm.querySelector('button[type="submit"]');
     if (submitBtn) {
@@ -830,6 +908,9 @@ function populateEngineers() {
                 option.textContent = engineer.full_name || engineer.username;
                 assignedEngineersSelect.appendChild(option);
             });
+            initAssignedEngineersSelectorOnce();
+            filterAssignedEngineersOptions();
+            renderAssignedEngineerChips();
         })
         .catch(err => {
             console.error('Failed to fetch engineers:', err);
@@ -1660,6 +1741,13 @@ window.openEditModal = function(id) {
                             option.selected = true;
                         }
                     }
+                }
+                // Refresh enhanced selector UI after selection is applied
+                if (typeof renderAssignedEngineerChips === 'function') {
+                    renderAssignedEngineerChips();
+                }
+                if (typeof filterAssignedEngineersOptions === 'function') {
+                    filterAssignedEngineersOptions();
                 }
                 
                 // Restore button state and update text for edit mode

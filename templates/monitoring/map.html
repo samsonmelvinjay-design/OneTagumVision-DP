@@ -1846,6 +1846,15 @@ function formatDate(dateStr) {
                         <option value="completed">Completed</option>
                     </select>
                     <label class="font-semibold text-gray-700">Assigned Engineers</label>
+                    <!-- Searchable engineer selector (panel #17) -->
+                    <input
+                        type="text"
+                        id="assigned-engineers-search"
+                        class="rounded-lg border border-gray-300 px-4 py-2.5 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                        placeholder="Search engineer name..."
+                        autocomplete="off"
+                    />
+                    <div id="assigned-engineers-chips" class="flex flex-wrap gap-2"></div>
                     <select name="assigned_engineers" id="assigned-engineers-select" class="rounded-lg border border-gray-300 px-4 py-2.5 w-full" multiple required style="height: 110px; min-width: 180px;">
                         <!-- Options will be populated by JavaScript -->
                     </select>
@@ -2048,6 +2057,10 @@ function hideModal() {
     if (assignedEngineersSelect) {
         assignedEngineersSelect.innerHTML = '';
     }
+    const engineerSearch = document.getElementById('assigned-engineers-search');
+    const engineerChips = document.getElementById('assigned-engineers-chips');
+    if (engineerSearch) engineerSearch.value = '';
+    if (engineerChips) engineerChips.innerHTML = '';
 }
 
 window.closeProjectModal = hideModal;
@@ -2466,6 +2479,85 @@ function initializeModalButtons() {
     console.log('All modal buttons initialized');
 }
 
+// --- Assigned Engineers: searchable multi-select + chips (panel #17) ---
+function _normalizeText(val) {
+    return (val || '').toString().trim().toLowerCase();
+}
+
+function renderAssignedEngineerChips() {
+    const selectEl = document.getElementById('assigned-engineers-select');
+    const chipsEl = document.getElementById('assigned-engineers-chips');
+    if (!selectEl || !chipsEl) return;
+
+    chipsEl.innerHTML = '';
+    const selected = Array.from(selectEl.selectedOptions || []);
+    if (selected.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'text-xs text-gray-500';
+        empty.textContent = 'No engineers selected yet.';
+        chipsEl.appendChild(empty);
+        return;
+    }
+
+    selected.forEach(opt => {
+        const chip = document.createElement('span');
+        chip.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-sm';
+        chip.textContent = opt.textContent || opt.value;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-blue-700 hover:text-blue-900 font-bold leading-none';
+        btn.setAttribute('aria-label', `Remove ${opt.textContent || 'engineer'}`);
+        btn.textContent = '×';
+        btn.addEventListener('click', () => {
+            opt.selected = false;
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        chip.appendChild(btn);
+        chipsEl.appendChild(chip);
+    });
+}
+
+function filterAssignedEngineersOptions() {
+    const selectEl = document.getElementById('assigned-engineers-select');
+    const searchEl = document.getElementById('assigned-engineers-search');
+    if (!selectEl || !searchEl) return;
+
+    const q = _normalizeText(searchEl.value);
+    Array.from(selectEl.options || []).forEach(opt => {
+        // Keep selected visible so users can always unselect
+        if (opt.selected) {
+            opt.hidden = false;
+            return;
+        }
+        const label = _normalizeText(opt.textContent);
+        opt.hidden = q ? !label.includes(q) : false;
+    });
+}
+
+function initAssignedEngineersSelectorOnce() {
+    const selectEl = document.getElementById('assigned-engineers-select');
+    const searchEl = document.getElementById('assigned-engineers-search');
+    if (!selectEl) return;
+    if (selectEl.dataset.enhanced === '1') return;
+    selectEl.dataset.enhanced = '1';
+
+    if (searchEl) {
+        searchEl.addEventListener('input', filterAssignedEngineersOptions);
+    }
+    selectEl.addEventListener('change', () => {
+        renderAssignedEngineerChips();
+        filterAssignedEngineersOptions();
+    });
+    renderAssignedEngineerChips();
+}
+
+// Expose for other parts of this template
+window.renderAssignedEngineerChips = renderAssignedEngineerChips;
+window.filterAssignedEngineersOptions = filterAssignedEngineersOptions;
+window.initAssignedEngineersSelectorOnce = initAssignedEngineersSelectorOnce;
+
 function populateEngineers() {
     // Get fresh reference to element
     const engineersSelect = document.getElementById('assigned-engineers-select');
@@ -2580,6 +2672,17 @@ function populateEngineers() {
                 const option = document.createElement('option');
                 option.textContent = 'No other engineers available';
                 selectEl.appendChild(option);
+            }
+
+            // Enhance selector UI (panel #17)
+            if (typeof window.initAssignedEngineersSelectorOnce === 'function') {
+                window.initAssignedEngineersSelectorOnce();
+            }
+            if (typeof window.filterAssignedEngineersOptions === 'function') {
+                window.filterAssignedEngineersOptions();
+            }
+            if (typeof window.renderAssignedEngineerChips === 'function') {
+                window.renderAssignedEngineerChips();
             }
         })
         .catch(err => {
