@@ -302,10 +302,7 @@
                             <option value="San Miguel">San Miguel</option>
                             <option value="Visayan Village">Visayan Village</option>
                         </select>
-                        <label class="font-semibold text-gray-700">Purok</label>
-                        <select name="purok" id="modal-purok-select" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none">
-                            <option value="">Select Purok (optional)</option>
-                        </select>
+                        <!-- Purok removed: panel requirement is barangay boundary validation -->
                     </div>
                     
                     <!-- Column 2: Financial & Status -->
@@ -1481,17 +1478,7 @@ function showPopupMap() {
     }
 }
 
-// Populate purok options when barangay changes
-document.addEventListener('DOMContentLoaded', function() {
-    const purokSelect = document.getElementById('modal-purok-select');
-    const barangaySelect = document.getElementById('modal-barangay-select');
-    if (barangaySelect && purokSelect) {
-        window.populatePurokOptions(purokSelect, purokSelect.value || '');
-        barangaySelect.addEventListener('change', function() {
-            window.populatePurokOptions(purokSelect, '');
-        });
-    }
-});
+// Purok removed: no purok dropdown to populate
 
 function hidePopupMap() {
     if (mapPopupModal) {
@@ -1691,12 +1678,7 @@ window.openEditModal = function(id) {
             projectForm.elements['name'].value = project.name || '';
             projectForm.elements['description'].value = project.description || '';
             projectForm.elements['barangay'].value = project.barangay || '';
-            // Purok dropdown (populate defaults, then set)
-            if (typeof window.populatePurokOptions === 'function') {
-                window.populatePurokOptions(projectForm.elements['purok'], project.purok || '');
-            } else if (projectForm.elements['purok']) {
-                projectForm.elements['purok'].value = project.purok || '';
-            }
+            // Purok removed
             projectForm.elements['project_cost'].value = project.project_cost || '';
             // Source of Funds (select): if value isn't in options, add it dynamically
             const fundsSelect = projectForm.elements['source_of_funds'];

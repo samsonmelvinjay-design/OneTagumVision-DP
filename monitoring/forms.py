@@ -8,7 +8,7 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         fields = [
-            'prn', 'name', 'description', 'barangay', 'purok', 'project_cost', 'source_of_funds',
+            'prn', 'name', 'description', 'barangay', 'project_cost', 'source_of_funds',
             'status', 'project_type', 'zone_type', 'latitude', 'longitude', 'start_date', 'end_date', 'image', 'assigned_engineers'
         ]
 

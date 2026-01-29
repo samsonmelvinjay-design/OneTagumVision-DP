@@ -349,14 +349,8 @@ async function _isInsideSelectedBarangay(lat, lng) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const purokSelect = document.getElementById('modal-purok-select');
     const barangaySelect = document.getElementById('modal-barangay-select');
-    if (barangaySelect && purokSelect) {
-        window.populatePurokOptions(purokSelect, purokSelect.value || '');
-        barangaySelect.addEventListener('change', function() {
-            window.populatePurokOptions(purokSelect, '');
-        });
-    }
+    // Purok removed: no purok dropdown to populate
 });
 </script>
 
@@ -1819,10 +1813,7 @@ function formatDate(dateStr) {
                         <option value="San Miguel">San Miguel</option>
                         <option value="Visayan Village">Visayan Village</option>
                     </select>
-                    <label class="font-semibold text-gray-700">Purok</label>
-                    <select name="purok" id="modal-purok-select" class="rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none">
-                        <option value="">Select Purok (optional)</option>
-                    </select>
+                    <!-- Purok removed: panel requirement is barangay boundary validation -->
                 </div>
                 
                 <!-- Column 2: Financial & Status -->

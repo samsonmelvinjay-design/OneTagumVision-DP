@@ -799,7 +799,6 @@ def project_list(request):
                 'prn': p.prn or '',
                 'description': p.description or '',
                 'barangay': p.barangay or '',
-                'purok': getattr(p, 'purok', '') or '',
                 'latitude': float(p.latitude) if p.latitude else '',
                 'longitude': float(p.longitude) if p.longitude else '',
                 'project_cost': f"{budget_val:.2f}" if budget_val is not None else '',
@@ -975,7 +974,6 @@ def map_view(request):
                     'latitude': float(p.latitude) if p.latitude else 0.0,
                     'longitude': float(p.longitude) if p.longitude else 0.0,
                     'barangay': p.barangay or '',
-                    'purok': getattr(p, 'purok', '') or '',
                     'status': calculated_status,  # Use calculated_status instead of p.status
                     'description': p.description or '',
                     'project_cost': f"{budget_val:.2f}" if budget_val is not None else "",
@@ -1452,7 +1450,6 @@ def project_get_api(request, pk):
             'prn': project.prn or '',
             'description': project.description or '',
             'barangay': project.barangay or '',
-            'purok': getattr(project, 'purok', '') or '',
             'latitude': float(project.latitude) if project.latitude else '',
             'longitude': float(project.longitude) if project.longitude else '',
             'project_cost': f"{project.project_cost:.2f}" if project.project_cost is not None else '',

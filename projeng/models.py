@@ -53,7 +53,6 @@ class Project(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     barangay = models.CharField(max_length=255, blank=True, null=True)
-    purok = models.CharField(max_length=100, blank=True, null=True)
     project_cost = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
     source_of_funds = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planned')
