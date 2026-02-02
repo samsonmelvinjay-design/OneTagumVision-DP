@@ -2898,6 +2898,7 @@ function populateEngineers() {
 // Popup Map Modal Logic
 let popupMap = null;
 let popupMarker = null;
+let barangayBoundaryLayer = null;
 let mapPopupModal = null;
 let popupMapDiv = null;
 let closeMapPopup = null;
@@ -2915,6 +2916,61 @@ function initializeMapPopupElements() {
     mapFullscreenBtn = document.getElementById('map-fullscreen-btn');
     latInput = document.getElementById('latitude-input');
     lngInput = document.getElementById('longitude-input');
+}
+
+function _clearBarangayBoundary() {
+    try {
+        if (popupMap && barangayBoundaryLayer) {
+            popupMap.removeLayer(barangayBoundaryLayer);
+        }
+    } catch (_) {}
+    barangayBoundaryLayer = null;
+}
+
+async function _drawSelectedBarangayBoundary() {
+    try {
+        if (!popupMap) return;
+        await _ensureBarangayGeoLoaded();
+        _clearBarangayBoundary();
+
+        const barangaySelect = document.getElementById('modal-barangay-select');
+        const selectedBarangay = barangaySelect ? barangaySelect.value : '';
+        if (!selectedBarangay || !_barangayGeo || !Array.isArray(_barangayGeo.features)) return;
+
+        const target = _normalizeBarangayName(selectedBarangay);
+        const feature = _barangayGeo.features.find(f => _normalizeBarangayName(f && f.properties ? f.properties.name : '') === target);
+        if (!feature) return;
+
+        if (!popupMap.getPane('barangayBoundaryPane')) {
+            const pane = popupMap.createPane('barangayBoundaryPane');
+            pane.style.zIndex = '450'; // above tiles, below markers
+        }
+
+        barangayBoundaryLayer = L.geoJSON(feature, {
+            pane: 'barangayBoundaryPane',
+            interactive: false,
+            style: {
+                color: '#2563eb',
+                weight: 3,
+                opacity: 0.95,
+                fillColor: '#60a5fa',
+                fillOpacity: 0.08,
+                dashArray: '6 6',
+            },
+        }).addTo(popupMap);
+
+        const hasPoint = (latInput && latInput.value && lngInput && lngInput.value);
+        if (!hasPoint) {
+            try {
+                const b = barangayBoundaryLayer.getBounds();
+                if (b && b.isValid && b.isValid()) {
+                    popupMap.fitBounds(b, { padding: [16, 16] });
+                }
+            } catch (_) {}
+        }
+    } catch (e) {
+        console.warn('Failed to draw barangay boundary:', e);
+    }
 }
 
 // Make showPopupMap globally available - replace placeholder with full implementation
@@ -3003,6 +3059,7 @@ window.showPopupMap = function() {
         // Clean up any existing map instance
         if (popupMap) {
             try {
+                _clearBarangayBoundary();
                 popupMap.remove();
                 popupMap = null;
             } catch (e) {
@@ -3060,6 +3117,7 @@ window.showPopupMap = function() {
             
             tileLayer.addTo(popupMap);
             console.log('Tile layer added to map');
+            _drawSelectedBarangayBoundary();
             
             // Force map to update
             popupMap.invalidateSize();
@@ -3180,6 +3238,16 @@ window.showPopupMap = function() {
             }
             
         });
+
+        // Keep boundary updated when barangay changes (bind once)
+        const barangaySelect = document.getElementById('modal-barangay-select');
+        if (barangaySelect && barangaySelect.dataset.boundaryWatch !== '1') {
+            barangaySelect.dataset.boundaryWatch = '1';
+            barangaySelect.addEventListener('change', () => {
+                if (!popupMap) return;
+                _drawSelectedBarangayBoundary();
+            });
+        }
         
         // Invalidate size multiple times to ensure map renders correctly after modal is fully visible
         setTimeout(() => { 
