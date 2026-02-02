@@ -26,7 +26,7 @@ class Project(models.Model):
         ('delayed', 'Delayed'),
     ]
 
-    prn = models.CharField(max_length=50, blank=True, null=True)
+    prn = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True)
     barangay = models.CharField(max_length=100, blank=True, null=True)
     project_cost = models.CharField(max_length=100, blank=True, null=True)
     source_of_funds = models.CharField(max_length=100, blank=True, null=True)

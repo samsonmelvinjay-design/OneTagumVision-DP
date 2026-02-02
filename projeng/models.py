@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 import secrets
+from django.db import IntegrityError, transaction
 
 # Import custom storage backend
 def get_media_storage():
@@ -51,7 +52,7 @@ class Project(models.Model):
         ('delayed', 'Delayed'),
     ]
 
-    prn = models.CharField(max_length=255, blank=True, null=True)
+    prn = models.CharField(max_length=255, blank=True, null=True, unique=True, db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     barangay = models.CharField(max_length=255, blank=True, null=True)
@@ -111,12 +112,18 @@ class Project(models.Model):
     def save(self, *args, **kwargs):
         # Auto-generate PRN if left blank (panel suggestion)
         if not (self.prn or "").strip():
-            # Ensure uniqueness at application level (DB does not enforce unique)
-            candidate = self._generate_unique_prn()
-            while Project.objects.filter(prn=candidate).exclude(pk=self.pk).exists():
+            # With DB unique constraint, retry on rare collisions/races
+            for _ in range(20):
                 candidate = self._generate_unique_prn()
-            self.prn = candidate
-        super().save(*args, **kwargs)
+                self.prn = candidate
+                try:
+                    with transaction.atomic():
+                        return super().save(*args, **kwargs)
+                except IntegrityError:
+                    # Collision (or race). Try again.
+                    continue
+            # If we somehow fail repeatedly, let it raise on final attempt.
+        return super().save(*args, **kwargs)
 
     def get_status_display_class(self):
         status_classes = {
