@@ -1973,6 +1973,7 @@ def head_engineer_analytics(request):
             'name': p.name,
             'prn': p.prn or '',
             'barangay': p.barangay or '',
+            'source_of_funds': p.source_of_funds or '',
             'total_progress': progress,
             'status': calculated_status,  # Use calculated_status instead of stored status
             'status_display': status_display,
