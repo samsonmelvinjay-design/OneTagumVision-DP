@@ -12,7 +12,7 @@
 
 {% block content %}
 <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-6 lg:px-8">
+    <div class="mx-auto max-w-screen-2xl px-4 py-6 lg:px-6">
         <!-- Page Header -->
         <div class="mb-6">
             <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
@@ -97,15 +97,15 @@
         <!-- Projects Table Card -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2 whitespace-nowrap flex-shrink-0">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                         </svg>
                         Projects List
                     </h2>
-                    <form id="filter-form" method="get" class="grid grid-cols-1 md:grid-cols-8 gap-3 w-full md:w-auto">
-                        <div>
+                    <form id="filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 w-full">
+                        <div class="lg:col-span-2">
                             <label for="filter-barangay" class="block text-xs font-semibold text-gray-600 mb-1">Barangay</label>
                             <select id="filter-barangay" name="barangay" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not barangay_filter %}selected{% endif %}>All Barangays</option>
@@ -135,7 +135,7 @@
                             </select>
                         </div>
 
-                        <div>
+                        <div class="lg:col-span-2">
                             <label for="filter-status" class="block text-xs font-semibold text-gray-600 mb-1">Status</label>
                             <select id="filter-status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
@@ -146,7 +146,7 @@
                             </select>
                         </div>
 
-                        <div>
+                        <div class="lg:col-span-2">
                             <label for="filter-duration" class="block text-xs font-semibold text-gray-600 mb-1">Duration</label>
                             <select id="filter-duration" name="duration" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not duration_filter %}selected{% endif %}>All Durations</option>
@@ -156,7 +156,7 @@
                             </select>
                         </div>
 
-                        <div>
+                        <div class="lg:col-span-2">
                             <label for="filter-source-of-funds" class="block text-xs font-semibold text-gray-600 mb-1">Source of Funds</label>
                             <select id="filter-source-of-funds" name="source_of_funds" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not source_of_funds_filter %}selected{% endif %}>All Sources</option>
@@ -166,7 +166,7 @@
                             </select>
                         </div>
 
-                        <div>
+                        <div class="lg:col-span-2">
                             <label for="filter-project-type" class="block text-xs font-semibold text-gray-600 mb-1">Project Type</label>
                             <select id="filter-project-type" name="project_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not project_type_filter %}selected{% endif %}>All Types</option>
@@ -176,38 +176,28 @@
                             </select>
                         </div>
 
-                        <div>
+                        <div class="lg:col-span-1">
                             <label for="filter-cost-min" class="block text-xs font-semibold text-gray-600 mb-1">Cost Min</label>
                             <input id="filter-cost-min" name="cost_min" type="number" step="0.01" inputmode="decimal" value="{{ cost_min }}" placeholder="₱ min"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all" />
                         </div>
 
-                        <div>
+                        <div class="lg:col-span-1">
                             <label for="filter-cost-max" class="block text-xs font-semibold text-gray-600 mb-1">Cost Max</label>
                             <input id="filter-cost-max" name="cost_max" type="number" step="0.01" inputmode="decimal" value="{{ cost_max }}" placeholder="₱ max"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all" />
-                        </div>
-
-                        <div class="flex items-end">
-                            <div class="w-full flex gap-2">
-                                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center text-sm">
-                                    Apply
-                                </button>
-                                <a href="{% url 'head_engineer_analytics' %}" class="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-200 text-center text-sm">
-                                    Clear
-                                </a>
-                            </div>
                         </div>
                     </form>
                 </div>
             </div>
             
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[900px] divide-y divide-gray-200">
+                <table class="w-full min-w-[1100px] divide-y divide-gray-200">
                     <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                         <tr>
                             <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Project Name</th>
                             <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Barangay</th>
+                            <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Source of Funds</th>
                             <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Progress</th>
                             <th class="px-4 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
                             <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Start Date</th>
@@ -227,6 +217,9 @@
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-700">
                                 {{ project.barangay|default:'—' }}
+                            </td>
+                            <td class="px-4 py-4 text-sm text-gray-700">
+                                {{ project.source_of_funds|default:'—' }}
                             </td>
                             <td class="px-4 py-4">
                                 <div class="flex items-center gap-3">
@@ -300,7 +293,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="{% if user_role == 'head_engineer' %}8{% else %}7{% endif %}" class="text-center py-12">
+                            <td colspan="{% if user_role == 'head_engineer' %}9{% else %}8{% endif %}" class="text-center py-12">
                                 <div class="flex flex-col items-center">
                                     <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -526,58 +519,48 @@ function filterByStatus(status, card) {
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-apply filters on change
     const filterForm = utils.getElement('filter-form');
-    const searchInput = utils.getElement('search-input');
-    const filterStatus = utils.getElement('filter-status');
-    const filterBarangay = utils.getElement('filter-barangay');
-    
-    // Debounce function for search input
-    let searchTimeout;
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(function() {
-                if (filterForm) {
-                    // Reset to page 1 when filtering
-                    const pageInput = document.createElement('input');
-                    pageInput.type = 'hidden';
-                    pageInput.name = 'page';
-                    pageInput.value = '1';
-                    filterForm.appendChild(pageInput);
-                    filterForm.submit();
-                }
-            }, 500); // 500ms debounce
+    const autoSubmit = () => {
+        if (!filterForm) return;
+        // Reset to page 1 when filtering (avoid stacking hidden inputs)
+        const existing = filterForm.querySelector('input[name="page"]');
+        if (existing) existing.remove();
+        const pageInput = document.createElement('input');
+        pageInput.type = 'hidden';
+        pageInput.name = 'page';
+        pageInput.value = '1';
+        filterForm.appendChild(pageInput);
+        filterForm.submit();
+    };
+
+    // Immediate submit on dropdown changes
+    const immediateIds = [
+        'filter-barangay',
+        'filter-status',
+        'filter-duration',
+        'filter-source-of-funds',
+        'filter-project-type',
+    ];
+    immediateIds.forEach((id) => {
+        const el = utils.getElement(id);
+        if (!el) return;
+        el.addEventListener('change', autoSubmit);
+    });
+
+    // Debounced submit for cost inputs
+    let costTimer;
+    const costIds = ['filter-cost-min', 'filter-cost-max'];
+    costIds.forEach((id) => {
+        const el = utils.getElement(id);
+        if (!el) return;
+        el.addEventListener('input', () => {
+            clearTimeout(costTimer);
+            costTimer = setTimeout(autoSubmit, 500);
         });
-    }
-    
-    // Auto-submit on status change
-    if (filterStatus) {
-        filterStatus.addEventListener('change', function() {
-            if (filterForm) {
-                // Reset to page 1 when filtering
-                const pageInput = document.createElement('input');
-                pageInput.type = 'hidden';
-                pageInput.name = 'page';
-                pageInput.value = '1';
-                filterForm.appendChild(pageInput);
-                filterForm.submit();
-            }
+        el.addEventListener('change', () => {
+            clearTimeout(costTimer);
+            costTimer = setTimeout(autoSubmit, 150);
         });
-    }
-    
-    // Auto-submit on barangay change
-    if (filterBarangay) {
-        filterBarangay.addEventListener('change', function() {
-            if (filterForm) {
-                // Reset to page 1 when filtering
-                const pageInput = document.createElement('input');
-                pageInput.type = 'hidden';
-                pageInput.name = 'page';
-                pageInput.value = '1';
-                filterForm.appendChild(pageInput);
-                filterForm.submit();
-            }
-        });
-    }
+    });
     
     // Initialize cost entry form
     const costEntryForm = utils.getElement('cost-entry-form');
