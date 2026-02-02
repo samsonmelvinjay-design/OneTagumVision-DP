@@ -598,9 +598,9 @@ def project_list(request):
             
             # Re-render with errors for non-AJAX requests
             if is_head_engineer(request.user) or is_finance_manager(request.user):
-                projects = Project.objects.all().order_by('-created_at')
+                projects = Project.objects.all().select_related('project_type').order_by('-created_at')
             elif is_project_engineer(request.user):
-                projects = Project.objects.filter(assigned_engineers=request.user).order_by('-created_at')
+                projects = Project.objects.filter(assigned_engineers=request.user).select_related('project_type').order_by('-created_at')
             else:
                 projects = Project.objects.none()
             paginator = Paginator(projects, 10)
@@ -609,9 +609,9 @@ def project_list(request):
             return render(request, 'monitoring/project_list.html', {'page_obj': page_obj, 'form': form})
     # GET logic
     if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
+        projects = Project.objects.all().select_related('project_type')
     elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
+        projects = Project.objects.filter(assigned_engineers=request.user).select_related('project_type')
     else:
         projects = Project.objects.none()
 
@@ -1756,7 +1756,7 @@ def head_engineer_analytics(request):
     import json
 
     # Base queryset (will be narrowed by filters)
-    base_projects = Project.objects.all()
+    base_projects = Project.objects.all().select_related('project_type')
 
     # Seed SourceOfFunds master list if empty (so dropdown isn't blank)
     if not SourceOfFunds.objects.exists():
@@ -1973,6 +1973,7 @@ def head_engineer_analytics(request):
             'name': p.name,
             'prn': p.prn or '',
             'barangay': p.barangay or '',
+            'project_type': p.project_type.name if (getattr(p, 'project_type', None) and p.project_type) else '',
             'source_of_funds': p.source_of_funds or '',
             'total_progress': progress,
             'status': calculated_status,  # Use calculated_status instead of stored status
