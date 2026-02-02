@@ -151,11 +151,14 @@ def engineer_detail(request, engineer_id):
     cost_max_raw = (request.GET.get('cost_max') or '').strip()
 
     # Scope: all (default), combined (shared with other engineers), own (engineer is sole assignee)
+    # Compute scope from Project table so counts are correct (annotating on reverse M2M can give wrong results)
     filtered_projects = assigned_projects
     if scope_filter == 'own':
-        filtered_projects = filtered_projects.annotate(num_assignees=Count('assigned_engineers', distinct=True)).filter(num_assignees=1)
+        own_ids = Project.objects.annotate(num_assignees=Count('assigned_engineers', distinct=True)).filter(num_assignees=1).values_list('id', flat=True)
+        filtered_projects = filtered_projects.filter(id__in=own_ids)
     elif scope_filter == 'combined':
-        filtered_projects = filtered_projects.annotate(num_assignees=Count('assigned_engineers', distinct=True)).filter(num_assignees__gt=1)
+        combined_ids = Project.objects.annotate(num_assignees=Count('assigned_engineers', distinct=True)).filter(num_assignees__gt=1).values_list('id', flat=True)
+        filtered_projects = filtered_projects.filter(id__in=combined_ids)
 
     if search_query:
         filtered_projects = filtered_projects.filter(
