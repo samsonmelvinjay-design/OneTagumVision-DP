@@ -146,10 +146,16 @@ def engineer_detail(request, engineer_id):
     search_query = (request.GET.get('search') or '').strip()
     status_filter = (request.GET.get('status') or '').strip()
     project_type_filter = (request.GET.get('project_type') or '').strip()
+    scope_filter = (request.GET.get('scope') or '').strip().lower()
     cost_min_raw = (request.GET.get('cost_min') or '').strip()
     cost_max_raw = (request.GET.get('cost_max') or '').strip()
 
+    # Scope: all (default), combined (shared with other engineers), own (engineer is sole assignee)
     filtered_projects = assigned_projects
+    if scope_filter == 'own':
+        filtered_projects = filtered_projects.annotate(num_assignees=Count('assigned_engineers')).filter(num_assignees=1)
+    elif scope_filter == 'combined':
+        filtered_projects = filtered_projects.annotate(num_assignees=Count('assigned_engineers')).filter(num_assignees__gt=1)
 
     if search_query:
         filtered_projects = filtered_projects.filter(
@@ -222,6 +228,7 @@ def engineer_detail(request, engineer_id):
         'search_query': search_query,
         'status_filter': status_filter,
         'project_type_filter': project_type_filter,
+        'scope_filter': scope_filter,
         'cost_min': cost_min_raw,
         'cost_max': cost_max_raw,
     }

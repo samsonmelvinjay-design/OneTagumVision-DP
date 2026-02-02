@@ -130,7 +130,16 @@
                                 <option value="delayed" {% if status_filter == 'delayed' %}selected{% endif %}>Delayed</option>
                             </select>
                         </div>
-                        <div class="lg:col-span-3">
+                        <div class="lg:col-span-2">
+                            <label for="scope" class="block text-xs font-semibold text-gray-600 mb-1">Scope</label>
+                            <select id="scope" name="scope"
+                                    class="h-11 w-full px-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all hover:border-gray-300">
+                                <option value="" {% if not scope_filter %}selected{% endif %}>All</option>
+                                <option value="own" {% if scope_filter == 'own' %}selected{% endif %}>Engineer's own</option>
+                                <option value="combined" {% if scope_filter == 'combined' %}selected{% endif %}>Combined</option>
+                            </select>
+                        </div>
+                        <div class="lg:col-span-2">
                             <label for="project_type" class="block text-xs font-semibold text-gray-600 mb-1">Project Type</label>
                             <select id="project_type" name="project_type"
                                     class="h-11 w-full px-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all hover:border-gray-300">
@@ -420,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const submitNow = () => form.submit();
 
     // Immediate submit on dropdown changes
-    ['status', 'project_type'].forEach((id) => {
+    ['status', 'scope', 'project_type'].forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
         el.addEventListener('change', submitNow);
