@@ -1859,18 +1859,17 @@ function formatDate(dateStr) {
 
                         <div class="relative">
                             <label class="font-semibold text-gray-700">Assigned Engineers <span class="text-red-500">*</span></label>
-                            <p class="text-xs text-gray-500 mt-0.5 mb-2">Type to search, then click a name to add. Remove with × on each chip.</p>
+                            <p class="text-xs text-gray-500 mt-0.5 mb-2">Search or scroll the list below, then click a name to add. Remove with × on each chip.</p>
                             <div id="assigned-engineers-chips" class="mb-2 flex flex-wrap gap-2 min-h-[2rem]"></div>
-                            <div class="relative">
-                                <input
-                                    type="text"
-                                    id="assigned-engineers-search"
-                                    class="rounded-lg border border-gray-300 px-4 py-2.5 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
-                                    placeholder="Search by name or username..."
-                                    autocomplete="off"
-                                />
-                                <div id="assigned-engineers-dropdown" class="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto hidden"></div>
-                            </div>
+                            <input
+                                type="text"
+                                id="assigned-engineers-search"
+                                class="rounded-lg border border-gray-300 px-4 py-2.5 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none mb-2"
+                                placeholder="Search by name or username..."
+                                autocomplete="off"
+                            />
+                            <p class="text-xs font-medium text-gray-600 mb-1">Engineers — click to add</p>
+                            <div id="assigned-engineers-list" class="border border-gray-200 rounded-lg bg-gray-50 max-h-44 overflow-y-auto"></div>
                             <select name="assigned_engineers" id="assigned-engineers-select" class="sr-only" multiple required aria-hidden="true" tabindex="-1">
                                 <!-- Options populated by JS; kept for form submit -->
                             </select>
@@ -2578,81 +2577,64 @@ function getSelectedEngineerIds() {
     return Array.from(selectEl.selectedOptions || []).map(o => o.value);
 }
 
-function buildAssignedEngineersDropdown() {
-    const dropdown = document.getElementById('assigned-engineers-dropdown');
+function buildAssignedEngineersList() {
+    const listEl = document.getElementById('assigned-engineers-list');
     const searchEl = document.getElementById('assigned-engineers-search');
     const selectEl = document.getElementById('assigned-engineers-select');
-    if (!dropdown || !searchEl || !selectEl) return;
-    const q = _normalizeText(searchEl.value);
+    if (!listEl || !selectEl) return;
+    const q = _normalizeText(searchEl ? searchEl.value : '');
     const selectedIds = getSelectedEngineerIds();
     const list = (_projectListEngineers || []).filter(function(e) {
         if (selectedIds.indexOf(String(e.id)) !== -1) return false;
         const label = _normalizeText((e.full_name || e.username || ''));
         return !q || label.indexOf(q) !== -1;
     });
-    dropdown.innerHTML = '';
+    listEl.innerHTML = '';
     if (list.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'px-4 py-3 text-sm text-gray-500';
         empty.textContent = selectedIds.length && !q ? 'All engineers already selected.' : 'No matching engineers.';
-        dropdown.appendChild(empty);
+        listEl.appendChild(empty);
     } else {
         list.forEach(function(e) {
             const label = e.full_name || e.username || ('#' + e.id);
+            const sub = (e.username && e.full_name && e.username !== e.full_name) ? (' @' + e.username) : '';
             const item = document.createElement('button');
             item.type = 'button';
-            item.className = 'w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-0';
-            item.textContent = label;
+            item.className = 'w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-100 focus:bg-blue-100 focus:outline-none border-b border-gray-200 last:border-0 transition';
+            item.textContent = label + sub;
             item.dataset.id = e.id;
-            item.dataset.label = label;
             item.addEventListener('click', function() {
                 const opt = Array.from(selectEl.options).find(function(o) { return o.value === String(e.id); });
                 if (opt) {
                     opt.selected = true;
                     selectEl.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                searchEl.value = '';
-                dropdown.classList.add('hidden');
-                buildAssignedEngineersDropdown();
+                if (searchEl) searchEl.value = '';
+                buildAssignedEngineersList();
                 renderAssignedEngineerChips();
             });
-            dropdown.appendChild(item);
+            listEl.appendChild(item);
         });
     }
-}
-
-function showAssignedEngineersDropdown() {
-    const dropdown = document.getElementById('assigned-engineers-dropdown');
-    if (!dropdown) return;
-    buildAssignedEngineersDropdown();
-    dropdown.classList.remove('hidden');
 }
 
 function initAssignedEngineersSelectorOnce() {
     const selectEl = document.getElementById('assigned-engineers-select');
     const searchEl = document.getElementById('assigned-engineers-search');
-    const dropdown = document.getElementById('assigned-engineers-dropdown');
     if (!selectEl) return;
     if (selectEl.dataset.enhanced === '1') return;
     selectEl.dataset.enhanced = '1';
 
     if (searchEl) {
-        searchEl.addEventListener('focus', showAssignedEngineersDropdown);
-        searchEl.addEventListener('input', showAssignedEngineersDropdown);
-        searchEl.addEventListener('blur', function() {
-            setTimeout(function() {
-                if (dropdown) dropdown.classList.add('hidden');
-            }, 200);
-        });
-    }
-    if (dropdown) {
-        dropdown.addEventListener('mousedown', function(e) { e.preventDefault(); });
+        searchEl.addEventListener('input', buildAssignedEngineersList);
     }
     selectEl.addEventListener('change', function() {
         renderAssignedEngineerChips();
-        buildAssignedEngineersDropdown();
+        buildAssignedEngineersList();
     });
     renderAssignedEngineerChips();
+    buildAssignedEngineersList();
 }
 
 // Expose for other parts of this template
