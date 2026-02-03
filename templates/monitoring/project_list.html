@@ -286,27 +286,47 @@ document.addEventListener('DOMContentLoaded', function () {
             <button id="close-modal" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-2 border-white shadow hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200">&times;</button>
             <form id="project-form" method="post" enctype="multipart/form-data" action="{% url 'project_list' %}" class="w-full p-4 md:p-5">
                 {% csrf_token %}
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    <!-- Main Form (compact for laptop) -->
-                    <div class="lg:col-span-8">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">PRN</label>
-                                <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
-                                       class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                                <p class="text-[10px] text-gray-500 mt-0.5">Auto-generated PRN (not editable)</p>
-                            </div>
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Project Cost</label>
-                                <input type="number" step="0.01" name="project_cost" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
-                            </div>
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Name</label>
-                                <input type="text" name="name" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
-                            </div>
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Barangay</label>
-                                <select name="barangay" id="modal-barangay-select" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <!-- Row 1: PRN | Name | Project Cost -->
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">PRN</label>
+                        <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
+                               class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
+                        <p class="text-[10px] text-gray-500 mt-0.5">Auto-generated (not editable)</p>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Name</label>
+                        <input type="text" name="name" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Project Cost</label>
+                        <input type="number" step="0.01" name="project_cost" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required />
+                    </div>
+
+                    <!-- Row 2: Description (full width, below Name) -->
+                    <div class="md:col-span-3">
+                        <label class="font-semibold text-gray-700 text-sm">Description</label>
+                        <textarea name="description" rows="2" placeholder="Example: Road concreting (200m); scope, location, key outputs."
+                                  class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-y min-h-[4rem]"
+                                  required></textarea>
+                        <p class="text-[10px] text-gray-500 mt-0.5">Scope, location, key outputs.</p>
+                    </div>
+
+                    <!-- Row 3: Source of Funds | Barangay | Status -->
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
+                        <select name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
+                            <option value="">Select source of funds</option>
+                            {% for sof in source_of_funds_options %}
+                                <option value="{{ sof.name }}">{{ sof.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 block">Or add new</label>
+                        <input type="text" name="source_of_funds_new" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Barangay</label>
+                        <select name="barangay" id="modal-barangay-select" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
                                     <option value="">---------</option>
                                     <option value="Apokon">Apokon</option>
                                     <option value="Bincungan">Bincungan</option>
@@ -331,142 +351,102 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <option value="San Isidro">San Isidro</option>
                                     <option value="San Miguel">San Miguel</option>
                                     <option value="Visayan Village">Visayan Village</option>
-                                </select>
-                                <!-- Purok removed: panel requirement is barangay boundary validation -->
-                            </div>
-
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
-                                <select name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
-                                    <option value="">Select source of funds</option>
-                                    {% for sof in source_of_funds_options %}
-                                        <option value="{{ sof.name }}">{{ sof.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                <div class="mt-1">
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Or add new</label>
-                                    <input type="text" name="source_of_funds_new" class="mt-0.5 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Status</label>
-                                <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" required>
-                                    <option value="">---------</option>
-                                    <option value="planned">Planned</option>
-                                    <option value="in_progress">Ongoing</option>
-                                    <option value="completed">Completed</option>
-                                </select>
-                            </div>
-
-                            <div class="md:col-span-2">
-                                <label class="font-semibold text-gray-700 text-sm">Project Type</label>
-                                <select name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none">
-                                    <option value="">Select project type (optional)</option>
-                                    {% for pt in project_type_options %}
-                                        <option value="{{ pt.id }}">{{ pt.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                <div class="mt-1">
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Or add new</label>
-                                    <input type="text" name="project_type_new" class="mt-0.5 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
-                                </div>
-                            </div>
-
-                        </div>
-                        <!-- Assigned Engineers -->
-                        <div class="relative mt-3 pt-3 border-t border-gray-100">
-                            <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mt-0.5 mb-1">Search or scroll, click to add. Remove with × on chip.</p>
-                            <div id="assigned-engineers-chips" class="mb-1 flex flex-wrap gap-1.5 min-h-[1.5rem]"></div>
-                            <input
-                                type="text"
-                                id="assigned-engineers-search"
-                                class="rounded border border-gray-300 px-3 py-1.5 text-sm w-full max-w-md focus:ring-2 focus:ring-blue-400 outline-none mb-1"
-                                placeholder="Search by name or username..."
-                                autocomplete="off"
-                            />
-                            <p class="text-[10px] font-medium text-gray-600 mb-0.5">Engineers — click to add</p>
-                            <div id="assigned-engineers-list" class="border border-gray-200 rounded bg-gray-50 max-h-32 overflow-y-auto max-w-2xl"></div>
-                            <select name="assigned_engineers" id="assigned-engineers-select" class="sr-only" multiple required aria-hidden="true" tabindex="-1">
-                                <!-- Options populated by JS; kept for form submit -->
-                            </select>
-                        </div>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Status</label>
+                        <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
+                            <option value="">---------</option>
+                            <option value="planned">Planned</option>
+                            <option value="in_progress">Ongoing</option>
+                            <option value="completed">Completed</option>
+                        </select>
                     </div>
 
-                    <!-- Sidebar -->
-                    <div class="lg:col-span-4 space-y-3">
-                        <div class="border-2 border-dashed border-blue-300 rounded-lg p-3 bg-blue-50">
-                            <label class="font-semibold text-blue-700 text-sm mb-1 block">📍 Project Location <span class="text-red-500">*</span></label>
-                            <p class="text-xs text-gray-600 mb-2">Click the button below to select location on the map</p>
-                            <div class="grid grid-cols-2 gap-2 mb-2">
-                                <div>
-                                    <label class="text-[10px] font-medium text-gray-600">Latitude</label>
-                                    <input type="number" step="any" name="latitude" id="latitude-input"
-                                           class="w-full rounded border-2 border-blue-300 px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white"
-                                           required readonly placeholder="Click map" />
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-medium text-gray-600">Longitude</label>
-                                    <input type="number" step="any" name="longitude" id="longitude-input"
-                                           class="w-full rounded border-2 border-blue-300 px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-400 outline-none bg-white"
-                                           required readonly placeholder="Click map" />
-                                </div>
+                    <!-- Row 4: Project Type | Start Date | End Date -->
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Project Type</label>
+                        <select name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
+                            <option value="">Select project type (optional)</option>
+                            {% for pt in project_type_options %}
+                                <option value="{{ pt.id }}">{{ pt.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 block">Or add new</label>
+                        <input type="text" name="project_type_new" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Start Date</label>
+                        {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
+                        <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
+                        {% else %}
+                        <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">End Date</label>
+                        {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
+                        <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
+                        {% else %}
+                        <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
+                        {% endif %}
+                    </div>
+
+                    <!-- Row 5: Project Location (2 cols) | Image -->
+                    <div class="md:col-span-2 border-2 border-dashed border-blue-300 rounded-lg p-3 bg-blue-50">
+                        <label class="font-semibold text-blue-700 text-sm mb-1 block">📍 Project Location <span class="text-red-500">*</span></label>
+                        <p class="text-[10px] text-gray-600 mb-2">Click the button below to select location on the map</p>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="text-[10px] font-medium text-gray-600">Latitude</label>
+                                <input type="number" step="any" name="latitude" id="latitude-input"
+                                       class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                                       required readonly placeholder="Click map" />
                             </div>
-                            <button type="button" id="map-fullscreen-btn"
-                                    class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-xs"
-                                    title="Click to open map and select location">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <div>
+                                <label class="text-[10px] font-medium text-gray-600">Longitude</label>
+                                <input type="number" step="any" name="longitude" id="longitude-input"
+                                       class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                                       required readonly placeholder="Click map" />
+                            </div>
+                        </div>
+                        <button type="button" id="map-fullscreen-btn"
+                                class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-sm"
+                                title="Click to open map and select location">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span id="map-btn-text">Select Location on Map</span>
+                        </button>
+                        <div id="location-status" class="mt-1 text-[10px] hidden">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                 </svg>
-                                <span id="map-btn-text">Select Location on Map</span>
-                            </button>
-                            <div id="location-status" class="mt-1 text-[10px] hidden">
-                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700">
-                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                    Location selected
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Start Date</label>
-                                {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
-                                {% else %}
-                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
-                                {% endif %}
-                            </div>
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">End Date</label>
-                                {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
-                                {% else %}
-                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">Image</label>
-                            <input type="file" name="image" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" id="image-input" />
+                                Location selected
+                            </span>
                         </div>
                     </div>
-                </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Image</label>
+                        <input type="file" name="image" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer file:mr-2 file:py-1.5 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="image-input" />
+                    </div>
 
-                <!-- Description -->
-                <div class="mt-4">
-                    <label class="font-semibold text-gray-700 text-sm">Description</label>
-                    <textarea name="description"
-                              rows="2"
-                              placeholder="Example: Road concreting (200m); scope, location, key outputs."
-                              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-y min-h-[4rem]"
-                              required></textarea>
-                    <p class="text-[10px] text-gray-500 mt-0.5">Scope, location, key outputs.</p>
+                    <!-- Row 6: Assigned Engineers (full width) -->
+                    <div class="md:col-span-3 relative pt-3 border-t border-gray-100">
+                        <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
+                        <p class="text-[10px] text-gray-500 mt-0.5 mb-1">Search or scroll, click to add. Remove with × on chip.</p>
+                        <div id="assigned-engineers-chips" class="mb-1 flex flex-wrap gap-1.5 min-h-[1.5rem]"></div>
+                        <input type="text" id="assigned-engineers-search"
+                               class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm w-full max-w-md focus:ring-2 focus:ring-blue-400 outline-none mb-1"
+                               placeholder="Search by name or username..." autocomplete="off" />
+                        <p class="text-[10px] font-medium text-gray-600 mb-0.5">Engineers — click to add</p>
+                        <div id="assigned-engineers-list" class="border border-gray-200 rounded-lg bg-gray-50 max-h-32 overflow-y-auto max-w-2xl"></div>
+                        <select name="assigned_engineers" id="assigned-engineers-select" class="sr-only" multiple required aria-hidden="true" tabindex="-1">
+                            <!-- Options populated by JS; kept for form submit -->
+                        </select>
+                    </div>
                 </div>
                 <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
                     <button type="button" onclick="closeProjectModal()" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm">Cancel</button>
