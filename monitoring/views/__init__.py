@@ -1392,6 +1392,7 @@ def reports(request):
         'barangay_labels': json.dumps(barangay_labels),
         'barangay_counts': json.dumps(barangay_counts),
         'projects_json': projects_list,  # Pass list directly, let json_script handle encoding
+        'projects_count': len(projects_list),
         'total_budget': total_budget,
         'total_spent': total_spent,
         'remaining_budget': remaining_budget,
