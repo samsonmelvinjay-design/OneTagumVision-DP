@@ -67,10 +67,13 @@
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-xl font-bold text-gray-800">Project Progress Over Time</h3>
-        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="progressOverTime">
-          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        <div class="chart-period-wrap flex items-center gap-2" data-chart-id="progressOverTime">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
+          <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            <option value="week">Weekly</option>
+            <option value="month" selected>Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
         </div>
       </div>
       <div class="chart-container" style="height: 320px;">
@@ -85,10 +88,13 @@
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold text-gray-800">Budget Utilization</h3>
-        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="budgetUtilization">
-          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        <div class="chart-period-wrap flex items-center gap-2" data-chart-id="budgetUtilization">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
+          <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            <option value="week">Weekly</option>
+            <option value="month" selected>Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
         </div>
       </div>
       <div class="chart-container" style="height: 280px;">
@@ -100,10 +106,13 @@
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold text-gray-800">Cost Breakdown by Type</h3>
-        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="costBreakdown">
-          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        <div class="chart-period-wrap flex items-center gap-2" data-chart-id="costBreakdown">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
+          <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            <option value="week">Weekly</option>
+            <option value="month" selected>Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
         </div>
       </div>
       <div class="chart-container" style="height: 280px;">
@@ -115,10 +124,13 @@
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold text-gray-800">Projects by Barangay</h3>
-        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="projectsByBarangay">
-          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        <div class="chart-period-wrap flex items-center gap-2" data-chart-id="projectsByBarangay">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
+          <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            <option value="week">Weekly</option>
+            <option value="month" selected>Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
         </div>
       </div>
       <div class="chart-container" style="height: 280px%;">
@@ -182,18 +194,6 @@
 
         function getPeriod(chartId) {
             return chartPeriods[chartId] || 'month';
-        }
-
-        function setActiveButton(container, period) {
-            container.querySelectorAll('.chart-period-btn').forEach(btn => {
-                const isActive = (btn.dataset.period || 'month') === period;
-                btn.classList.toggle('border-indigo-500', isActive);
-                btn.classList.toggle('bg-indigo-50', isActive);
-                btn.classList.toggle('text-indigo-700', isActive);
-                if (!isActive) {
-                    btn.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-700');
-                }
-            });
         }
 
         function loadChart(chartId) {
@@ -312,20 +312,26 @@
             }
         }
 
-        // Wire up buttons so each chart's period only affects that chart
-        document.querySelectorAll('.chart-period-buttons[data-chart-id]').forEach(container => {
-            const chartId = container.getAttribute('data-chart-id');
-            if (!chartId) return;
-
-            setActiveButton(container, getPeriod(chartId));
-
-            container.querySelectorAll('.chart-period-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const period = btn.dataset.period || 'month';
-                    chartPeriods[chartId] = period;
-                    setActiveButton(container, period);
-                    loadChart(chartId);
+        // Wire up dropdowns so each chart's period only affects that chart
+        function syncSelects(chartId, period) {
+            document.querySelectorAll('.chart-period-wrap[data-chart-id="' + chartId + '"] .chart-period-select')
+                .forEach(sel => {
+                    if (sel.value !== period) sel.value = period;
                 });
+        }
+
+        document.querySelectorAll('.chart-period-wrap[data-chart-id]').forEach(wrap => {
+            const chartId = wrap.getAttribute('data-chart-id');
+            if (!chartId) return;
+            const sel = wrap.querySelector('.chart-period-select');
+            if (!sel) return;
+
+            sel.value = getPeriod(chartId);
+            sel.addEventListener('change', function () {
+                const period = this.value || 'month';
+                chartPeriods[chartId] = period;
+                syncSelects(chartId, period);
+                loadChart(chartId);
             });
         });
 
