@@ -799,6 +799,48 @@ class SimpleChoropleth {
         return zoneNames[zoneType] || zoneType;
     }
 
+    // Phase 5: Derive a fallback zone-type summary from BarangayMetadata
+    // Used when we don't yet have detailed zoneData from /projeng/api/barangay-zone-data/
+    getDerivedZoneInfoFromMetadata(barangayMeta) {
+        if (!barangayMeta) return null;
+
+        const zonesSet = new Set();
+        const industrialZones = Array.isArray(barangayMeta.industrial_zones) ? barangayMeta.industrial_zones : [];
+
+        industrialZones.forEach(z => {
+            const key = (z || '').toString().toLowerCase();
+            if (key.includes('agro')) zonesSet.add('AGRO');
+            if (key.includes('institutional')) zonesSet.add('INS-1');
+            if (key.includes('commercial') || key === 'cbd') zonesSet.add('C-1');
+        });
+
+        let zoneTypes = Array.from(zonesSet);
+
+        // If no industrial zoning hints, fall back to simple urban/rural heuristic
+        if (!zoneTypes.length) {
+            const cls = (barangayMeta.barangay_class || '').toLowerCase();
+            if (cls === 'urban') {
+                zoneTypes = ['R-2']; // treat urban barangays as Medium Density Residential
+            } else if (cls === 'rural') {
+                zoneTypes = ['AGRICULTURAL'];
+            }
+        }
+
+        if (!zoneTypes.length) return null;
+
+        const dominant = zoneTypes[0];
+        const zoneCounts = {};
+        zoneCounts[dominant] = 1;
+
+        return {
+            dominant_zone: dominant,
+            zone_counts: zoneCounts,
+            total_projects: 0,
+            zone_types: zoneTypes,
+            available_zones: [],
+        };
+    }
+
     switchView(viewType) {
         console.log('=== switchView called ===');
         console.log('viewType:', viewType);
@@ -929,9 +971,12 @@ class SimpleChoropleth {
                                 defaultCount++;
                             }
                             break;
-                        case 'zone_type':
-                            // Phase 5: Use detailed zone data
-                            const zoneInfo = this.zoneData[barangayName];
+                        case 'zone_type': {
+                            // Phase 5: Use detailed zone data, or fall back to metadata-derived zone
+                            let zoneInfo = this.zoneData && this.zoneData[barangayName];
+                            if (!zoneInfo) {
+                                zoneInfo = this.getDerivedZoneInfoFromMetadata(barangay);
+                            }
                             if (zoneInfo && zoneInfo.dominant_zone) {
                                 color = this.getZoneTypeColor(zoneInfo.dominant_zone);
                                 coloredCount++;
@@ -939,6 +984,7 @@ class SimpleChoropleth {
                                 defaultCount++;
                             }
                             break;
+                        }
                         default:
                             defaultCount++;
                     }
@@ -958,7 +1004,10 @@ class SimpleChoropleth {
             onEachFeature: (feature, layer) => {
                 const name = feature.properties.name || 'Unknown';
                 const barangay = this.zoningData[name];
-                const zoneInfo = this.zoneData ? this.zoneData[name] : null;
+                let zoneInfo = this.zoneData ? this.zoneData[name] : null;
+                if (!zoneInfo && barangay) {
+                    zoneInfo = this.getDerivedZoneInfoFromMetadata(barangay);
+                }
                 
                 // Try to find stats with case-insensitive matching
                 let stats = this.barangayStats[name];
