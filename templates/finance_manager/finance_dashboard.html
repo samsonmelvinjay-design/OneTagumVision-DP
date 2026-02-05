@@ -120,14 +120,14 @@
                     </svg>
                     Cumulative Spending Over Time
                 </h3>
+                <div class="chart-period-buttons flex items-center gap-2" data-chart-id="financeSpending">
+                    <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Weekly</button>
+                    <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-blue-500 bg-blue-50 text-blue-700">Monthly</button>
+                    <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Yearly</button>
+                </div>
             </div>
             <div style="height: 350px;">
                 <canvas id="lineChart"></canvas>
-            </div>
-            <div class="chart-period-buttons flex justify-center gap-2 mt-4 pt-3 border-t border-gray-100">
-                <button type="button" data-period="week" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Weekly</button>
-                <button type="button" data-period="month" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-blue-500 bg-blue-50 text-blue-700">Monthly</button>
-                <button type="button" data-period="year" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Yearly</button>
             </div>
         </div>
 
@@ -140,14 +140,14 @@
                     </svg>
                     Budget Utilization
                 </h3>
+                <div class="chart-period-buttons flex items-center gap-2" data-chart-id="financeUtilization">
+                    <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Weekly</button>
+                    <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-blue-500 bg-blue-50 text-blue-700">Monthly</button>
+                    <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Yearly</button>
+                </div>
             </div>
             <div style="height: 350px;">
                 <canvas id="doughnutChart"></canvas>
-            </div>
-            <div class="chart-period-buttons flex justify-center gap-2 mt-4 pt-3 border-t border-gray-100">
-                <button type="button" data-period="week" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Weekly</button>
-                <button type="button" data-period="month" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-blue-500 bg-blue-50 text-blue-700">Monthly</button>
-                <button type="button" data-period="year" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50">Yearly</button>
             </div>
         </div>
     </div>

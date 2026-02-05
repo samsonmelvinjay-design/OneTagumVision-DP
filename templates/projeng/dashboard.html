@@ -65,14 +65,16 @@
 
     <!-- Chart 2: Project Progress Over Time -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <h3 class="text-xl font-bold text-gray-800 mb-4">Project Progress Over Time</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-gray-800">Project Progress Over Time</h3>
+        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="progressOverTime">
+          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
+          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
+          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        </div>
+      </div>
       <div class="chart-container" style="height: 320px;">
           <canvas id="progressOverTimeChart"></canvas>
-      </div>
-      <div class="chart-period-buttons flex justify-center gap-2 mt-4 pt-3 border-t border-gray-100" data-chart-id="progressOverTime">
-        <button type="button" data-period="week" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-        <button type="button" data-period="month" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-        <button type="button" data-period="year" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
       </div>
     </div>
   </div>
@@ -81,40 +83,46 @@
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <!-- Chart 3: Budget Utilization -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <h3 class="text-lg font-bold text-gray-800 mb-4">Budget Utilization</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">Budget Utilization</h3>
+        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="budgetUtilization">
+          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
+          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
+          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        </div>
+      </div>
       <div class="chart-container" style="height: 280px;">
           <canvas id="budgetUtilizationChart"></canvas>
-      </div>
-      <div class="chart-period-buttons flex justify-center gap-2 mt-4 pt-3 border-t border-gray-100" data-chart-id="budgetUtilization">
-        <button type="button" data-period="week" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-        <button type="button" data-period="month" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-        <button type="button" data-period="year" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
       </div>
     </div>
 
     <!-- Chart 4: Cost Breakdown by Type -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <h3 class="text-lg font-bold text-gray-800 mb-4">Cost Breakdown by Type</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">Cost Breakdown by Type</h3>
+        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="costBreakdown">
+          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
+          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
+          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        </div>
+      </div>
       <div class="chart-container" style="height: 280px;">
           <canvas id="costBreakdownChart"></canvas>
-      </div>
-      <div class="chart-period-buttons flex justify-center gap-2 mt-4 pt-3 border-t border-gray-100" data-chart-id="costBreakdown">
-        <button type="button" data-period="week" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-        <button type="button" data-period="month" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-        <button type="button" data-period="year" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
       </div>
     </div>
 
     <!-- Chart 5: Projects by Barangay -->
     <div class="bg-white rounded-xl shadow-md p-6">
-      <h3 class="text-lg font-bold text-gray-800 mb-4">Projects by Barangay</h3>
-      <div class="chart-container" style="height: 280px;">
-          <canvas id="projectsByBarangayChart"></canvas>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">Projects by Barangay</h3>
+        <div class="chart-period-buttons flex items-center gap-2" data-chart-id="projectsByBarangay">
+          <button type="button" data-period="week" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
+          <button type="button" data-period="month" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
+          <button type="button" data-period="year" class="chart-period-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+        </div>
       </div>
-      <div class="chart-period-buttons flex justify-center gap-2 mt-4 pt-3 border-t border-gray-100" data-chart-id="projectsByBarangay">
-        <button type="button" data-period="week" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Weekly</button>
-        <button type="button" data-period="month" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-indigo-500 bg-indigo-50 text-indigo-700">Monthly</button>
-        <button type="button" data-period="year" class="chart-period-btn px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">Yearly</button>
+      <div class="chart-container" style="height: 280px%;">
+          <canvas id="projectsByBarangayChart"></canvas>
       </div>
     </div>
   </div>
