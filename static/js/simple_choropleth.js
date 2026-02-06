@@ -1,12 +1,14 @@
 // Simple Choropleth Map implementation for Tagum City Barangays
 // Version: 2.0 - Includes zoning functionality (switchView, loadZoningData, createZoningLayer)
 class SimpleChoropleth {
-    constructor(map, geojsonUrl, projectsData = null, legendContainerId = null) {
+    constructor(map, geojsonUrl, projectsData = null, legendContainerId = null, cityBoundaryUrl = null) {
         this.map = map;
         this.geojsonUrl = geojsonUrl;
         this.projectsData = projectsData || [];
         this.legendContainerId = legendContainerId; // Optional: render legend into this DOM element instead of Leaflet control
+        this.cityBoundaryUrl = cityBoundaryUrl; // Optional: GeoJSON URL for whole Tagum City boundary (OSM admin boundary)
         this.choroplethLayer = null;
+        this.cityBoundaryLayer = null; // Blue outline of whole Tagum City when choropleth is off
         this.legend = null;
         this.summaryPanel = null;
         this.barangayData = [];
@@ -894,7 +896,7 @@ class SimpleChoropleth {
             return;
         }
         
-        // Remove current layer
+        // Remove current choropleth layer
         if (this.choroplethLayer) {
             try {
                 console.log('Removing existing choropleth layer');
@@ -905,9 +907,20 @@ class SimpleChoropleth {
             this.choroplethLayer = null;
         }
 
+        // Remove city boundary layer when switching to choropleth view
+        if (this.cityBoundaryLayer) {
+            try {
+                this.map.removeLayer(this.cityBoundaryLayer);
+            } catch (e) {
+                console.log('Error removing city boundary layer:', e);
+            }
+            this.cityBoundaryLayer = null;
+        }
+
         // Create and add new layer based on view
         if (viewType === 'none') {
-            console.log('Map cleared - no choropleth layer');
+            console.log('Showing Tagum City boundary outline (no choropleth)');
+            this.createCityBoundaryLayer();
         } else if (viewType === 'projects') {
             console.log('Creating projects choropleth');
             this.createChoropleth();
@@ -920,6 +933,70 @@ class SimpleChoropleth {
         console.log('Updating legend');
         this.createLegend();
         console.log('=== View switched successfully to:', viewType, '===');
+    }
+
+    async createCityBoundaryLayer() {
+        const style = {
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            color: '#3b82f6',
+            weight: 2.5,
+            opacity: 1
+        };
+        const addBoundaryFromData = (data) => {
+            const features = (data.features || []).filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'));
+            if (features.length === 0) return;
+            this.cityBoundaryLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
+                style: () => style
+            });
+            this.cityBoundaryLayer.addTo(this.map);
+            console.log('Tagum City boundary outline added');
+        };
+        if (this.cityBoundaryUrl) {
+            try {
+                const response = await fetch(this.cityBoundaryUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                addBoundaryFromData(data);
+                return;
+            } catch (e) {
+                console.warn('Failed to load city boundary GeoJSON, falling back to barangay union:', e.message);
+            }
+        }
+        if (!this.barangayData || this.barangayData.length === 0) {
+            console.warn('No city boundary URL and no barangay data');
+            return;
+        }
+        if (typeof turf !== 'undefined') {
+            try {
+                const features = this.barangayData.filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'));
+                if (features.length === 0) return;
+                let merged;
+                try {
+                    merged = turf.union(turf.featureCollection(features));
+                } catch (unionErr) {
+                    merged = turf.feature(features[0]);
+                    for (let i = 1; i < features.length; i++) {
+                        try {
+                            const u = turf.union(turf.featureCollection([merged, turf.feature(features[i])]));
+                            if (u) merged = u;
+                        } catch (err) {
+                            console.warn('Union skip feature', i, err.message);
+                        }
+                    }
+                }
+                if (merged) {
+                    this.cityBoundaryLayer = L.geoJSON(merged, { style: () => style });
+                    this.cityBoundaryLayer.addTo(this.map);
+                    console.log('Tagum City boundary (Turf union) added');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Turf union failed:', e.message);
+            }
+        }
+        addBoundaryFromData({ features: this.barangayData });
+        console.log('Tagum City boundary (barangay outlines fallback) added');
     }
 
     createZoningLayer(viewType) {

@@ -476,6 +476,8 @@ console.log('[OK] hidePopupMap function defined globally (early)');
 console.log('[OK] showPopupMap function defined globally (early placeholder)');
 </script>
 
+<!-- Turf.js for geometry union (Tagum City boundary outline) -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
 <!-- Add cache busting with timestamp to ensure latest version loads -->
 <script src="{% static 'js/simple_choropleth.js' %}?v=2.0"></script>
@@ -1143,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Sample project:', projectsToUse[0]);
                 }
                 
-                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse);
+                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse, null, "{% static 'data/tagum_city_boundary.geojson' %}");
                 choroplethMapReady = false; // Reset flag
                 // Initialize asynchronously and wait for it to complete
                 choroplethMap.initialize().then(() => {
