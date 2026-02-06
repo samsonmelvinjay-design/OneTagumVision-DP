@@ -341,14 +341,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                         <div>
                             <label class="font-semibold text-gray-700 text-sm">Project Type</label>
-                            <select name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
+                            <select id="project-type-select" name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
                                 <option value="">Select project type (optional)</option>
                                 {% for pt in project_type_options %}
                                     <option value="{{ pt.id }}">{{ pt.name }}</option>
                                 {% endfor %}
+                                <option value="__add_new__">Add new Project Type</option>
                             </select>
-                            <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 block">Or add new</label>
-                            <input type="text" name="project_type_new" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            <div id="project-type-new-wrap" class="hidden mt-2">
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
+                                <input type="text" name="project_type_new" id="project-type-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            </div>
                         </div>
                     </div>
 
@@ -847,9 +850,29 @@ function initProjectTypeUX() {
     if (!projectForm) return;
     const typeSelect = projectForm.querySelector('select[name="project_type"]');
     const typeNew = projectForm.querySelector('input[name="project_type_new"]');
+    const typeNewWrap = document.getElementById('project-type-new-wrap');
     if (!typeSelect || !typeNew) return;
     if (typeSelect.dataset.ptUx === '1') return;
     typeSelect.dataset.ptUx = '1';
+
+    // Show "add new" input only when "Add new Project Type" is selected
+    if (typeNewWrap) {
+        typeNewWrap.classList.add('hidden');
+        typeSelect.addEventListener('change', function() {
+            if (typeSelect.value === '__add_new__') {
+                typeNewWrap.classList.remove('hidden');
+                typeNew.focus();
+            } else {
+                typeNewWrap.classList.add('hidden');
+                typeNew.value = '';
+            }
+        });
+    }
+    projectForm.addEventListener('submit', function() {
+        if (typeSelect.value === '__add_new__') {
+            typeSelect.value = '';
+        }
+    });
 
     const getCookie = (name) => {
         const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -912,7 +935,7 @@ function initProjectTypeUX() {
         submitNew();
     });
     typeSelect.addEventListener('change', () => {
-        if ((typeSelect.value || '').trim()) {
+        if ((typeSelect.value || '').trim() && typeSelect.value !== '__add_new__') {
             typeNew.value = '';
         }
     });

@@ -1893,7 +1893,7 @@ function formatDate(dateStr) {
                         <textarea name="description" rows="2" placeholder="Example: Multi-purpose hall rehabilitation; scope, location, key outputs."
                                   class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-y min-h-[4rem]"
                                   required></textarea>
-                        <p class="text-[10px] text-gray-500 mt-0.5">Scope, key materials/works, expected output.</p>
+                        
                     </div>
                     <div>
                         <label class="font-semibold text-gray-700 text-sm">Barangay</label>
@@ -1930,14 +1930,17 @@ function formatDate(dateStr) {
                     </div>
                     <div>
                         <label class="font-semibold text-gray-700 text-sm">Project Type</label>
-                        <select name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                        <select id="project-type-select" name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
                             <option value="">Select project type (optional)</option>
                             {% for pt in project_type_options %}
                                 <option value="{{ pt.id }}">{{ pt.name }}</option>
                             {% endfor %}
+                            <option value="__add_new__">Add new Project Type</option>
                         </select>
-                        <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 block">Or add new</label>
-                        <input type="text" name="project_type_new" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                        <div id="project-type-new-wrap" class="hidden mt-2">
+                            <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
+                            <input type="text" name="project_type_new" id="project-type-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                        </div>
                     </div>
                 </div>
 
@@ -3017,6 +3020,28 @@ function populateEngineers() {
                     hideModal();
                 }
             });
+        }
+        // Project Type: show "add new" input only when "Add new Project Type" is selected
+        const projectTypeSelect = document.getElementById('project-type-select');
+        const projectTypeNewWrap = document.getElementById('project-type-new-wrap');
+        const projectTypeNewInput = document.getElementById('project-type-new-input');
+        if (projectTypeSelect && projectTypeNewWrap && projectTypeNewInput) {
+            projectTypeSelect.addEventListener('change', function() {
+                if (projectTypeSelect.value === '__add_new__') {
+                    projectTypeNewWrap.classList.remove('hidden');
+                    projectTypeNewInput.focus();
+                } else {
+                    projectTypeNewWrap.classList.add('hidden');
+                    projectTypeNewInput.value = '';
+                }
+            });
+            if (projectForm) {
+                projectForm.addEventListener('submit', function() {
+                    if (projectTypeSelect.value === '__add_new__') {
+                        projectTypeSelect.value = '';
+                    }
+                });
+            }
         }
     }
     
