@@ -1950,15 +1950,19 @@ function formatDate(dateStr) {
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-[10px] font-medium text-gray-600">Latitude</label>
-                                    <input type="number" step="any" name="latitude" id="latitude-input"
-                                           class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
-                                           required readonly placeholder="Click map" />
+                                    <!-- Hidden form value, updated by the map -->
+                                    <input type="hidden" name="latitude" id="latitude-input" />
+                                    <p class="text-[11px] text-gray-500 mt-1">
+                                        Set automatically when you pick a point on the map.
+                                    </p>
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-medium text-gray-600">Longitude</label>
-                                    <input type="number" step="any" name="longitude" id="longitude-input"
-                                           class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
-                                           required readonly placeholder="Click map" />
+                                    <!-- Hidden form value, updated by the map -->
+                                    <input type="hidden" name="longitude" id="longitude-input" />
+                                    <p class="text-[11px] text-gray-500 mt-1">
+                                        Set automatically when you pick a point on the map.
+                                    </p>
                                 </div>
                             </div>
                         </div>
