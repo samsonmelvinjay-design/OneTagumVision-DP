@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 {% endfor %}
                                 <option value="__add_new__">Add new Project Type</option>
                             </select>
-                            <div id="project-type-new-wrap" class="hidden mt-2">
+                            <div id="project-type-new-wrap" class="mt-2" style="display: none;">
                                 <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
                                 <input type="text" name="project_type_new" id="project-type-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
                             </div>
@@ -364,19 +364,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <div class="grid grid-cols-2 gap-2 mb-2">
                                     <div>
                                         <label class="text-[10px] font-medium text-gray-600">Latitude</label>
-                                        <!-- Hidden form value, updated by the map -->
                                         <input type="hidden" name="latitude" id="latitude-input" />
-                                        <p class="text-[11px] text-gray-500 mt-1">
-                                            Set automatically when you pick a point on the map.
-                                        </p>
+                                        <p class="text-[11px] text-gray-700 mt-1 font-mono" id="latitude-display">Set automatically when you pick a point on the map.</p>
                                     </div>
                                     <div>
                                         <label class="text-[10px] font-medium text-gray-600">Longitude</label>
-                                        <!-- Hidden form value, updated by the map -->
                                         <input type="hidden" name="longitude" id="longitude-input" />
-                                        <p class="text-[11px] text-gray-500 mt-1">
-                                            Set automatically when you pick a point on the map.
-                                        </p>
+                                        <p class="text-[11px] text-gray-700 mt-1 font-mono" id="longitude-display">Set automatically when you pick a point on the map.</p>
                                     </div>
                                 </div>
                             </div>
@@ -857,13 +851,13 @@ function initProjectTypeUX() {
 
     // Show "add new" input only when "Add new Project Type" is selected
     if (typeNewWrap) {
-        typeNewWrap.classList.add('hidden');
+        typeNewWrap.style.display = 'none';
         typeSelect.addEventListener('change', function() {
             if (typeSelect.value === '__add_new__') {
-                typeNewWrap.classList.remove('hidden');
+                typeNewWrap.style.display = 'block';
                 typeNew.focus();
             } else {
-                typeNewWrap.classList.add('hidden');
+                typeNewWrap.style.display = 'none';
                 typeNew.value = '';
             }
         });
@@ -1085,6 +1079,7 @@ function showModal() {
     initSourceOfFundsUX();
     initProjectTypeUX();
     ensureAutoPrn();
+    updateCoordinateDisplays();
 }
 function hideModal() {
     if (projectModal) {
@@ -1481,7 +1476,7 @@ function updateLocationStatus() {
     }
 }
 
-// Update coordinate displays
+// Update coordinate displays (popup map + modal form)
 function updateCoordinateDisplays() {
     if (selectedLatDisplay && selectedLngDisplay && latInput && lngInput) {
         if (latInput.value && lngInput.value) {
@@ -1491,6 +1486,16 @@ function updateCoordinateDisplays() {
             selectedLatDisplay.textContent = '--';
             selectedLngDisplay.textContent = '--';
         }
+    }
+    // Update visible lat/lng in Add Project modal
+    const latDisplay = document.getElementById('latitude-display');
+    const lngDisplay = document.getElementById('longitude-display');
+    const hint = 'Set automatically when you pick a point on the map.';
+    if (latDisplay && latInput) {
+        latDisplay.textContent = latInput.value ? parseFloat(latInput.value).toFixed(6) : hint;
+    }
+    if (lngDisplay && lngInput) {
+        lngDisplay.textContent = lngInput.value ? parseFloat(lngInput.value).toFixed(6) : hint;
     }
 }
 

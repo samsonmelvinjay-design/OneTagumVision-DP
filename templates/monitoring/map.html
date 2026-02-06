@@ -1937,7 +1937,7 @@ function formatDate(dateStr) {
                             {% endfor %}
                             <option value="__add_new__">Add new Project Type</option>
                         </select>
-                        <div id="project-type-new-wrap" class="hidden mt-2">
+                        <div id="project-type-new-wrap" class="mt-2" style="display: none;">
                             <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
                             <input type="text" name="project_type_new" id="project-type-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
                         </div>
@@ -1953,19 +1953,13 @@ function formatDate(dateStr) {
                             <div class="grid grid-cols-2 gap-2 mb-2">
                                 <div>
                                     <label class="text-[10px] font-medium text-gray-600">Latitude</label>
-                                    <!-- Hidden form value, updated by the map -->
                                     <input type="hidden" name="latitude" id="latitude-input" />
-                                    <p class="text-[11px] text-gray-500 mt-1">
-                                        Set automatically when you pick a point on the map.
-                                    </p>
+                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="latitude-display">Set automatically when you pick a point on the map.</p>
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-medium text-gray-600">Longitude</label>
-                                    <!-- Hidden form value, updated by the map -->
                                     <input type="hidden" name="longitude" id="longitude-input" />
-                                    <p class="text-[11px] text-gray-500 mt-1">
-                                        Set automatically when you pick a point on the map.
-                                    </p>
+                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="longitude-display">Set automatically when you pick a point on the map.</p>
                                 </div>
                             </div>
                         </div>
@@ -2151,6 +2145,7 @@ function showModal() {
 
     // Ensure PRN is always auto-generated on Add mode
     ensureAutoPrn();
+    if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
 }
 
 async function ensureAutoPrn() {
@@ -3028,10 +3023,10 @@ function populateEngineers() {
         if (projectTypeSelect && projectTypeNewWrap && projectTypeNewInput) {
             projectTypeSelect.addEventListener('change', function() {
                 if (projectTypeSelect.value === '__add_new__') {
-                    projectTypeNewWrap.classList.remove('hidden');
+                    projectTypeNewWrap.style.display = 'block';
                     projectTypeNewInput.focus();
                 } else {
-                    projectTypeNewWrap.classList.add('hidden');
+                    projectTypeNewWrap.style.display = 'none';
                     projectTypeNewInput.value = '';
                 }
             });
@@ -3076,6 +3071,21 @@ function initializeMapPopupElements() {
     mapFullscreenBtn = document.getElementById('map-fullscreen-btn');
     latInput = document.getElementById('latitude-input');
     lngInput = document.getElementById('longitude-input');
+}
+
+// Update visible latitude/longitude in the Add Project modal
+function updateLocationDisplays() {
+    const latIn = document.getElementById('latitude-input');
+    const lngIn = document.getElementById('longitude-input');
+    const latDisplay = document.getElementById('latitude-display');
+    const lngDisplay = document.getElementById('longitude-display');
+    const hint = 'Set automatically when you pick a point on the map.';
+    if (latDisplay) {
+        latDisplay.textContent = (latIn && latIn.value) ? parseFloat(latIn.value).toFixed(6) : hint;
+    }
+    if (lngDisplay) {
+        lngDisplay.textContent = (lngIn && lngIn.value) ? parseFloat(lngIn.value).toFixed(6) : hint;
+    }
 }
 
 function _clearBarangayBoundary() {
@@ -3320,6 +3330,7 @@ window.showPopupMap = function() {
                     lngInput.value = position.lng.toFixed(6);
                     lngInput.dispatchEvent(new Event('input', { bubbles: true }));
                 }
+                if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
             });
             
             console.log('Initial marker added at:', lat, lng);
@@ -3386,6 +3397,7 @@ window.showPopupMap = function() {
                         lngInput.value = position.lng.toFixed(6);
                         lngInput.dispatchEvent(new Event('input', { bubbles: true }));
                     }
+                    if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
                 });
             }
 
@@ -3396,6 +3408,7 @@ window.showPopupMap = function() {
             if (locationStatus) {
                 locationStatus.classList.remove('hidden');
             }
+            if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
             
         });
 
@@ -3443,6 +3456,7 @@ function showPopupMap() {
 function hidePopupMap() {
     console.log('hidePopupMap function called');
     try {
+        if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
         if (!mapPopupModal) {
             initializeMapPopupElements();
         }
