@@ -939,7 +939,7 @@ class SimpleChoropleth {
             fillColor: 'transparent',
             fillOpacity: 0,
             color: '#3b82f6',
-            weight: 2.5,
+            weight: 4,
             opacity: 1
         };
         const addBoundaryFromData = (data) => {

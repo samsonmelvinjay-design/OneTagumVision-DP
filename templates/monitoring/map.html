@@ -1151,14 +1151,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 choroplethMap.initialize().then(() => {
                     choroplethMapReady = true; // Mark as ready
                     console.log('Choropleth map initialized successfully and ready');
-                    console.log('switchView method available:', typeof choroplethMap.switchView === 'function');
-                    // Get current view type from radio buttons
-                    const selectedRadio = document.querySelector('input[name="zoning-view-type"]:checked');
-                    if (selectedRadio) {
-                        const viewType = selectedRadio.value; // 'none' = idle/clear, no choropleth
-                        if (typeof choroplethMap.switchView === 'function') {
-                            choroplethMap.switchView(viewType);
-                        }
+                    // Always start with city outline only (no barangays) - force 'none' so no radio quirk shows barangays
+                    const viewNoneEl = document.getElementById('view-none');
+                    if (viewNoneEl) {
+                        viewNoneEl.checked = true;
+                    }
+                    if (typeof choroplethMap.switchView === 'function') {
+                        choroplethMap.switchView('none');
                     }
                 }).catch((error) => {
                     choroplethMapReady = false;
