@@ -821,6 +821,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const mainContent = document.querySelector('.flex-1'); // Main white content area
             const sidebar = document.querySelector('.bg-gray-900'); // Left sidebar
             const controls = document.querySelector('.p-4'); // Top controls
+            const zoningControlDropdown = document.getElementById('zoning-control-dropdown');
             
             if (!isFullscreen) {
                 // Enter fullscreen - expand to fill entire viewport
@@ -896,6 +897,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     controls.style.padding = '';
                     controls.style.boxShadow = '';
                     controls.style.backdropFilter = '';
+                }
+                
+                // Restore zoning control position when exiting fullscreen
+                if (zoningControlDropdown) {
+                    zoningControlDropdown.style.position = '';
+                    zoningControlDropdown.style.top = '';
+                    zoningControlDropdown.style.right = '';
+                    zoningControlDropdown.style.zIndex = '';
                 }
                 
                 // Update button
