@@ -91,62 +91,6 @@
   display: block;
 }
 
-/* Tagum City Barangay Legend - bottom-right */
-#barangay-legend-panel {
-  pointer-events: auto !important;
-  z-index: 10002 !important;
-  position: absolute !important;
-  bottom: 16px !important;
-  right: 16px !important;
-  background: white;
-  border-radius: 8px;
-  border: 2px solid #e5e7eb;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  padding: 12px 14px;
-  min-width: 220px;
-  max-width: 280px;
-  max-height: 320px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-#barangay-legend-panel .panel-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1f2937;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-#zone-legend-container {
-  max-height: 260px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  padding-right: 4px !important;
-}
-
-#zone-legend-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-#zone-legend-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-#zone-legend-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-#zone-legend-container::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-}
-
 /* Ensure floating controls don't interfere with map interactions */
 .leaflet-container {
   cursor: default;
@@ -345,8 +289,12 @@
                         <label class="block text-xs font-semibold mb-2 text-gray-700">View Type</label>
                         <div class="space-y-1.5" id="zoning-view-controls">
                             <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="radio" name="zoning-view-type" value="none" id="view-none" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Clear Map</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
                                 <input type="radio" name="zoning-view-type" value="projects" id="view-projects" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer" checked>
-                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Projects (Default)</span>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Barangay Boundaries</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer group">
                                 <input type="radio" name="zoning-view-type" value="urban_rural" id="view-urban-rural" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
@@ -366,12 +314,6 @@
                             </label>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Bottom-Right: Tagum City Barangay Legend -->
-                <div id="barangay-legend-panel">
-                    <div class="panel-title">Tagum City Barangay Legend</div>
-                    <div id="zone-legend-container" role="region" aria-label="Map legend"></div>
                 </div>
             </div>
         </div>
@@ -1204,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Sample project:', projectsToUse[0]);
                 }
                 
-                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse, 'zone-legend-container');
+                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse);
                 choroplethMapReady = false; // Reset flag
                 // Initialize asynchronously and wait for it to complete
                 choroplethMap.initialize().then(() => {
@@ -1298,6 +1240,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Attach event listeners to zoning view radio buttons
     const zoningViewRadios = document.querySelectorAll('input[name="zoning-view-type"]');
+    const viewProjectsRadio = document.getElementById('view-projects');
     if (zoningViewRadios.length > 0) {
         zoningViewRadios.forEach(radio => {
             radio.addEventListener('change', function(e) {
@@ -1306,6 +1249,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 handleZoningViewChange(viewType);
             });
         });
+        // Barangay Boundaries: click again when already selected -> clear map (toggle)
+        if (viewProjectsRadio) {
+            viewProjectsRadio.addEventListener('click', function() {
+                if (this.checked) {
+                    const viewNone = document.getElementById('view-none');
+                    if (viewNone) {
+                        viewNone.checked = true; // Triggers change event -> handleZoningViewChange('none')
+                    }
+                }
+            });
+        }
     }
 
     // Zoning Control dropdown toggle

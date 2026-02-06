@@ -325,6 +325,9 @@ class SimpleChoropleth {
         // Build legend HTML content (shared by both custom container and Leaflet control)
         const buildLegendHtml = () => {
             let html = '';
+            if (this.currentView === 'none') {
+                return '';
+            }
             if (this.currentView === 'urban_rural') {
                 html = '<h4 style="margin: 0 0 10px 0; color: #333; font-size: 13px; font-weight: 600;">Urban / Rural</h4>';
                 html += `
@@ -893,7 +896,9 @@ class SimpleChoropleth {
         }
 
         // Create and add new layer based on view
-        if (viewType === 'projects') {
+        if (viewType === 'none') {
+            console.log('Map cleared - no choropleth layer');
+        } else if (viewType === 'projects') {
             console.log('Creating projects choropleth');
             this.createChoropleth();
         } else {
