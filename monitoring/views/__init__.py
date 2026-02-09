@@ -579,7 +579,8 @@ def project_list(request):
         # Allow "Add new project type" (ProjectType FK requires an ID)
         new_project_type = (post_data.get('project_type_new') or '').strip()
         selected_project_type = (post_data.get('project_type') or '').strip()
-        if new_project_type and not selected_project_type:
+        # Treat __add_new__ or empty as "use project_type_new" when user typed a new type
+        if new_project_type and (not selected_project_type or selected_project_type == '__add_new__'):
             pt = _get_or_create_project_type_by_name(new_project_type)
             if pt:
                 post_data['project_type'] = str(pt.id)

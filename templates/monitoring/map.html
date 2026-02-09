@@ -2775,9 +2775,29 @@ function initProjectTypeUX() {
     if (!form) return;
     const typeSelect = form.querySelector('select[name="project_type"]');
     const typeNew = form.querySelector('input[name="project_type_new"]');
+    const typeNewWrap = document.getElementById('project-type-new-wrap');
     if (!typeSelect || !typeNew) return;
     if (typeSelect.dataset.ptUx === '1') return;
     typeSelect.dataset.ptUx = '1';
+
+    // Show "add new" input only when "Add new Project Type" is selected
+    if (typeNewWrap) {
+        typeNewWrap.style.display = 'none';
+        typeSelect.addEventListener('change', function() {
+            if (typeSelect.value === '__add_new__') {
+                typeNewWrap.style.display = 'block';
+                typeNew.focus();
+            } else {
+                typeNewWrap.style.display = 'none';
+                typeNew.value = '';
+            }
+        });
+    }
+    form.addEventListener('submit', function() {
+        if (typeSelect.value === '__add_new__') {
+            typeSelect.value = '';
+        }
+    });
 
     const getCookie = (name) => {
         const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -2837,7 +2857,7 @@ function initProjectTypeUX() {
     });
     typeNew.addEventListener('blur', () => submitNew());
     typeSelect.addEventListener('change', () => {
-        if ((typeSelect.value || '').trim()) {
+        if ((typeSelect.value || '').trim() && typeSelect.value !== '__add_new__') {
             typeNew.value = '';
         }
     });
