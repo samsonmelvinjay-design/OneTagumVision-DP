@@ -1428,12 +1428,30 @@ def reports(request):
     remaining_budget = total_budget - total_spent
     budget_utilization = (total_spent / total_budget * 100) if total_budget > 0 else 0
     avg_project_cost = (total_budget / len(projects)) if len(projects) > 0 else 0
-    
+
+    # Get latest progress per project
+    from projeng.models import ProjectProgress
+    from django.db.models import Max
+    latest_progress_map = {}
+    if project_ids:
+        progress_qs = ProjectProgress.objects.filter(project_id__in=project_ids).values('project_id').annotate(
+            latest_date=Max('date'), latest_created=Max('created_at')
+        )
+        for item in progress_qs:
+            latest = ProjectProgress.objects.filter(
+                project_id=item['project_id'], date=item['latest_date'], created_at=item['latest_created']
+            ).order_by('-id').first()
+            if latest and latest.percentage_complete is not None:
+                latest_progress_map[item['project_id']] = float(latest.percentage_complete)
+
     # Prepare data for JS and summary cards
     projects_list = []
     status_map = defaultdict(int)
     barangay_map = defaultdict(int)
     for p in projects:
+        progress_val = latest_progress_map.get(p.id)
+        if progress_val is None:
+            progress_val = getattr(p, 'progress', 0) or 0
         projects_list.append({
             'id': p.id,
             'name': p.name,
@@ -1446,6 +1464,7 @@ def reports(request):
             'start_date': str(p.start_date) if p.start_date else '',
             'end_date': str(p.end_date) if p.end_date else '',
             'status': p.status,
+            'progress': progress_val,
         })
         # For charts
         status = p.status

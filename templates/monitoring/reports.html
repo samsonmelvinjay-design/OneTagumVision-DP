@@ -9,7 +9,7 @@
                 <h1 class="text-3xl font-bold text-gray-900">Project Reports</h1>
                 <p class="text-gray-600 mt-1">View and export project data by barangay, status, and date range.</p>
             </div>
-            <button type="button" id="export-button-header" class="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition border-2 border-emerald-700 shadow-sm">
+            <button type="button" id="export-button-header" class="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-base font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition border-2 border-green-700 shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 Export
             </button>
@@ -83,7 +83,7 @@
                 </div>
                 <div class="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-2">
                     <button type="button" id="clear-filters-btn" class="px-4 py-2.5 text-base font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition border-2 border-gray-200">Clear Filters</button>
-                    <button type="button" id="export-button" class="px-4 py-2.5 text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition flex items-center gap-2 border-2 border-emerald-700">
+                    <button type="button" id="export-button" class="px-4 py-2.5 text-base font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition flex items-center gap-2 border-2 border-green-700">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         Export
                     </button>
@@ -398,72 +398,107 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // PDF export via PDFMake (clean, organized format)
+    // PDF export via PDFMake – City of Tagum official format
     function exportToPdfMake() {
         const list = (modalBarangayFilter && modalBarangayFilter.value)
             ? filteredProjects.filter(function(p) { return p.barangay === modalBarangayFilter.value; })
             : filteredProjects;
 
-        let totalBudget = 0;
-        list.forEach(function(p) {
-            if (p.project_cost != null && p.project_cost !== '') {
-                const num = Number(String(p.project_cost).replace(/[^\d.]/g, ''));
-                if (!isNaN(num)) totalBudget += num;
-            }
-        });
+        const now = new Date();
+        const reportDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(/(\d+), (\d+)/, '$1, $2');
 
-        const meta = document.getElementById('reports-meta');
-        const totalSpent = meta ? parseFloat(meta.getAttribute('data-total-spent') || '0') : 0;
-        const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-        function getStatusLabel(s) {
-            const n = normalizeStatus(s);
-            return n === 'in_progress' ? 'Ongoing' : (n ? n.charAt(0).toUpperCase() + n.slice(1) : '');
+        function toDdMonYy(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return isNaN(d) ? '' : d.getDate() + '-' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
         }
 
-        const headerRow = [{ text: '#', style: 'tableHeader' }, { text: 'PRN#', style: 'tableHeader' }, { text: 'Project', style: 'tableHeader' }, { text: 'Description', style: 'tableHeader' }, { text: 'Location', style: 'tableHeader' }, { text: 'Cost', style: 'tableHeader' }, { text: 'Source of Funds', style: 'tableHeader' }, { text: 'Started', style: 'tableHeader' }, { text: 'Ended', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }];
-        const tableBody = [headerRow];
+        function formatCostOfficial(cost) {
+            if (cost == null || cost === '') return '';
+            const num = Number(String(cost).replace(/[^\d.]/g, ''));
+            return isNaN(num) ? '' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function getRemarks(status, progress) {
+            const n = normalizeStatus(status);
+            const pct = Number(progress);
+            if (pct >= 99 || n === 'completed') return '100% Completed as per POW';
+            if (n === 'in_progress') return 'On Going';
+            if (n === 'planned' || n === 'pending') return 'For Implementation';
+            if (n === 'delayed') return 'On Going';
+            return n ? n.charAt(0).toUpperCase() + n.slice(1) : '';
+        }
+
+        // Official header: right-aligned institutional text
+        const headerContent = [
+            { text: 'REPUBLIC OF THE PHILIPPINES', fontSize: 8, alignment: 'right', margin: [0, 0, 0, 0] },
+            { text: 'PROVINCE OF DAVAO DEL NORTE', fontSize: 8, alignment: 'right', margin: [0, 0, 0, 0] },
+            { text: 'CITY OF TAGUM', fontSize: 11, bold: true, alignment: 'right', margin: [0, 2, 0, 0] },
+            { text: 'OFFICE OF THE CITY ENGINEER', fontSize: 11, bold: true, alignment: 'right', margin: [0, 2, 0, 0] },
+            { text: 'LIST OF INFRASTRUCTURE PROJECTS', fontSize: 12, bold: true, alignment: 'right', margin: [0, 4, 0, 0] },
+            { text: 'As of ' + reportDate, fontSize: 9, alignment: 'right', margin: [0, 2, 0, 0] }
+        ];
+
+        // Table: No. | PRN | Name of Project | Location | Project Cost | Project Description | Date Started | Target Date of Completion | Date of Completion | % Accomplishment | REMARKS
+        const colWidths = [20, 50, '*', 45, 50, 65, 42, 48, 42, 42, 50];
+        const year = now.getFullYear();
+        const sectionHeaderRow = [
+            { text: year + ' INFRASTRUCTURE PROJECTS', colSpan: 11, alignment: 'center', fillColor: '#166534', color: 'white', bold: true, fontSize: 9 },
+            {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+        ];
+        const mainHeaderRow = [
+            { text: 'No.', style: 'tableHeader', alignment: 'center' },
+            { text: 'PRN', style: 'tableHeader' },
+            { text: 'Name of Project', style: 'tableHeader' },
+            { text: 'Location', style: 'tableHeader' },
+            { text: 'Project Cost', style: 'tableHeader', alignment: 'right' },
+            { text: 'Project Description', style: 'tableHeader' },
+            { text: 'Date Started', style: 'tableHeader', alignment: 'center' },
+            { text: 'Target Date of Completion', style: 'tableHeader', alignment: 'center' },
+            { text: 'Date of Completion', style: 'tableHeader', alignment: 'center' },
+            { text: '% Accomplishment', style: 'tableHeader', alignment: 'right' },
+            { text: 'REMARKS', style: 'tableHeader' }
+        ];
+        const tableBody = [sectionHeaderRow, mainHeaderRow];
+
         list.forEach(function(p, idx) {
+            const progress = p.progress != null ? Number(p.progress) : 0;
+            const dateCompleted = (progress >= 99 || normalizeStatus(p.status) === 'completed') && p.end_date ? toDdMonYy(p.end_date) : '';
             tableBody.push([
-                String(idx + 1),
-                (p.prn || '').toString(),
-                (p.name || '').toString(),
-                (p.description || '').toString().substring(0, 50) + (p.description && p.description.length > 50 ? '...' : ''),
-                (p.barangay || '').toString(),
-                formatCost(p.project_cost),
-                (p.source_of_funds || '').toString(),
-                formatDate(p.start_date),
-                formatDate(p.end_date),
-                getStatusLabel(p.status)
+                { text: String(idx + 1), alignment: 'center', fontSize: 8 },
+                { text: (p.prn || '').toString(), fontSize: 8 },
+                { text: (p.name || '').toString(), fontSize: 8 },
+                { text: (p.barangay || '').toString(), fontSize: 8 },
+                { text: formatCostOfficial(p.project_cost), alignment: 'right', fontSize: 8 },
+                { text: ((p.description || '').toString().substring(0, 80) + ((p.description || '').length > 80 ? '...' : '')), fontSize: 7 },
+                { text: toDdMonYy(p.start_date), alignment: 'center', fontSize: 8 },
+                { text: toDdMonYy(p.end_date), alignment: 'center', fontSize: 8 },
+                { text: dateCompleted, alignment: 'center', fontSize: 8 },
+                { text: (progress.toFixed(2) + '%'), alignment: 'right', fontSize: 8 },
+                { text: getRemarks(p.status, progress), fontSize: 8 }
             ]);
         });
 
         const docDef = {
             pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60],
-            header: function(currentPage, pageCount) {
-                return { text: 'OneTagumVision – Project Reports', fontSize: 10, color: '#6b7280', margin: [40, 20, 40, 0] };
+            pageOrientation: 'landscape',
+            pageMargins: [30, 80, 30, 50],
+            header: function() {
+                return {
+                    columns: [
+                        { text: 'ON GOING / FOR IMPLEMENTATION / PRE-INGE PROJECTS.', fontSize: 8, margin: [30, 20, 0, 0] },
+                        { stack: headerContent, width: '*', margin: [0, 20, 30, 0] }
+                    ]
+                };
             },
             footer: function(currentPage, pageCount) {
-                return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 9, color: '#9ca3af', alignment: 'center', margin: [0, 0, 0, 20] };
+                return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 8, color: '#666', alignment: 'center', margin: [0, 0, 0, 15] };
             },
             content: [
-                { text: 'Project Reports', style: 'header', fontSize: 22, bold: true, margin: [0, 0, 0, 4] },
-                { text: 'View and export project data by barangay, status, and date range.', fontSize: 10, color: '#6b7280', margin: [0, 0, 0, 16] },
-                { text: 'Generated: ' + generatedAt, fontSize: 9, color: '#9ca3af', margin: [0, 0, 0, 16] },
-                {
-                    columns: [
-                        { stack: [{ text: 'Projects', fontSize: 9, color: '#6b7280' }, { text: list.length.toString(), fontSize: 14, bold: true, margin: [0, 2, 0, 0] }], width: '*', margin: [0, 0, 16, 0] },
-                        { stack: [{ text: 'Total Budget', fontSize: 9, color: '#6b7280' }, { text: '₱' + totalBudget.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }), fontSize: 14, bold: true, margin: [0, 2, 0, 0] }], width: '*', margin: [0, 0, 16, 0] },
-                        { stack: [{ text: 'Total Spent', fontSize: 9, color: '#6b7280' }, { text: '₱' + totalSpent.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }), fontSize: 14, bold: true, margin: [0, 2, 0, 0] }], width: '*' }
-                    ],
-                    margin: [0, 0, 0, 20]
-                },
-                { text: 'Project List', fontSize: 12, bold: true, margin: [0, 0, 0, 8] },
                 {
                     table: {
-                        headerRows: 1,
-                        widths: [22, 65, '*', 80, 55, 55, 60, 55, 55, 48],
+                        headerRows: 2,
+                        widths: colWidths,
                         body: tableBody
                     },
                     layout: {
@@ -473,13 +508,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             ],
             styles: {
-                header: { fontSize: 18 },
-                tableHeader: { bold: true, fontSize: 9, fillColor: '#f3f4f6' }
+                tableHeader: { bold: true, fontSize: 8, fillColor: '#166534', color: 'white' }
             }
         };
 
         if (typeof pdfMake !== 'undefined') {
-            pdfMake.createPdf(docDef).download('project_reports_' + new Date().toISOString().slice(0, 10) + '.pdf');
+            pdfMake.createPdf(docDef).download('list_of_infrastructure_projects_' + now.toISOString().slice(0, 10) + '.pdf');
         } else {
             alert('PDF library not loaded. Please refresh the page and try again.');
         }
