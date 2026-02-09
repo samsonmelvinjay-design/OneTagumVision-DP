@@ -2018,14 +2018,17 @@ function formatDate(dateStr) {
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
-                            <select name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
+                            <select id="source-of-funds-select" name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
                                 <option value="">Select source of funds</option>
                                 {% for sof in source_of_funds_options %}
                                     <option value="{{ sof.name }}">{{ sof.name }}</option>
                                 {% endfor %}
+                                <option value="__add_new__">Add new Source of Funds</option>
                             </select>
-                            <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 block">Or add new</label>
-                            <input type="text" name="source_of_funds_new" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            <div id="source-of-funds-new-wrap" class="mt-2" style="display: none;">
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
+                                <input type="text" name="source_of_funds_new" id="source-of-funds-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            </div>
                         </div>
                         <div class="relative pt-3 border-t border-gray-100">
                             <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
@@ -2731,15 +2734,35 @@ function initAssignedEngineersSelectorOnce() {
 window.renderAssignedEngineerChips = renderAssignedEngineerChips;
 window.initAssignedEngineersSelectorOnce = initAssignedEngineersSelectorOnce;
 
-// Source of funds UX: if user types "new", auto-select it to satisfy required dropdown
+// Source of funds UX: show input when "Add new Source of Funds" selected, auto-add to dropdown on blur/Enter
 function initSourceOfFundsUX() {
     const form = document.getElementById('project-form');
     if (!form) return;
     const fundsSelect = form.querySelector('select[name="source_of_funds"]');
     const fundsNew = form.querySelector('input[name="source_of_funds_new"]');
+    const fundsNewWrap = document.getElementById('source-of-funds-new-wrap');
     if (!fundsSelect || !fundsNew) return;
     if (fundsSelect.dataset.fundsUx === '1') return;
     fundsSelect.dataset.fundsUx = '1';
+
+    // Show "add new" input only when "Add new Source of Funds" is selected
+    if (fundsNewWrap) {
+        fundsNewWrap.style.display = 'none';
+        fundsSelect.addEventListener('change', function() {
+            if (fundsSelect.value === '__add_new__') {
+                fundsNewWrap.style.display = 'block';
+                fundsNew.focus();
+            } else {
+                fundsNewWrap.style.display = 'none';
+                fundsNew.value = '';
+            }
+        });
+    }
+    form.addEventListener('submit', function() {
+        if (fundsSelect.value === '__add_new__') {
+            fundsSelect.value = '';
+        }
+    });
 
     const ensureOptionEverywhere = (val) => {
         const v = (val || '').trim();
@@ -2757,13 +2780,24 @@ function initSourceOfFundsUX() {
         fundsSelect.value = v;
     };
 
-    fundsNew.addEventListener('input', () => {
+    const submitNew = () => {
         const v = (fundsNew.value || '').trim();
-        if (v) ensureOptionEverywhere(v);
+        if (v) {
+            ensureOptionEverywhere(v);
+            fundsNew.value = '';
+        }
+    };
+
+    fundsNew.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitNew();
+        }
     });
+    fundsNew.addEventListener('blur', () => submitNew());
 
     fundsSelect.addEventListener('change', () => {
-        if ((fundsSelect.value || '').trim()) {
+        if ((fundsSelect.value || '').trim() && fundsSelect.value !== '__add_new__') {
             fundsNew.value = '';
         }
     });

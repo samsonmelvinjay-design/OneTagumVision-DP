@@ -563,7 +563,8 @@ def project_list(request):
         post_data = request.POST.copy()
         new_source_of_funds = (post_data.get('source_of_funds_new') or '').strip()
         selected_source_of_funds = (post_data.get('source_of_funds') or '').strip()
-        if new_source_of_funds:
+        # Treat __add_new__ or empty as "use source_of_funds_new" when user typed a new value
+        if new_source_of_funds and (not selected_source_of_funds or selected_source_of_funds == '__add_new__'):
             # Case-insensitive de-dupe
             existing = SourceOfFunds.objects.filter(name__iexact=new_source_of_funds).first()
             if not existing:
