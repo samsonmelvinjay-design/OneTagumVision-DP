@@ -87,6 +87,9 @@
             color: #dc3545;
             font-weight: bold;
         }
+        .at-risk {
+            color: #fd7e14;
+        }
         .under-budget {
             color: #28a745;
             font-weight: bold;
@@ -137,31 +140,35 @@
     <table>
         <thead>
             <tr>
-                <th>Project Name</th>
-                <th>PRN</th>
-                <th>Barangay</th>
-                <th>Budget</th>
-                <th>Spent</th>
-                <th>Remaining</th>
-                <th>Utilization</th>
-                <th>Status</th>
-                <th>Over/Under</th>
+                <th>#</th>
+                <th>PRN #</th>
+                <th>PROJECT</th>
+                <th>BARANGAY</th>
+                <th>ASSIGNED ENGINEERS</th>
+                <th>BUDGET</th>
+                <th>SPENT</th>
+                <th>UTILIZATION</th>
+                <th>OVER/UNDER</th>
+                <th>STATUS</th>
+                <th>COST BREAKDOWN</th>
             </tr>
         </thead>
         <tbody>
             {% for project in project_data %}
             <tr>
-                <td>{{ project.Project_Name }}</td>
+                <td>{{ project.Num }}</td>
                 <td>{{ project.PRN }}</td>
+                <td>{{ project.Project_Name }}</td>
                 <td>{{ project.Barangay }}</td>
+                <td>{{ project.Assigned_Engineers }}</td>
                 <td>{{ project.Budget }}</td>
                 <td>{{ project.Spent }}</td>
-                <td>{{ project.Remaining }}</td>
-                <td>{{ project.Utilization__ }}</td>
-                <td>{{ project.Status }}</td>
-                <td class="{% if project.Over_Under == 'Over' %}over-budget{% else %}under-budget{% endif %}">
+                <td>{{ project.Utilization }}</td>
+                <td class="{% if project.Over_Under == 'Over' %}over-budget{% elif project.Over_Under == 'Within' %}at-risk{% else %}under-budget{% endif %}">
                     {{ project.Over_Under }}
                 </td>
+                <td>{{ project.Status }}</td>
+                <td style="font-size: 9px;">{{ project.Cost_Breakdown }}</td>
             </tr>
             {% endfor %}
         </tbody>
