@@ -350,13 +350,16 @@ window.showBarangayProjectsModal = function(barangayName) {
     } else {
         emptyEl.classList.add('hidden');
         const statusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'Ongoing', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
+        const statusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-blue-100 text-blue-800', ongoing: 'bg-blue-100 text-blue-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
         filtered.forEach(function(p, i) {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-gray-50';
-            const status = statusMap[(p.status || '').toLowerCase()] || (p.status || '').replace(/_/g, ' ');
+            const rawStatus = (p.status || '').toLowerCase();
+            const status = statusMap[rawStatus] || (p.status || '').replace(/_/g, ' ');
+            const statusClass = statusClassMap[rawStatus] || 'bg-gray-100 text-gray-800';
             const cost = (p.project_cost && parseFloat(p.project_cost) >= 0) ? '₱' + parseFloat(p.project_cost).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
-            const detailUrl = '/dashboard/monitoring/projects/' + (p.id || '') + '/detail/';
-            tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + (p.prn || '—') + '</td><td class="px-4 py-2 font-medium text-gray-900">' + (p.name || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">' + status + '</span></td><td class="px-4 py-2"><a href="' + detailUrl + '" class="text-blue-600 hover:text-blue-800 font-medium">View</a></td>';
+            const projId = (p.id || '').toString().replace(/"/g, '&quot;');
+            tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + (p.prn || '—') + '</td><td class="px-4 py-2 font-medium text-gray-900">' + (p.name || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + statusClass + '">' + status + '</span></td><td class="px-4 py-2"><button type="button" class="barangay-project-view-detail text-blue-600 hover:text-blue-800 font-medium" data-project-id="' + projId + '">View</button></td>';
             tbody.appendChild(tr);
         });
     }
@@ -367,6 +370,15 @@ document.addEventListener('click', function(e) {
     if (btn && btn.getAttribute('data-barangay')) {
         e.preventDefault();
         if (window.showBarangayProjectsModal) window.showBarangayProjectsModal(btn.getAttribute('data-barangay'));
+        return;
+    }
+    const viewBtn = e.target.closest && e.target.closest('.barangay-project-view-detail');
+    if (viewBtn && viewBtn.getAttribute('data-project-id')) {
+        e.preventDefault();
+        const projectId = viewBtn.getAttribute('data-project-id');
+        const modal = document.getElementById('barangay-projects-modal');
+        if (modal) modal.classList.add('hidden');
+        if (typeof window.openDetailsModal === 'function') window.openDetailsModal(projectId);
     }
 });
 document.getElementById('close-barangay-projects-modal') && document.getElementById('close-barangay-projects-modal').addEventListener('click', function() {
@@ -374,6 +386,12 @@ document.getElementById('close-barangay-projects-modal') && document.getElementB
 });
 document.getElementById('barangay-projects-modal') && document.getElementById('barangay-projects-modal').addEventListener('click', function(ev) {
     if (ev.target === this) this.classList.add('hidden');
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('barangay-projects-modal');
+        if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden');
+    }
 });
 
 // --- Purok dropdown (simple, defense-friendly) ---
