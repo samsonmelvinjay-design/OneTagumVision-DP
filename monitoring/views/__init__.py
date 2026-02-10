@@ -1808,6 +1808,130 @@ def budget_reports(request):
     }
     return render(request, 'monitoring/budget_reports.html', context)
 
+
+@login_required
+@prevent_project_engineer_access
+def budget_reports_chart_data_api(request):
+    """API: return chart data for Budget Reports (utilization or over/under) by period. No page reload."""
+    from django.http import JsonResponse
+    from projeng.models import Project, ProjectCost
+    from django.db.models import Q
+    from datetime import date, timedelta
+
+    chart_type = (request.GET.get('chart') or '').strip().lower()
+    period = (request.GET.get('period') or 'month').strip().lower()
+    if chart_type not in ('utilization', 'overunder'):
+        return JsonResponse({'error': 'Invalid chart'}, status=400)
+    if period not in ('week', 'month', 'year'):
+        period = 'month'
+
+    if is_head_engineer(request.user) or is_finance_manager(request.user):
+        projects = Project.objects.all()
+    elif is_project_engineer(request.user):
+        projects = Project.objects.filter(assigned_engineers=request.user)
+    else:
+        projects = Project.objects.none()
+
+    selected_barangay = request.GET.get('barangay', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_start_date = request.GET.get('start_date', '').strip()
+    selected_end_date = request.GET.get('end_date', '').strip()
+    selected_cost_min = request.GET.get('cost_min', '').strip()
+    selected_cost_max = request.GET.get('cost_max', '').strip()
+    selected_budget_status = request.GET.get('budget_status', '').strip()
+
+    if selected_barangay:
+        projects = projects.filter(barangay=selected_barangay)
+    if selected_status:
+        if selected_status == 'in_progress':
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            projects = projects.filter(status=selected_status)
+    if selected_start_date:
+        projects = projects.filter(start_date__gte=selected_start_date)
+    if selected_end_date:
+        projects = projects.filter(end_date__lte=selected_end_date)
+    if selected_cost_min:
+        try:
+            projects = projects.filter(project_cost__gte=float(selected_cost_min))
+        except (ValueError, TypeError):
+            pass
+    if selected_cost_max:
+        try:
+            projects = projects.filter(project_cost__lte=float(selected_cost_max))
+        except (ValueError, TypeError):
+            pass
+
+    today = timezone.now().date() if timezone.is_naive(timezone.now()) else timezone.now().date()
+    if period == 'week':
+        period_start = today - timedelta(days=today.weekday())
+        period_end = period_start + timedelta(days=6)
+    elif period == 'year':
+        period_start = date(today.year, 1, 1)
+        period_end = date(today.year, 12, 31)
+    else:
+        period_start = date(today.year, today.month, 1)
+        period_end = date(today.year, 12, 31) if today.month == 12 else (date(today.year, today.month + 1, 1) - timedelta(days=1))
+
+    def in_period(p):
+        start = getattr(p, 'start_date', None)
+        end = getattr(p, 'end_date', None)
+        if not start and not end:
+            return True
+        if start and end:
+            return start <= period_end and end >= period_start
+        if start:
+            return start <= period_end
+        if end:
+            return end >= period_start
+        return True
+
+    projects_for_chart = [p for p in projects if in_period(p)]
+
+    if chart_type == 'utilization':
+        names = []
+        utils = []
+        budgets = []
+        for p in projects_for_chart:
+            costs = ProjectCost.objects.filter(project=p)
+            spent = sum([float(c.amount) for c in costs]) if costs else 0
+            budget = float(p.project_cost) if p.project_cost else 0
+            util = (spent / budget * 100) if budget > 0 else 0
+            names.append(p.name or '')
+            utils.append(round(util, 2))
+            budgets.append(budget)
+        sorted_data = sorted(zip(names, utils, budgets), key=lambda x: x[1] if x[1] > 0 else x[2], reverse=True)[:20]
+        return JsonResponse({
+            'project_names': [x[0] for x in sorted_data],
+            'utilizations': [x[1] for x in sorted_data],
+        })
+    else:
+        over = within = under = 0
+        for p in projects_for_chart:
+            costs = ProjectCost.objects.filter(project=p)
+            spent = sum([float(c.amount) for c in costs]) if costs else 0
+            budget = float(p.project_cost) if p.project_cost else 0
+            util = (spent / budget * 100) if budget > 0 else 0
+            if budget > 0:
+                if spent > budget:
+                    ou = 'Over'
+                elif util >= 80:
+                    ou = 'Within'
+                else:
+                    ou = 'Under'
+            else:
+                ou = 'Under'
+            if selected_budget_status and ou.lower() != selected_budget_status.lower():
+                continue
+            if ou == 'Over':
+                over += 1
+            elif ou == 'Within':
+                within += 1
+            else:
+                under += 1
+        return JsonResponse({'over': over, 'within': within, 'under': under})
+
+
 @login_required
 @head_engineer_required
 def project_get_api(request, pk):

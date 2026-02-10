@@ -140,7 +140,6 @@
       
       <!-- Filter Form - Inline with heading -->
       <form method="get" id="filter-form" class="flex flex-wrap gap-3 items-end no-print">
-        <input type="hidden" name="chart_period" value="{{ selected_chart_period|default:'month' }}">
         <div class="min-w-[150px]">
           <label for="barangay-filter" class="block text-xs font-medium text-gray-700 mb-1">Barangay:</label>
           <select id="barangay-filter" name="barangay" class="w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
@@ -407,136 +406,133 @@
 {{ budget_report_pdf_data|json_script:"budget-report-pdf-data" }}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Budget Utilization Bar Chart - Top 20 projects
-    const projNames = {{ project_names|safe }};
-    const utilizations = {{ utilizations|safe }};
-    const ctxUtil = document.getElementById('budgetUtilizationChart').getContext('2d');
-    
-    // Truncate long project names so they fit inside the chart
-    const truncatedNames = projNames.map(name => {
-      if (!name) return '';
-      const s = String(name);
-      if (s.length > 28) return s.substring(0, 25) + '...';
-      return s;
-    });
-    
-    new Chart(ctxUtil, {
-      type: 'bar',
-      data: {
-        labels: truncatedNames,
-        datasets: [{
-          label: 'Utilization %',
-          data: utilizations,
-          backgroundColor: utilizations.map(util => {
-            if (util >= 100) return 'rgba(239, 68, 68, 0.7)';
-            if (util >= 80) return 'rgba(251, 191, 36, 0.7)';
-            return 'rgba(59, 130, 246, 0.7)';
-          }),
-          borderColor: utilizations.map(util => {
-            if (util >= 100) return 'rgba(239, 68, 68, 1)';
-            if (util >= 80) return 'rgba(251, 191, 36, 1)';
-            return 'rgba(59, 130, 246, 1)';
-          }),
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: { left: 8, right: 16, top: 8, bottom: 8 } },
-        indexAxis: 'y',
-        plugins: { 
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return 'Utilization: ' + context.parsed.x.toFixed(1) + '%';
-              }
-            }
-          }
+    const chartDataUrl = '{% url "budget_reports_chart_data_api" %}';
+
+    function buildChartParams(period) {
+      const params = new URLSearchParams();
+      params.set('period', period);
+      const barangay = document.getElementById('barangay-filter');
+      const status = document.getElementById('status-filter');
+      const startDate = document.getElementById('start-date-filter');
+      const endDate = document.getElementById('end-date-filter');
+      const costMin = document.getElementById('cost-min-filter');
+      const costMax = document.getElementById('cost-max-filter');
+      const budgetStatus = document.getElementById('budget-status-filter');
+      if (barangay && barangay.value) params.set('barangay', barangay.value);
+      if (status && status.value) params.set('status', status.value);
+      if (startDate && startDate.value) params.set('start_date', startDate.value);
+      if (endDate && endDate.value) params.set('end_date', endDate.value);
+      if (costMin && costMin.value) params.set('cost_min', costMin.value);
+      if (costMax && costMax.value) params.set('cost_max', costMax.value);
+      if (budgetStatus && budgetStatus.value) params.set('budget_status', budgetStatus.value);
+      return params;
+    }
+
+    function truncateLabel(s) {
+      if (!s) return '';
+      const str = String(s);
+      return str.length > 28 ? str.substring(0, 25) + '…' : str;
+    }
+
+    const utilOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { left: 8, right: 16, top: 8, bottom: 8 } },
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return 'Utilization: ' + c.parsed.x.toFixed(1) + '%'; } } } },
+      scales: {
+        x: { beginAtZero: true, title: { display: true, text: 'Budget Utilization (%)' } },
+        y: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: false, callback: function(_, i) { return truncateLabel(this.getLabelForValue(i)); } } }
+      }
+    };
+
+    let budgetUtilizationChart = null;
+    let overUnderChart = null;
+
+    function renderUtilizationChart(projNames, utilizations) {
+      const truncatedNames = (projNames || []).map(truncateLabel);
+      const maxX = utilizations.length > 0 ? Math.max(150, Math.max(...utilizations) * 1.1) : 150;
+      const ctx = document.getElementById('budgetUtilizationChart');
+      if (!ctx) return;
+      if (budgetUtilizationChart) budgetUtilizationChart.destroy();
+      budgetUtilizationChart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: truncatedNames,
+          datasets: [{
+            label: 'Utilization %',
+            data: utilizations,
+            backgroundColor: utilizations.map(u => u >= 100 ? 'rgba(239, 68, 68, 0.7)' : u >= 80 ? 'rgba(251, 191, 36, 0.7)' : 'rgba(59, 130, 246, 0.7)'),
+            borderColor: utilizations.map(u => u >= 100 ? 'rgba(239, 68, 68, 1)' : u >= 80 ? 'rgba(251, 191, 36, 1)' : 'rgba(59, 130, 246, 1)'),
+            borderWidth: 1
+          }]
         },
-        scales: { 
-          x: { 
-            beginAtZero: true, 
-            max: utilizations.length > 0 ? Math.max(150, Math.max(...utilizations) * 1.1) : 150,
-            title: { display: true, text: 'Budget Utilization (%)' }
-          },
-          y: {
-            ticks: {
-              font: { size: 9 },
-              maxRotation: 0,
-              autoSkip: false,
-              callback: function(val, index) {
-                const label = this.getLabelForValue(val);
-                return label.length > 28 ? label.substring(0, 25) + '…' : label;
-              }
-            }
+        options: Object.assign({}, utilOptions, { scales: { x: { beginAtZero: true, max: maxX, title: { display: true, text: 'Budget Utilization (%)' } }, y: utilOptions.scales.y } })
+      });
+    }
+
+    function renderOverUnderChart(over, within, under) {
+      const total = over + within + under;
+      const ctx = document.getElementById('overUnderChart');
+      if (!ctx) return;
+      if (overUnderChart) overUnderChart.destroy();
+      overUnderChart = new Chart(ctx.getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: ['Over Budget', 'Within Budget (80-100%)', 'Under Budget'],
+          datasets: [{
+            data: [over, within, under],
+            backgroundColor: ['rgba(239, 68, 68, 0.7)', 'rgba(251, 191, 36, 0.7)', 'rgba(34, 197, 94, 0.7)'],
+            borderColor: ['rgba(239, 68, 68, 1)', 'rgba(251, 191, 36, 1)', 'rgba(34, 197, 94, 1)'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: 12 },
+          plugins: {
+            legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: function(c) { const v = c.parsed || 0; const pct = total > 0 ? ((v / total) * 100).toFixed(1) : 0; return (c.label || '') + ': ' + v + ' (' + pct + '%)'; } } }
           }
         }
-      }
-    });
+      });
+    }
 
-    // Over/Under/Within Budget Pie Chart (uses chart period–filtered counts)
+    // Initial render from server data
+    const projNames = {{ project_names|safe }};
+    const utilizations = {{ utilizations|safe }};
+    renderUtilizationChart(projNames, utilizations);
+
     const chartOverCount = {{ chart_over_count|default:over_count }};
     const chartUnderCount = {{ chart_under_count|default:under_count }};
     const chartWithinCount = {{ chart_within_count|default:within_count }};
-    const ctxOU = document.getElementById('overUnderChart').getContext('2d');
-    
-    const totalProjects = chartOverCount + chartUnderCount + chartWithinCount;
-    
-    new Chart(ctxOU, {
-      type: 'pie',
-      data: {
-        labels: ['Over Budget', 'Within Budget (80-100%)', 'Under Budget'],
-        datasets: [{
-          data: [chartOverCount, chartWithinCount, chartUnderCount],
-          backgroundColor: [
-            'rgba(239, 68, 68, 0.7)',  // Red for over
-            'rgba(251, 191, 36, 0.7)', // Yellow for within
-            'rgba(34, 197, 94, 0.7)'   // Green for under
-          ],
-          borderColor: [
-            'rgba(239, 68, 68, 1)',
-            'rgba(251, 191, 36, 1)',
-            'rgba(34, 197, 94, 1)'
-          ],
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: 12 },
-        plugins: { 
-          legend: { 
-            position: 'bottom',
-            labels: { padding: 12, font: { size: 11 } }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const label = context.label || '';
-                const value = context.parsed || 0;
-                const percentage = totalProjects > 0 ? ((value / totalProjects) * 100).toFixed(1) : 0;
-                return label + ': ' + value + ' (' + percentage + '%)';
-              }
-            }
-          }
-        }
-      }
+    renderOverUnderChart(chartOverCount, chartWithinCount, chartUnderCount);
+
+    // Utilization chart period: fetch and update only this chart
+    document.getElementById('chart-period-utilization') && document.getElementById('chart-period-utilization').addEventListener('change', function() {
+      const period = this.value || 'month';
+      const params = buildChartParams(period);
+      params.set('chart', 'utilization');
+      fetch(chartDataUrl + '?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          renderUtilizationChart(data.project_names || [], data.utilizations || []);
+        })
+        .catch(function() {});
     });
 
-    // Chart period: reload page with chart_period param so both charts use the same period
-    function applyChartPeriod(period) {
-      const params = new URLSearchParams(window.location.search);
-      params.set('chart_period', period);
-      window.location.search = params.toString();
-    }
-    document.getElementById('chart-period-utilization') && document.getElementById('chart-period-utilization').addEventListener('change', function() {
-      applyChartPeriod(this.value);
-    });
+    // Over/Under chart period: fetch and update only this chart
     document.getElementById('chart-period-overunder') && document.getElementById('chart-period-overunder').addEventListener('change', function() {
-      applyChartPeriod(this.value);
+      const period = this.value || 'month';
+      const params = buildChartParams(period);
+      params.set('chart', 'overunder');
+      fetch(chartDataUrl + '?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          renderOverUnderChart(data.over || 0, data.within || 0, data.under || 0);
+        })
+        .catch(function() {});
     });
 
     const btn = document.getElementById('export-dropdown-btn');
