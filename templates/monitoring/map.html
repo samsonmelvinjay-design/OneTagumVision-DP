@@ -366,6 +366,14 @@ window.showBarangayProjectsModal = function(barangayName) {
     modal.classList.remove('hidden');
 };
 document.addEventListener('click', function(e) {
+    const closeBtn = e.target.closest && e.target.closest('#close-barangay-projects-modal');
+    if (closeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const modal = document.getElementById('barangay-projects-modal');
+        if (modal) modal.classList.add('hidden');
+        return;
+    }
     const btn = e.target.closest && e.target.closest('.barangay-view-projects-btn');
     if (btn && btn.getAttribute('data-barangay')) {
         e.preventDefault();
@@ -383,12 +391,17 @@ document.addEventListener('click', function(e) {
         if (typeof window.openDetailsModal === 'function') window.openDetailsModal(projectId);
     }
 });
-document.getElementById('close-barangay-projects-modal') && document.getElementById('close-barangay-projects-modal').addEventListener('click', function() {
-    document.getElementById('barangay-projects-modal') && document.getElementById('barangay-projects-modal').classList.add('hidden');
-});
-document.getElementById('barangay-projects-modal') && document.getElementById('barangay-projects-modal').addEventListener('click', function(ev) {
-    if (ev.target === this) this.classList.add('hidden');
-});
+function initBarangayModalCloseHandlers() {
+    const modal = document.getElementById('barangay-projects-modal');
+    if (modal) modal.addEventListener('click', function(ev) {
+        if (ev.target === this) this.classList.add('hidden');
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBarangayModalCloseHandlers);
+} else {
+    initBarangayModalCloseHandlers();
+}
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const modal = document.getElementById('barangay-projects-modal');
