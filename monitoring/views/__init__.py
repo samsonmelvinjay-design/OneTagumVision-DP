@@ -1721,7 +1721,7 @@ def budget_reports(request):
     context = {
         'project_data': paginated_project_data,
         'project_data_json': json.dumps(paginated_project_data),  # For JavaScript modal
-        'budget_report_pdf_data': json.dumps(budget_report_pdf_data),
+        'budget_report_pdf_data': budget_report_pdf_data,
         'project_names': json.dumps(chart_project_names),
         'utilizations': json.dumps(chart_utilizations),
         'over_count': over_count,
