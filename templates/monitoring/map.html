@@ -376,6 +376,8 @@ document.addEventListener('click', function(e) {
     if (viewBtn && viewBtn.getAttribute('data-project-id')) {
         e.preventDefault();
         const projectId = viewBtn.getAttribute('data-project-id');
+        const barangaySpan = document.getElementById('barangay-projects-barangay-name');
+        if (barangaySpan && barangaySpan.textContent) window._returnToBarangayModal = barangaySpan.textContent.trim();
         const modal = document.getElementById('barangay-projects-modal');
         if (modal) modal.classList.add('hidden');
         if (typeof window.openDetailsModal === 'function') window.openDetailsModal(projectId);
@@ -1554,9 +1556,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (detailsModal) {
             detailsModal.style.opacity = '0';
             detailsModal.style.pointerEvents = 'none';
+            const returnToBarangay = window._returnToBarangayModal;
+            window._returnToBarangayModal = null;
             // Wait for the transition to complete before hiding the element completely
             setTimeout(() => {
                 detailsModal.style.display = 'none';
+                if (returnToBarangay && typeof window.showBarangayProjectsModal === 'function') {
+                    window.showBarangayProjectsModal(returnToBarangay);
+                }
                 // Restore map interactions
                 if (map && map.dragging) {
                     map.invalidateSize();
