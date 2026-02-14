@@ -13,6 +13,7 @@ urlpatterns = [
     path('reports/export/excel/', views.export_reports_excel, name='export_reports_excel'),
     path('reports/export/pdf/', views.export_reports_pdf, name='export_reports_pdf'),
     path('reports/budget/', views.budget_reports, name='budget_reports'),
+    path('reports/budget/chart-data/', views.budget_reports_chart_data_api, name='budget_reports_chart_data_api'),
     path('reports/budget/export/csv/', views.export_budget_reports_csv, name='export_budget_reports_csv'),
     path('reports/budget/export/excel/', views.export_budget_reports_excel, name='export_budget_reports_excel'),
     path('reports/budget/export/pdf/', views.export_budget_reports_pdf, name='export_budget_reports_pdf'),

@@ -28,10 +28,9 @@
         </button>
         <div id="export-dropdown-menu" class="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50" role="menu" aria-orientation="vertical" aria-labelledby="export-dropdown-btn">
           <div class="py-1" role="none">
-            <a href="{% url 'export_budget_reports_pdf' %}" id="export-pdf-link" target="_blank" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">📄 Export to PDF</a>
+            <button type="button" id="export-pdf-btn" class="w-full text-left text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">📄 Export to PDF</button>
             <a href="{% url 'export_budget_reports_excel' %}" id="export-excel-link" target="_blank" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">📊 Export to Excel</a>
             <a href="{% url 'export_budget_reports_csv' %}" id="export-csv-link" target="_blank" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">📋 Export to CSV</a>
-            <button onclick="window.print()" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">🖨️ Print Report</button>
           </div>
         </div>
       </div>
@@ -167,6 +166,23 @@
         <div class="min-w-[140px]">
           <label for="end-date-filter" class="block text-xs font-medium text-gray-700 mb-1">End Date:</label>
           <input type="date" id="end-date-filter" name="end_date" value="{{ selected_end_date|default:'' }}" class="w-full pl-2 pr-2 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+        </div>
+        <div class="min-w-[140px]">
+          <label for="cost-min-filter" class="block text-xs font-medium text-gray-700 mb-1">Cost Min (₱):</label>
+          <input type="number" step="0.01" id="cost-min-filter" name="cost_min" value="{{ selected_cost_min|default:'' }}" class="w-full pl-2 pr-2 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+        </div>
+        <div class="min-w-[140px]">
+          <label for="cost-max-filter" class="block text-xs font-medium text-gray-700 mb-1">Cost Max (₱):</label>
+          <input type="number" step="0.01" id="cost-max-filter" name="cost_max" value="{{ selected_cost_max|default:'' }}" class="w-full pl-2 pr-2 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+        </div>
+        <div class="min-w-[150px]">
+          <label for="budget-status-filter" class="block text-xs font-medium text-gray-700 mb-1">Over/Within/Under:</label>
+          <select id="budget-status-filter" name="budget_status" class="w-full pl-2 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md">
+            <option value="" {% if not selected_budget_status %}selected{% endif %}>All</option>
+            <option value="Over" {% if selected_budget_status == 'Over' %}selected{% endif %}>Over</option>
+            <option value="Within" {% if selected_budget_status == 'Within' %}selected{% endif %}>Within</option>
+            <option value="Under" {% if selected_budget_status == 'Under' %}selected{% endif %}>Under</option>
+          </select>
         </div>
         <div>
           <button type="button" id="clear-filters-btn" class="px-3 py-1.5 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 focus:ring-gray-500 focus:border-gray-500 transition-colors whitespace-nowrap">
@@ -338,150 +354,185 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 h-80 flex flex-col">
-      <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-        </svg>
-        Budget Utilization per Project
-      </h2>
-      <canvas id="budgetUtilizationChart" class="flex-1"></canvas>
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 flex flex-col min-h-0">
+      <div class="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <svg class="w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          Budget Utilization per Project
+        </h2>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
+          <select id="chart-period-utilization" class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            <option value="week" {% if selected_chart_period == 'week' %}selected{% endif %}>Weekly</option>
+            <option value="month" {% if selected_chart_period == 'month' %}selected{% endif %}>Monthly</option>
+            <option value="year" {% if selected_chart_period == 'year' %}selected{% endif %}>Yearly</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex-1 min-h-[280px]" style="position: relative; height: 320px;">
+        <canvas id="budgetUtilizationChart"></canvas>
+      </div>
     </div>
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 h-80 flex flex-col">
-      <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
-        </svg>
-        Over/Under Budget Status
-      </h2>
-      <canvas id="overUnderChart" class="flex-1"></canvas>
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 flex flex-col min-h-0">
+      <div class="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+          </svg>
+          Over/Under Budget Status
+        </h2>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
+          <select id="chart-period-overunder" class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+            <option value="week" {% if selected_chart_period == 'week' %}selected{% endif %}>Weekly</option>
+            <option value="month" {% if selected_chart_period == 'month' %}selected{% endif %}>Monthly</option>
+            <option value="year" {% if selected_chart_period == 'year' %}selected{% endif %}>Yearly</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex-1 min-h-[280px]" style="position: relative; height: 320px;">
+        <canvas id="overUnderChart"></canvas>
+      </div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
+{{ budget_report_pdf_data|json_script:"budget-report-pdf-data" }}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Budget Utilization Bar Chart - Top 20 projects
+    const chartDataUrl = '{% url "budget_reports_chart_data_api" %}';
+
+    function buildChartParams(period) {
+      const params = new URLSearchParams();
+      params.set('period', period);
+      const barangay = document.getElementById('barangay-filter');
+      const status = document.getElementById('status-filter');
+      const startDate = document.getElementById('start-date-filter');
+      const endDate = document.getElementById('end-date-filter');
+      const costMin = document.getElementById('cost-min-filter');
+      const costMax = document.getElementById('cost-max-filter');
+      const budgetStatus = document.getElementById('budget-status-filter');
+      if (barangay && barangay.value) params.set('barangay', barangay.value);
+      if (status && status.value) params.set('status', status.value);
+      if (startDate && startDate.value) params.set('start_date', startDate.value);
+      if (endDate && endDate.value) params.set('end_date', endDate.value);
+      if (costMin && costMin.value) params.set('cost_min', costMin.value);
+      if (costMax && costMax.value) params.set('cost_max', costMax.value);
+      if (budgetStatus && budgetStatus.value) params.set('budget_status', budgetStatus.value);
+      return params;
+    }
+
+    function truncateLabel(s) {
+      if (!s) return '';
+      const str = String(s);
+      return str.length > 28 ? str.substring(0, 25) + '…' : str;
+    }
+
+    const utilOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { left: 8, right: 16, top: 8, bottom: 8 } },
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return 'Utilization: ' + c.parsed.x.toFixed(1) + '%'; } } } },
+      scales: {
+        x: { beginAtZero: true, title: { display: true, text: 'Budget Utilization (%)' } },
+        y: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: false, callback: function(_, i) { return truncateLabel(this.getLabelForValue(i)); } } }
+      }
+    };
+
+    let budgetUtilizationChart = null;
+    let overUnderChart = null;
+
+    function renderUtilizationChart(projNames, utilizations) {
+      const truncatedNames = (projNames || []).map(truncateLabel);
+      const maxX = utilizations.length > 0 ? Math.max(150, Math.max(...utilizations) * 1.1) : 150;
+      const ctx = document.getElementById('budgetUtilizationChart');
+      if (!ctx) return;
+      if (budgetUtilizationChart) budgetUtilizationChart.destroy();
+      budgetUtilizationChart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: truncatedNames,
+          datasets: [{
+            label: 'Utilization %',
+            data: utilizations,
+            backgroundColor: utilizations.map(u => u >= 100 ? 'rgba(239, 68, 68, 0.7)' : u >= 80 ? 'rgba(251, 191, 36, 0.7)' : 'rgba(59, 130, 246, 0.7)'),
+            borderColor: utilizations.map(u => u >= 100 ? 'rgba(239, 68, 68, 1)' : u >= 80 ? 'rgba(251, 191, 36, 1)' : 'rgba(59, 130, 246, 1)'),
+            borderWidth: 1
+          }]
+        },
+        options: Object.assign({}, utilOptions, { scales: { x: { beginAtZero: true, max: maxX, title: { display: true, text: 'Budget Utilization (%)' } }, y: utilOptions.scales.y } })
+      });
+    }
+
+    function renderOverUnderChart(over, within, under) {
+      const total = over + within + under;
+      const ctx = document.getElementById('overUnderChart');
+      if (!ctx) return;
+      if (overUnderChart) overUnderChart.destroy();
+      overUnderChart = new Chart(ctx.getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: ['Over Budget', 'Within Budget (80-100%)', 'Under Budget'],
+          datasets: [{
+            data: [over, within, under],
+            backgroundColor: ['rgba(239, 68, 68, 0.7)', 'rgba(251, 191, 36, 0.7)', 'rgba(34, 197, 94, 0.7)'],
+            borderColor: ['rgba(239, 68, 68, 1)', 'rgba(251, 191, 36, 1)', 'rgba(34, 197, 94, 1)'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: 12 },
+          plugins: {
+            legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: function(c) { const v = c.parsed || 0; const pct = total > 0 ? ((v / total) * 100).toFixed(1) : 0; return (c.label || '') + ': ' + v + ' (' + pct + '%)'; } } }
+          }
+        }
+      });
+    }
+
+    // Initial render from server data
     const projNames = {{ project_names|safe }};
     const utilizations = {{ utilizations|safe }};
-    const ctxUtil = document.getElementById('budgetUtilizationChart').getContext('2d');
-    
-    // Truncate long project names for better display
-    const truncatedNames = projNames.map(name => {
-      if (name.length > 40) {
-        return name.substring(0, 37) + '...';
-      }
-      return name;
-    });
-    
-    new Chart(ctxUtil, {
-      type: 'bar',
-      data: {
-        labels: truncatedNames,
-        datasets: [{
-          label: 'Utilization %',
-          data: utilizations,
-          backgroundColor: utilizations.map(util => {
-            if (util >= 100) return 'rgba(239, 68, 68, 0.7)'; // Red for over budget
-            if (util >= 80) return 'rgba(251, 191, 36, 0.7)'; // Yellow for at risk
-            return 'rgba(59, 130, 246, 0.7)'; // Blue for under budget
-          }),
-          borderColor: utilizations.map(util => {
-            if (util >= 100) return 'rgba(239, 68, 68, 1)';
-            if (util >= 80) return 'rgba(251, 191, 36, 1)';
-            return 'rgba(59, 130, 246, 1)';
-          }),
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y', // Horizontal bars for better readability
-        plugins: { 
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return 'Utilization: ' + context.parsed.x.toFixed(1) + '%';
-              }
-            }
-          }
-        },
-        scales: { 
-          x: { 
-            beginAtZero: true, 
-            max: utilizations.length > 0 ? Math.max(150, Math.max(...utilizations) * 1.1) : 150,
-            title: {
-              display: true,
-              text: 'Budget Utilization (%)'
-            }
-          },
-          y: {
-            ticks: {
-              font: {
-                size: 10
-              }
-            }
-          }
-        }
-      }
+    renderUtilizationChart(projNames, utilizations);
+
+    const chartOverCount = {{ chart_over_count|default:over_count }};
+    const chartUnderCount = {{ chart_under_count|default:under_count }};
+    const chartWithinCount = {{ chart_within_count|default:within_count }};
+    renderOverUnderChart(chartOverCount, chartWithinCount, chartUnderCount);
+
+    // Utilization chart period: fetch and update only this chart
+    document.getElementById('chart-period-utilization') && document.getElementById('chart-period-utilization').addEventListener('change', function() {
+      const period = this.value || 'month';
+      const params = buildChartParams(period);
+      params.set('chart', 'utilization');
+      fetch(chartDataUrl + '?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          renderUtilizationChart(data.project_names || [], data.utilizations || []);
+        })
+        .catch(function() {});
     });
 
-    // Over/Under/Within Budget Pie Chart
-    const overCount = {{ over_count }};
-    const underCount = {{ under_count }};
-    const withinCount = {{ within_count|default:0 }};
-    const ctxOU = document.getElementById('overUnderChart').getContext('2d');
-    
-    const totalProjects = overCount + underCount + withinCount;
-    
-    new Chart(ctxOU, {
-      type: 'pie',
-      data: {
-        labels: ['Over Budget', 'Within Budget (80-100%)', 'Under Budget'],
-        datasets: [{
-          data: [overCount, withinCount, underCount],
-          backgroundColor: [
-            'rgba(239, 68, 68, 0.7)',  // Red for over
-            'rgba(251, 191, 36, 0.7)', // Yellow for within
-            'rgba(34, 197, 94, 0.7)'   // Green for under
-          ],
-          borderColor: [
-            'rgba(239, 68, 68, 1)',
-            'rgba(251, 191, 36, 1)',
-            'rgba(34, 197, 94, 1)'
-          ],
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-          legend: { 
-            position: 'bottom',
-            labels: {
-              padding: 15,
-              font: {
-                size: 12
-              }
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const label = context.label || '';
-                const value = context.parsed || 0;
-                const percentage = totalProjects > 0 ? ((value / totalProjects) * 100).toFixed(1) : 0;
-                return label + ': ' + value + ' (' + percentage + '%)';
-              }
-            }
-          }
-        }
-      }
+    // Over/Under chart period: fetch and update only this chart
+    document.getElementById('chart-period-overunder') && document.getElementById('chart-period-overunder').addEventListener('change', function() {
+      const period = this.value || 'month';
+      const params = buildChartParams(period);
+      params.set('chart', 'overunder');
+      fetch(chartDataUrl + '?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          renderOverUnderChart(data.over || 0, data.within || 0, data.under || 0);
+        })
+        .catch(function() {});
     });
 
     const btn = document.getElementById('export-dropdown-btn');
@@ -501,11 +552,17 @@
       const status = document.getElementById('status-filter')?.value;
       const startDate = document.getElementById('start-date-filter')?.value;
       const endDate = document.getElementById('end-date-filter')?.value;
+      const costMin = document.getElementById('cost-min-filter')?.value;
+      const costMax = document.getElementById('cost-max-filter')?.value;
+      const budgetStatus = document.getElementById('budget-status-filter')?.value;
       
       if (barangay) params.append('barangay', barangay);
       if (status) params.append('status', status);
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
+      if (costMin) params.append('cost_min', costMin);
+      if (costMax) params.append('cost_max', costMax);
+      if (budgetStatus) params.append('budget_status', budgetStatus);
       
       return params.toString();
     }
@@ -515,13 +572,9 @@
       const queryString = buildFilterQueryString();
       const separator = queryString ? '?' : '';
       
-      const pdfLink = document.getElementById('export-pdf-link');
       const excelLink = document.getElementById('export-excel-link');
       const csvLink = document.getElementById('export-csv-link');
       
-      if (pdfLink) {
-        pdfLink.href = pdfLink.getAttribute('data-base-url') + separator + queryString;
-      }
       if (excelLink) {
         excelLink.href = excelLink.getAttribute('data-base-url') + separator + queryString;
       }
@@ -531,12 +584,11 @@
     }
 
     // Store base URLs
-    document.getElementById('export-pdf-link').setAttribute('data-base-url', '{% url "export_budget_reports_pdf" %}');
     document.getElementById('export-excel-link').setAttribute('data-base-url', '{% url "export_budget_reports_excel" %}');
     document.getElementById('export-csv-link').setAttribute('data-base-url', '{% url "export_budget_reports_csv" %}');
 
     // Update export links when filters change
-    const filterInputs = ['barangay-filter', 'status-filter', 'start-date-filter', 'end-date-filter'];
+    const filterInputs = ['barangay-filter', 'status-filter', 'start-date-filter', 'end-date-filter', 'cost-min-filter', 'cost-max-filter', 'budget-status-filter'];
     filterInputs.forEach(function(inputId) {
       const input = document.getElementById(inputId);
       if (input) {
@@ -547,12 +599,132 @@
     // Initial update
     updateExportLinks();
 
+    // Export to PDF via PDFMake (client-side, presentable format)
+    const exportPdfBtn = document.getElementById('export-pdf-btn');
+    if (exportPdfBtn) {
+      exportPdfBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        menu.classList.add('hidden');
+        const el = document.getElementById('budget-report-pdf-data');
+        if (!el || !el.textContent) { alert('Report data not available.'); return; }
+        let data;
+        try { data = JSON.parse(el.textContent); } catch (err) { alert('Error loading report data.'); return; }
+        const sum = data.summary || {};
+        const projects = data.projects || [];
+        const fmt = function(n) { return (n == null || n === '') ? '0.00' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+        const now = new Date();
+        const reportDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const headerContent = [
+          { text: 'REPUBLIC OF THE PHILIPPINES', fontSize: 7, alignment: 'center', margin: [0, 0, 0, 0] },
+          { text: 'PROVINCE OF DAVAO DEL NORTE', fontSize: 7, alignment: 'center', margin: [0, 0, 0, 0] },
+          { text: 'CITY OF TAGUM', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 0] },
+          { text: 'OFFICE OF THE CITY ENGINEER', fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 0] },
+          { text: 'BUDGET REPORTS', fontSize: 11, bold: true, alignment: 'center', margin: [0, 2, 0, 0] },
+          { text: 'Comprehensive financial overview of all projects', fontSize: 8, alignment: 'center', margin: [0, 0, 0, 0] },
+          { text: 'As of ' + reportDate, fontSize: 8, alignment: 'center', margin: [0, 1, 0, 0] }
+        ];
+
+        const summaryTable = {
+          table: {
+            widths: ['*', '*', '*', '*'],
+            body: [
+              [
+                { text: 'TOTAL BUDGET', fontSize: 7, fillColor: '#dbeafe', alignment: 'center' },
+                { text: 'TOTAL SPENT', fontSize: 7, fillColor: '#ffedd5', alignment: 'center' },
+                { text: 'OVER BUDGET', fontSize: 7, fillColor: '#fee2e2', alignment: 'center' },
+                { text: 'AT RISK (90%+)', fontSize: 7, fillColor: '#fef3c7', alignment: 'center' }
+              ],
+              [
+                { text: '₱' + fmt(sum.total_budget) + '\n' + (sum.project_count || 0) + ' projects', fontSize: 8, alignment: 'center' },
+                { text: '₱' + fmt(sum.total_spent) + '\nRemaining: ₱' + fmt(sum.total_remaining), fontSize: 8, alignment: 'center' },
+                { text: (sum.over_count || 0) + '\n' + ((sum.over_count || 0) > 0 ? 'Requires attention' : 'All within budget'), fontSize: 8, alignment: 'center' },
+                { text: (sum.at_risk_count || 0) + '\n' + ((sum.at_risk_count || 0) > 0 ? '90%+ utilization' : 'All safe'), fontSize: 8, alignment: 'center' }
+              ]
+            ]
+          },
+          layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
+          margin: [0, 0, 0, 10]
+        };
+
+        const colWidths = [12, 42, '*', 36, 48, 38, 38, 26, 30, 30, 42];
+        const tableHeaderRow = [
+          { text: '#', style: 'tableHeader', alignment: 'center' },
+          { text: 'PRN#', style: 'tableHeader' },
+          { text: 'PROJECT', style: 'tableHeader' },
+          { text: 'BARANGAY', style: 'tableHeader' },
+          { text: 'ENGINEERS', style: 'tableHeader', fontSize: 5 },
+          { text: 'BUDGET', style: 'tableHeader', alignment: 'right' },
+          { text: 'SPENT', style: 'tableHeader', alignment: 'right' },
+          { text: 'UTIL%', style: 'tableHeader', alignment: 'center' },
+          { text: 'O/U', style: 'tableHeader', alignment: 'center' },
+          { text: 'STATUS', style: 'tableHeader', alignment: 'center' },
+          { text: 'COST BRK', style: 'tableHeader', fontSize: 5 }
+        ];
+        const tableBody = [tableHeaderRow];
+        projects.forEach(function(p) {
+          const nameShort = (p.name || '—').toString();
+          const nameTrunc = nameShort.length > 28 ? nameShort.substring(0, 28) + '...' : nameShort;
+          const engShort = (p.assigned_engineers || '—').toString();
+          const engTrunc = engShort.length > 18 ? engShort.substring(0, 18) + '...' : engShort;
+          const costBreakShort = (p.cost_breakdown || '—').toString();
+          const costTrunc = costBreakShort.length > 22 ? costBreakShort.substring(0, 22) + '...' : costBreakShort;
+          tableBody.push([
+            { text: String(p.num || ''), alignment: 'center', fontSize: 5 },
+            { text: (p.prn || '—').toString(), fontSize: 5 },
+            { text: nameTrunc, fontSize: 5 },
+            { text: (p.barangay || '—').toString(), fontSize: 5 },
+            { text: engTrunc, fontSize: 5 },
+            { text: '₱' + fmt(p.budget), alignment: 'right', fontSize: 5 },
+            { text: '₱' + fmt(p.spent), alignment: 'right', fontSize: 5 },
+            { text: (p.utilization != null ? Number(p.utilization).toFixed(1) + '%' : '—'), alignment: 'center', fontSize: 5 },
+            { text: (p.over_under || '—').toString(), alignment: 'center', fontSize: 5 },
+            { text: (p.status || '—').toString().replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }), alignment: 'center', fontSize: 5 },
+            { text: costTrunc, fontSize: 5 }
+          ]);
+        });
+        if (tableBody.length === 1) {
+          tableBody.push([{ text: 'No projects found.', colSpan: 11, alignment: 'center', fontSize: 7 }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
+        }
+
+        const docDef = {
+          pageSize: 'A4',
+          pageOrientation: 'portrait',
+          pageMargins: [20, 72, 20, 45],
+          header: function() {
+            return { stack: headerContent, alignment: 'center', margin: [0, 12, 0, 0] };
+          },
+          footer: function(currentPage, pageCount) {
+            return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 7, color: '#666', alignment: 'center', margin: [0, 0, 0, 10] };
+          },
+          content: [
+            summaryTable,
+            { text: 'Project Budget Details', fontSize: 10, bold: true, margin: [0, 6, 0, 4] },
+            {
+              table: { headerRows: 1, widths: colWidths, body: tableBody },
+              layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } }
+            }
+          ],
+          styles: { tableHeader: { bold: true, fontSize: 5, fillColor: '#166534', color: 'white' } }
+        };
+
+        if (typeof pdfMake !== 'undefined') {
+          pdfMake.createPdf(docDef).download('budget_report_' + now.toISOString().slice(0, 10) + '.pdf');
+        } else {
+          alert('PDF library not loaded. Please refresh the page and try again.');
+        }
+      });
+    }
+
     // Auto-submit form when filters change
     const filterForm = document.getElementById('filter-form');
     const barangayFilter = document.getElementById('barangay-filter');
     const statusFilter = document.getElementById('status-filter');
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
+    const costMinFilter = document.getElementById('cost-min-filter');
+    const costMaxFilter = document.getElementById('cost-max-filter');
+    const budgetStatusFilter = document.getElementById('budget-status-filter');
     
     if (barangayFilter) {
       barangayFilter.addEventListener('change', function() {
@@ -577,15 +749,39 @@
         filterForm.submit();
       });
     }
+    
+    if (costMinFilter) {
+      costMinFilter.addEventListener('change', function() {
+        filterForm.submit();
+      });
+    }
+    
+    if (costMaxFilter) {
+      costMaxFilter.addEventListener('change', function() {
+        filterForm.submit();
+      });
+    }
+    
+    if (budgetStatusFilter) {
+      budgetStatusFilter.addEventListener('change', function() {
+        filterForm.submit();
+      });
+    }
 
     // Clear Filters Button
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
     if (clearFiltersBtn) {
       clearFiltersBtn.addEventListener('click', function() {
-        barangayFilter.value = '';
-        statusFilter.value = '';
-        startDateFilter.value = '';
-        endDateFilter.value = '';
+        if (barangayFilter) barangayFilter.value = '';
+        if (statusFilter) statusFilter.value = '';
+        if (startDateFilter) startDateFilter.value = '';
+        if (endDateFilter) endDateFilter.value = '';
+        const costMinField = document.getElementById('cost-min-filter');
+        const costMaxField = document.getElementById('cost-max-filter');
+        const budgetStatusField = document.getElementById('budget-status-filter');
+        if (costMinField) costMinField.value = '';
+        if (costMaxField) costMaxField.value = '';
+        if (budgetStatusField) budgetStatusField.selectedIndex = 0;
         filterForm.submit();
       });
     }

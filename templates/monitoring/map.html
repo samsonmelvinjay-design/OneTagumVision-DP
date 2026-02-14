@@ -325,6 +325,90 @@
 {{ projects_data|json_script:"projects-data" }}
 
 <script>
+// Barangay Projects Modal - show projects when "View Projects" is clicked in barangay popup
+function _normalizeBarangayForMatch(s) { return (s || '').toString().toLowerCase().trim(); }
+window.showBarangayProjectsModal = function(barangayName) {
+    const el = document.getElementById('projects-data');
+    let projects = [];
+    if (el && el.textContent && el.textContent.trim()) {
+        try { projects = JSON.parse(el.textContent.trim()); } catch (e) { projects = []; }
+    }
+    const normalized = _normalizeBarangayForMatch(barangayName);
+    const filtered = projects.filter(function(p) {
+        const pb = _normalizeBarangayForMatch(p.barangay);
+        return pb === normalized || pb.replace(/\s+/g,'') === normalized.replace(/\s+/g,'');
+    });
+    const modal = document.getElementById('barangay-projects-modal');
+    const titleEl = document.getElementById('barangay-projects-barangay-name');
+    const tbody = document.getElementById('barangay-projects-table-body');
+    const emptyEl = document.getElementById('barangay-projects-empty');
+    if (!modal || !tbody) return;
+    if (titleEl) titleEl.textContent = barangayName || 'Barangay';
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        emptyEl.classList.remove('hidden');
+    } else {
+        emptyEl.classList.add('hidden');
+        const statusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'Ongoing', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
+        const statusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-blue-100 text-blue-800', ongoing: 'bg-blue-100 text-blue-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
+        filtered.forEach(function(p, i) {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+            const rawStatus = (p.status || '').toLowerCase();
+            const status = statusMap[rawStatus] || (p.status || '').replace(/_/g, ' ');
+            const statusClass = statusClassMap[rawStatus] || 'bg-gray-100 text-gray-800';
+            const cost = (p.project_cost && parseFloat(p.project_cost) >= 0) ? '₱' + parseFloat(p.project_cost).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
+            const projId = (p.id || '').toString().replace(/"/g, '&quot;');
+            tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + (p.prn || '—') + '</td><td class="px-4 py-2 font-medium text-gray-900">' + (p.name || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + statusClass + '">' + status + '</span></td><td class="px-4 py-2"><button type="button" class="barangay-project-view-detail text-blue-600 hover:text-blue-800 font-medium" data-project-id="' + projId + '">View</button></td>';
+            tbody.appendChild(tr);
+        });
+    }
+    modal.classList.remove('hidden');
+};
+document.addEventListener('click', function(e) {
+    const closeBtn = e.target.closest && e.target.closest('#close-barangay-projects-modal');
+    if (closeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const modal = document.getElementById('barangay-projects-modal');
+        if (modal) modal.classList.add('hidden');
+        return;
+    }
+    const btn = e.target.closest && e.target.closest('.barangay-view-projects-btn');
+    if (btn && btn.getAttribute('data-barangay')) {
+        e.preventDefault();
+        if (window.showBarangayProjectsModal) window.showBarangayProjectsModal(btn.getAttribute('data-barangay'));
+        return;
+    }
+    const viewBtn = e.target.closest && e.target.closest('.barangay-project-view-detail');
+    if (viewBtn && viewBtn.getAttribute('data-project-id')) {
+        e.preventDefault();
+        const projectId = viewBtn.getAttribute('data-project-id');
+        const barangaySpan = document.getElementById('barangay-projects-barangay-name');
+        if (barangaySpan && barangaySpan.textContent) window._returnToBarangayModal = barangaySpan.textContent.trim();
+        const modal = document.getElementById('barangay-projects-modal');
+        if (modal) modal.classList.add('hidden');
+        if (typeof window.openDetailsModal === 'function') window.openDetailsModal(projectId);
+    }
+});
+function initBarangayModalCloseHandlers() {
+    const modal = document.getElementById('barangay-projects-modal');
+    if (modal) modal.addEventListener('click', function(ev) {
+        if (ev.target === this) this.classList.add('hidden');
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBarangayModalCloseHandlers);
+} else {
+    initBarangayModalCloseHandlers();
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('barangay-projects-modal');
+        if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden');
+    }
+});
+
 // --- Purok dropdown (simple, defense-friendly) ---
 window.populatePurokOptions = function(selectEl, currentValue = '') {
     if (!selectEl) return;
@@ -484,7 +568,7 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
 <!-- Add cache busting with timestamp to ensure latest version loads -->
-<script src="{% static 'js/simple_choropleth.js' %}?v=2.0"></script>
+<script src="{% static 'js/simple_choropleth.js' %}?v=2.1"></script>
 <script>
     // Verify SimpleChoropleth class is loaded with all methods
     document.addEventListener('DOMContentLoaded', function() {
@@ -1481,9 +1565,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (detailsModal) {
             detailsModal.style.opacity = '0';
             detailsModal.style.pointerEvents = 'none';
+            const returnToBarangay = window._returnToBarangayModal;
+            window._returnToBarangayModal = null;
             // Wait for the transition to complete before hiding the element completely
             setTimeout(() => {
                 detailsModal.style.display = 'none';
+                if (returnToBarangay && typeof window.showBarangayProjectsModal === 'function') {
+                    window.showBarangayProjectsModal(returnToBarangay);
+                }
                 // Restore map interactions
                 if (map && map.dragging) {
                     map.invalidateSize();
@@ -2014,14 +2103,17 @@ function formatDate(dateStr) {
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
-                            <select name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
+                            <select id="source-of-funds-select" name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
                                 <option value="">Select source of funds</option>
                                 {% for sof in source_of_funds_options %}
                                     <option value="{{ sof.name }}">{{ sof.name }}</option>
                                 {% endfor %}
+                                <option value="__add_new__">Add new Source of Funds</option>
                             </select>
-                            <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 block">Or add new</label>
-                            <input type="text" name="source_of_funds_new" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            <div id="source-of-funds-new-wrap" class="mt-2" style="display: none;">
+                                <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
+                                <input type="text" name="source_of_funds_new" id="source-of-funds-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            </div>
                         </div>
                         <div class="relative pt-3 border-t border-gray-100">
                             <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
@@ -2065,6 +2157,33 @@ function formatDate(dateStr) {
                 <span class="font-semibold">Tip:</span> Click anywhere on the map to set the location, or drag the marker to fine-tune
             </div>
             <button type="button" id="close-map-popup-btn" onclick="if(typeof window.hidePopupMap === 'function') { window.hidePopupMap(); } return false;" class="px-8 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-200">Done</button>
+        </div>
+    </div>
+</div>
+
+<!-- Barangay Projects Modal -->
+<div id="barangay-projects-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden overflow-y-auto" style="z-index: 20003;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 my-8 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 id="barangay-projects-modal-title" class="text-lg font-bold text-gray-800">Projects in <span id="barangay-projects-barangay-name"></span></h3>
+            <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">&times;</button>
+        </div>
+        <div class="flex-1 overflow-auto p-4">
+            <table class="w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">PRN#</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Project</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Cost</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="barangay-projects-table-body" class="bg-white divide-y divide-gray-100">
+                </tbody>
+            </table>
+            <div id="barangay-projects-empty" class="hidden py-8 text-center text-gray-500">No projects found for this barangay.</div>
         </div>
     </div>
 </div>
@@ -2727,15 +2846,35 @@ function initAssignedEngineersSelectorOnce() {
 window.renderAssignedEngineerChips = renderAssignedEngineerChips;
 window.initAssignedEngineersSelectorOnce = initAssignedEngineersSelectorOnce;
 
-// Source of funds UX: if user types "new", auto-select it to satisfy required dropdown
+// Source of funds UX: show input when "Add new Source of Funds" selected, auto-add to dropdown on blur/Enter
 function initSourceOfFundsUX() {
     const form = document.getElementById('project-form');
     if (!form) return;
     const fundsSelect = form.querySelector('select[name="source_of_funds"]');
     const fundsNew = form.querySelector('input[name="source_of_funds_new"]');
+    const fundsNewWrap = document.getElementById('source-of-funds-new-wrap');
     if (!fundsSelect || !fundsNew) return;
     if (fundsSelect.dataset.fundsUx === '1') return;
     fundsSelect.dataset.fundsUx = '1';
+
+    // Show "add new" input only when "Add new Source of Funds" is selected
+    if (fundsNewWrap) {
+        fundsNewWrap.style.display = 'none';
+        fundsSelect.addEventListener('change', function() {
+            if (fundsSelect.value === '__add_new__') {
+                fundsNewWrap.style.display = 'block';
+                fundsNew.focus();
+            } else {
+                fundsNewWrap.style.display = 'none';
+                fundsNew.value = '';
+            }
+        });
+    }
+    form.addEventListener('submit', function() {
+        if (fundsSelect.value === '__add_new__') {
+            fundsSelect.value = '';
+        }
+    });
 
     const ensureOptionEverywhere = (val) => {
         const v = (val || '').trim();
@@ -2753,13 +2892,24 @@ function initSourceOfFundsUX() {
         fundsSelect.value = v;
     };
 
-    fundsNew.addEventListener('input', () => {
+    const submitNew = () => {
         const v = (fundsNew.value || '').trim();
-        if (v) ensureOptionEverywhere(v);
+        if (v) {
+            ensureOptionEverywhere(v);
+            fundsNew.value = '';
+        }
+    };
+
+    fundsNew.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitNew();
+        }
     });
+    fundsNew.addEventListener('blur', () => submitNew());
 
     fundsSelect.addEventListener('change', () => {
-        if ((fundsSelect.value || '').trim()) {
+        if ((fundsSelect.value || '').trim() && fundsSelect.value !== '__add_new__') {
             fundsNew.value = '';
         }
     });
@@ -2771,9 +2921,29 @@ function initProjectTypeUX() {
     if (!form) return;
     const typeSelect = form.querySelector('select[name="project_type"]');
     const typeNew = form.querySelector('input[name="project_type_new"]');
+    const typeNewWrap = document.getElementById('project-type-new-wrap');
     if (!typeSelect || !typeNew) return;
     if (typeSelect.dataset.ptUx === '1') return;
     typeSelect.dataset.ptUx = '1';
+
+    // Show "add new" input only when "Add new Project Type" is selected
+    if (typeNewWrap) {
+        typeNewWrap.style.display = 'none';
+        typeSelect.addEventListener('change', function() {
+            if (typeSelect.value === '__add_new__') {
+                typeNewWrap.style.display = 'block';
+                typeNew.focus();
+            } else {
+                typeNewWrap.style.display = 'none';
+                typeNew.value = '';
+            }
+        });
+    }
+    form.addEventListener('submit', function() {
+        if (typeSelect.value === '__add_new__') {
+            typeSelect.value = '';
+        }
+    });
 
     const getCookie = (name) => {
         const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -2833,7 +3003,7 @@ function initProjectTypeUX() {
     });
     typeNew.addEventListener('blur', () => submitNew());
     typeSelect.addEventListener('change', () => {
-        if ((typeSelect.value || '').trim()) {
+        if ((typeSelect.value || '').trim() && typeSelect.value !== '__add_new__') {
             typeNew.value = '';
         }
     });

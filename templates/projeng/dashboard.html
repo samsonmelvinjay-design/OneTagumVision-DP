@@ -59,11 +59,9 @@
       {% endfor %}
   </div>
 
-  <!-- Charts Section: First Row - 2 Large Charts -->
+  <!-- Charts Section: 2 charts per row -->
+  <!-- Row 1: Project Progress Over Time | Budget Utilization -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-    <!-- Chart 1: Project Status Overview - Removed -->
-
-    <!-- Chart 2: Project Progress Over Time -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-xl font-bold text-gray-800">Project Progress Over Time</h3>
@@ -80,14 +78,10 @@
           <canvas id="progressOverTimeChart"></canvas>
       </div>
     </div>
-  </div>
 
-  <!-- Charts Section: Second Row - 3 Charts -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-    <!-- Chart 3: Budget Utilization -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Budget Utilization</h3>
+        <h3 class="text-xl font-bold text-gray-800">Budget Utilization</h3>
         <div class="chart-period-wrap flex items-center gap-2" data-chart-id="budgetUtilization">
           <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
           <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
@@ -97,15 +91,17 @@
           </select>
         </div>
       </div>
-      <div class="chart-container" style="height: 280px;">
+      <div class="chart-container" style="height: 320px;">
           <canvas id="budgetUtilizationChart"></canvas>
       </div>
     </div>
+  </div>
 
-    <!-- Chart 4: Cost Breakdown by Type -->
+  <!-- Row 2: Cost Breakdown by Type | Projects by Barangay -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Cost Breakdown by Type</h3>
+        <h3 class="text-xl font-bold text-gray-800">Cost Breakdown by Type</h3>
         <div class="chart-period-wrap flex items-center gap-2" data-chart-id="costBreakdown">
           <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
           <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
@@ -115,15 +111,13 @@
           </select>
         </div>
       </div>
-      <div class="chart-container" style="height: 280px;">
+      <div class="chart-container" style="height: 320px;">
           <canvas id="costBreakdownChart"></canvas>
       </div>
     </div>
-
-    <!-- Chart 5: Projects by Barangay -->
     <div class="bg-white rounded-xl shadow-md p-6">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Projects by Barangay</h3>
+        <h3 class="text-xl font-bold text-gray-800">Projects by Barangay</h3>
         <div class="chart-period-wrap flex items-center gap-2" data-chart-id="projectsByBarangay">
           <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
           <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
@@ -133,7 +127,7 @@
           </select>
         </div>
       </div>
-      <div class="chart-container" style="height: 280px%;">
+      <div class="chart-container" style="height: 320px;">
           <canvas id="projectsByBarangayChart"></canvas>
       </div>
     </div>

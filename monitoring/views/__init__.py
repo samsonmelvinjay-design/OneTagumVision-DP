@@ -563,7 +563,8 @@ def project_list(request):
         post_data = request.POST.copy()
         new_source_of_funds = (post_data.get('source_of_funds_new') or '').strip()
         selected_source_of_funds = (post_data.get('source_of_funds') or '').strip()
-        if new_source_of_funds:
+        # Treat __add_new__ or empty as "use source_of_funds_new" when user typed a new value
+        if new_source_of_funds and (not selected_source_of_funds or selected_source_of_funds == '__add_new__'):
             # Case-insensitive de-dupe
             existing = SourceOfFunds.objects.filter(name__iexact=new_source_of_funds).first()
             if not existing:
@@ -579,7 +580,8 @@ def project_list(request):
         # Allow "Add new project type" (ProjectType FK requires an ID)
         new_project_type = (post_data.get('project_type_new') or '').strip()
         selected_project_type = (post_data.get('project_type') or '').strip()
-        if new_project_type and not selected_project_type:
+        # Treat __add_new__ or empty as "use project_type_new" when user typed a new type
+        if new_project_type and (not selected_project_type or selected_project_type == '__add_new__'):
             pt = _get_or_create_project_type_by_name(new_project_type)
             if pt:
                 post_data['project_type'] = str(pt.id)
@@ -1355,7 +1357,7 @@ def overall_project_metrics_api(request):
 def reports(request):
     # This view is only accessible to Head Engineers and Finance Managers
     # Project Engineers are redirected by the decorator
-    from projeng.models import ProjectCost
+    from projeng.models import ProjectCost, SourceOfFunds
     from django.db.models import Q
     
     if is_head_engineer(request.user) or is_finance_manager(request.user):
@@ -1368,6 +1370,9 @@ def reports(request):
     status_filter = request.GET.get('status', '').strip()
     start_date_filter = request.GET.get('start_date', '').strip()
     end_date_filter = request.GET.get('end_date', '').strip()
+    source_of_funds_filter = request.GET.get('source_of_funds', '').strip()
+    cost_min_filter = request.GET.get('cost_min', '').strip()
+    cost_max_filter = request.GET.get('cost_max', '').strip()
     
     # Filter by barangay
     if barangay_filter:
@@ -1399,6 +1404,24 @@ def reports(request):
         except ValueError:
             pass
     
+    # Filter by source of funds
+    if source_of_funds_filter:
+        projects = projects.filter(source_of_funds__iexact=source_of_funds_filter)
+    
+    # Filter by project cost range
+    if cost_min_filter:
+        try:
+            cost_min = float(cost_min_filter)
+            projects = projects.filter(project_cost__gte=cost_min)
+        except (ValueError, TypeError):
+            pass
+    if cost_max_filter:
+        try:
+            cost_max = float(cost_max_filter)
+            projects = projects.filter(project_cost__lte=cost_max)
+        except (ValueError, TypeError):
+            pass
+    
     # Calculate budget metrics
     total_budget = 0
     total_spent = 0
@@ -1426,12 +1449,30 @@ def reports(request):
     remaining_budget = total_budget - total_spent
     budget_utilization = (total_spent / total_budget * 100) if total_budget > 0 else 0
     avg_project_cost = (total_budget / len(projects)) if len(projects) > 0 else 0
-    
+
+    # Get latest progress per project
+    from projeng.models import ProjectProgress
+    from django.db.models import Max
+    latest_progress_map = {}
+    if project_ids:
+        progress_qs = ProjectProgress.objects.filter(project_id__in=project_ids).values('project_id').annotate(
+            latest_date=Max('date'), latest_created=Max('created_at')
+        )
+        for item in progress_qs:
+            latest = ProjectProgress.objects.filter(
+                project_id=item['project_id'], date=item['latest_date'], created_at=item['latest_created']
+            ).order_by('-id').first()
+            if latest and latest.percentage_complete is not None:
+                latest_progress_map[item['project_id']] = float(latest.percentage_complete)
+
     # Prepare data for JS and summary cards
     projects_list = []
     status_map = defaultdict(int)
     barangay_map = defaultdict(int)
     for p in projects:
+        progress_val = latest_progress_map.get(p.id)
+        if progress_val is None:
+            progress_val = getattr(p, 'progress', 0) or 0
         projects_list.append({
             'id': p.id,
             'name': p.name,
@@ -1444,6 +1485,7 @@ def reports(request):
             'start_date': str(p.start_date) if p.start_date else '',
             'end_date': str(p.end_date) if p.end_date else '',
             'status': p.status,
+            'progress': progress_val,
         })
         # For charts
         status = p.status
@@ -1479,6 +1521,10 @@ def reports(request):
         'selected_status': status_filter,
         'selected_start_date': start_date_filter,
         'selected_end_date': end_date_filter,
+        'source_of_funds_options': SourceOfFunds.objects.filter(is_active=True).order_by('name'),
+        'selected_source_of_funds': source_of_funds_filter,
+        'selected_cost_min': cost_min_filter,
+        'selected_cost_max': cost_max_filter,
     }
     return render(request, 'monitoring/reports.html', context)
 
@@ -1499,10 +1545,16 @@ def budget_reports(request):
         projects = Project.objects.none()
     
     # Apply filters
-    selected_barangay = request.GET.get('barangay', '')
-    selected_status = request.GET.get('status', '')
-    selected_start_date = request.GET.get('start_date', '')
-    selected_end_date = request.GET.get('end_date', '')
+    selected_barangay = request.GET.get('barangay', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_start_date = request.GET.get('start_date', '').strip()
+    selected_end_date = request.GET.get('end_date', '').strip()
+    selected_cost_min = request.GET.get('cost_min', '').strip()
+    selected_cost_max = request.GET.get('cost_max', '').strip()
+    selected_budget_status = request.GET.get('budget_status', '').strip()
+    selected_chart_period = request.GET.get('chart_period', 'month').strip().lower()
+    if selected_chart_period not in ('week', 'month', 'year'):
+        selected_chart_period = 'month'
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -1518,9 +1570,54 @@ def budget_reports(request):
     
     if selected_end_date:
         projects = projects.filter(end_date__lte=selected_end_date)
+
+    # Cost range filters (by project budget)
+    if selected_cost_min:
+        try:
+            cost_min_val = float(selected_cost_min)
+            projects = projects.filter(project_cost__gte=cost_min_val)
+        except (ValueError, TypeError):
+            pass
+    if selected_cost_max:
+        try:
+            cost_max_val = float(selected_cost_max)
+            projects = projects.filter(project_cost__lte=cost_max_val)
+        except (ValueError, TypeError):
+            pass
     
     # Get all projects for summary calculations (before pagination)
     all_projects_for_summary = projects
+    
+    # Chart period filter: projects overlapping current week/month/year
+    from datetime import date, timedelta
+    today = timezone.now().date() if timezone.is_naive(timezone.now()) else timezone.now().date()
+    if selected_chart_period == 'week':
+        period_start = today - timedelta(days=today.weekday())
+        period_end = period_start + timedelta(days=6)
+    elif selected_chart_period == 'year':
+        period_start = date(today.year, 1, 1)
+        period_end = date(today.year, 12, 31)
+    else:
+        period_start = date(today.year, today.month, 1)
+        if today.month == 12:
+            period_end = date(today.year, 12, 31)
+        else:
+            period_end = date(today.year, today.month + 1, 1) - timedelta(days=1)
+    
+    def project_in_chart_period(p):
+        if not getattr(p, 'start_date', None) and not getattr(p, 'end_date', None):
+            return True
+        start = getattr(p, 'start_date', None)
+        end = getattr(p, 'end_date', None)
+        if start and end:
+            return start <= period_end and end >= period_start
+        if start:
+            return start <= period_end
+        if end:
+            return end >= period_start
+        return True
+    
+    projects_for_chart = [p for p in all_projects_for_summary if project_in_chart_period(p)]
     
     project_data = []
     project_names = []
@@ -1545,15 +1642,23 @@ def budget_reports(request):
         if budget > 0:
             if spent > budget:
                 over_under = 'Over'
-                over_count += 1
             elif utilization >= 80:
                 over_under = 'Within'
-                within_count += 1
             else:
                 over_under = 'Under'
-                under_count += 1
         else:
             over_under = 'Under'
+
+        # Optional: filter by Over/Within/Under selection
+        if selected_budget_status and over_under.lower() != selected_budget_status.lower():
+            continue
+
+        # Track counts after status filter applied
+        if over_under == 'Over':
+            over_count += 1
+        elif over_under == 'Within':
+            within_count += 1
+        else:
             under_count += 1
         
         # Calculate summary totals
@@ -1593,9 +1698,36 @@ def budget_reports(request):
         project_names.append(p.name)
         utilizations.append(utilization)
     
-    # For chart: Get top 20 projects by utilization (or budget if utilization is 0)
+    # Chart data from period-filtered projects (projects_for_chart)
+    chart_project_names = []
+    chart_utilizations_list = []
+    chart_over_count = 0
+    chart_within_count = 0
+    chart_under_count = 0
+    for p in projects_for_chart:
+        costs = ProjectCost.objects.filter(project=p)
+        spent = sum([float(c.amount) for c in costs]) if costs else 0
+        budget = float(p.project_cost) if p.project_cost else 0
+        utilization = (spent / budget * 100) if budget > 0 else 0
+        if budget > 0:
+            if spent > budget:
+                ou = 'Over'
+            elif utilization >= 80:
+                ou = 'Within'
+            else:
+                ou = 'Under'
+        else:
+            ou = 'Under'
+        if ou == 'Over':
+            chart_over_count += 1
+        elif ou == 'Within':
+            chart_within_count += 1
+        else:
+            chart_under_count += 1
+        chart_project_names.append(p.name)
+        chart_utilizations_list.append(utilization)
     chart_data = sorted(
-        zip(project_names, utilizations, [p['budget'] for p in project_data]),
+        zip(chart_project_names, chart_utilizations_list, [float(getattr(p, 'project_cost') or 0) for p in projects_for_chart]),
         key=lambda x: x[1] if x[1] > 0 else x[2],
         reverse=True
     )[:20]
@@ -1616,9 +1748,41 @@ def budget_reports(request):
     # Get all unique barangays for filter dropdown
     all_barangays = Project.objects.values_list('barangay', flat=True).distinct().exclude(barangay__isnull=True).exclude(barangay='').order_by('barangay')
     
+    # Full filtered project list for PDF export (PDFMake) - not paginated
+    budget_pdf_projects = []
+    for idx, p in enumerate(project_data):
+        cost_breakdown_str = '; '.join([f"{c['cost_type']}: ₱{float(c['total']):,.2f}" for c in p.get('cost_breakdown', [])]) if p.get('cost_breakdown') else '—'
+        budget_pdf_projects.append({
+            'num': idx + 1,
+            'prn': p.get('prn') or '—',
+            'name': p.get('name') or '—',
+            'barangay': p.get('barangay') or '—',
+            'assigned_engineers': ', '.join(p.get('assigned_engineers', [])) if p.get('assigned_engineers') else '—',
+            'budget': p.get('budget', 0),
+            'spent': p.get('spent', 0),
+            'utilization': p.get('utilization', 0),
+            'over_under': p.get('over_under', '—'),
+            'status': p.get('status', ''),
+            'cost_breakdown': cost_breakdown_str,
+        })
+    budget_report_pdf_data = {
+        'summary': {
+            'total_budget': total_budget_sum,
+            'total_spent': total_spent_sum,
+            'total_remaining': total_budget_sum - total_spent_sum,
+            'project_count': len(project_data),
+            'over_count': over_count,
+            'at_risk_count': at_risk_count,
+            'within_count': within_count,
+            'under_count': under_count,
+        },
+        'projects': budget_pdf_projects,
+    }
+    
     context = {
         'project_data': paginated_project_data,
         'project_data_json': json.dumps(paginated_project_data),  # For JavaScript modal
+        'budget_report_pdf_data': budget_report_pdf_data,
         'project_names': json.dumps(chart_project_names),
         'utilizations': json.dumps(chart_utilizations),
         'over_count': over_count,
@@ -1633,9 +1797,140 @@ def budget_reports(request):
         'selected_status': selected_status,
         'selected_start_date': selected_start_date,
         'selected_end_date': selected_end_date,
+        'selected_cost_min': selected_cost_min,
+        'selected_cost_max': selected_cost_max,
+        'selected_budget_status': selected_budget_status,
+        'selected_chart_period': selected_chart_period,
         'all_barangays': all_barangays,
+        'chart_over_count': chart_over_count,
+        'chart_within_count': chart_within_count,
+        'chart_under_count': chart_under_count,
     }
     return render(request, 'monitoring/budget_reports.html', context)
+
+
+@login_required
+@prevent_project_engineer_access
+def budget_reports_chart_data_api(request):
+    """API: return chart data for Budget Reports (utilization or over/under) by period. No page reload."""
+    from django.http import JsonResponse
+    from projeng.models import Project, ProjectCost
+    from django.db.models import Q
+    from datetime import date, timedelta
+
+    chart_type = (request.GET.get('chart') or '').strip().lower()
+    period = (request.GET.get('period') or 'month').strip().lower()
+    if chart_type not in ('utilization', 'overunder'):
+        return JsonResponse({'error': 'Invalid chart'}, status=400)
+    if period not in ('week', 'month', 'year'):
+        period = 'month'
+
+    if is_head_engineer(request.user) or is_finance_manager(request.user):
+        projects = Project.objects.all()
+    elif is_project_engineer(request.user):
+        projects = Project.objects.filter(assigned_engineers=request.user)
+    else:
+        projects = Project.objects.none()
+
+    selected_barangay = request.GET.get('barangay', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_start_date = request.GET.get('start_date', '').strip()
+    selected_end_date = request.GET.get('end_date', '').strip()
+    selected_cost_min = request.GET.get('cost_min', '').strip()
+    selected_cost_max = request.GET.get('cost_max', '').strip()
+    selected_budget_status = request.GET.get('budget_status', '').strip()
+
+    if selected_barangay:
+        projects = projects.filter(barangay=selected_barangay)
+    if selected_status:
+        if selected_status == 'in_progress':
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            projects = projects.filter(status=selected_status)
+    if selected_start_date:
+        projects = projects.filter(start_date__gte=selected_start_date)
+    if selected_end_date:
+        projects = projects.filter(end_date__lte=selected_end_date)
+    if selected_cost_min:
+        try:
+            projects = projects.filter(project_cost__gte=float(selected_cost_min))
+        except (ValueError, TypeError):
+            pass
+    if selected_cost_max:
+        try:
+            projects = projects.filter(project_cost__lte=float(selected_cost_max))
+        except (ValueError, TypeError):
+            pass
+
+    today = timezone.now().date() if timezone.is_naive(timezone.now()) else timezone.now().date()
+    if period == 'week':
+        period_start = today - timedelta(days=today.weekday())
+        period_end = period_start + timedelta(days=6)
+    elif period == 'year':
+        period_start = date(today.year, 1, 1)
+        period_end = date(today.year, 12, 31)
+    else:
+        period_start = date(today.year, today.month, 1)
+        period_end = date(today.year, 12, 31) if today.month == 12 else (date(today.year, today.month + 1, 1) - timedelta(days=1))
+
+    def in_period(p):
+        start = getattr(p, 'start_date', None)
+        end = getattr(p, 'end_date', None)
+        if not start and not end:
+            return True
+        if start and end:
+            return start <= period_end and end >= period_start
+        if start:
+            return start <= period_end
+        if end:
+            return end >= period_start
+        return True
+
+    projects_for_chart = [p for p in projects if in_period(p)]
+
+    if chart_type == 'utilization':
+        names = []
+        utils = []
+        budgets = []
+        for p in projects_for_chart:
+            costs = ProjectCost.objects.filter(project=p)
+            spent = sum([float(c.amount) for c in costs]) if costs else 0
+            budget = float(p.project_cost) if p.project_cost else 0
+            util = (spent / budget * 100) if budget > 0 else 0
+            names.append(p.name or '')
+            utils.append(round(util, 2))
+            budgets.append(budget)
+        sorted_data = sorted(zip(names, utils, budgets), key=lambda x: x[1] if x[1] > 0 else x[2], reverse=True)[:20]
+        return JsonResponse({
+            'project_names': [x[0] for x in sorted_data],
+            'utilizations': [x[1] for x in sorted_data],
+        })
+    else:
+        over = within = under = 0
+        for p in projects_for_chart:
+            costs = ProjectCost.objects.filter(project=p)
+            spent = sum([float(c.amount) for c in costs]) if costs else 0
+            budget = float(p.project_cost) if p.project_cost else 0
+            util = (spent / budget * 100) if budget > 0 else 0
+            if budget > 0:
+                if spent > budget:
+                    ou = 'Over'
+                elif util >= 80:
+                    ou = 'Within'
+                else:
+                    ou = 'Under'
+            else:
+                ou = 'Under'
+            if selected_budget_status and ou.lower() != selected_budget_status.lower():
+                continue
+            if ou == 'Over':
+                over += 1
+            elif ou == 'Within':
+                within += 1
+            else:
+                under += 1
+        return JsonResponse({'over': over, 'within': within, 'under': under})
+
 
 @login_required
 @head_engineer_required
@@ -2255,6 +2550,53 @@ def head_engineer_project_detail(request, pk):
             'total_days': (project.end_date - project.start_date).days if project.start_date and project.end_date else None,
         }
         
+        # Serializable report data for client-side PDFMake
+        from django.utils import timezone as tz
+        today = tz.now().date()
+        total_days = (project.end_date - project.start_date).days if project.start_date and project.end_date else 0
+        days_elapsed = (today - project.start_date).days if project.start_date else 0
+        report_data = {
+            'project': {
+                'name': project.name or '',
+                'prn': project.prn or '',
+                'barangay': project.barangay or '',
+                'status': project.get_status_display() if hasattr(project, 'get_status_display') else (project.status or ''),
+                'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else '',
+                'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else '',
+                'project_cost': float(project.project_cost) if project.project_cost is not None else 0,
+                'source_of_funds': project.source_of_funds or '',
+                'description': (project.description or '')[:200],
+            },
+            'assigned_engineers': [u.get_full_name() or u.username for u in project.assigned_engineers.all()],
+            'latest_progress_pct': latest_progress.percentage_complete if latest_progress else 0,
+            'total_cost': float(total_cost),
+            'budget_utilization': float(budget_utilization),
+            'days_elapsed': days_elapsed,
+            'total_days': total_days,
+            'progress_updates': [
+                {
+                    'date': u.date.strftime('%Y-%m-%d') if getattr(u, 'date', None) else '',
+                    'time': u.created_at.strftime('%I:%M %p') if getattr(u, 'created_at', None) else '',
+                    'percentage_complete': getattr(u, 'percentage_complete', 0),
+                    'description': (getattr(u, 'description', None) or '')[:80],
+                    'engineer': u.created_by.get_full_name() or getattr(u.created_by, 'username', '') if getattr(u, 'created_by', None) else '',
+                    'photo_count': u.photos.count() if hasattr(u, 'photos') and hasattr(u.photos, 'count') else 0,
+                }
+                for u in progress_updates
+            ],
+            'costs': [
+                {
+                    'date': c.date.strftime('%Y-%m-%d') if getattr(c, 'date', None) else '',
+                    'time': c.created_at.strftime('%I:%M %p') if getattr(c, 'created_at', None) else '',
+                    'cost_type': c.get_cost_type_display() if hasattr(c, 'get_cost_type_display') else '',
+                    'description': (getattr(c, 'description', None) or '')[:60],
+                    'amount': float(getattr(c, 'amount', 0) or 0),
+                    'engineer': c.created_by.get_full_name() or getattr(c.created_by, 'username', '') if getattr(c, 'created_by', None) else '',
+                }
+                for c in costs
+            ],
+        }
+        
         context = {
             'project': project,
             'projeng_project': project,  # Pass project as projeng_project for template compatibility
@@ -2268,6 +2610,7 @@ def head_engineer_project_detail(request, pk):
             'total_cost': total_cost,
             'budget_utilization': budget_utilization,
             'timeline_data': timeline_data,
+            'report_data': report_data,
         }
         
         return render(request, 'monitoring/head_engineer_project_detail.html', context)
@@ -2487,6 +2830,27 @@ def export_reports_csv(request):
         except (ValueError, TypeError):
             pass  # Invalid date format, ignore filter
     
+    # Filter by source of funds
+    source_of_funds_filter = request.GET.get('source_of_funds', '').strip()
+    if source_of_funds_filter:
+        projects = projects.filter(source_of_funds__iexact=source_of_funds_filter)
+    
+    # Filter by project cost range
+    cost_min_filter = request.GET.get('cost_min', '').strip()
+    cost_max_filter = request.GET.get('cost_max', '').strip()
+    if cost_min_filter:
+        try:
+            cost_min = float(cost_min_filter)
+            projects = projects.filter(project_cost__gte=cost_min)
+        except (ValueError, TypeError):
+            pass
+    if cost_max_filter:
+        try:
+            cost_max = float(cost_max_filter)
+            projects = projects.filter(project_cost__lte=cost_max)
+        except (ValueError, TypeError):
+            pass
+    
     # Create the HttpResponse object with the appropriate CSV header
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="projects_report_{timezone.now().strftime("%Y%m%d")}.csv"'
@@ -2560,6 +2924,27 @@ def export_reports_excel(request):
             projects = projects.filter(end_date__lte=end_date)
         except (ValueError, TypeError):
             pass  # Invalid date format, ignore filter
+    
+    # Filter by source of funds
+    source_of_funds_filter = request.GET.get('source_of_funds', '').strip()
+    if source_of_funds_filter:
+        projects = projects.filter(source_of_funds__iexact=source_of_funds_filter)
+    
+    # Filter by project cost range
+    cost_min_filter = request.GET.get('cost_min', '').strip()
+    cost_max_filter = request.GET.get('cost_max', '').strip()
+    if cost_min_filter:
+        try:
+            cost_min = float(cost_min_filter)
+            projects = projects.filter(project_cost__gte=cost_min)
+        except (ValueError, TypeError):
+            pass
+    if cost_max_filter:
+        try:
+            cost_max = float(cost_max_filter)
+            projects = projects.filter(project_cost__lte=cost_max)
+        except (ValueError, TypeError):
+            pass
     
     # Create a new workbook and select the active sheet
     workbook = openpyxl.Workbook()
@@ -2747,10 +3132,13 @@ def export_budget_reports_csv(request):
         projects = Project.objects.none()
     
     # Apply filters (same as budget_reports view)
-    selected_barangay = request.GET.get('barangay', '')
-    selected_status = request.GET.get('status', '')
-    selected_start_date = request.GET.get('start_date', '')
-    selected_end_date = request.GET.get('end_date', '')
+    selected_barangay = request.GET.get('barangay', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_start_date = request.GET.get('start_date', '').strip()
+    selected_end_date = request.GET.get('end_date', '').strip()
+    selected_cost_min = request.GET.get('cost_min', '').strip()
+    selected_cost_max = request.GET.get('cost_max', '').strip()
+    selected_budget_status = request.GET.get('budget_status', '').strip()
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -2766,6 +3154,19 @@ def export_budget_reports_csv(request):
     
     if selected_end_date:
         projects = projects.filter(end_date__lte=selected_end_date)
+
+    if selected_cost_min:
+        try:
+            cost_min_val = float(selected_cost_min)
+            projects = projects.filter(project_cost__gte=cost_min_val)
+        except (ValueError, TypeError):
+            pass
+    if selected_cost_max:
+        try:
+            cost_max_val = float(selected_cost_max)
+            projects = projects.filter(project_cost__lte=cost_max_val)
+        except (ValueError, TypeError):
+            pass
     
     # Create the HttpResponse object with the appropriate CSV header
     response = HttpResponse(content_type='text/csv')
@@ -2782,7 +3183,18 @@ def export_budget_reports_csv(request):
         budget = float(project.project_cost) if project.project_cost else 0
         remaining = budget - spent
         utilization = (spent / budget * 100) if budget > 0 else 0
-        over_under = 'Over' if spent > budget else 'Under'
+        if budget > 0:
+            if spent > budget:
+                over_under = 'Over'
+            elif utilization >= 80:
+                over_under = 'Within'
+            else:
+                over_under = 'Under'
+        else:
+            over_under = 'Under'
+
+        if selected_budget_status and over_under.lower() != selected_budget_status.lower():
+            continue
         
         writer.writerow([
             i + 1,
@@ -2814,10 +3226,13 @@ def export_budget_reports_excel(request):
         projects = Project.objects.none()
     
     # Apply filters (same as budget_reports view)
-    selected_barangay = request.GET.get('barangay', '')
-    selected_status = request.GET.get('status', '')
-    selected_start_date = request.GET.get('start_date', '')
-    selected_end_date = request.GET.get('end_date', '')
+    selected_barangay = request.GET.get('barangay', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_start_date = request.GET.get('start_date', '').strip()
+    selected_end_date = request.GET.get('end_date', '').strip()
+    selected_cost_min = request.GET.get('cost_min', '').strip()
+    selected_cost_max = request.GET.get('cost_max', '').strip()
+    selected_budget_status = request.GET.get('budget_status', '').strip()
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -2833,6 +3248,19 @@ def export_budget_reports_excel(request):
     
     if selected_end_date:
         projects = projects.filter(end_date__lte=selected_end_date)
+
+    if selected_cost_min:
+        try:
+            cost_min_val = float(selected_cost_min)
+            projects = projects.filter(project_cost__gte=cost_min_val)
+        except (ValueError, TypeError):
+            pass
+    if selected_cost_max:
+        try:
+            cost_max_val = float(selected_cost_max)
+            projects = projects.filter(project_cost__lte=cost_max_val)
+        except (ValueError, TypeError):
+            pass
     
     # Create a new workbook and select the active sheet
     workbook = openpyxl.Workbook()
@@ -2850,7 +3278,18 @@ def export_budget_reports_excel(request):
         budget = float(project.project_cost) if project.project_cost else 0
         remaining = budget - spent
         utilization = (spent / budget * 100) if budget > 0 else 0
-        over_under = 'Over' if spent > budget else 'Under'
+        if budget > 0:
+            if spent > budget:
+                over_under = 'Over'
+            elif utilization >= 80:
+                over_under = 'Within'
+            else:
+                over_under = 'Under'
+        else:
+            over_under = 'Under'
+
+        if selected_budget_status and over_under.lower() != selected_budget_status.lower():
+            continue
         
         sheet.append([
             i + 1,
@@ -2892,10 +3331,13 @@ def export_budget_reports_pdf(request):
         projects = Project.objects.none()
     
     # Apply filters (same as budget_reports view)
-    selected_barangay = request.GET.get('barangay', '')
-    selected_status = request.GET.get('status', '')
-    selected_start_date = request.GET.get('start_date', '')
-    selected_end_date = request.GET.get('end_date', '')
+    selected_barangay = request.GET.get('barangay', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    selected_start_date = request.GET.get('start_date', '').strip()
+    selected_end_date = request.GET.get('end_date', '').strip()
+    selected_cost_min = request.GET.get('cost_min', '').strip()
+    selected_cost_max = request.GET.get('cost_max', '').strip()
+    selected_budget_status = request.GET.get('budget_status', '').strip()
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -2911,20 +3353,45 @@ def export_budget_reports_pdf(request):
     
     if selected_end_date:
         projects = projects.filter(end_date__lte=selected_end_date)
+
+    if selected_cost_min:
+        try:
+            cost_min_val = float(selected_cost_min)
+            projects = projects.filter(project_cost__gte=cost_min_val)
+        except (ValueError, TypeError):
+            pass
+    if selected_cost_max:
+        try:
+            cost_max_val = float(selected_cost_max)
+            projects = projects.filter(project_cost__lte=cost_max_val)
+        except (ValueError, TypeError):
+            pass
     
-    # Prepare project data (format to match template expectations)
+    # Prepare project data (format to match template: #, PRN #, PROJECT, BARANGAY, ASSIGNED ENGINEERS, BUDGET, SPENT, UTILIZATION, OVER/UNDER, STATUS, COST BREAKDOWN)
     project_rows = []
     total_budget = 0.0
     total_spent = 0.0
     over_budget_count = 0
     under_budget_count = 0
-    for project in projects:
+    for idx, project in enumerate(projects):
         costs = ProjectCost.objects.filter(project=project)
         spent = sum([float(c.amount) for c in costs]) if costs else 0
         budget = float(project.project_cost) if project.project_cost else 0
         remaining = budget - spent
         utilization = (spent / budget * 100) if budget > 0 else 0
-        over_under = 'Over' if spent > budget else 'Under'
+        if budget > 0:
+            if spent > budget:
+                over_under = 'Over'
+            elif utilization >= 80:
+                over_under = 'Within'
+            else:
+                over_under = 'Under'
+        else:
+            over_under = 'Under'
+
+        # Optional filter by Over/Within/Under
+        if selected_budget_status and over_under.lower() != selected_budget_status.lower():
+            continue
 
         total_budget += budget
         total_spent += spent
@@ -2933,17 +3400,26 @@ def export_budget_reports_pdf(request):
         else:
             under_budget_count += 1
 
-        # Template `budget_reports_pdf.html` expects capitalized keys (and one odd key: Utilization__)
+        cost_breakdown_map = defaultdict(float)
+        for c in costs:
+            cost_breakdown_map[c.get_cost_type_display()] += float(c.amount)
+        cost_breakdown_str = '; '.join([f'{k}: ₱{v:,.2f}' for k, v in cost_breakdown_map.items()]) if cost_breakdown_map else '—'
+        assigned_engineers = list(project.assigned_engineers.all())
+        engineer_names = [eng.get_full_name() or eng.username for eng in assigned_engineers]
+        assigned_engineers_str = ', '.join(engineer_names) if engineer_names else '—'
+
         project_rows.append({
-            'Project_Name': project.name or '',
-            'PRN': project.prn or '',
-            'Barangay': project.barangay or '',
+            'Num': idx + 1,
+            'PRN': project.prn or '—',
+            'Project_Name': project.name or '—',
+            'Barangay': project.barangay or '—',
+            'Assigned_Engineers': assigned_engineers_str,
             'Budget': f'₱{budget:,.2f}',
             'Spent': f'₱{spent:,.2f}',
-            'Remaining': f'₱{remaining:,.2f}',
-            'Utilization__': f'{utilization:.2f}%',
-            'Status': project.get_status_display() or '',
+            'Utilization': f'{utilization:.2f}%',
             'Over_Under': over_under,
+            'Status': project.get_status_display() or '—',
+            'Cost_Breakdown': cost_breakdown_str,
         })
     
     # If xhtml2pdf is unavailable, return a friendly message
