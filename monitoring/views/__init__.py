@@ -2478,6 +2478,43 @@ def _file_to_data_url(file_field):
         return None
 
 
+def _build_uploaded_images_for_pdf_urls(request, progress_updates, image_documents, project):
+    """Build image list with absolute URLs for server-side xhtml2pdf (fetches URLs; data URIs not well supported)."""
+    images = []
+    for u in progress_updates:
+        for photo in (u.photos.all() if hasattr(u, 'photos') else []):
+            try:
+                url = photo.image.url if photo.image else None
+                if url:
+                    images.append({
+                        'url': request.build_absolute_uri(url),
+                        'caption': u.date.strftime('%Y-%m-%d') if getattr(u, 'date', None) else 'Progress',
+                    })
+            except (ValueError, OSError):
+                pass
+    for doc in image_documents or []:
+        try:
+            url = doc.file.url if doc.file else None
+            if url:
+                images.append({
+                    'url': request.build_absolute_uri(url),
+                    'caption': (doc.name or (doc.file.name if doc.file else '') or 'Document')[:30],
+                })
+        except (ValueError, OSError):
+            pass
+    if project and getattr(project, 'image', None) and project.image:
+        try:
+            url = project.image.url
+            if url:
+                images.append({
+                    'url': request.build_absolute_uri(url),
+                    'caption': 'Project',
+                })
+        except (ValueError, OSError):
+            pass
+    return images
+
+
 def _build_uploaded_images_list(request, progress_updates, image_documents, project):
     """Collect all uploaded images as base64 dataURLs for PDF export (pdfMake requires dataURL, not remote URLs)."""
     images = []
@@ -3756,6 +3793,19 @@ def export_project_comprehensive_pdf(request, pk):
         .prefetch_related('attachments')
         .order_by('created_at')
     )
+
+    # Uploaded images for PDF (xhtml2pdf works best with URLs, not data URIs) - 5 per row
+    from projeng.models import ProjectDocument
+    all_docs = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
+    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+    image_documents = [d for d in all_docs if d.file and any((d.file.name or '').lower().endswith(ext) for ext in image_extensions)]
+    flat_images = _build_uploaded_images_for_pdf_urls(request, progress_updates, image_documents, project)
+    COLS = 5
+    uploaded_images_rows = []
+    for i in range(0, len(flat_images), COLS):
+        row = flat_images[i:i + COLS]
+        row.extend([{'url': '', 'caption': ''}] * (COLS - len(row)))  # pad to 5 columns
+        uploaded_images_rows.append(row)
     
     # If xhtml2pdf is unavailable, return a friendly message
     if pisa is None:
@@ -3791,6 +3841,7 @@ def export_project_comprehensive_pdf(request, pk):
         'assigned_engineers': assigned_engineers,
         'budget_requests': budget_requests,
         'has_progress_photos': any(getattr(u, 'photos', None) and u.photos.all() for u in progress_updates),
+        'uploaded_images_rows': uploaded_images_rows,
         'generated_by': request.user.get_full_name() or request.user.username,
         'generated_at': timezone.now(),
     }

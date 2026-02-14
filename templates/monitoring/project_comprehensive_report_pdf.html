@@ -320,6 +320,26 @@
         </div>
     </div>
 
+    {% if uploaded_images_rows %}
+    <div class="section">
+        <div class="section-title">UPLOADED IMAGES</div>
+        <table style="width: 100%; table-layout: fixed;">
+            {% for row in uploaded_images_rows %}
+            <tr>
+                {% for img in row %}
+                <td style="width: 20%; padding: 4px; vertical-align: top; border: 1px solid #d1d5db;">
+                    {% if img.url %}
+                    <img src="{{ img.url }}" alt="{{ img.caption }}" style="width: 100%; max-width: 110px; height: 75px; object-fit: contain; display: block; margin: 0 auto;" />
+                    <div style="font-size: 7pt; text-align: center; margin-top: 2px; color: #4b5563;">{{ img.caption|truncatechars:18 }}</div>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
     {% if budget_utilization > 100 or budget_utilization > 90 %}
     <div class="section">
         <div class="alert-box">

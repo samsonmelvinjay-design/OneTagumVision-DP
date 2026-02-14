@@ -34,14 +34,14 @@
                             </svg>
                         </button>
                         <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
-                            <button type="button" id="export-pdf-btn" class="block w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
+                            <a href="{% url 'export_project_comprehensive_pdf' project.pk %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                     </svg>
                                     Export to PDF
                                 </div>
-                            </button>
+                            </a>
                             <a href="{% url 'export_project_comprehensive_excel' project.pk %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -460,9 +460,6 @@
     </div>
 </div>
 
-{{ report_data|json_script:"report-data" }}
-<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
 <script>
     // Toggle export dropdown
     document.getElementById('export-dropdown-btn').addEventListener('click', function(e) {
@@ -485,211 +482,6 @@
             link.addEventListener('click', function() { exportDropdownMenu.classList.add('hidden'); });
         });
     }
-
-    // Generate PDF with PDFMake (formal, clean layout)
-    document.getElementById('export-pdf-btn').addEventListener('click', function(e) {
-        e.preventDefault();
-        const el = document.getElementById('report-data');
-        if (!el || !el.textContent) { alert('Report data not available.'); return; }
-        let data;
-        try { data = JSON.parse(el.textContent); } catch (err) { alert('Error loading report data.'); return; }
-        document.getElementById('export-dropdown').classList.add('hidden');
-
-        const fmtDate = function(s) { if (!s) return '—'; return s; };
-        const fmtNum = function(n) { return (n == null || n === '') ? '—' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
-        const fmtPct = function(n) { return (n == null || n === '') ? '0' : Number(n).toFixed(1) + '%'; };
-        const now = new Date();
-        const reportDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-        const headerLines = [
-            { text: 'REPUBLIC OF THE PHILIPPINES', fontSize: 8, alignment: 'center', margin: [0, 0, 0, 0] },
-            { text: 'PROVINCE OF DAVAO DEL NORTE', fontSize: 8, alignment: 'center', margin: [0, 1, 0, 0] },
-            { text: 'CITY OF TAGUM', fontSize: 11, bold: true, alignment: 'center', margin: [0, 1, 0, 0] },
-            { text: 'OFFICE OF THE CITY ENGINEER', fontSize: 11, bold: true, alignment: 'center', margin: [0, 1, 0, 0] },
-            { text: 'PROJECT REPORT', fontSize: 12, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
-            { text: 'As of ' + reportDate, fontSize: 9, alignment: 'center', margin: [0, 2, 0, 0] }
-        ];
-
-        const p = data.project || {};
-        const content = [
-            { text: p.name || 'Project', fontSize: 14, bold: true, margin: [0, 12, 0, 6] },
-            {
-                table: {
-                    widths: [120, '*', 120, '*'],
-                    body: [
-                        [
-                            { text: 'PRN', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: p.prn || '—', fontSize: 8 },
-                            { text: 'Barangay', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: p.barangay || '—', fontSize: 8 }
-                        ],
-                        [
-                            { text: 'Status', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: p.status || '—', fontSize: 8 },
-                            { text: 'Source of Funds', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: p.source_of_funds || '—', fontSize: 8 }
-                        ],
-                        [
-                            { text: 'Start Date', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: fmtDate(p.start_date), fontSize: 8 },
-                            { text: 'End Date', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: fmtDate(p.end_date), fontSize: 8 }
-                        ],
-                        [
-                            { text: 'Project Cost', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: '₱' + fmtNum(p.project_cost), fontSize: 8 },
-                            { text: 'Assigned Engineers', fontSize: 8, fillColor: '#f3f4f6' },
-                            { text: (data.assigned_engineers && data.assigned_engineers.length) ? data.assigned_engineers.join(', ') : '—', fontSize: 8 }
-                        ]
-                    ]
-                },
-                layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-                margin: [0, 0, 0, 8]
-            },
-            { text: 'Overall Progress', fontSize: 10, bold: true, margin: [0, 8, 0, 4] },
-            { text: fmtPct(data.latest_progress_pct) + ' complete', fontSize: 9, margin: [0, 0, 0, 8] },
-            { text: 'Progress Updates', fontSize: 10, bold: true, margin: [0, 4, 0, 4] }
-        ];
-
-        const progressRows = [[
-            { text: 'Date & Time', style: 'tableHeader', alignment: 'center' },
-            { text: 'Progress', style: 'tableHeader', alignment: 'center' },
-            { text: 'Description', style: 'tableHeader' },
-            { text: 'Engineer', style: 'tableHeader' }
-        ]];
-        (data.progress_updates || []).forEach(function(u) {
-            progressRows.push([
-                { text: (u.date || '') + (u.time ? ' ' + u.time : ''), fontSize: 7, alignment: 'center' },
-                { text: fmtPct(u.percentage_complete), fontSize: 7, alignment: 'center' },
-                { text: (u.description || '—').substring(0, 50), fontSize: 7 },
-                { text: u.engineer || '—', fontSize: 7 }
-            ]);
-        });
-        if (progressRows.length === 1) {
-            progressRows.push([{ text: 'No progress updates recorded.', colSpan: 4, alignment: 'center', fontSize: 8 }, {}, {}, {}]);
-        }
-        content.push({
-            table: { headerRows: 1, widths: [70, 45, '*', 60], body: progressRows },
-            layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-            margin: [0, 0, 0, 8]
-        });
-
-        content.push({ text: 'Cost Entries', fontSize: 10, bold: true, margin: [0, 8, 0, 4] });
-        const costRows = [[
-            { text: 'Date', style: 'tableHeader', alignment: 'center' },
-            { text: 'Type', style: 'tableHeader' },
-            { text: 'Description', style: 'tableHeader' },
-            { text: 'Amount', style: 'tableHeader', alignment: 'right' },
-            { text: 'Engineer', style: 'tableHeader' }
-        ]];
-        (data.costs || []).forEach(function(c) {
-            costRows.push([
-                { text: (c.date || '') + (c.time ? ' ' + c.time : ''), fontSize: 7, alignment: 'center' },
-                { text: c.cost_type || '—', fontSize: 7 },
-                { text: (c.description || '—').substring(0, 40), fontSize: 7 },
-                { text: '₱' + fmtNum(c.amount), fontSize: 7, alignment: 'right' },
-                { text: c.engineer || '—', fontSize: 7 }
-            ]);
-        });
-        if (costRows.length === 1) {
-            costRows.push([{ text: 'No cost entries recorded.', colSpan: 5, alignment: 'center', fontSize: 8 }, {}, {}, {}, {}]);
-        }
-        content.push({
-            table: { headerRows: 1, widths: [55, 50, '*', 50, 55], body: costRows },
-            layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-            margin: [0, 0, 0, 8]
-        });
-
-        content.push({ text: 'Summary', fontSize: 10, bold: true, margin: [0, 8, 0, 4] });
-        content.push({
-            table: {
-                widths: ['*', '*'],
-                body: [
-                    [
-                        { text: 'Total Cost Spent', fontSize: 8, fillColor: '#f3f4f6' },
-                        { text: '₱' + fmtNum(data.total_cost), fontSize: 8, alignment: 'right' }
-                    ],
-                    [
-                        { text: 'Budget Utilization', fontSize: 8, fillColor: '#f3f4f6' },
-                        { text: fmtPct(data.budget_utilization), fontSize: 8, alignment: 'right' }
-                    ],
-                    [
-                        { text: 'Timeline (Days)', fontSize: 8, fillColor: '#f3f4f6' },
-                        { text: (data.days_elapsed != null && data.total_days != null) ? data.days_elapsed + ' / ' + data.total_days + ' (elapsed / total)' : '—', fontSize: 8, alignment: 'right' }
-                    ]
-                ]
-            },
-            layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } }
-        });
-
-        // Uploaded Images - cards in rows of 5 columns, after Summary
-        // pdfMake requires dataURLs in images dictionary (not inline URLs) to avoid "not found in virtual file system"
-        const imgs = data.uploaded_images || [];
-        const imagesDict = {};
-        if (imgs.length > 0) {
-            content.push({ text: 'Uploaded Images', fontSize: 10, bold: true, margin: [0, 12, 0, 4] });
-            const COLS = 5;
-            const imgW = 95;
-            const imgH = 65;
-            const imageRows = [];
-            for (let i = 0; i < imgs.length; i += COLS) {
-                const rowCells = [];
-                for (let c = 0; c < COLS; c++) {
-                    const idx = i + c;
-                    if (idx < imgs.length) {
-                        const it = imgs[idx];
-                        const key = 'pdfimg' + idx;
-                        // Only add to images dict if it's a valid dataURL (server sends base64)
-                        if (it.url && typeof it.url === 'string' && it.url.startsWith('data:image/')) {
-                            imagesDict[key] = it.url;
-                        }
-                        rowCells.push({
-                            stack: imagesDict[key] ? [
-                                { image: key, width: imgW, height: imgH, fit: [imgW, imgH] },
-                                { text: (it.caption || '').substring(0, 18), fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] }
-                            ] : [
-                                { text: '(image unavailable)', fontSize: 6, color: '#999' },
-                                { text: (it.caption || '').substring(0, 18), fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] }
-                            ],
-                            border: [0.5, 0.5, 0.5, 0.5],
-                            margin: [2, 2, 2, 2]
-                        });
-                    } else {
-                        rowCells.push({ text: '', border: [0, 0, 0, 0] });
-                    }
-                }
-                imageRows.push(rowCells);
-            }
-            content.push({
-                table: {
-                    widths: Array(COLS).fill(imgW + 4),
-                    body: imageRows
-                },
-                layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-                margin: [0, 0, 0, 8]
-            });
-        }
-
-        const docDef = {
-            pageSize: 'A4',
-            images: imagesDict,
-            pageOrientation: 'portrait',
-            pageMargins: [40, 80, 40, 50],
-            header: function() { return { stack: headerLines, alignment: 'center', margin: [0, 20, 0, 0] }; },
-            footer: function(currentPage, pageCount) {
-                return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 8, color: '#666', alignment: 'center', margin: [0, 0, 0, 20] };
-            },
-            content: content,
-            styles: {
-                tableHeader: { bold: true, fontSize: 7, fillColor: '#166534', color: 'white' }
-            }
-        };
-        if (typeof pdfMake !== 'undefined') {
-            pdfMake.createPdf(docDef).download('project_report_' + (p.prn || p.name || 'project').replace(/\s+/g, '_') + '_' + now.toISOString().slice(0, 10) + '.pdf');
-        } else {
-            alert('PDF library not loaded. Please refresh and try again.');
-        }
-    });
 
     // Forward to Finance Modal Functions
     function showForwardToFinanceModal() {
