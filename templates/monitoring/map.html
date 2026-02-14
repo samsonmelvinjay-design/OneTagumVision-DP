@@ -1057,7 +1057,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const endDate = endDateFilter.value;
         console.log('Rendering markers with filters: Status=', statusFilter, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
         window.projects.forEach(project => {
-            console.log('Processing project:', project.id, project.name, 'Status:', project.status, 'Barangay:', project.barangay, 'Coords:', project.latitude, project.longitude);
             let statusMatch = false;
             let projectStatus = (project.status || '').toLowerCase();
             if (!statusFilter) {
@@ -1083,13 +1082,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Validate coordinates as numbers
             const hasValidCoords = project.latitude && !isNaN(parseFloat(project.latitude)) && project.longitude && !isNaN(parseFloat(project.longitude));
 
-            console.log('Project', project.id, 'Filters - StatusMatch:', statusMatch, 'BarangayMatch:', barangayMatch, 'DateMatch:', dateMatch, 'HasValidCoords:', hasValidCoords);
 
             if (statusMatch && barangayMatch && dateMatch && hasValidCoords && project.status) {
                 const marker = L.marker([parseFloat(project.latitude), parseFloat(project.longitude)], {
                     icon: createMarkerIcon(project.status)
                 });
-                console.log('Adding marker for project ID:', project.id);
                 
                 // Use project.total_progress for the popup progress bar
                 const displayProgress = project.progress !== undefined ? project.progress : 0; // Use project.progress as updated in the view
@@ -1141,7 +1138,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 markers.addLayer(marker);
             } else {
-                 console.log('Skipping marker for project', project.id, project.name, '- Failed filters or missing valid coordinates.');
             }
         });
     }
