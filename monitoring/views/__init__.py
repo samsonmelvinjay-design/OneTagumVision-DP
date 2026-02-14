@@ -2452,22 +2452,28 @@ def project_detail(request, pk):
 
 
 def _file_to_data_url(file_field):
-    """Convert a FileField/ImageField to base64 dataURL for pdfMake (avoids CORS with external storage)."""
+    """Convert a FileField/ImageField to base64 JPEG dataURL for pdfMake.
+    Uses Pillow to normalize to JPEG (pdfMake supports JPEG/PNG; WebP/etc cause 'Unknown image format').
+    """
     import base64
-    import mimetypes
+    import io
     if not file_field or not getattr(file_field, 'name', None):
         return None
     try:
+        from PIL import Image
         with file_field.open('rb') as fh:
             content = fh.read()
         if not content:
             return None
-        b64 = base64.b64encode(content).decode('ascii')
-        name = getattr(file_field, 'name', '') or ''
-        mime, _ = mimetypes.guess_type(name)
-        if not mime or not mime.startswith('image/'):
-            mime = 'image/jpeg'
-        return f'data:{mime};base64,{b64}'
+        img = Image.open(io.BytesIO(content))
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=85, optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+        return f'data:image/jpeg;base64,{b64}'
     except Exception:
         return None
 
