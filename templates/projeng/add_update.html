@@ -590,6 +590,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const photoInput = document.getElementById('progress-photo');
     const photoPreview = document.getElementById('photo-preview');
     const percentageInput = document.getElementById('percentage_complete');
+    
+    // Store selected files so multiple selections accumulate (instead of replacing)
+    let selectedFiles = [];
     const percentageValueEl = document.getElementById('percentage_complete_value');
     const justificationField = document.getElementById('justification-field');
     const justificationInput = document.getElementById('progress-justification');
@@ -663,31 +666,68 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProgressRequirements();
     }
 
-    // Photo preview
+    // Sync selectedFiles back to the file input (for form submission)
+    function syncFileInput() {
+        const dataTransfer = new DataTransfer();
+        selectedFiles.forEach(file => dataTransfer.items.add(file));
+        photoInput.files = dataTransfer.files;
+    }
+
+    // Remove photo from selection by index
+    function removePhoto(index) {
+        if (index >= 0 && index < selectedFiles.length) {
+            selectedFiles.splice(index, 1);
+            syncFileInput();
+            renderPhotoPreviews();
+        }
+    }
+
+    // Render photo preview thumbnails
+    function renderPhotoPreviews() {
+        if (selectedFiles.length === 0) {
+            photoPreview.classList.add('hidden');
+            photoPreview.innerHTML = '';
+            return;
+        }
+        photoPreview.classList.remove('hidden');
+        photoPreview.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const div = document.createElement('div');
+                    div.className = 'relative';
+                    div.innerHTML = `
+                        <img src="${ev.target.result}" alt="Preview" class="w-full h-24 object-cover rounded-lg border border-gray-200">
+                        <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 remove-photo-btn" data-index="${index}">×</button>
+                    `;
+                    photoPreview.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Photo preview - accumulate files on each selection instead of replacing
     if (photoInput) {
         photoInput.addEventListener('change', function(e) {
-            const files = e.target.files;
-            if (files.length > 0) {
-                photoPreview.classList.remove('hidden');
-                photoPreview.innerHTML = '';
-                
-                Array.from(files).forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const div = document.createElement('div');
-                            div.className = 'relative';
-                            div.innerHTML = `
-                                <img src="${e.target.result}" alt="Preview" class="w-full h-24 object-cover rounded-lg border border-gray-200">
-                                <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600" onclick="this.parentElement.remove()">×</button>
-                            `;
-                            photoPreview.appendChild(div);
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            } else {
-                photoPreview.classList.add('hidden');
+            const newFiles = Array.from(e.target.files || []);
+            newFiles.forEach(file => {
+                if (file.type.startsWith('image/') && !selectedFiles.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified)) {
+                    selectedFiles.push(file);
+                }
+            });
+            syncFileInput();
+            renderPhotoPreviews();
+        });
+
+        // Handle remove button clicks (delegated, since previews are dynamically created)
+        photoPreview.addEventListener('click', function(e) {
+            const btn = e.target.closest('.remove-photo-btn');
+            if (btn) {
+                e.preventDefault();
+                const index = parseInt(btn.dataset.index, 10);
+                removePhoto(index);
             }
         });
     }
@@ -719,6 +759,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     showNotification(data.message || 'Progress update added successfully!', 'success');
                     progressForm.reset();
+                    selectedFiles = [];
                     photoPreview.classList.add('hidden');
                     photoPreview.innerHTML = '';
                     // Reset percentage to current progress
