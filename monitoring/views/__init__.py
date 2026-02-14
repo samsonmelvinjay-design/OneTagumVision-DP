@@ -2455,12 +2455,11 @@ def _file_to_data_url(file_field):
     """Convert a FileField/ImageField to base64 dataURL for pdfMake (avoids CORS with external storage)."""
     import base64
     import mimetypes
-    if not file_field:
+    if not file_field or not getattr(file_field, 'name', None):
         return None
     try:
-        file_field.open('rb')
-        content = file_field.read()
-        file_field.close()
+        with file_field.open('rb') as fh:
+            content = fh.read()
         if not content:
             return None
         b64 = base64.b64encode(content).decode('ascii')

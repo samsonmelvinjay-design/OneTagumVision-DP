@@ -623,7 +623,9 @@
         });
 
         // Uploaded Images - cards in rows of 5 columns, after Summary
+        // pdfMake requires dataURLs in images dictionary (not inline URLs) to avoid "not found in virtual file system"
         const imgs = data.uploaded_images || [];
+        const imagesDict = {};
         if (imgs.length > 0) {
             content.push({ text: 'Uploaded Images', fontSize: 10, bold: true, margin: [0, 12, 0, 4] });
             const COLS = 5;
@@ -636,9 +638,17 @@
                     const idx = i + c;
                     if (idx < imgs.length) {
                         const it = imgs[idx];
+                        const key = 'pdfimg' + idx;
+                        // Only add to images dict if it's a valid dataURL (server sends base64)
+                        if (it.url && typeof it.url === 'string' && it.url.startsWith('data:image/')) {
+                            imagesDict[key] = it.url;
+                        }
                         rowCells.push({
-                            stack: [
-                                { image: it.url, width: imgW, height: imgH, fit: [imgW, imgH] },
+                            stack: imagesDict[key] ? [
+                                { image: key, width: imgW, height: imgH, fit: [imgW, imgH] },
+                                { text: (it.caption || '').substring(0, 18), fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] }
+                            ] : [
+                                { text: '(image unavailable)', fontSize: 6, color: '#999' },
                                 { text: (it.caption || '').substring(0, 18), fontSize: 6, alignment: 'center', margin: [0, 2, 0, 0] }
                             ],
                             border: [0.5, 0.5, 0.5, 0.5],
@@ -662,6 +672,7 @@
 
         const docDef = {
             pageSize: 'A4',
+            images: imagesDict,
             pageOrientation: 'portrait',
             pageMargins: [40, 80, 40, 50],
             header: function() { return { stack: headerLines, alignment: 'center', margin: [0, 20, 0, 0] }; },
