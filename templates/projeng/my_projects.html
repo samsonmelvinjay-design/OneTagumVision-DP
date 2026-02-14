@@ -278,10 +278,11 @@ window.clearServerFilters = function() {
                     </select>
                 </div>
 
-                <!-- Panel #4: Project Type + Cost Range filters (server-side) -->
+                <!-- Panel #4: Project Type + Cost Range filters (server-side, auto-apply) -->
                 <div class="lg:col-span-2">
                     <label for="project-type-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Project Type</label>
                     <select id="project-type-filter"
+                            onchange="window.applyServerFilters && window.applyServerFilters()"
                             class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                         <option value="">All Project Types</option>
                         {% for pt in project_type_options %}
@@ -297,6 +298,7 @@ window.clearServerFilters = function() {
                     <input id="cost-min-filter" type="number" step="0.01" min="0"
                            placeholder="0"
                            value="{{ cost_min|default:'' }}"
+                           onchange="window.applyServerFilters && window.applyServerFilters()"
                            class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                 </div>
                 <div class="lg:col-span-1">
@@ -304,15 +306,11 @@ window.clearServerFilters = function() {
                     <input id="cost-max-filter" type="number" step="0.01" min="0"
                            placeholder="0"
                            value="{{ cost_max|default:'' }}"
+                           onchange="window.applyServerFilters && window.applyServerFilters()"
                            class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                 </div>
 
                 <div class="lg:col-span-2 flex flex-wrap gap-2 justify-start lg:justify-end">
-                    <button type="button"
-                            onclick="window.applyServerFilters && window.applyServerFilters()"
-                            class="h-11 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-semibold">
-                        Apply
-                    </button>
                     <button type="button"
                             onclick="window.clearServerFilters && window.clearServerFilters()"
                             class="h-11 px-4 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold">

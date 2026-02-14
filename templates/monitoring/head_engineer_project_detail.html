@@ -320,7 +320,7 @@
                     </svg>
                     Project Documents
                 </h2>
-                {% if documents|length > 5 %}
+                {% if documents|length > 3 %}
                 <button onclick="openDocumentsModal()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -331,7 +331,7 @@
             </div>
             {% if documents %}
                 <div class="space-y-3">
-                    {% for doc in documents|slice:":5" %}
+                    {% for doc in documents|slice:":3" %}
                         <div class="flex items-start justify-between gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-2">
@@ -379,10 +379,10 @@
                         </div>
                     {% endfor %}
                 </div>
-                {% if documents|length > 5 %}
+                {% if documents|length > 3 %}
                 <div class="mt-4 text-center">
                     <button onclick="openDocumentsModal()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                        View {{ documents|length|add:"-5" }} more document{{ documents|length|add:"-5"|pluralize }}
+                        View {{ documents|length|add:"-3" }} more document{{ documents|length|add:"-3"|pluralize }}
                     </button>
                 </div>
                 {% endif %}
