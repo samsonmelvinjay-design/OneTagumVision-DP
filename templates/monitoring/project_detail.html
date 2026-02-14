@@ -17,7 +17,7 @@
     <div class="container">
         <h1>Project Details</h1>
         {% if project.image %}
-            <img src="{{ project.image.url }}" alt="Project Image" class="project-image">
+            <img src="{{ project.image.url }}" alt="Project Image" class="project-image" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27 viewBox=%270 0 24 24%27 fill=%27%239ca3af%27%3E%3Cpath d=%27M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2z%27/%3E%3C/svg%3E'; this.alt='Image unavailable';">
         {% endif %}
         <div class="value"><span class="label">PRN:</span> {{ project.prn }}</div>
         <div class="value"><span class="label">Name:</span> {{ project.name }}</div>

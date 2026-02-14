@@ -111,7 +111,7 @@
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-0 relative mx-4 my-8 max-h-[90vh] overflow-y-auto animate-modal-scale" style="position: relative; z-index: 10000; pointer-events: auto;">
         <button id="close-details-modal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
         <div class="flex flex-col items-center px-8 pt-8 pb-4">
-            <img id="details-image" class="w-40 h-40 object-cover object-center rounded-2xl mb-4 bg-gray-100 border-2 border-gray-200 shadow aspect-square" alt="Project image" />
+            <img id="details-image" class="w-40 h-40 object-cover object-center rounded-2xl mb-4 bg-gray-100 border-2 border-gray-200 shadow aspect-square hidden" alt="Project image" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23e5e7eb%22 width=%22200%22 height=%22200%22/%3E%3Cpath d=%22M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%22 fill=%22%239ca3af%22/%3E%3C/svg%3E';" />
             <div class="w-full">
                 <div class="flex items-center gap-3 mb-2">
                     <span class="text-2xl font-extrabold text-blue-900" id="details-title">Project Details</span>
@@ -543,7 +543,7 @@ window.openDetailsModal = function(id) {
 
         // Handle image
         if (detailsImage) {
-            if (project.image) {
+            if (project.image && project.image.trim() !== '') {
                 detailsImage.src = project.image;
                 detailsImage.classList.remove('hidden');
             } else {

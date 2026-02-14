@@ -108,6 +108,20 @@ If uploads fail from the browser, configure CORS on your Space:
 
 ---
 
+## Migrating Existing Images to Spaces
+
+If you have project images in a local `media/` folder (e.g. from before Spaces was enabled) and need to upload them:
+
+1. Ensure `.env` has Spaces credentials and `USE_SPACES=true`
+2. Run:
+   ```bash
+   python manage.py sync_media_to_spaces
+   ```
+3. Or specify the media folder: `python manage.py sync_media_to_spaces --media-dir ./media`
+4. Use `--dry-run` to preview without uploading
+
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
