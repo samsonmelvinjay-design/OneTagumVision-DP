@@ -2718,6 +2718,8 @@ def head_engineer_project_detail(request, pk):
             'days_elapsed': days_elapsed,
             'total_days': total_days,
             'days_remaining': days_remaining,
+            'expected_progress': expected_progress,
+            'progress_variance': progress_variance,
             'performance_label': performance_label,
             'cost_breakdown': dict(cost_breakdown),
             'budget_requests': budget_requests_list,
