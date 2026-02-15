@@ -107,6 +107,7 @@
             margin-top: 8px;
             font-size: 9pt;
             page-break-inside: avoid;
+            table-layout: fixed;
         }
         th {
             background-color: #1e40af;
@@ -116,10 +117,15 @@
             font-weight: bold;
             font-size: 9pt;
         }
+        th.num, td.num {
+            text-align: right;
+        }
         td {
             border: 1px solid #e5e7eb;
             padding: 8px 10px;
             text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         tr:nth-child(even) {
             background-color: #f9fafb;
@@ -364,13 +370,20 @@
 
     <div class="section">
         <div class="section-title">Budget Request History</div>
-        <table>
+        <table style="table-layout: fixed;">
+            <colgroup>
+                <col style="width: 12%;">
+                <col style="width: 14%;">
+                <col style="width: 14%;">
+                <col style="width: 14%;">
+                <col style="width: 26%;">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Date</th>
-                    <th>Requested Amount</th>
+                    <th class="num">Requested Amount</th>
                     <th>Status</th>
-                    <th>Approved Amount</th>
+                    <th class="num">Approved Amount</th>
                     <th>Requested By</th>
                 </tr>
             </thead>
@@ -379,9 +392,9 @@
                     {% for br in budget_requests %}
                     <tr>
                         <td>{{ br.created_at|date:"M d, Y" }}</td>
-                        <td>₱{{ br.requested_amount|floatformat:2|intcomma }}</td>
+                        <td class="num">₱{{ br.requested_amount|floatformat:2|intcomma }}</td>
                         <td>{{ br.get_status_display }}</td>
-                        <td>
+                        <td class="num">
                             {% if br.approved_amount %}
                                 ₱{{ br.approved_amount|floatformat:2|intcomma }}
                             {% else %}
@@ -416,11 +429,17 @@
 
     <div class="section">
         <div class="section-title">Progress History</div>
-        <table>
+        <table style="table-layout: fixed;">
+            <colgroup>
+                <col style="width: 12%;">
+                <col style="width: 10%;">
+                <col style="width: 58%;">
+                <col style="width: 20%;">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Date</th>
-                    <th>Progress %</th>
+                    <th class="num">Progress %</th>
                     <th>Description</th>
                     <th>Engineer</th>
                 </tr>
@@ -430,7 +449,7 @@
                     {% for update in progress_updates %}
                     <tr>
                         <td>{{ update.date|date:"M d, Y" }}</td>
-                        <td>{{ update.percentage_complete }}%</td>
+                        <td class="num">{{ update.percentage_complete }}%</td>
                         <td>{{ update.description|default:"-"|truncatewords:20 }}</td>
                         <td>{{ update.created_by.get_full_name|default:update.created_by.username|default:"N/A" }}</td>
                     </tr>
@@ -446,12 +465,18 @@
 
     <div class="section">
         <div class="section-title">Means of Verification (Progress Photos)</div>
-        <table>
+        <table style="table-layout: fixed;">
+            <colgroup>
+                <col style="width: 14%;">
+                <col style="width: 10%;">
+                <col style="width: 12%;">
+                <col style="width: 64%;">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Update Date</th>
-                    <th>Progress %</th>
-                    <th>Photo Count</th>
+                    <th class="num">Progress %</th>
+                    <th class="num">Photo Count</th>
                     <th>Photo Files</th>
                 </tr>
             </thead>
@@ -460,8 +485,8 @@
                     {% for update in progress_updates %}
                         <tr>
                             <td>{{ update.date|date:"M d, Y" }}</td>
-                            <td>{{ update.percentage_complete }}%</td>
-                            <td>{% if update.photos.all %}{{ update.photos.all|length }}{% else %}0{% endif %}</td>
+                            <td class="num">{{ update.percentage_complete }}%</td>
+                            <td class="num">{% if update.photos.all %}{{ update.photos.all|length }}{% else %}0{% endif %}</td>
                             <td>
                                 {% if update.photos.all %}
                                     {% for photo in update.photos.all %}
@@ -487,12 +512,17 @@
 
     <div class="section">
         <div class="section-title">Cost Breakdown by Category</div>
-        <table>
+        <table style="table-layout: fixed;">
+            <colgroup>
+                <col style="width: 45%;">
+                <col style="width: 30%;">
+                <col style="width: 25%;">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Category</th>
-                    <th>Amount Spent</th>
-                    <th>Percentage</th>
+                    <th class="num">Amount Spent</th>
+                    <th class="num">Percentage</th>
                 </tr>
             </thead>
             <tbody>
@@ -500,8 +530,8 @@
                     {% for category, amount in cost_breakdown.items %}
                     <tr>
                         <td>{{ category }}</td>
-                        <td>₱{{ amount|floatformat:2|intcomma }}</td>
-                        <td>
+                        <td class="num">₱{{ amount|floatformat:2|intcomma }}</td>
+                        <td class="num">
                             {% if budget > 0 %}
                                 {% widthratio amount budget 100 as percentage %}
                                 {{ percentage|floatformat:2 }}%
@@ -513,8 +543,8 @@
                     {% endfor %}
                     <tr style="font-weight: bold; background-color: #e5e7eb;">
                         <td>TOTAL</td>
-                        <td>₱{{ total_cost|floatformat:2|intcomma }}</td>
-                        <td>{{ budget_utilization|floatformat:2 }}%</td>
+                        <td class="num">₱{{ total_cost|floatformat:2|intcomma }}</td>
+                        <td class="num">{{ budget_utilization|floatformat:2 }}%</td>
                     </tr>
                 {% else %}
                     <tr>
@@ -527,13 +557,19 @@
 
     <div class="section">
         <div class="section-title">Detailed Cost Entries</div>
-        <table>
+        <table style="table-layout: fixed;">
+            <colgroup>
+                <col style="width: 12%;">
+                <col style="width: 18%;">
+                <col style="width: 50%;">
+                <col style="width: 20%;">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Date</th>
                     <th>Category</th>
                     <th>Description</th>
-                    <th>Amount</th>
+                    <th class="num">Amount</th>
                 </tr>
             </thead>
             <tbody>
@@ -543,12 +579,12 @@
                         <td>{{ cost.date|date:"M d, Y" }}</td>
                         <td>{{ cost.get_cost_type_display }}</td>
                         <td>{{ cost.description|default:"-"|truncatewords:15 }}</td>
-                        <td>₱{{ cost.amount|floatformat:2|intcomma }}</td>
+                        <td class="num">₱{{ cost.amount|floatformat:2|intcomma }}</td>
                     </tr>
                     {% endfor %}
                     <tr style="font-weight: bold; background-color: #e5e7eb;">
-                        <td colspan="3" style="text-align: right;">TOTAL:</td>
-                        <td>₱{{ total_cost|floatformat:2|intcomma }}</td>
+                        <td colspan="3" class="num">TOTAL:</td>
+                        <td class="num">₱{{ total_cost|floatformat:2|intcomma }}</td>
                     </tr>
                 {% else %}
                     <tr>

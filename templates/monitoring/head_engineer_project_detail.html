@@ -1,7 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block content %}
-{{ report_data|json_script:"report-data" }}
 <style>
 @media print {
   .no-print { display: none !important; }
@@ -34,23 +33,15 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
                         </button>
-                        <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
+                        <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
                             <a href="{% url 'export_project_comprehensive_pdf' project.pk %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                     </svg>
-                                    PDF (Full, wkhtmltopdf)
+                                    Export to PDF
                                 </div>
                             </a>
-                            <button type="button" id="export-pdf-quick-btn" class="block w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Quick PDF (pdfMake)
-                                </div>
-                            </button>
                             <a href="{% url 'export_project_comprehensive_excel' project.pk %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -484,112 +475,13 @@
             dropdown.classList.add('hidden');
         }
     });
-    // Close dropdown when Excel, CSV, or Quick PDF is clicked
+    // Close dropdown when any export link is clicked
     var exportDropdownMenu = document.getElementById('export-dropdown');
     if (exportDropdownMenu) {
         exportDropdownMenu.querySelectorAll('a[target="_blank"]').forEach(function(link) {
             link.addEventListener('click', function() { exportDropdownMenu.classList.add('hidden'); });
         });
-        var quickPdfBtn = document.getElementById('export-pdf-quick-btn');
-        if (quickPdfBtn) {
-            quickPdfBtn.addEventListener('click', function() { exportDropdownMenu.classList.add('hidden'); });
-        }
     }
-
-    // Quick PDF (pdfMake) - text/tables only, no images
-    document.getElementById('export-pdf-quick-btn').addEventListener('click', function() {
-        var el = document.getElementById('report-data');
-        if (!el || typeof pdfMake === 'undefined') {
-            alert('Report data or pdfMake not available. Please refresh the page.');
-            return;
-        }
-        var d = JSON.parse(el.textContent);
-        var project = d.project || {};
-        var fmt = function(n) { return (n || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
-        var body = [
-            { text: 'Project Report: ' + (project.name || ''), style: 'header', margin: [0, 0, 0, 8] },
-            { text: 'PRN: ' + (project.prn || '') + '  |  Barangay: ' + (project.barangay || ''), fontSize: 10, margin: [0, 0, 0, 6] },
-            { text: 'Status: ' + (project.status || '') + '  |  Start: ' + (project.start_date || '') + '  |  End: ' + (project.end_date || ''), fontSize: 9, margin: [0, 0, 0, 12] },
-            { text: 'Budget Summary', style: 'subheader', margin: [0, 8, 0, 4] },
-            {
-                table: {
-                    widths: ['*', '*', '*', '*'],
-                    body: [
-                        ['Total Cost', 'Budget', 'Remaining', 'Utilization'],
-                        ['₱' + fmt(d.total_cost), '₱' + fmt(d.budget), '₱' + fmt(d.remaining_budget), (d.budget_utilization || 0).toFixed(1) + '%']
-                    ]
-                },
-                layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-                margin: [0, 0, 0, 12]
-            },
-            { text: 'Progress Updates', style: 'subheader', margin: [0, 8, 0, 4] },
-            {
-                table: {
-                    headerRows: 1,
-                    widths: [60, 50, 50, '*', 60, 50],
-                    body: [
-                        ['Date', 'Time', '%', 'Description', 'Engineer', 'Photos'].map(function(t){ return { text: t, bold: true }; })
-                    ].concat((d.progress_updates || []).slice(0, 15).map(function(u) {
-                        return [
-                            u.date || '',
-                            u.time || '',
-                            (u.percentage_complete || 0) + '%',
-                            (u.description || '').substring(0, 40),
-                            u.engineer || '',
-                            (u.photo_count || 0) + ''
-                        ];
-                    }))
-                },
-                layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-                margin: [0, 0, 0, 12]
-            },
-            { text: 'Costs', style: 'subheader', margin: [0, 8, 0, 4] },
-            {
-                table: {
-                    headerRows: 1,
-                    widths: [60, 50, 60, '*', 70, 60],
-                    body: [
-                        ['Date', 'Time', 'Type', 'Description', 'Amount', 'Engineer'].map(function(t){ return { text: t, bold: true }; })
-                    ].concat((d.costs || []).slice(0, 20).map(function(c) {
-                        return [
-                            c.date || '',
-                            c.time || '',
-                            (c.cost_type || '').substring(0, 10),
-                            (c.description || '').substring(0, 35),
-                            '₱' + fmt(c.amount),
-                            (c.engineer || '').substring(0, 15)
-                        ];
-                    }))
-                },
-                layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-                margin: [0, 0, 0, 12]
-            }
-        ];
-        if ((d.budget_requests || []).length > 0) {
-            body.push({ text: 'Budget Requests', style: 'subheader', margin: [0, 8, 0, 4] });
-            body.push({
-                table: {
-                    headerRows: 1,
-                    widths: [60, 80, '*'],
-                    body: [
-                        ['Date', 'Amount', 'Reason'].map(function(t){ return { text: t, bold: true }; })
-                    ].concat((d.budget_requests || []).slice(0, 10).map(function(b) {
-                        return [b.date || '', '₱' + fmt(b.amount), (b.reason || '').substring(0, 50)];
-                    }))
-                },
-                layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } },
-                margin: [0, 0, 0, 12]
-            });
-        }
-        body.push({ text: 'Generated by ' + (d.generated_by || '') + ' on ' + (d.generated_at || ''), fontSize: 8, italics: true, margin: [0, 16, 0, 0] });
-        var docDef = {
-            pageSize: 'A4',
-            pageMargins: [40, 40, 40, 40],
-            content: body,
-            styles: { header: { fontSize: 16, bold: true }, subheader: { fontSize: 12, bold: true } }
-        };
-        pdfMake.createPdf(docDef).download('Project_Report_' + (project.prn || project.name || 'report') + '_Quick.pdf');
-    });
 
     // Forward to Finance Modal Functions
     function showForwardToFinanceModal() {
@@ -870,8 +762,4 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
-{% endblock %}
-{% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
 {% endblock %} 
