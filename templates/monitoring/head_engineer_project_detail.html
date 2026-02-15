@@ -804,7 +804,7 @@ document.addEventListener('keydown', function(e) {
             ];
             var descRow = [
                 { text: 'Project Description', style: 'sectionTitle', margin: [0, 12, 0, 4] },
-                { text: p.description || 'N/A', colSpan: 2 } ];
+                { text: (p.description || 'N/A').substring(0, 500) } ];
             var modeRow = [
                 { text: 'Mode of Implementation', style: 'label', margin: [0, 4, 0, 0] }, { text: 'BY ADMINISTRATION' } ];
             var accomplishRows = [
@@ -828,7 +828,7 @@ document.addEventListener('keydown', function(e) {
                 }
                 costTableBody.push([{ text: 'TOTAL', bold: true }, { text: '₱' + fmtNum(data.total_cost), alignment: 'right', bold: true }, { text: fmtPct(data.budget_utilization), alignment: 'right', bold: true }]);
             } else {
-                costTableBody.push([{ text: 'No cost entries available', colSpan: 3, alignment: 'center' }]);
+                costTableBody.push([{ text: 'No cost entries available', colSpan: 3, alignment: 'center' }, {}, {}]);
             }
 
             var progressTableBody = [];
@@ -837,7 +837,7 @@ document.addEventListener('keydown', function(e) {
                     progressTableBody.push([u.date || '', (u.percentage_complete != null ? u.percentage_complete + '%' : ''), (u.description || '-').substring(0, 60), u.engineer || '']);
                 });
             } else {
-                progressTableBody.push([{ text: 'No progress updates available', colSpan: 4, alignment: 'center' }]);
+                progressTableBody.push([{ text: 'No progress updates available', colSpan: 4, alignment: 'center' }, {}, {}, {}]);
             }
 
             var imgRows = [];
@@ -847,10 +847,14 @@ document.addEventListener('keydown', function(e) {
                     var row = [];
                     for (var j = 0; j < COLS; j++) {
                         var img = imgs[i + j];
-                        if (img && img.url && (img.url.indexOf('data:image') === 0 || img.url.indexOf('data:image/') === 0)) {
-                            row.push({ image: img.url, width: 85, margin: [2, 2], fit: [85, 60] });
+                        if (img && img.url && String(img.url).indexOf('data:image') === 0) {
+                            try {
+                                row.push({ image: img.url, width: 80, height: 55 });
+                            } catch (ex) {
+                                row.push({ text: (img.caption || '').substring(0, 20), fontSize: 7 });
+                            }
                         } else {
-                            row.push({ text: (img && img.caption) ? img.caption : '', fontSize: 7 });
+                            row.push({ text: (img && img.caption) ? String(img.caption).substring(0, 20) : '', fontSize: 7 });
                         }
                     }
                     imgRows.push(row);
