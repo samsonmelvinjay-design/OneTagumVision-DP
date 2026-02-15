@@ -68,6 +68,35 @@
             padding-bottom: 4px;
             margin-bottom: 10px;
         }
+        .card-grid {
+            display: table;
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 8px;
+        }
+        .card-grid-row { display: table-row; }
+        .info-card {
+            display: table-cell;
+            width: 25%;
+            padding: 10px 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            vertical-align: top;
+        }
+        .info-card .card-label {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 4px;
+        }
+        .info-card .card-value {
+            font-size: 9pt;
+            color: #1f2937;
+        }
+        .info-card.wide { width: 50%; }
         .info-table {
             width: 100%;
             border-collapse: collapse;
@@ -252,13 +281,44 @@
 
     <div class="section">
         <div class="section-title">Project Information</div>
-        <table class="info-table">
-            <tr><td class="info-label">Project Name</td><td>{{ project.name }}</td><td class="info-label">PRN</td><td>{{ project.prn|default:"N/A" }}</td></tr>
-            <tr><td class="info-label">Location</td><td>{{ project.barangay|default:"N/A" }}</td><td class="info-label">Status</td><td>{{ project.get_status_display }}</td></tr>
-            <tr><td class="info-label">Start Date</td><td>{{ project.start_date|date:"F d, Y"|default:"N/A" }}</td><td class="info-label">End Date</td><td>{{ project.end_date|date:"F d, Y"|default:"N/A" }}</td></tr>
-            <tr><td class="info-label">Duration</td><td colspan="3">{% if total_days %}{{ total_days }} days ({{ days_elapsed }} elapsed, {{ days_remaining }} remaining){% else %}N/A{% endif %}</td></tr>
-            <tr><td class="info-label">Assigned Engineers</td><td colspan="3">{% if assigned_engineers %}{% for engineer in assigned_engineers %}{{ engineer.get_full_name|default:engineer.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}No engineers assigned{% endif %}</td></tr>
-        </table>
+        <div class="card-grid">
+            <div class="card-grid-row">
+                <div class="info-card">
+                    <div class="card-label">Project Name</div>
+                    <div class="card-value">{{ project.name }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">PRN</div>
+                    <div class="card-value">{{ project.prn|default:"N/A" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Location</div>
+                    <div class="card-value">{{ project.barangay|default:"N/A" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Status</div>
+                    <div class="card-value">{{ project.get_status_display }}</div>
+                </div>
+            </div>
+            <div class="card-grid-row">
+                <div class="info-card">
+                    <div class="card-label">Start Date</div>
+                    <div class="card-value">{{ project.start_date|date:"F d, Y"|default:"N/A" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">End Date</div>
+                    <div class="card-value">{{ project.end_date|date:"F d, Y"|default:"N/A" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Duration</div>
+                    <div class="card-value">{% if total_days %}{{ total_days }} days ({{ days_elapsed }} elapsed, {{ days_remaining }} remaining){% else %}N/A{% endif %}</div>
+                </div>
+                <div class="info-card">
+                    <div class="card-label">Assigned Engineers</div>
+                    <div class="card-value">{% if assigned_engineers %}{% for engineer in assigned_engineers %}{{ engineer.get_full_name|default:engineer.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}No engineers assigned{% endif %}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="section">
@@ -581,17 +641,42 @@
 
     <div class="section">
         <div class="section-title">Progress vs Budget Analysis</div>
-        <table class="info-table analysis-table">
-            <tr><td class="info-label">Progress Completion (Actual)</td><td>{{ total_progress }}%</td></tr>
-            <tr><td class="info-label">Budget Utilization</td><td>{{ budget_used_pct|floatformat:2 }}% ({{ budget_status_label }})</td></tr>
-            {% if expected_progress is not None %}
-            <tr><td class="info-label">Expected Progress (Timeline)</td><td>{{ expected_progress|floatformat:2 }}%</td></tr>
-            <tr><td class="info-label">Progress Variance</td><td>{{ progress_variance|floatformat:2 }}%</td></tr>
-            {% endif %}
-            <tr><td class="info-label">Performance Ratio (Schedule)</td><td>{% if performance_ratio is not None %}{{ performance_ratio|floatformat:2 }} ({{ performance_label }}){% else %}N/A{% endif %}</td></tr>
-            <tr><td class="info-label">Efficiency Ratio</td><td>{% if efficiency_ratio is not None %}{{ efficiency_ratio|floatformat:2 }}{% if efficiency_ratio >= 0.95 and efficiency_ratio <= 1.05 %} (Aligned){% elif efficiency_ratio >= 0.85 and efficiency_ratio < 0.95 %} (Ahead){% elif efficiency_ratio > 1.05 and efficiency_ratio <= 1.15 %} (Behind){% else %} (Needs attention){% endif %}{% else %}N/A{% endif %}</td></tr>
-            <tr><td class="info-label">Satisfaction Score</td><td>{% if satisfaction_score is not None %}{{ satisfaction_score|floatformat:1 }}/100 ({{ satisfaction_label }}){% else %}N/A{% endif %}</td></tr>
-        </table>
+        <div class="card-grid">
+            <div class="card-grid-row">
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Progress Completion (Actual)</div>
+                    <div class="card-value">{{ total_progress }}%</div>
+                </div>
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Budget Utilization</div>
+                    <div class="card-value">{{ budget_used_pct|floatformat:2 }}% ({{ budget_status_label }})</div>
+                </div>
+                {% if expected_progress is not None %}
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Expected Progress (Timeline)</div>
+                    <div class="card-value">{{ expected_progress|floatformat:2 }}%</div>
+                </div>
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Progress Variance</div>
+                    <div class="card-value">{{ progress_variance|floatformat:2 }}%</div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-grid-row">
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Performance Ratio (Schedule)</div>
+                    <div class="card-value">{% if performance_ratio is not None %}{{ performance_ratio|floatformat:2 }} ({{ performance_label }}){% else %}N/A{% endif %}</div>
+                </div>
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Efficiency Ratio</div>
+                    <div class="card-value">{% if efficiency_ratio is not None %}{{ efficiency_ratio|floatformat:2 }}{% if efficiency_ratio >= 0.95 and efficiency_ratio <= 1.05 %} (Aligned){% elif efficiency_ratio >= 0.85 and efficiency_ratio < 0.95 %} (Ahead){% elif efficiency_ratio > 1.05 and efficiency_ratio <= 1.15 %} (Behind){% else %} (Needs attention){% endif %}{% else %}N/A{% endif %}</div>
+                </div>
+                <div class="info-card summary-card bg-slate">
+                    <div class="card-label">Satisfaction Score</div>
+                    <div class="card-value">{% if satisfaction_score is not None %}{{ satisfaction_score|floatformat:1 }}/100 ({{ satisfaction_label }}){% else %}N/A{% endif %}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="footer">
