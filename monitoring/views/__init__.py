@@ -3839,13 +3839,13 @@ def export_project_comprehensive_pdf(request, pk):
         .order_by('created_at')
     )
 
-    # Uploaded images for PDF (xhtml2pdf works best with URLs, not data URIs) - 5 per row
+    # Uploaded images for PDF (xhtml2pdf works best with URLs, not data URIs) - 4 per row
     from projeng.models import ProjectDocument
     all_docs = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
     image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
     image_documents = [d for d in all_docs if d.file and any((d.file.name or '').lower().endswith(ext) for ext in image_extensions)]
     flat_images = _build_uploaded_images_for_pdf_urls(request, progress_updates, image_documents, project)
-    COLS = 5
+    COLS = 4
     uploaded_images_rows = []
     for i in range(0, len(flat_images), COLS):
         row = flat_images[i:i + COLS]
@@ -3896,9 +3896,11 @@ def export_project_comprehensive_pdf(request, pk):
                 'page-size': 'A4',
                 'margin-top': '20mm',
                 'margin-right': '20mm',
-                'margin-bottom': '20mm',
+                'margin-bottom': '24mm',
                 'margin-left': '20mm',
                 'encoding': 'UTF-8',
+                'footer-center': 'Page [page] of [topage]',
+                'footer-font-size': '8',
             }
             pdf_bytes = pdfkit.from_string(html, False, options=options)
         except Exception as e:
