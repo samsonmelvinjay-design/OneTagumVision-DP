@@ -2189,7 +2189,10 @@ function formatDate(dateStr) {
 </div>
 
 <!-- Success Toast -->
-<div id="success-toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden transition-all duration-300" style="z-index: 20002;"></div>
+<div id="success-toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden transition-all duration-300 flex items-center gap-2" style="z-index: 20002;">
+    <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <span id="success-toast-text"></span>
+</div>
 
 <script>
 // Project Modal JavaScript
@@ -2232,12 +2235,14 @@ let assignedEngineersSelect = null;
 let successToast = null;
 
 function showToast(message) {
+    var textEl = document.getElementById('success-toast-text');
     if (successToast) {
-        successToast.textContent = message;
+        if (textEl) textEl.textContent = message || '';
+        else successToast.textContent = message || '';
         successToast.classList.remove('hidden');
         setTimeout(() => {
             successToast.classList.add('hidden');
-        }, 2000);
+        }, 3500);
     }
 }
 
@@ -2634,10 +2639,10 @@ function initializeModalButtons() {
                                     alert(data.message || 'Project created successfully!');
                                 }
                                 hideModal();
-                                // Reload the page to show the new project on the map
+                                // Reload the page to show the new project on the map (delay so user sees success toast)
                                 setTimeout(() => {
                                     window.location.reload();
-                                }, 1000);
+                                }, 2500);
                             } else {
                                 // Handle validation errors
                                 console.error('Form submission error:', data);
