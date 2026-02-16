@@ -226,7 +226,7 @@
                         <div class="py-1" role="none">
                             <a href="{% url 'projeng:projeng_export_reports_csv' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-csv">Export CSV</a>
                             <a href="{% url 'projeng:projeng_export_reports_excel' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-excel">Export Excel</a>
-                            <a href="{% url 'projeng:projeng_export_reports_pdf' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-pdf">Export PDF</a>
+                            <a href="#" data-json-url="{% url 'projeng:projeng_export_reports_json' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-pdf">Export PDF</a>
                         </div>
                     </div>
                 </div>
@@ -266,6 +266,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Get current filter values from URL
@@ -589,9 +591,84 @@ document.addEventListener('DOMContentLoaded', function() {
     if (exportPdf) {
         exportPdf.addEventListener('click', function(e) {
             e.preventDefault();
-            const exportUrl = buildExportUrl(this.href);
-            window.location.href = exportUrl;
+            const jsonBaseUrl = this.getAttribute('data-json-url') || '';
+            if (!jsonBaseUrl) return;
+            const jsonUrl = buildExportUrl(jsonBaseUrl);
             closeExportModal();
+            
+            fetch(jsonUrl, { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    const list = data.projects || [];
+                    const now = new Date();
+                    const reportDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    
+                    function toDdMonYy(dateStr) {
+                        if (!dateStr) return '';
+                        const d = new Date(dateStr);
+                        return isNaN(d) ? '' : d.getDate() + '-' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
+                    }
+                    function formatCost(c) {
+                        if (c == null || c === '') return '';
+                        const num = parseFloat(String(c).replace(/[^\d.]/g, ''));
+                        return isNaN(num) ? '' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                    
+                    const headerRow = [
+                        { text: '#', style: 'tableHeader', alignment: 'center' },
+                        { text: 'PRN#', style: 'tableHeader' },
+                        { text: 'NAME', style: 'tableHeader' },
+                        { text: 'LOCATION', style: 'tableHeader' },
+                        { text: 'COST', style: 'tableHeader', alignment: 'right' },
+                        { text: 'SOURCE OF FUNDS', style: 'tableHeader' },
+                        { text: 'PROJECT TYPE', style: 'tableHeader' },
+                        { text: 'STARTED', style: 'tableHeader', alignment: 'center' },
+                        { text: 'ENDED', style: 'tableHeader', alignment: 'center' },
+                        { text: 'STATUS', style: 'tableHeader' }
+                    ];
+                    const colWidths = [18, 48, '*', 45, 42, 55, 50, 38, 38, 42];
+                    const tableBody = [headerRow];
+                    
+                    list.forEach(function(p, idx) {
+                        tableBody.push([
+                            { text: String(idx + 1), alignment: 'center', fontSize: 7 },
+                            { text: (p.prn || '').toString(), fontSize: 7 },
+                            { text: (p.name || '').toString().substring(0, 60), fontSize: 7 },
+                            { text: (p.barangay || '').toString(), fontSize: 7 },
+                            { text: formatCost(p.project_cost) ? '₱' + formatCost(p.project_cost) : '', alignment: 'right', fontSize: 7 },
+                            { text: (p.source_of_funds || '').toString(), fontSize: 7 },
+                            { text: (p.project_type_name || '').toString(), fontSize: 7 },
+                            { text: toDdMonYy(p.start_date), alignment: 'center', fontSize: 7 },
+                            { text: toDdMonYy(p.end_date), alignment: 'center', fontSize: 7 },
+                            { text: (p.status_display || p.status || '').toString(), fontSize: 7 }
+                        ]);
+                    });
+                    
+                    const docDef = {
+                        pageSize: 'A4',
+                        pageOrientation: 'landscape',
+                        pageMargins: [25, 60, 25, 50],
+                        header: { text: 'Assigned Projects Report — ' + reportDate, fontSize: 10, bold: true, margin: [25, 15, 25, 10] },
+                        footer: function(currentPage, pageCount) {
+                            return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 8, alignment: 'center', margin: [0, 10, 0, 0] };
+                        },
+                        content: [{
+                            table: { headerRows: 1, widths: colWidths, body: tableBody },
+                            layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } }
+                        }],
+                        styles: { tableHeader: { bold: true, fontSize: 7, fillColor: '#4338ca', color: 'white' } }
+                    };
+                    
+                    if (typeof pdfMake !== 'undefined') {
+                        pdfMake.createPdf(docDef).download('assigned_projects_report_' + now.toISOString().slice(0, 10) + '.pdf');
+                    } else {
+                        alert('PDF library not loaded. Please refresh the page and try again.');
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Export PDF failed:', err);
+                    alert('Failed to export PDF. Please try again.');
+                });
         });
     }
 });

@@ -7,7 +7,8 @@ from django.contrib.auth.models import User, Group
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
-from projeng.models import Project, ProjectType
+from django.utils import timezone
+from projeng.models import Project, ProjectType, ProjectProgress
 from monitoring.forms import EngineerCreateForm, EngineerEditForm
 from gistagum.access_control import head_engineer_required
 
@@ -129,12 +130,41 @@ def engineer_detail(request, engineer_id):
     # Get assigned projects
     assigned_projects = engineer.assigned_projects.all()
     
-    # Calculate statistics
+    today = timezone.now().date()
+    project_ids = list(assigned_projects.values_list('id', flat=True))
+    latest_progress = {}
+    if project_ids:
+        progresses = ProjectProgress.objects.filter(
+            project_id__in=project_ids,
+            percentage_complete__isnull=False
+        ).values('project_id', 'percentage_complete', 'date', 'created_at').order_by('project_id', '-date', '-created_at')
+        seen = set()
+        for rec in progresses:
+            if rec['project_id'] not in seen:
+                seen.add(rec['project_id'])
+                latest_progress[rec['project_id']] = int(rec['percentage_complete'])
+    
+    # Calculate statistics (including dynamic delayed status)
     total_projects = assigned_projects.count()
-    active_projects = assigned_projects.filter(status__in=['in_progress', 'ongoing']).count()
-    completed_projects = assigned_projects.filter(status='completed').count()
-    planned_projects = assigned_projects.filter(status__in=['planned', 'pending']).count()
-    delayed_projects = assigned_projects.filter(status='delayed').count()
+    active_projects = 0
+    completed_projects = 0
+    planned_projects = 0
+    delayed_projects = 0
+    for p in assigned_projects:
+        progress = latest_progress.get(p.id, 0) or (p.progress or 0)
+        stored_status = p.status or ''
+        if progress >= 99:
+            completed_projects += 1
+        elif stored_status == 'delayed':
+            delayed_projects += 1
+        elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+            delayed_projects += 1
+        elif stored_status in ['in_progress', 'ongoing']:
+            active_projects += 1
+        elif stored_status in ['planned', 'pending']:
+            planned_projects += 1
+        elif stored_status == 'completed':
+            completed_projects += 1
 
     # Calculate overall progress (average of all project progress)
     if total_projects > 0:
@@ -167,11 +197,13 @@ def engineer_detail(request, engineer_id):
             Q(description__icontains=search_query)
         )
 
-    if status_filter:
+    if status_filter and status_filter != 'delayed':
         if status_filter == 'in_progress':
             filtered_projects = filtered_projects.filter(status__in=['in_progress', 'ongoing'])
         elif status_filter == 'planned':
             filtered_projects = filtered_projects.filter(status__in=['planned', 'pending'])
+        elif status_filter == 'completed':
+            filtered_projects = filtered_projects.filter(status='completed')
         else:
             filtered_projects = filtered_projects.filter(status=status_filter)
 
@@ -198,25 +230,46 @@ def engineer_detail(request, engineer_id):
 
     project_type_options = ProjectType.objects.all().order_by('name')
 
-    # Get project details for display (filtered)
+    # Get project details for display (filtered), with calculated status for delayed detection
     projects_data = []
     for project in filtered_projects:
+        progress = latest_progress.get(project.id, 0) or (project.progress or 0)
+        stored_status = project.status or ''
+        if progress >= 99:
+            calculated_status = 'completed'
+        elif stored_status == 'delayed':
+            calculated_status = 'delayed'
+        elif progress < 99 and project.end_date and project.end_date < today and stored_status in ['in_progress', 'ongoing']:
+            calculated_status = 'delayed'
+        elif stored_status in ['in_progress', 'ongoing']:
+            calculated_status = 'in_progress'
+        elif stored_status in ['planned', 'pending']:
+            calculated_status = 'planned'
+        else:
+            calculated_status = stored_status or ''
+        
+        status_display = (
+            'Completed' if calculated_status == 'completed' else
+            'Delayed' if calculated_status == 'delayed' else
+            'Ongoing' if calculated_status in ['in_progress', 'ongoing'] else
+            'Planned' if calculated_status in ['planned', 'pending'] else
+            (calculated_status or stored_status or '').title()
+        )
+        
         projects_data.append({
             'id': project.id,
             'name': project.name,
-            'status': project.status,
-            'status_display': (
-                'Ongoing' if project.status in ['in_progress', 'ongoing'] else
-                'Planned' if project.status in ['planned', 'pending'] else
-                'Completed' if project.status == 'completed' else
-                'Delayed' if project.status == 'delayed' else project.status.title()
-            ),
-            'progress': project.progress or 0,
+            'status': calculated_status,
+            'status_display': status_display,
+            'progress': progress,
             'start_date': project.start_date,
             'end_date': project.end_date,
             'project_type': project.project_type.name if getattr(project, 'project_type', None) else '',
             'project_cost': project.project_cost,
         })
+    
+    if status_filter == 'delayed':
+        projects_data = [p for p in projects_data if p['status'] == 'delayed']
 
     context = {
         'engineer': engineer,
