@@ -25,7 +25,7 @@
         <!-- Filters Section -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
             <form method="get" id="filter-form" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
                     <div>
                         <label for="barangay-filter" class="block text-sm font-medium text-gray-700 mb-2">Barangay:</label>
                         <select id="barangay-filter" name="barangay" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
@@ -43,6 +43,24 @@
                                 {% if status_display != 'Cancelled' %}
                                     <option value="{{ status_key }}" {% if selected_status == status_key %}selected{% endif %}>{{ status_display }}</option>
                                 {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="source-of-funds-filter" class="block text-sm font-medium text-gray-700 mb-2">Source of Funds:</label>
+                        <select id="source-of-funds-filter" name="source_of_funds" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
+                            <option value="">All Sources</option>
+                            {% for sof in source_of_funds_options %}
+                                <option value="{{ sof }}" {% if selected_source_of_funds == sof %}selected{% endif %}>{{ sof }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="project-type-filter" class="block text-sm font-medium text-gray-700 mb-2">Project Type:</label>
+                        <select id="project-type-filter" name="project_type" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
+                            <option value="">All Types</option>
+                            {% for pt in project_type_options %}
+                                <option value="{{ pt.id }}" {% if selected_project_type == pt.id|stringformat:"i" %}selected{% endif %}>{{ pt.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -72,6 +90,8 @@
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Project Name</th>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
                             <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Barangay</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Source of Funds</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Project Type</th>
                             <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -98,6 +118,12 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">{{ project.barangay|default:'N/A' }}</div>
                                 </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">{{ project.source_of_funds|default:'—' }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">{{ project.project_type.name|default:'—' }}</div>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <a href="{% url 'projeng:projeng_project_detail' project.id %}" class="text-indigo-600 hover:text-indigo-900 font-medium inline-flex items-center">
                                         View/Manage Reports
@@ -109,7 +135,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="4" class="px-6 py-12 text-center">
+                                <td colspan="6" class="px-6 py-12 text-center">
                                     <div class="text-gray-400 mb-2">
                                         <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -132,7 +158,7 @@
                 </div>
                 <div class="flex space-x-2">
                     {% if page_obj.has_previous %}
-                    <a href="?page={{ page_obj.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
+                    <a href="?page={{ page_obj.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source_of_funds %}&source_of_funds={{ selected_source_of_funds }}{% endif %}{% if selected_project_type %}&project_type={{ selected_project_type }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
                        class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                         Previous
                     </a>
@@ -148,7 +174,7 @@
                             {{ num }}
                         </span>
                         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <a href="?page={{ num }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
+                        <a href="?page={{ num }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source_of_funds %}&source_of_funds={{ selected_source_of_funds }}{% endif %}{% if selected_project_type %}&project_type={{ selected_project_type }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
                            class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                             {{ num }}
                         </a>
@@ -156,7 +182,7 @@
                     {% endfor %}
                     
                     {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
+                    <a href="?page={{ page_obj.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source_of_funds %}&source_of_funds={{ selected_source_of_funds }}{% endif %}{% if selected_project_type %}&project_type={{ selected_project_type }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
                        class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                         Next
                     </a>
@@ -172,9 +198,11 @@
     </div>
 </div>
 
-<!-- Export Modal -->
-<div id="exportModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+<!-- Export Modal - responsive for laptop view -->
+<div id="exportModal" class="fixed inset-0 z-50 hidden overflow-y-auto overflow-x-hidden">
+    <div class="flex min-h-full min-w-0 items-center justify-center p-2 sm:p-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" id="exportModalBackdrop"></div>
+        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-[min(95vw,56rem)] max-h-[min(90vh,calc(100vh-2rem))] overflow-hidden flex flex-col my-auto">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700">
             <h3 class="text-xl font-semibold text-white">Export Project List</h3>
             <div class="flex items-center gap-4">
@@ -198,7 +226,7 @@
                         <div class="py-1" role="none">
                             <a href="{% url 'projeng:projeng_export_reports_csv' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-csv">Export CSV</a>
                             <a href="{% url 'projeng:projeng_export_reports_excel' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-excel">Export Excel</a>
-                            <a href="{% url 'projeng:projeng_export_reports_pdf' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-pdf">Export PDF</a>
+                            <a href="#" data-json-url="{% url 'projeng:projeng_export_reports_json' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-pdf">Export PDF</a>
                         </div>
                     </div>
                 </div>
@@ -206,21 +234,21 @@
             </div>
         </div>
         
-        <div class="flex-1 overflow-auto p-6">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+        <div class="flex-1 overflow-auto p-4 sm:p-6 min-h-0">
+            <div class="overflow-x-auto -mx-2 sm:mx-0">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRN#</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name of Project</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Description</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Cost</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source of Funds</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Started</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Ended</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRN#</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source of Funds</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Type</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ended</th>
+                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody id="modal-projects-table-body" class="bg-white divide-y divide-gray-200">
@@ -228,6 +256,7 @@
                     </tbody>
                 </table>
             </div>
+        </div>
         </div>
     </div>
 </div>
@@ -237,12 +266,16 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Get current filter values from URL
     const urlParams = new URLSearchParams(window.location.search);
     const currentBarangay = urlParams.get('barangay') || '';
     const currentStatus = urlParams.get('status') || '';
+    const currentSourceOfFunds = urlParams.get('source_of_funds') || '';
+    const currentProjectType = urlParams.get('project_type') || '';
     const currentStartDate = urlParams.get('start_date') || '';
     const currentEndDate = urlParams.get('end_date') || '';
     
@@ -250,6 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.getElementById('filter-form');
     const barangayFilter = document.getElementById('barangay-filter');
     const statusFilter = document.getElementById('status-filter');
+    const sourceOfFundsFilter = document.getElementById('source-of-funds-filter');
+    const projectTypeFilter = document.getElementById('project-type-filter');
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
@@ -299,6 +334,14 @@ document.addEventListener('DOMContentLoaded', function() {
         statusFilter.addEventListener('change', submitFilterForm);
     }
     
+    if (sourceOfFundsFilter) {
+        sourceOfFundsFilter.addEventListener('change', submitFilterForm);
+    }
+    
+    if (projectTypeFilter) {
+        projectTypeFilter.addEventListener('change', submitFilterForm);
+    }
+    
     // Auto-submit on date changes (with debounce)
     if (startDateFilter) {
         startDateFilter.addEventListener('change', function() {
@@ -319,6 +362,8 @@ document.addEventListener('DOMContentLoaded', function() {
         clearFiltersBtn.addEventListener('click', function() {
             barangayFilter.value = '';
             statusFilter.value = '';
+            if (sourceOfFundsFilter) sourceOfFundsFilter.value = '';
+            if (projectTypeFilter) projectTypeFilter.value = '';
             startDateFilter.value = '';
             endDateFilter.value = '';
             submitFilterForm();
@@ -351,6 +396,12 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 filtered = filtered.filter(p => p.status === currentStatus);
             }
+        }
+        if (currentSourceOfFunds) {
+            filtered = filtered.filter(p => (p.source_of_funds || '') === currentSourceOfFunds);
+        }
+        if (currentProjectType) {
+            filtered = filtered.filter(p => String(p.project_type_id || '') === String(currentProjectType));
         }
         if (currentStartDate) {
             filtered = filtered.filter(p => {
@@ -407,16 +458,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${index + 1}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${project.prn || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(project.name || '')}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">${escapeHtml(project.description || '')}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.barangay || '')}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${project.project_cost !== null && project.project_cost !== undefined ? '₱' + parseFloat(project.project_cost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.source_of_funds || '')}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${project.start_date || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${project.end_date || ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${index + 1}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.prn || '')}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 text-sm font-medium text-gray-900">${escapeHtml(project.name || '')}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.barangay || '')}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${project.project_cost !== null && project.project_cost !== undefined ? '₱' + parseFloat(project.project_cost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.source_of_funds || '')}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.project_type_name || '')}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${project.start_date || ''}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${project.end_date || ''}</td>
+                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap">
                     <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
                         ${escapeHtml(project.status_display || project.status || '')}
                     </span>
@@ -438,6 +489,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const params = new URLSearchParams();
         if (currentBarangay) params.append('barangay', currentBarangay);
         if (currentStatus) params.append('status', currentStatus);
+        if (currentSourceOfFunds) params.append('source_of_funds', currentSourceOfFunds);
+        if (currentProjectType) params.append('project_type', currentProjectType);
         if (currentStartDate) params.append('start_date', currentStartDate);
         if (currentEndDate) params.append('end_date', currentEndDate);
         
@@ -457,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         exportModal.classList.remove('hidden');
-        exportModal.classList.add('flex');
+        exportModal.classList.add('flex', 'items-center', 'justify-center');
     }
     
     // Function to close export modal
@@ -478,7 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Close modal on backdrop click
     exportModal.addEventListener('click', function(e) {
-        if (e.target === exportModal) {
+        if (e.target === exportModal || e.target.id === 'exportModalBackdrop') {
             closeExportModal();
         }
     });
@@ -538,9 +591,84 @@ document.addEventListener('DOMContentLoaded', function() {
     if (exportPdf) {
         exportPdf.addEventListener('click', function(e) {
             e.preventDefault();
-            const exportUrl = buildExportUrl(this.href);
-            window.location.href = exportUrl;
+            const jsonBaseUrl = this.getAttribute('data-json-url') || '';
+            if (!jsonBaseUrl) return;
+            const jsonUrl = buildExportUrl(jsonBaseUrl);
             closeExportModal();
+            
+            fetch(jsonUrl, { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    const list = data.projects || [];
+                    const now = new Date();
+                    const reportDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    
+                    function toDdMonYy(dateStr) {
+                        if (!dateStr) return '';
+                        const d = new Date(dateStr);
+                        return isNaN(d) ? '' : d.getDate() + '-' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
+                    }
+                    function formatCost(c) {
+                        if (c == null || c === '') return '';
+                        const num = parseFloat(String(c).replace(/[^\d.]/g, ''));
+                        return isNaN(num) ? '' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                    
+                    const headerRow = [
+                        { text: '#', style: 'tableHeader', alignment: 'center' },
+                        { text: 'PRN#', style: 'tableHeader' },
+                        { text: 'NAME', style: 'tableHeader' },
+                        { text: 'LOCATION', style: 'tableHeader' },
+                        { text: 'COST', style: 'tableHeader', alignment: 'right' },
+                        { text: 'SOURCE OF FUNDS', style: 'tableHeader' },
+                        { text: 'PROJECT TYPE', style: 'tableHeader' },
+                        { text: 'STARTED', style: 'tableHeader', alignment: 'center' },
+                        { text: 'ENDED', style: 'tableHeader', alignment: 'center' },
+                        { text: 'STATUS', style: 'tableHeader' }
+                    ];
+                    const colWidths = [18, 48, '*', 45, 42, 55, 50, 38, 38, 42];
+                    const tableBody = [headerRow];
+                    
+                    list.forEach(function(p, idx) {
+                        tableBody.push([
+                            { text: String(idx + 1), alignment: 'center', fontSize: 7 },
+                            { text: (p.prn || '').toString(), fontSize: 7 },
+                            { text: (p.name || '').toString().substring(0, 60), fontSize: 7 },
+                            { text: (p.barangay || '').toString(), fontSize: 7 },
+                            { text: formatCost(p.project_cost) ? '₱' + formatCost(p.project_cost) : '', alignment: 'right', fontSize: 7 },
+                            { text: (p.source_of_funds || '').toString(), fontSize: 7 },
+                            { text: (p.project_type_name || '').toString(), fontSize: 7 },
+                            { text: toDdMonYy(p.start_date), alignment: 'center', fontSize: 7 },
+                            { text: toDdMonYy(p.end_date), alignment: 'center', fontSize: 7 },
+                            { text: (p.status_display || p.status || '').toString(), fontSize: 7 }
+                        ]);
+                    });
+                    
+                    const docDef = {
+                        pageSize: 'A4',
+                        pageOrientation: 'landscape',
+                        pageMargins: [25, 60, 25, 50],
+                        header: { text: 'Assigned Projects Report — ' + reportDate, fontSize: 10, bold: true, margin: [25, 15, 25, 10] },
+                        footer: function(currentPage, pageCount) {
+                            return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 8, alignment: 'center', margin: [0, 10, 0, 0] };
+                        },
+                        content: [{
+                            table: { headerRows: 1, widths: colWidths, body: tableBody },
+                            layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } }
+                        }],
+                        styles: { tableHeader: { bold: true, fontSize: 7, fillColor: '#4338ca', color: 'white' } }
+                    };
+                    
+                    if (typeof pdfMake !== 'undefined') {
+                        pdfMake.createPdf(docDef).download('assigned_projects_report_' + now.toISOString().slice(0, 10) + '.pdf');
+                    } else {
+                        alert('PDF library not loaded. Please refresh the page and try again.');
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Export PDF failed:', err);
+                    alert('Failed to export PDF. Please try again.');
+                });
         });
     }
 });

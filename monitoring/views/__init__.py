@@ -605,6 +605,11 @@ def project_list(request):
             if not existing:
                 SourceOfFunds.objects.create(name=new_source_of_funds)
             post_data['source_of_funds'] = new_source_of_funds
+        elif selected_source_of_funds and selected_source_of_funds != '__add_new__':
+            # Ensure selected value exists in SourceOfFunds (e.g. when added via client-side ensureOptionEverywhere before submit)
+            existing = SourceOfFunds.objects.filter(name__iexact=selected_source_of_funds).first()
+            if not existing:
+                SourceOfFunds.objects.create(name=selected_source_of_funds)
         elif not selected_source_of_funds:
             if is_ajax:
                 return JsonResponse({'success': False, 'errors': {'source_of_funds': ['Source of Funds is required.']}}, status=400)

@@ -13,6 +13,7 @@ urlpatterns = [
     # Report Export URLs
     path('my-reports/export/csv/', views.export_reports_csv, name='projeng_export_reports_csv'),
     path('my-reports/export/excel/', views.export_reports_excel, name='projeng_export_reports_excel'),
+    path('my-reports/export/json/', views.export_reports_json, name='projeng_export_reports_json'),
     path('my-reports/export/pdf/', views.export_reports_pdf, name='projeng_export_reports_pdf'),
 
     path('projects/<int:pk>/detail/', views.project_detail_view, name='projeng_project_detail'),

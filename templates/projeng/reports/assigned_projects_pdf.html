@@ -29,6 +29,7 @@
                 <th>Barangay</th>
                 <th>Project Cost</th>
                 <th>Source of Funds</th>
+                <th>Project Type</th>
                 <th>Date Started</th>
                 <th>Date Ended</th>
                 <th>Status</th>
@@ -44,6 +45,7 @@
                     <td>{{ project.barangay|default:'' }}</td>
                     <td>₱{{ project.project_cost|floatformat:2|default:'0.00'|intcomma }}</td>
                     <td>{{ project.source_of_funds|default:'' }}</td>
+                    <td>{{ project.project_type.name|default:'' }}</td>
                     <td>{{ project.start_date|date:'Y-m-d'|default:'' }}</td>
                     <td>{{ project.end_date|date:'Y-m-d'|default:'' }}</td>
                     <td>
