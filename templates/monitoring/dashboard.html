@@ -322,6 +322,7 @@
                 <div class="chart-container" style="position: relative; height:300px; width:100%">
                     <canvas id="monthlySpendingChart"></canvas>
                 </div>
+                <p class="text-sm text-gray-600 mt-2 font-medium" id="monthlySpendingSummary" aria-live="polite"></p>
             </div>
 
             <!-- Chart 7: Projects Created per Month -->
@@ -347,6 +348,7 @@
                 <div class="chart-container" style="position: relative; height:300px; width:100%">
                     <canvas id="projectsPerMonthChart"></canvas>
                 </div>
+                <p class="text-sm text-gray-600 mt-2 font-medium" id="projectsPerMonthSummary" aria-live="polite"></p>
             </div>
         </div>
 
@@ -363,6 +365,24 @@
     document.addEventListener('DOMContentLoaded', function() {
         const calcPercent = (value, total) => total > 0 ? ((value / total) * 100) : 0;
         const fmtMoney = (value) => '₱' + Number(value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        // Legend with inline data: "Label: value (pct%)" - pass useMoney and suffix via closure
+        function createLegendWithData(useMoney, suffix, showPct) {
+            if (showPct === undefined) showPct = true;
+            return function(chart) {
+                const ds = chart.data.datasets?.[0];
+                const labels = chart.data.labels || [];
+                const data = ds?.data || [];
+                const total = data.reduce((a,b)=>a+b,0);
+                const fmt = useMoney ? fmtMoney : (v => String(v));
+                const bg = Array.isArray(ds?.backgroundColor) ? ds.backgroundColor : ds?.backgroundColor;
+                const bc = Array.isArray(ds?.borderColor) ? ds.borderColor : ds?.borderColor;
+                return labels.map((label, i) => {
+                    const val = data[i] ?? 0;
+                    const pct = showPct && total > 0 ? ' (' + calcPercent(val, total).toFixed(1) + '%)' : '';
+                    return { text: label + ': ' + fmt(val) + (suffix || '') + pct, fillStyle: Array.isArray(bg) ? (bg[i] || 'rgba(0,0,0,0.1)') : (bg || 'rgba(0,0,0,0.1)'), strokeStyle: Array.isArray(bc) ? (bc[i] || '#666') : (bc || '#666'), lineWidth: 1, hidden: false, index: i };
+                });
+            };
+        }
 
         // Chart period: each chart has its own period (no shared control)
         const chartPeriods = {
@@ -410,7 +430,7 @@
                                         borderWidth: 2
                                     }]
                                 },
-                                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 16 } }, tooltip: { enabled: true, callbacks: { label: c => { const t = c.dataset.data.reduce((a,b)=>a+b,0); return c.label + ': ' + c.parsed + ' projects (' + (t ? ((c.parsed/t)*100).toFixed(1) : 0) + '%)'; } } } } }
+                                options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => { const t = c.dataset.data.reduce((a,b)=>a+b,0); return c.label + ': ' + c.parsed + ' projects (' + (t ? ((c.parsed/t)*100).toFixed(1) : 0) + '%)'; } } } } }
                             });
                         } catch (e) { console.error('Error rendering project status chart:', e); }
                     }).catch(e => console.error('Error fetching project status data:', e));
@@ -425,7 +445,7 @@
                                 type: 'bar', data: data,
                                 options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', layout: { padding: { right: 30 } },
                                     scales: { x: { beginAtZero: true, title: { display: true, text: 'Budget Utilization (%)' }, ticks: { callback: v => v + '%' } } },
-                                    plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12 } }, tooltip: { enabled: true, callbacks: { title: c => (c[0] && c[0].label) ? c[0].label : '', label: c => 'Utilization: ' + c.parsed.x.toFixed(1) + '%' } } }
+                                    plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '%', false) } }, tooltip: { enabled: true, callbacks: { title: c => (c[0] && c[0].label) ? c[0].label : '', label: c => 'Utilization: ' + c.parsed.x.toFixed(1) + '%' } } }
                                 }
                             });
                         } catch (e) { console.error('Error rendering budget utilization chart:', e); }
@@ -450,7 +470,7 @@
                             costBreakdownChart = new Chart(ctx, {
                                 type: 'pie', data: data,
                                 options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: {
-                                    legend: { position: 'right', labels: { boxWidth: 12, padding: 16 } },
+                                    legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(true, '', true) } },
                                     tooltip: { enabled: true, callbacks: { label: c => { const t = c.dataset.data.reduce((a,b)=>a+b,0); return c.label + ': ' + fmtMoney(c.parsed) + ' (' + calcPercent(c.parsed, t).toFixed(1) + '%)'; } } }
                                 } }
                             });
@@ -551,7 +571,7 @@
                 maintainAspectRatio: false,
                 layout: { padding: { right: 30 } },
                 plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 12, padding: 16 } },
+                    legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } },
                     tooltip: { enabled: true, callbacks: {
                         label: function(context) {
                             const label = context.label || '';
@@ -588,7 +608,7 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         indexAxis: 'y',
-                        plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12 } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + c.parsed.x } } },
+                        plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + c.parsed.x } } },
                         scales: { x: { beginAtZero: true, stepSize: 1 } }
                     }
                 });
@@ -612,7 +632,7 @@
                         maintainAspectRatio: false,
                         indexAxis: 'y',
                         layout: { padding: { right: 30 } },
-                        plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12 } }, tooltip: { enabled: true, callbacks: { label: c => c.label + ': ' + c.parsed.x + ' projects' } } },
+                        plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => c.label + ': ' + c.parsed.x + ' projects' } } },
                     scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
             });
@@ -637,7 +657,7 @@
                             borderWidth: 1
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 12 } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + c.parsed } } } }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + c.parsed } } } }
                 });
                 return;
             }
@@ -657,8 +677,9 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { right: 30 } },
                     plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, padding: 16 } },
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } },
                         tooltip: { enabled: true, callbacks: {
                             label: function(c) {
                                 const t = c.dataset.data.reduce((a,b)=>a+b,0);
