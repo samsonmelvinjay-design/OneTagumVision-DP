@@ -264,6 +264,12 @@
                                 </button>
                                 {% endif %}
                             </div>
+                            <div class="mt-2 flex items-center gap-2">
+                                <input id="toggle-heatmap" type="checkbox" class="h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                                <label for="toggle-heatmap" class="text-xs font-medium text-gray-600">
+                                    Show Barangay Project Density Heatmap
+                                </label>
+                            </div>
                         </div>
                     </div>
                     </div>
@@ -581,6 +587,8 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 
 <!-- Turf.js for geometry union (Tagum City boundary outline) -->
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<!-- Leaflet.heat plugin for project density heatmap -->
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
 <!-- Add cache busting with timestamp to ensure latest version loads -->
 <script src="{% static 'js/simple_choropleth.js' %}?v=2.1"></script>
@@ -768,6 +776,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let isFullscreen = false;
     let fullscreenButton = null;
     let mapLegend = null; // Leaflet legend control
+    let projectHeatLayer = null;
+    let heatmapEnabled = false;
 
     // Initialize map
     function initMap() {
@@ -1135,26 +1145,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Add markers to map
-    function renderMarkers() {
-        console.log('renderMarkers called');
-        if (!markers) {
-            console.error('Markers not initialized');
-            return;
-        }
-        
+    // Helper: get projects that match current filters and have valid coordinates
+    function getFilteredProjectsForMap() {
+        const results = [];
         if (!window.projects || window.projects.length === 0) {
-            console.error('No projects data available');
-            return;
+            return results;
         }
-        
-        console.log('Projects data:', window.projects);
-        
-        markers.clearLayers();
+
         const barangay = barangayFilter.value;
         const startDate = startDateFilter.value;
         const endDate = endDateFilter.value;
-        console.log('Rendering markers with filters: Status=', statusFilter, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
+        console.log('Applying filters: Status=', statusFilter, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
+
         window.projects.forEach(project => {
             let statusMatch = false;
             let projectStatus = (project.status || '').toLowerCase();
@@ -1183,6 +1185,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
             if (statusMatch && barangayMatch && dateMatch && hasValidCoords && project.status) {
+                results.push(project);
+            }
+        });
+        return results;
+    }
+
+    // Add markers to map
+    function renderMarkers() {
+        console.log('renderMarkers called');
+        if (!markers) {
+            console.error('Markers not initialized');
+            return;
+        }
+        
+        if (!window.projects || window.projects.length === 0) {
+            console.error('No projects data available');
+            return;
+        }
+        
+        markers.clearLayers();
+        const filteredProjects = getFilteredProjectsForMap();
+        console.log('Rendering markers for', filteredProjects.length, 'filtered projects');
+
+        filteredProjects.forEach(project => {
+            let projectStatus = (project.status || '').toLowerCase();
                 const marker = L.marker([parseFloat(project.latitude), parseFloat(project.longitude)], {
                     icon: createMarkerIcon(project.status)
                 });
@@ -1236,9 +1263,46 @@ document.addEventListener('DOMContentLoaded', function() {
                     className: 'custom-popup'
                 });
                 markers.addLayer(marker);
-            } else {
-            }
         });
+    }
+
+    // Render / update project density heatmap using Leaflet.heat
+    function renderHeatmap() {
+        if (!map || typeof L === 'undefined' || typeof L.heatLayer === 'undefined') {
+            console.warn('Leaflet heat plugin not available, skipping heatmap render');
+            return;
+        }
+        if (!window.projects || window.projects.length === 0) {
+            return;
+        }
+
+        const filteredProjects = getFilteredProjectsForMap();
+        if (projectHeatLayer) {
+            try {
+                map.removeLayer(projectHeatLayer);
+            } catch (e) {
+                console.warn('Error removing existing heatmap layer:', e);
+            }
+            projectHeatLayer = null;
+        }
+
+        if (filteredProjects.length === 0) {
+            return;
+        }
+
+        const heatPoints = filteredProjects.map(p => [
+            parseFloat(p.latitude),
+            parseFloat(p.longitude),
+            1 // weight per project (can be customized later)
+        ]);
+
+        projectHeatLayer = L.heatLayer(heatPoints, {
+            radius: 25,
+            blur: 18,
+            maxZoom: 17,
+            minOpacity: 0.25
+        });
+        projectHeatLayer.addTo(map);
     }
 
     // Initialize zoning overlay (always enabled)
@@ -1402,6 +1466,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnOngoing = document.getElementById('btn-ongoing');
     const btnPlanned = document.getElementById('btn-planned');
     const btnDelayed = document.getElementById('btn-delayed');
+    const heatmapToggle = document.getElementById('toggle-heatmap');
 
     function setStatusFilter(status) {
         // Toggle: if clicking the same status, clear filter
@@ -1440,7 +1505,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Always render markers (combined view)
-            renderMarkers();
+        renderMarkers();
+        if (heatmapEnabled) {
+            renderHeatmap();
+        }
     }
 
     btnCompleted.addEventListener('click', function() {
@@ -1457,7 +1525,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     barangayFilter.addEventListener('change', function() {
         // Always render markers (combined view)
-            renderMarkers();
+        renderMarkers();
+        if (heatmapEnabled) {
+            renderHeatmap();
+        }
     });
     
     // Update legend
@@ -1515,12 +1586,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     startDateFilter.addEventListener('change', function() {
         // Always render markers (combined view)
-            renderMarkers();
+        renderMarkers();
+        if (heatmapEnabled) {
+            renderHeatmap();
+        }
     });
     endDateFilter.addEventListener('change', function() {
         // Always render markers (combined view)
-            renderMarkers();
+        renderMarkers();
+        if (heatmapEnabled) {
+            renderHeatmap();
+        }
     });
+
+    // Heatmap toggle handler
+    if (heatmapToggle) {
+        heatmapToggle.addEventListener('change', function() {
+            heatmapEnabled = !!this.checked;
+            if (heatmapEnabled) {
+                renderHeatmap();
+            } else if (projectHeatLayer && map) {
+                try {
+                    map.removeLayer(projectHeatLayer);
+                } catch (e) {
+                    console.warn('Error removing heatmap layer on toggle off:', e);
+                }
+                projectHeatLayer = null;
+            }
+        });
+    }
 
     // Initial render - ensure map is ready
         setTimeout(() => {
