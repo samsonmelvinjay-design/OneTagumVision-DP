@@ -319,6 +319,12 @@
                                 <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Zone Type</span>
                             </label>
                         </div>
+                        <div class="mt-2 pt-2 border-t border-gray-200">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="zoning-city-outline-toggle" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer" checked>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Show city outline</span>
+                            </label>
+                        </div>
                         <!-- Choropleth legend will render here when a zoning view is active -->
                         <div id="zoning-legend-container" class="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-700 space-y-1"></div>
                     </div>
@@ -1451,6 +1457,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // City outline toggle (Zoning Control) – show/hide blue city boundary only
+    const zoningCityOutlineToggle = document.getElementById('zoning-city-outline-toggle');
+    if (zoningCityOutlineToggle) {
+        zoningCityOutlineToggle.addEventListener('change', function() {
+            const show = !!this.checked;
+            if (choroplethMap && choroplethMapReady && typeof choroplethMap.setCityOutlineVisible === 'function') {
+                choroplethMap.setCityOutlineVisible(show);
+            }
+        });
+    }
+
     // Zoning Control dropdown toggle
     const zoningControlDropdown = document.getElementById('zoning-control-dropdown');
     const zoningControlToggle = document.getElementById('zoning-control-toggle');
@@ -1613,6 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
             heatmapEnabled = !!this.checked;
             if (heatmapEnabled) {
                 renderHeatmap();
+                renderMarkers(); // clear project markers when heatmap is on
             } else if (projectHeatLayer && map) {
                 try {
                     map.removeLayer(projectHeatLayer);
@@ -1620,6 +1638,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.warn('Error removing heatmap layer on toggle off:', e);
                 }
                 projectHeatLayer = null;
+                renderMarkers(); // show project markers again when heatmap is off
             }
         });
     }

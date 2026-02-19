@@ -9,6 +9,7 @@ class SimpleChoropleth {
         this.cityBoundaryUrl = cityBoundaryUrl; // Optional: GeoJSON URL for whole Tagum City boundary (OSM admin boundary)
         this.choroplethLayer = null;
         this.cityBoundaryLayer = null; // Blue outline of whole Tagum City when choropleth is off
+        this.showCityOutline = true;   // Toggle for city outline in Zoning Control (independent of view)
         this.legend = null;
         this.summaryPanel = null;
         this.barangayData = [];
@@ -918,7 +919,7 @@ class SimpleChoropleth {
             this.choroplethLayer = null;
         }
 
-        // Remove city boundary layer when switching to choropleth view
+        // Remove city boundary layer when switching view (we may re-add if showCityOutline is on)
         if (this.cityBoundaryLayer) {
             try {
                 this.map.removeLayer(this.cityBoundaryLayer);
@@ -930,8 +931,10 @@ class SimpleChoropleth {
 
         // Create and add new layer based on view
         if (viewType === 'none') {
-            console.log('Showing Tagum City boundary outline (no choropleth)');
-            this.createCityBoundaryLayer();
+            if (this.showCityOutline) {
+                console.log('Showing Tagum City boundary outline (no choropleth)');
+                this.createCityBoundaryLayer();
+            }
         } else if (viewType === 'projects') {
             console.log('Creating projects choropleth');
             this.createChoropleth();
@@ -940,10 +943,40 @@ class SimpleChoropleth {
             this.createZoningLayer(viewType);
         }
         
+        // Re-add city outline on top when a choropleth view is active and outline is enabled
+        if (viewType !== 'none' && this.showCityOutline) {
+            this.createCityBoundaryLayer();
+        }
+
         // Update legend
         console.log('Updating legend');
         this.createLegend();
         console.log('=== View switched successfully to:', viewType, '===');
+    }
+
+    /** Toggle city outline visibility from Zoning Control. Call from map page checkbox. */
+    async setCityOutlineVisible(visible) {
+        this.showCityOutline = !!visible;
+        if (visible) {
+            if (!this.cityBoundaryLayer) {
+                await this.createCityBoundaryLayer();
+            } else {
+                try {
+                    this.cityBoundaryLayer.addTo(this.map);
+                } catch (e) {
+                    console.warn('Error re-adding city boundary:', e);
+                }
+            }
+        } else {
+            if (this.cityBoundaryLayer) {
+                try {
+                    this.map.removeLayer(this.cityBoundaryLayer);
+                } catch (e) {
+                    console.warn('Error removing city boundary:', e);
+                }
+                this.cityBoundaryLayer = null;
+            }
+        }
     }
 
     async createCityBoundaryLayer() {
