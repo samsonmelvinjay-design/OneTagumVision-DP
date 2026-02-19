@@ -129,9 +129,11 @@ def dashboard(request):
             latest_progress = project.latest_progress_list[0] if hasattr(project, 'latest_progress_list') and project.latest_progress_list else None
             progress = int(latest_progress.percentage_complete) if latest_progress else 0
             status = project.status
-            if progress >= 99:
+            # Completed only when progress is exactly 100
+            if progress == 100:
                 status = 'completed'
-            elif progress < 99 and project.end_date and project.end_date < today:
+            # Delayed when end date has passed and progress is still below 99
+            elif project.end_date and project.end_date < today and progress < 99:
                 status = 'delayed'
             elif status in ['in_progress', 'ongoing']:
                 status = 'in_progress'
@@ -380,12 +382,14 @@ def my_projects_view(request):
         
         # Calculate actual status dynamically (same logic as head engineer module)
         calculated_status = stored_status
-        if progress >= 99:
+        # Completed only when progress is exactly 100
+        if progress == 100:
             calculated_status = 'completed'
-        elif stored_status == 'delayed':
+        # Delayed when end date has passed and progress is still below 99
+        elif project.end_date and project.end_date < today and progress < 99:
             calculated_status = 'delayed'
             delayed_count += 1
-        elif progress < 99 and project.end_date and project.end_date < today and stored_status in ['in_progress', 'ongoing']:
+        elif stored_status == 'delayed':
             calculated_status = 'delayed'
             delayed_count += 1
         elif stored_status in ['in_progress', 'ongoing']:
@@ -393,8 +397,6 @@ def my_projects_view(request):
         elif stored_status in ['planned', 'pending']:
             calculated_status = 'planned'
             planned_pending_count += 1
-        elif stored_status == 'completed':
-            calculated_status = 'completed'
         
         # Store calculated status on project object for template filtering
         project.calculated_status = calculated_status
@@ -2421,18 +2423,18 @@ def map_projects_api(request):
         
         # Calculate actual status dynamically (same logic as my_projects_view)
         calculated_status = stored_status
-        if progress >= 99:
+        # Completed only when progress is exactly 100
+        if progress == 100:
             calculated_status = 'completed'
-        elif stored_status == 'delayed':
+        # Delayed when end date has passed and progress is still below 99
+        elif p.end_date and p.end_date < today and progress < 99:
             calculated_status = 'delayed'
-        elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+        elif stored_status == 'delayed':
             calculated_status = 'delayed'
         elif stored_status in ['in_progress', 'ongoing']:
             calculated_status = 'in_progress'
         elif stored_status in ['planned', 'pending']:
             calculated_status = 'planned'
-        elif stored_status == 'completed':
-            calculated_status = 'completed'
         
         projects_data.append({
             'id': p.id,
@@ -2465,9 +2467,11 @@ def dashboard_card_data_api(request):
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
         progress = int(latest_progress.percentage_complete) if latest_progress else 0
         status = project.status
-        if progress >= 99:
+        # Completed only when progress is exactly 100
+        if progress == 100:
             status = 'completed'
-        elif progress < 99 and project.end_date and project.end_date < today:
+        # Delayed when end date has passed and progress is still below 99
+        elif project.end_date and project.end_date < today and progress < 99:
             status = 'delayed'
         elif status in ['in_progress', 'ongoing']:
             status = 'in_progress'

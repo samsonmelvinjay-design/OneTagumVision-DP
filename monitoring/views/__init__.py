@@ -140,19 +140,19 @@ def dashboard(request):
         # Helper to standardize status logic across dashboards
         def _compute_dynamic_status(project, progress_value):
             """
-            Normalize a project's status using the same rules as the
-            Project Engineer dashboard so counts match.
-            Priority: completed > delayed > in_progress > planned.
+            Normalize a project's status.
+            New rule:
+              - Completed: progress == 100
+              - Delayed: end date has passed AND progress < 99
             """
             status = (project.status or '').lower()
             progress = int(progress_value or 0)
 
-            # Completed: progress effectively done OR explicitly marked completed in DB
-            if progress >= 99 or status == 'completed':
+            # Completed only when progress is exactly 100
+            if progress == 100:
                 return 'completed'
 
-            # Delayed if end_date has passed and project is not completed,
-            # regardless of stored status value
+            # Delayed when end date has passed and progress is still below 99
             if project.end_date and project.end_date < today and progress < 99:
                 return 'delayed'
 
@@ -967,13 +967,14 @@ def project_list(request):
             stored_status = p.status or ''
             calculated_status = stored_status
             
-            # Priority: completed > delayed > in_progress > planned
-            if progress >= 99:
+            # Priority with new rules:
+            # - Completed: progress == 100
+            # - Delayed: end date has passed AND progress < 99
+            if progress == 100:
                 calculated_status = 'completed'
-            elif stored_status == 'delayed':
+            elif p.end_date and p.end_date < today and progress < 99:
                 calculated_status = 'delayed'
-            elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
-                # Project is delayed if: end_date passed, progress < 99%, and status is in_progress/ongoing
+            elif stored_status == 'delayed':
                 calculated_status = 'delayed'
             elif stored_status in ['in_progress', 'ongoing']:
                 calculated_status = 'in_progress'
@@ -1341,19 +1342,18 @@ def overall_project_metrics_api(request):
             progress = latest_progress.get(p.id, 0)
             stored_status = (p.status or '').lower().strip()
             
-            # Calculate actual status dynamically
-            # Priority: completed > delayed > in_progress > planned
-            # Check for completed: either progress >= 99 OR stored status is 'completed'
-            if progress >= 99 or stored_status == 'completed':
+            # Calculate actual status dynamically using new rules:
+            # Completed: progress == 100
+            # Delayed: end date has passed AND progress < 99
+            if progress == 100:
                 completed_count += 1
                 logger.debug(f'Project {p.id} ({p.name}): COMPLETED - progress={progress}%, status="{p.status}"')
+            elif p.end_date and p.end_date < today and progress < 99:
+                delayed_count += 1
+                logger.debug(f'Project {p.id} ({p.name}): DELAYED (overdue) - progress={progress}%, status="{p.status}", end_date={p.end_date}')
             elif stored_status == 'delayed':
                 delayed_count += 1
                 logger.debug(f'Project {p.id} ({p.name}): DELAYED - progress={progress}%, status="{p.status}"')
-            elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
-                # Project is delayed if: end_date passed, progress < 99%, and status is in_progress/ongoing
-                delayed_count += 1
-                logger.debug(f'Project {p.id} ({p.name}): DELAYED (overdue) - progress={progress}%, status="{p.status}", end_date={p.end_date}')
             elif stored_status in ['in_progress', 'ongoing']:
                 in_progress_count += 1
                 logger.debug(f'Project {p.id} ({p.name}): IN PROGRESS - progress={progress}%, status="{p.status}"')
@@ -2328,13 +2328,15 @@ def head_engineer_analytics(request):
         stored_status = p.status or ''
 
         calculated_status = stored_status
-        if progress >= 99:
+        # Completed only when progress is exactly 100
+        if progress == 100:
             calculated_status = 'completed'
             completed_projects += 1
-        elif stored_status == 'delayed':
+        # Delayed when end date has passed and progress is still below 99
+        elif p.end_date and p.end_date < today and progress < 99:
             calculated_status = 'delayed'
             delayed_projects += 1
-        elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
+        elif stored_status == 'delayed':
             calculated_status = 'delayed'
             delayed_projects += 1
         elif stored_status in ['in_progress', 'ongoing']:
@@ -2343,9 +2345,6 @@ def head_engineer_analytics(request):
         elif stored_status in ['planned', 'pending']:
             calculated_status = 'planned'
             planned_projects += 1
-        elif stored_status == 'completed':
-            calculated_status = 'completed'
-            completed_projects += 1
 
         calculated_statuses[p.id] = calculated_status
     
