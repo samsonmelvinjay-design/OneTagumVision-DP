@@ -1709,17 +1709,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (returnToBarangay && typeof window.showBarangayProjectsModal === 'function') {
                     window.showBarangayProjectsModal(returnToBarangay);
                 }
-                // Restore map interactions
-                if (map && map.dragging) {
+                // Restore map interactions (feature-detect each handler – some may be undefined)
+                if (map) {
                     map.invalidateSize();
-                    // Re-enable map dragging
-                    map.dragging.enable();
-                    map.touchZoom.enable();
-                    map.doubleClickZoom.enable();
-                    map.scrollWheelZoom.enable();
-                    map.boxZoom.enable();
-                    map.keyboard.enable();
-                    map.tap.enable();
+                    if (map.dragging && typeof map.dragging.enable === 'function') {
+                        map.dragging.enable();
+                    }
+                    if (map.touchZoom && typeof map.touchZoom.enable === 'function') {
+                        map.touchZoom.enable();
+                    }
+                    if (map.doubleClickZoom && typeof map.doubleClickZoom.enable === 'function') {
+                        map.doubleClickZoom.enable();
+                    }
+                    if (map.scrollWheelZoom && typeof map.scrollWheelZoom.enable === 'function') {
+                        map.scrollWheelZoom.enable();
+                    }
+                    if (map.boxZoom && typeof map.boxZoom.enable === 'function') {
+                        map.boxZoom.enable();
+                    }
+                    if (map.keyboard && typeof map.keyboard.enable === 'function') {
+                        map.keyboard.enable();
+                    }
+                    if (map.tap && typeof map.tap.enable === 'function') {
+                        map.tap.enable();
+                    }
                 }
             }, 300); // Match the CSS transition duration (0.3s)
         }
