@@ -1390,6 +1390,187 @@ def overall_project_metrics_api(request):
             'error': str(e)
         }, status=500)
 
+
+def _compute_project_progress_map(project_qs):
+    """
+    Helper: given a Project queryset, return (latest_progress_dict, today_date).
+    latest_progress_dict maps project_id -> int(progress_percentage).
+    """
+    from projeng.models import ProjectProgress
+    from django.db.models import Max
+    from django.utils import timezone
+
+    project_ids = list(project_qs.values_list('id', flat=True))
+    latest_progress = {}
+    if project_ids:
+        latest_progress_qs = ProjectProgress.objects.filter(
+            project_id__in=project_ids
+        ).values('project_id').annotate(
+            latest_date=Max('date'),
+            latest_created=Max('created_at')
+        )
+        for item in latest_progress_qs:
+            latest = ProjectProgress.objects.filter(
+                project_id=item['project_id'],
+                date=item['latest_date'],
+                created_at=item['latest_created']
+            ).order_by('-created_at').first()
+            if latest and latest.percentage_complete is not None:
+                try:
+                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+                except (TypeError, ValueError):
+                    continue
+
+    today = timezone.now().date()
+    return latest_progress, today
+
+
+@login_required
+def barangay_ranking_api(request):
+    """
+    API: aggregate projects per barangay for ranking panel.
+
+    For each barangay, compute:
+      - total_projects
+      - completed (progress == 100 OR status == 'completed')
+      - in_progress
+      - delayed (end_date passed AND progress < 99)
+    """
+    from projeng.models import Project
+    from collections import defaultdict
+
+    # Role-based scope (match map_view)
+    if is_head_engineer(request.user) or is_finance_manager(request.user):
+        base_projects = Project.objects.all()
+    elif is_project_engineer(request.user):
+        base_projects = Project.objects.filter(assigned_engineers=request.user)
+    else:
+        base_projects = Project.objects.none()
+
+    # Only include projects with barangay set
+    base_projects = base_projects.exclude(barangay__isnull=True).exclude(barangay='')
+
+    latest_progress, today = _compute_project_progress_map(base_projects)
+
+    barangay_stats = defaultdict(lambda: {
+        'name': '',
+        'total_projects': 0,
+        'completed': 0,
+        'in_progress': 0,
+        'delayed': 0,
+    })
+
+    for p in base_projects:
+        name = (p.barangay or '').strip()
+        if not name:
+            continue
+
+        progress = latest_progress.get(p.id)
+        if progress is None:
+            raw = getattr(p, 'progress', 0)
+            try:
+                progress = int(raw or 0)
+            except (TypeError, ValueError):
+                progress = 0
+
+        stored_status = (p.status or '').lower().strip()
+
+        # Completed when progress is exactly 100 OR stored status is 'completed'
+        is_completed = (progress == 100) or (stored_status == 'completed')
+
+        # Delayed when end date has passed and progress is still below 99
+        is_delayed = (not is_completed) and p.end_date and p.end_date < today and progress < 99
+
+        # In progress for remaining projects with in_progress/ongoing status
+        is_in_progress = (not is_completed) and (not is_delayed) and stored_status in ['in_progress', 'ongoing']
+
+        stats = barangay_stats[name]
+        stats['name'] = name
+        stats['total_projects'] += 1
+        if is_completed:
+            stats['completed'] += 1
+        elif is_delayed:
+            stats['delayed'] += 1
+        elif is_in_progress:
+            stats['in_progress'] += 1
+
+    # Convert to sorted list (descending by total_projects)
+    results = sorted(
+        barangay_stats.values(),
+        key=lambda x: x['total_projects'],
+        reverse=True
+    )
+
+    return JsonResponse(results, safe=False)
+
+
+@login_required
+def barangay_equity_summary_api(request):
+    """
+    API: summarize infrastructure equity across barangays.
+
+    Classification:
+      - High Concentration: total_projects > avg * 1.2
+      - Low Allocation:   total_projects < avg * 0.8
+      - Balanced:         otherwise
+    """
+    from projeng.models import Project
+    from collections import defaultdict
+
+    # Role-based scope (match map_view)
+    if is_head_engineer(request.user) or is_finance_manager(request.user):
+        base_projects = Project.objects.all()
+    elif is_project_engineer(request.user):
+        base_projects = Project.objects.filter(assigned_engineers=request.user)
+    else:
+        base_projects = Project.objects.none()
+
+    # Only include projects with barangay set
+    base_projects = base_projects.exclude(barangay__isnull=True).exclude(barangay='')
+
+    barangay_totals = defaultdict(int)
+    for p in base_projects:
+        name = (p.barangay or '').strip()
+        if not name:
+            continue
+        barangay_totals[name] += 1
+
+    if not barangay_totals:
+        summary = {
+            'balanced': 0,
+            'high_concentration': 0,
+            'low_allocation': 0,
+            'average_projects_per_barangay': 0.0,
+        }
+        return JsonResponse(summary)
+
+    total_projects = sum(barangay_totals.values())
+    barangay_count = len(barangay_totals)
+    avg = total_projects / float(barangay_count) if barangay_count > 0 else 0.0
+
+    high = 0
+    low = 0
+    balanced = 0
+
+    high_threshold = avg * 1.2
+    low_threshold = avg * 0.8
+
+    for count in barangay_totals.values():
+        if count > high_threshold:
+            high += 1
+        elif count < low_threshold:
+            low += 1
+        else:
+            balanced += 1
+
+    summary = {
+        'balanced': balanced,
+        'high_concentration': high,
+        'low_allocation': low,
+        'average_projects_per_barangay': round(avg, 2),
+    }
+    return JsonResponse(summary)
+
 @login_required
 @prevent_project_engineer_access
 def reports(request):

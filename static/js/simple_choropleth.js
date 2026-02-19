@@ -143,7 +143,8 @@ class SimpleChoropleth {
                     totalCost: 0,
                     completedProjects: 0,
                     ongoingProjects: 0,
-                    plannedProjects: 0
+                    plannedProjects: 0,
+                    delayedProjects: 0
                 };
             }
             
@@ -166,6 +167,8 @@ class SimpleChoropleth {
                 this.barangayStats[statsKey].ongoingProjects++;
             } else if (status === 'planned' || status === 'pending' || status === 'not started') {
                 this.barangayStats[statsKey].plannedProjects++;
+            } else if (status === 'delayed') {
+                this.barangayStats[statsKey].delayedProjects++;
             }
             
             // Debug: Log successful match
@@ -188,7 +191,7 @@ class SimpleChoropleth {
         if (statsEntries.length > 0) {
             console.log('Sample stats (first 5 barangays):');
             statsEntries.slice(0, 5).forEach(([name, stats]) => {
-                console.log(`  ${name}: ${stats.totalProjects} projects, ${stats.completedProjects} completed, ${stats.ongoingProjects} ongoing, ${stats.plannedProjects} planned, Cost: ${this.formatCurrency(stats.totalCost)}`);
+                console.log(`  ${name}: ${stats.totalProjects} projects, ${stats.completedProjects} completed, ${stats.ongoingProjects} ongoing, ${stats.plannedProjects} planned, ${stats.delayedProjects} delayed, Cost: ${this.formatCurrency(stats.totalCost)}`);
             });
         } else {
             console.warn('⚠️ WARNING: No barangay statistics were calculated!');
@@ -288,7 +291,8 @@ class SimpleChoropleth {
                         totalCost: 0,
                         completedProjects: 0,
                         ongoingProjects: 0,
-                        plannedProjects: 0
+                        plannedProjects: 0,
+                        delayedProjects: 0
                     };
                 }
                 
@@ -1249,6 +1253,25 @@ class SimpleChoropleth {
         }
         
         // Add project statistics
+        // Compute infrastructure share: this barangay's total / all barangays' total
+        let infraShare = '0.00';
+        try {
+            const allTotals = Object.values(this.barangayStats || {}).reduce((sum, s) => {
+                const val = s && typeof s.totalProjects === 'number' ? s.totalProjects : 0;
+                return sum + val;
+            }, 0);
+            if (allTotals > 0 && stats && typeof stats.totalProjects === 'number') {
+                infraShare = ((stats.totalProjects / allTotals) * 100).toFixed(2);
+            }
+        } catch (e) {
+            console.warn('Error computing infrastructure share for barangay popup:', e);
+        }
+
+        const delayedCount = typeof stats.delayedProjects === 'number' ? stats.delayedProjects : 0;
+        const ongoingCount = typeof stats.ongoingProjects === 'number' ? stats.ongoingProjects : 0;
+        const completedCount = typeof stats.completedProjects === 'number' ? stats.completedProjects : 0;
+        const plannedCount = typeof stats.plannedProjects === 'number' ? stats.plannedProjects : 0;
+
         content += `
                 <div style="background: #f8fafc; border-radius: 8px; padding: 10px; border-left: 3px solid #f59e0b;">
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
@@ -1266,15 +1289,25 @@ class SimpleChoropleth {
                         </div>
                         <div style="background: #d1fae5; border-radius: 6px; padding: 8px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                             <div style="font-size: 9px; color: #059669; margin-bottom: 4px;">Completed</div>
-                            <div style="font-size: 16px; font-weight: 700; color: #047857;">${stats.completedProjects}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #047857;">${completedCount}</div>
                         </div>
                         <div style="background: #dbeafe; border-radius: 6px; padding: 8px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                             <div style="font-size: 9px; color: #2563eb; margin-bottom: 4px;">Ongoing</div>
-                            <div style="font-size: 16px; font-weight: 700; color: #1d4ed8;">${stats.ongoingProjects}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #1d4ed8;">${ongoingCount}</div>
                         </div>
-                        <div style="background: #ede9fe; border-radius: 6px; padding: 8px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05); grid-column: 1 / -1;">
+                        <div style="background: #fee2e2; border-radius: 6px; padding: 8px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="font-size: 9px; color: #b91c1c; margin-bottom: 4px;">Delayed</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #b91c1c;">${delayedCount}</div>
+                        </div>
+                        <div style="background: #ede9fe; border-radius: 6px; padding: 8px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                             <div style="font-size: 9px; color: #7c3aed; margin-bottom: 4px;">Planned</div>
-                            <div style="font-size: 16px; font-weight: 700; color: #6d28d9;">${stats.plannedProjects}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #6d28d9;">${plannedCount}</div>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 6px; padding: 6px 8px; grid-column: 1 / -1; text-align: left;">
+                            <div style="font-size: 10px; color: #64748b; margin-bottom: 2px;">Infrastructure Share</div>
+                            <div style="font-size: 13px; font-weight: 600; color: #0f172a;">
+                                ${infraShare}% of all city projects
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -315,6 +315,21 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Right-Side: Barangay Infrastructure Ranking Panel -->
+                <div id="barangay-ranking-panel" class="absolute" style="top: 160px; right: 12px; z-index: 10001; width: 260px; max-height: 260px; overflow-y: auto;">
+                    <div style="background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18); padding: 14px 16px; border: 1px solid rgba(148, 163, 184, 0.35);">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">
+                            Barangay Infrastructure Ranking
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
+                            Sorted by total number of projects.
+                        </div>
+                        <div id="barangay-ranking-list" style="font-size: 12px; color: #0f172a; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="color:#9ca3af;">Loading ranking…</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1626,6 +1641,9 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchOverallMetrics();
         // Refresh metrics every 10 seconds
         setInterval(fetchOverallMetrics, 10000);
+
+        // Fetch barangay ranking for right-side panel
+        fetchBarangayRanking();
     }
 
     // Function to fetch overall project metrics
@@ -1647,6 +1665,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Overall metrics API response:', data);
             if (data.success && data.metrics) {
                 updateMetricsPanel(data.metrics);
+                // Also refresh infrastructure equity when overall metrics load
+                fetchBarangayEquitySummary();
                 return data.metrics;
             } else {
                 console.warn('API returned success=false or missing metrics:', data);
@@ -1670,7 +1690,100 @@ document.addEventListener('DOMContentLoaded', function() {
                 planned: 0,
                 delayed: 0
             });
+            // Still try to fetch equity summary (may succeed independently)
+            fetchBarangayEquitySummary();
             return null;
+        }
+    }
+
+    // Barangay Infrastructure Ranking (right-side panel)
+    async function fetchBarangayRanking() {
+        const rankingListEl = document.getElementById('barangay-ranking-list');
+        if (!rankingListEl) {
+            return;
+        }
+        try {
+            rankingListEl.innerHTML = '<div style="color:#9ca3af;">Loading ranking…</div>';
+            const response = await fetch('/dashboard/api/barangay-ranking/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+            if (!response.ok) {
+                console.error('Error fetching barangay ranking:', response.status);
+                rankingListEl.innerHTML = '<div style="color:#ef4444;">Failed to load ranking.</div>';
+                return;
+            }
+            const data = await response.json();
+            renderBarangayRanking(data || []);
+        } catch (e) {
+            console.error('Error in fetchBarangayRanking:', e);
+            const rankingListEl2 = document.getElementById('barangay-ranking-list');
+            if (rankingListEl2) {
+                rankingListEl2.innerHTML = '<div style="color:#ef4444;">Failed to load ranking.</div>';
+            }
+        }
+    }
+
+    function renderBarangayRanking(items) {
+        const rankingListEl = document.getElementById('barangay-ranking-list');
+        if (!rankingListEl) {
+            return;
+        }
+        if (!items || items.length === 0) {
+            rankingListEl.innerHTML = '<div style="color:#9ca3af;">No projects found for any barangay.</div>';
+            return;
+        }
+
+        // Limit to 23 barangays as requested
+        const topItems = items.slice(0, 23);
+
+        const totalCityProjects = topItems.reduce((sum, item) => sum + (item.total_projects || 0), 0);
+
+        rankingListEl.innerHTML = topItems.map((item, idx) => {
+            const total = item.total_projects || 0;
+            const completed = item.completed || 0;
+            const delayed = item.delayed || 0;
+            const inProgress = item.in_progress || 0;
+            const rank = idx + 1;
+            const share = totalCityProjects > 0 ? ((total / totalCityProjects) * 100).toFixed(1) : '0.0';
+            return `
+              <div style="display:flex;flex-direction:column;padding:4px 0;border-bottom:1px dashed #e5e7eb;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-weight:600;">${rank}. ${item.name || 'Unknown'}</span>
+                  <span style="font-weight:600;color:#111827;">${total}</span>
+                </div>
+                <div style="font-size:11px;color:#6b7280;display:flex;gap:8px;margin-top:2px;">
+                  <span>✔ ${completed}</span>
+                  <span>▶ ${inProgress}</span>
+                  <span>⏰ ${delayed}</span>
+                  <span style="margin-left:auto;">${share}%</span>
+                </div>
+              </div>
+            `;
+        }).join('');
+    }
+
+    // Infrastructure Equity summary (inside Overall Project Metrics panel)
+    async function fetchBarangayEquitySummary() {
+        try {
+            const response = await fetch('/dashboard/api/barangay-equity-summary/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+            if (!response.ok) {
+                console.error('Error fetching barangay equity summary:', response.status);
+                return;
+            }
+            const data = await response.json();
+            updateEquitySection(data);
+        } catch (e) {
+            console.error('Error in fetchBarangayEquitySummary:', e);
         }
     }
 
@@ -1736,8 +1849,34 @@ document.addEventListener('DOMContentLoaded', function() {
                   <span style="font-size:20px;font-weight:bold;">${delayedProjects}</span>
                   <span style="color:#333;">Delayed</span>
                 </div>
+                <div id="infrastructure-equity-section" style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px;">
+                  <div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:4px;">Infrastructure Equity</div>
+                  <div style="font-size:11px;color:#6b7280;margin-bottom:4px;">Distribution of projects across barangays.</div>
+                  <div id="infrastructure-equity-values" style="font-size:12px;color:#111827;">
+                    <div>Balanced Barangays: <span style="color:#6b7280;">—</span></div>
+                    <div>High Concentration: <span style="color:#6b7280;">—</span></div>
+                    <div>Low Allocation: <span style="color:#6b7280;">—</span></div>
+                  </div>
+                </div>
             `;
         }
+    }
+
+    // Update Infrastructure Equity values inside Overall Project Metrics panel
+    function updateEquitySection(equity) {
+        const container = document.getElementById('infrastructure-equity-values');
+        if (!container || !equity) {
+            return;
+        }
+        const balanced = typeof equity.balanced === 'number' ? equity.balanced : 0;
+        const high = typeof equity.high_concentration === 'number' ? equity.high_concentration : 0;
+        const low = typeof equity.low_allocation === 'number' ? equity.low_allocation : 0;
+
+        container.innerHTML = `
+          <div>Balanced Barangays: <span style="font-weight:600;">${balanced}</span></div>
+          <div>High Concentration: <span style="font-weight:600;color:#b91c1c;">${high}</span></div>
+          <div>Low Allocation: <span style="font-weight:600;color:#2563eb;">${low}</span></div>
+        `;
     }
     }); // End DOMContentLoaded
 
