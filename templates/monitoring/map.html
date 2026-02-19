@@ -319,6 +319,8 @@
                                 <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Zone Type</span>
                             </label>
                         </div>
+                        <!-- Choropleth legend will render here when a zoning view is active -->
+                        <div id="zoning-legend-container" class="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-700 space-y-1"></div>
                     </div>
                 </div>
 
@@ -1199,6 +1201,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // When heatmap is enabled, hide markers to keep the view clean
+        if (heatmapEnabled) {
+            markers.clearLayers();
+            return;
+        }
+
         if (!window.projects || window.projects.length === 0) {
             console.error('No projects data available');
             return;
@@ -1325,7 +1333,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Sample project:', projectsToUse[0]);
                 }
                 
-                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse, null, "{% url 'tagum_city_boundary_geojson' %}");
+                choroplethMap = new SimpleChoropleth(map, "{% url 'barangay_geojson' %}", projectsToUse, 'zoning-legend-container', "{% url 'tagum_city_boundary_geojson' %}");
                 choroplethMapReady = false; // Reset flag
                 // Initialize asynchronously and wait for it to complete
                 choroplethMap.initialize().then(() => {
