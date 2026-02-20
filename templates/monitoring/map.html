@@ -264,12 +264,6 @@
                                 </button>
                                 {% endif %}
                             </div>
-                            <div class="mt-2 flex items-center gap-2">
-                                <input id="toggle-heatmap" type="checkbox" class="h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
-                                <label for="toggle-heatmap" class="text-xs font-medium text-gray-600">
-                                    Show Barangay Project Density Heatmap
-                                </label>
-                            </div>
                         </div>
                     </div>
                     </div>
@@ -292,12 +286,14 @@
                         </svg>
                     </button>
                     <div id="zoning-control-menu" role="menu">
+                        <div class="mb-2 pb-2 border-b border-gray-200">
+                            <label class="flex items-center gap-2 cursor-pointer group" title="Show only the Tagum City boundary (no choropleth). Turn off to use view types below.">
+                                <input type="checkbox" id="zoning-city-outline-toggle" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">City outline only</span>
+                            </label>
+                        </div>
                         <label class="block text-xs font-semibold mb-2 text-gray-700">View Type</label>
                         <div class="space-y-1.5" id="zoning-view-controls">
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="radio" name="zoning-view-type" value="none" id="view-none" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer" checked>
-                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">City Outline Only</span>
-                            </label>
                             <label class="flex items-center gap-2 cursor-pointer group">
                                 <input type="radio" name="zoning-view-type" value="projects" id="view-projects" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer">
                                 <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Barangay Boundaries</span>
@@ -319,10 +315,10 @@
                                 <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Zone Type</span>
                             </label>
                         </div>
-                        <div class="mt-2 pt-2 border-t border-gray-200">
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" id="zoning-city-outline-toggle" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer" checked>
-                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Show city outline</span>
+                        <div class="mt-2 pt-2 border-t border-gray-200 space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer group" title="Show point-density heatmap of project locations">
+                                <input type="checkbox" id="toggle-heatmap" class="h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500 focus:ring-2 cursor-pointer">
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">Project density heatmap</span>
                             </label>
                         </div>
                         <!-- Choropleth legend will render here when a zoning view is active -->
@@ -1345,14 +1341,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 choroplethMap.initialize().then(() => {
                     choroplethMapReady = true; // Mark as ready
                     console.log('Choropleth map initialized successfully and ready');
-                    // Always start with city outline only (no barangays) - force 'none' so no radio quirk shows barangays
-                    const viewNoneEl = document.getElementById('view-none');
-                    if (viewNoneEl) {
-                        viewNoneEl.checked = true;
+                    // Default: markers only (no city outline, no choropleth). User can enable "City outline only" or a view type from Zoning Control.
+                    const cityOutlineCheckbox = document.getElementById('zoning-city-outline-toggle');
+                    if (cityOutlineCheckbox && cityOutlineCheckbox.checked) {
+                        if (typeof choroplethMap.switchView === 'function') choroplethMap.switchView('none');
+                        if (typeof choroplethMap.setCityOutlineVisible === 'function') choroplethMap.setCityOutlineVisible(true);
                     }
-                    if (typeof choroplethMap.switchView === 'function') {
-                        choroplethMap.switchView('none');
-                    }
+                    // When unchecked (default): do not add any zoning layer or outline — map shows only markers
                 }).catch((error) => {
                     choroplethMapReady = false;
                     console.error('Error during choropleth initialization:', error);
@@ -1363,11 +1358,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (choroplethMap && choroplethMapReady) {
             // Choropleth already exists, just update view
-            const selectedRadio = document.querySelector('input[name="zoning-view-type"]:checked');
-            if (selectedRadio) {
-                const viewType = selectedRadio.value;
-                if (typeof choroplethMap.switchView === 'function') {
-                    choroplethMap.switchView(viewType);
+            const cityOutlineCheckbox = document.getElementById('zoning-city-outline-toggle');
+            if (cityOutlineCheckbox && cityOutlineCheckbox.checked) {
+                if (typeof choroplethMap.switchView === 'function') choroplethMap.switchView('none');
+                if (typeof choroplethMap.setCityOutlineVisible === 'function') choroplethMap.setCityOutlineVisible(true);
+            } else {
+                const selectedRadio = document.querySelector('input[name="zoning-view-type"]:checked');
+                if (selectedRadio && typeof choroplethMap.switchView === 'function') {
+                    choroplethMap.switchView(selectedRadio.value);
                 }
             }
         }
@@ -1430,41 +1428,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Attach event listeners to zoning view radio buttons
-    let lastZoningViewType = 'none'; // Track last selection for click-again-to-clear (starts idle)
+    // Unified "City outline only" checkbox: on = view 'none' + outline visible; off = outline hidden + view 'projects'
+    const zoningCityOutlineToggle = document.getElementById('zoning-city-outline-toggle');
+    const viewProjectsRadio = document.getElementById('view-projects');
+    if (zoningCityOutlineToggle) {
+        zoningCityOutlineToggle.addEventListener('change', function() {
+            const cityOutlineOnly = !!this.checked;
+            if (!choroplethMap || !choroplethMapReady) return;
+            if (cityOutlineOnly) {
+                if (viewProjectsRadio) viewProjectsRadio.checked = false;
+                if (typeof choroplethMap.switchView === 'function') choroplethMap.switchView('none');
+                if (typeof choroplethMap.setCityOutlineVisible === 'function') choroplethMap.setCityOutlineVisible(true);
+            } else {
+                if (typeof choroplethMap.setCityOutlineVisible === 'function') choroplethMap.setCityOutlineVisible(false);
+                if (viewProjectsRadio) viewProjectsRadio.checked = true;
+                if (typeof choroplethMap.switchView === 'function') choroplethMap.switchView('projects');
+            }
+        });
+    }
+
+    // View type radios: selecting one turns off "City outline only" and switches view
+    let lastZoningViewType = null;
     const zoningViewRadios = document.querySelectorAll('input[name="zoning-view-type"]');
-    const viewNoneRadio = document.getElementById('view-none');
     if (zoningViewRadios.length > 0) {
         zoningViewRadios.forEach(radio => {
             radio.addEventListener('change', function(e) {
                 const viewType = e.target.value;
                 lastZoningViewType = viewType;
-                console.log('Zoning view changed to:', viewType);
+                if (zoningCityOutlineToggle) zoningCityOutlineToggle.checked = false;
                 handleZoningViewChange(viewType);
             });
-            // Click again when already selected -> clear map (toggle off choropleth)
-            if (radio.value !== 'none') {
-                radio.addEventListener('click', function() {
-                    if (this.checked && this.value === lastZoningViewType) {
-                        lastZoningViewType = 'none';
-                        if (viewNoneRadio) {
-                            viewNoneRadio.checked = true;
-                        }
-                        handleZoningViewChange('none'); // Explicitly clear choropleth (change event may not fire on programmatic check)
+            radio.addEventListener('click', function() {
+                if (this.checked && this.value === lastZoningViewType) {
+                    lastZoningViewType = null;
+                    if (zoningCityOutlineToggle) {
+                        zoningCityOutlineToggle.checked = true;
+                        zoningCityOutlineToggle.dispatchEvent(new Event('change'));
                     }
-                });
-            }
-        });
-    }
-
-    // City outline toggle (Zoning Control) – show/hide blue city boundary only
-    const zoningCityOutlineToggle = document.getElementById('zoning-city-outline-toggle');
-    if (zoningCityOutlineToggle) {
-        zoningCityOutlineToggle.addEventListener('change', function() {
-            const show = !!this.checked;
-            if (choroplethMap && choroplethMapReady && typeof choroplethMap.setCityOutlineVisible === 'function') {
-                choroplethMap.setCityOutlineVisible(show);
-            }
+                }
+            });
         });
     }
 
