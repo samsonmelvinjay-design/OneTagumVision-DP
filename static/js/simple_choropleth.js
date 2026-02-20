@@ -1,5 +1,8 @@
 // Simple Choropleth Map implementation for Tagum City Barangays
 // Version: 2.0 - Includes zoning functionality (switchView, loadZoningData, createZoningLayer)
+// Set window.DEBUG_CHOROPLETH = true or ?debug=1 to show map debug logs.
+var DEBUG_CHOROPLETH = typeof window !== 'undefined' && (window.DEBUG_CHOROPLETH === true || /[?&]debug=1/.test((window.location && window.location.search) || ''));
+
 class SimpleChoropleth {
     constructor(map, geojsonUrl, projectsData = null, legendContainerId = null, cityBoundaryUrl = null) {
         this.map = map;
@@ -24,12 +27,12 @@ class SimpleChoropleth {
             elevation: null
         };
         
-        console.log('SimpleChoropleth constructor - projectsData:', this.projectsData ? this.projectsData.length : 0, 'projects');
+        if (DEBUG_CHOROPLETH) console.log('SimpleChoropleth constructor - projectsData:', this.projectsData ? this.projectsData.length : 0, 'projects');
     }
     
     // Method to update projects data and recalculate stats
     updateProjectsData(projectsData) {
-        console.log('Updating projects data:', projectsData ? projectsData.length : 0, 'projects');
+        if (DEBUG_CHOROPLETH) console.log('Updating projects data:', projectsData ? projectsData.length : 0, 'projects');
         this.projectsData = projectsData || [];
         // Recalculate stats if barangay data is already loaded
         if (this.barangayData && this.barangayData.length > 0) {
@@ -43,9 +46,9 @@ class SimpleChoropleth {
         // Calculate statistics for each barangay
         this.barangayStats = {};
         
-        console.log('=== calculateBarangayStats START ===');
-        console.log('Projects data length:', this.projectsData ? this.projectsData.length : 0);
-        console.log('Barangay data length:', this.barangayData ? this.barangayData.length : 0);
+        if (DEBUG_CHOROPLETH) console.log('=== calculateBarangayStats START ===');
+        if (DEBUG_CHOROPLETH) console.log('Projects data length:', this.projectsData ? this.projectsData.length : 0);
+        if (DEBUG_CHOROPLETH) console.log('Barangay data length:', this.barangayData ? this.barangayData.length : 0);
         
         // Normalize barangay names from GeoJSON for matching
         const normalizedBarangayNames = new Map();
@@ -58,13 +61,13 @@ class SimpleChoropleth {
                     normalizedBarangayNames.set(normalized, name);
                 }
             });
-            console.log('GeoJSON barangay names:', Array.from(normalizedBarangayNames.values()));
+            if (DEBUG_CHOROPLETH) console.log('GeoJSON barangay names:', Array.from(normalizedBarangayNames.values()));
         } else {
-            console.warn('No barangay data available for normalization!');
+            if (DEBUG_CHOROPLETH) console.warn('No barangay data available for normalization!');
         }
         
         if (!this.projectsData || this.projectsData.length === 0) {
-            console.warn('No projects data available!');
+            if (DEBUG_CHOROPLETH) console.warn('No projects data available!');
             return;
         }
         
@@ -134,7 +137,7 @@ class SimpleChoropleth {
                 unmatchedBarangays.add(barangay);
                 // Skip projects that don't match any GeoJSON barangay
                 // This prevents stats from being stored with incorrect keys
-                console.warn(`Project ${project.id} (${project.name}) has barangay "${barangay}" which doesn't match any GeoJSON barangay`);
+                if (DEBUG_CHOROPLETH) console.warn(`Project ${project.id} (${project.name}) has barangay "${barangay}" which doesn't match any GeoJSON barangay`);
                 return; // Skip this project
             }
             
@@ -174,34 +177,34 @@ class SimpleChoropleth {
             
             // Debug: Log successful match
             if (matchedBarangay !== barangay.trim()) {
-                console.log(`Matched project barangay "${barangay}" to GeoJSON barangay "${matchedBarangay}"`);
+                if (DEBUG_CHOROPLETH) console.log(`Matched project barangay "${barangay}" to GeoJSON barangay "${matchedBarangay}"`);
             }
         });
         
-        console.log('Projects with barangay:', projectsWithBarangay);
-        console.log('Projects without barangay:', projectsWithoutBarangay);
+        if (DEBUG_CHOROPLETH) console.log('Projects with barangay:', projectsWithBarangay);
+        if (DEBUG_CHOROPLETH) console.log('Projects without barangay:', projectsWithoutBarangay);
         if (unmatchedBarangays.size > 0) {
-            console.warn('Unmatched barangay names from projects:', Array.from(unmatchedBarangays));
-            console.warn('These projects will not be counted in barangay statistics');
+            if (DEBUG_CHOROPLETH) console.warn('Unmatched barangay names from projects:', Array.from(unmatchedBarangays));
+            if (DEBUG_CHOROPLETH) console.warn('These projects will not be counted in barangay statistics');
         }
-        console.log('Barangay statistics calculated:', this.barangayStats);
-        console.log('Total barangays with stats:', Object.keys(this.barangayStats).length);
+        if (DEBUG_CHOROPLETH) console.log('Barangay statistics calculated:', this.barangayStats);
+        if (DEBUG_CHOROPLETH) console.log('Total barangays with stats:', Object.keys(this.barangayStats).length);
         
         // Log detailed stats for first few barangays
         const statsEntries = Object.entries(this.barangayStats);
         if (statsEntries.length > 0) {
-            console.log('Sample stats (first 5 barangays):');
+            if (DEBUG_CHOROPLETH) console.log('Sample stats (first 5 barangays):');
             statsEntries.slice(0, 5).forEach(([name, stats]) => {
-                console.log(`  ${name}: ${stats.totalProjects} projects, ${stats.completedProjects} completed, ${stats.ongoingProjects} ongoing, ${stats.plannedProjects} planned, ${stats.delayedProjects} delayed, Cost: ${this.formatCurrency(stats.totalCost)}`);
+                if (DEBUG_CHOROPLETH) console.log(`  ${name}: ${stats.totalProjects} projects, ${stats.completedProjects} completed, ${stats.ongoingProjects} ongoing, ${stats.plannedProjects} planned, ${stats.delayedProjects} delayed, Cost: ${this.formatCurrency(stats.totalCost)}`);
             });
         } else {
-            console.warn('⚠️ WARNING: No barangay statistics were calculated!');
-            console.warn('This could mean:');
-            console.warn('  1. Projects don\'t have barangay values set');
-            console.warn('  2. Barangay names in projects don\'t match GeoJSON barangay names');
-            console.warn('  3. Projects data is empty or not loaded');
+            if (DEBUG_CHOROPLETH) console.warn('⚠️ WARNING: No barangay statistics were calculated!');
+            if (DEBUG_CHOROPLETH) console.warn('This could mean:');
+            if (DEBUG_CHOROPLETH) console.warn('  1. Projects don\'t have barangay values set');
+            if (DEBUG_CHOROPLETH) console.warn('  2. Barangay names in projects don\'t match GeoJSON barangay names');
+            if (DEBUG_CHOROPLETH) console.warn('  3. Projects data is empty or not loaded');
         }
-        console.log('=== calculateBarangayStats END ===');
+        if (DEBUG_CHOROPLETH) console.log('=== calculateBarangayStats END ===');
     }
 
     formatCurrency(amount) {
@@ -215,16 +218,16 @@ class SimpleChoropleth {
 
     async loadData() {
         try {
-            console.log('Loading GeoJSON data from:', this.geojsonUrl);
+            if (DEBUG_CHOROPLETH) console.log('Loading GeoJSON data from:', this.geojsonUrl);
             const response = await fetch(this.geojsonUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            console.log('GeoJSON data loaded:', data);
+            if (DEBUG_CHOROPLETH) console.log('GeoJSON data loaded:', data);
             
             this.barangayData = data.features || [];
-            console.log(`Loaded ${this.barangayData.length} barangay features`);
+            if (DEBUG_CHOROPLETH) console.log(`Loaded ${this.barangayData.length} barangay features`);
             
             return data;
         } catch (error) {
@@ -323,7 +326,7 @@ class SimpleChoropleth {
 
         // Add to map
         this.choroplethLayer.addTo(this.map);
-        console.log('Choropleth layer added to map');
+        if (DEBUG_CHOROPLETH) console.log('Choropleth layer added to map');
 
         // Create legend and summary panel
         this.createLegend();
@@ -524,7 +527,7 @@ class SimpleChoropleth {
         const delayedVisible = visibleProjects.filter(p => p.status?.toLowerCase() === 'delayed');
         const delayedMissing = delayedAll.filter(p => !delayedVisible.includes(p));
         if (delayedMissing.length > 0) {
-            console.warn('Delayed projects not shown on the map (missing coords or invalid barangay):', delayedMissing);
+            if (DEBUG_CHOROPLETH) console.warn('Delayed projects not shown on the map (missing coords or invalid barangay):', delayedMissing);
         }
 
         // Calculate metrics from visible projects (fallback)
@@ -639,11 +642,11 @@ class SimpleChoropleth {
                 </div>
             `;
         }
-        console.log('Summary panel updated with metrics:', metrics);
+        if (DEBUG_CHOROPLETH) console.log('Summary panel updated with metrics:', metrics);
     }
 
     cleanup() {
-        console.log('Cleaning up choropleth...');
+        if (DEBUG_CHOROPLETH) console.log('Cleaning up choropleth...');
         
         // Remove choropleth layer
         if (this.choroplethLayer) {
@@ -663,16 +666,16 @@ class SimpleChoropleth {
             this.summaryPanel = null;
         }
 
-        console.log('Choropleth cleanup completed');
+        if (DEBUG_CHOROPLETH) console.log('Choropleth cleanup completed');
     }
 
     async initialize() {
         try {
-            console.log('=== SimpleChoropleth.initialize() START ===');
-            console.log('Projects data passed to constructor:', this.projectsData ? this.projectsData.length : 0, 'projects');
+            if (DEBUG_CHOROPLETH) console.log('=== SimpleChoropleth.initialize() START ===');
+            if (DEBUG_CHOROPLETH) console.log('Projects data passed to constructor:', this.projectsData ? this.projectsData.length : 0, 'projects');
             
             await this.loadData();
-            console.log('GeoJSON data loaded:', this.barangayData.length, 'features');
+            if (DEBUG_CHOROPLETH) console.log('GeoJSON data loaded:', this.barangayData.length, 'features');
             
             // Phase 3: Load zoning data
             await this.loadZoningData();
@@ -684,10 +687,10 @@ class SimpleChoropleth {
             this.calculateBarangayStats();
             
             // Do NOT create choropleth here - only create the layer for the current view (e.g. city boundary when 'none')
-            console.log('Zoning data available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
-            console.log('Barangay stats calculated for', Object.keys(this.barangayStats).length, 'barangays');
-            console.log('switchView method available:', typeof this.switchView === 'function');
-            console.log('=== SimpleChoropleth.initialize() END ===');
+            if (DEBUG_CHOROPLETH) console.log('Zoning data available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
+            if (DEBUG_CHOROPLETH) console.log('Barangay stats calculated for', Object.keys(this.barangayStats).length, 'barangays');
+            if (DEBUG_CHOROPLETH) console.log('switchView method available:', typeof this.switchView === 'function');
+            if (DEBUG_CHOROPLETH) console.log('=== SimpleChoropleth.initialize() END ===');
             return true; // Return success
         } catch (error) {
             console.error('Failed to initialize choropleth:', error);
@@ -716,9 +719,9 @@ class SimpleChoropleth {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            console.log('API Response:', data);
-            console.log('Barangays array:', data.barangays);
-            console.log('Barangays count:', data.barangays ? data.barangays.length : 0);
+            if (DEBUG_CHOROPLETH) console.log('API Response:', data);
+            if (DEBUG_CHOROPLETH) console.log('Barangays array:', data.barangays);
+            if (DEBUG_CHOROPLETH) console.log('Barangays count:', data.barangays ? data.barangays.length : 0);
             
             this.zoningData = {};
             if (data.barangays && Array.isArray(data.barangays)) {
@@ -744,16 +747,16 @@ class SimpleChoropleth {
                     
                     // Show user-friendly message in UI if possible
                     if (typeof alert !== 'undefined') {
-                        console.warn('Showing alert to user...');
+                        if (DEBUG_CHOROPLETH) console.warn('Showing alert to user...');
                     }
                 } else {
                     data.barangays.forEach(barangay => {
                         this.zoningData[barangay.name] = barangay;
                     });
-                    console.log('✓ Zoning data loaded:', Object.keys(this.zoningData).length, 'barangays');
+                    if (DEBUG_CHOROPLETH) console.log('✓ Zoning data loaded:', Object.keys(this.zoningData).length, 'barangays');
                     // Log first few barangay names for verification
                     const names = Object.keys(this.zoningData).slice(0, 5);
-                    console.log('Sample barangay names:', names);
+                    if (DEBUG_CHOROPLETH) console.log('Sample barangay names:', names);
                 }
             } else {
                 console.error('❌ Unexpected data format:', data);
@@ -778,12 +781,12 @@ class SimpleChoropleth {
                 }
             });
             if (!response.ok) {
-                console.warn(`Failed to load zone data: HTTP ${response.status}`);
+                if (DEBUG_CHOROPLETH) console.warn(`Failed to load zone data: HTTP ${response.status}`);
                 this.zoneData = {};
                 return;
             }
             const data = await response.json();
-            console.log('Zone data loaded:', data.count || 0, 'barangays');
+            if (DEBUG_CHOROPLETH) console.log('Zone data loaded:', data.count || 0, 'barangays');
             this.zoneData = data.barangay_zones || {};
         } catch (error) {
             console.error('Error loading zone data:', error);
@@ -888,19 +891,19 @@ class SimpleChoropleth {
     }
 
     switchView(viewType) {
-        console.log('=== switchView called ===');
-        console.log('viewType:', viewType);
-        console.log('currentView:', this.currentView);
-        console.log('zoningData available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
-        console.log('barangayData available:', this.barangayData.length + ' features');
+        if (DEBUG_CHOROPLETH) console.log('=== switchView called ===');
+        if (DEBUG_CHOROPLETH) console.log('viewType:', viewType);
+        if (DEBUG_CHOROPLETH) console.log('currentView:', this.currentView);
+        if (DEBUG_CHOROPLETH) console.log('zoningData available:', this.zoningData ? Object.keys(this.zoningData).length + ' barangays' : 'none');
+        if (DEBUG_CHOROPLETH) console.log('barangayData available:', this.barangayData.length + ' features');
         
         this.currentView = viewType;
         
         // Check if zoning data is loaded
         if (viewType !== 'projects' && (!this.zoningData || Object.keys(this.zoningData).length === 0)) {
-            console.warn('Zoning data not loaded yet. Loading...');
+            if (DEBUG_CHOROPLETH) console.warn('Zoning data not loaded yet. Loading...');
             this.loadZoningData().then(() => {
-                console.log('Zoning data loaded, retrying switchView');
+                if (DEBUG_CHOROPLETH) console.log('Zoning data loaded, retrying switchView');
                 this.switchView(viewType); // Retry after loading
             }).catch((error) => {
                 console.error('Failed to load zoning data:', error);
@@ -911,10 +914,10 @@ class SimpleChoropleth {
         // Remove current choropleth layer
         if (this.choroplethLayer) {
             try {
-                console.log('Removing existing choropleth layer');
+                if (DEBUG_CHOROPLETH) console.log('Removing existing choropleth layer');
                 this.map.removeLayer(this.choroplethLayer);
             } catch (e) {
-                console.log('Error removing layer:', e);
+                if (DEBUG_CHOROPLETH) console.log('Error removing layer:', e);
             }
             this.choroplethLayer = null;
         }
@@ -924,7 +927,7 @@ class SimpleChoropleth {
             try {
                 this.map.removeLayer(this.cityBoundaryLayer);
             } catch (e) {
-                console.log('Error removing city boundary layer:', e);
+                if (DEBUG_CHOROPLETH) console.log('Error removing city boundary layer:', e);
             }
             this.cityBoundaryLayer = null;
         }
@@ -932,14 +935,14 @@ class SimpleChoropleth {
         // Create and add new layer based on view
         if (viewType === 'none') {
             if (this.showCityOutline) {
-                console.log('Showing Tagum City boundary outline (no choropleth)');
+                if (DEBUG_CHOROPLETH) console.log('Showing Tagum City boundary outline (no choropleth)');
                 this.createCityBoundaryLayer();
             }
         } else if (viewType === 'projects') {
-            console.log('Creating projects choropleth');
+            if (DEBUG_CHOROPLETH) console.log('Creating projects choropleth');
             this.createChoropleth();
         } else {
-            console.log('Creating zoning layer for:', viewType);
+            if (DEBUG_CHOROPLETH) console.log('Creating zoning layer for:', viewType);
             this.createZoningLayer(viewType);
         }
         
@@ -949,9 +952,9 @@ class SimpleChoropleth {
         }
 
         // Update legend
-        console.log('Updating legend');
+        if (DEBUG_CHOROPLETH) console.log('Updating legend');
         this.createLegend();
-        console.log('=== View switched successfully to:', viewType, '===');
+        if (DEBUG_CHOROPLETH) console.log('=== View switched successfully to:', viewType, '===');
     }
 
     /** Toggle city outline visibility from Zoning Control. Call from map page checkbox. */
@@ -964,7 +967,7 @@ class SimpleChoropleth {
                 try {
                     this.cityBoundaryLayer.addTo(this.map);
                 } catch (e) {
-                    console.warn('Error re-adding city boundary:', e);
+                    if (DEBUG_CHOROPLETH) console.warn('Error re-adding city boundary:', e);
                 }
             }
         } else {
@@ -972,7 +975,7 @@ class SimpleChoropleth {
                 try {
                     this.map.removeLayer(this.cityBoundaryLayer);
                 } catch (e) {
-                    console.warn('Error removing city boundary:', e);
+                    if (DEBUG_CHOROPLETH) console.warn('Error removing city boundary:', e);
                 }
                 this.cityBoundaryLayer = null;
             }
@@ -994,7 +997,7 @@ class SimpleChoropleth {
                 style: () => style
             });
             this.cityBoundaryLayer.addTo(this.map);
-            console.log('Tagum City boundary outline added');
+            if (DEBUG_CHOROPLETH) console.log('Tagum City boundary outline added');
         };
         if (this.cityBoundaryUrl) {
             try {
@@ -1004,11 +1007,11 @@ class SimpleChoropleth {
                 addBoundaryFromData(data);
                 return;
             } catch (e) {
-                console.warn('Failed to load city boundary GeoJSON, falling back to barangay union:', e.message);
+                if (DEBUG_CHOROPLETH) console.warn('Failed to load city boundary GeoJSON, falling back to barangay union:', e.message);
             }
         }
         if (!this.barangayData || this.barangayData.length === 0) {
-            console.warn('No city boundary URL and no barangay data');
+            if (DEBUG_CHOROPLETH) console.warn('No city boundary URL and no barangay data');
             return;
         }
         if (typeof turf !== 'undefined') {
@@ -1025,29 +1028,29 @@ class SimpleChoropleth {
                             const u = turf.union(turf.featureCollection([merged, turf.feature(features[i])]));
                             if (u) merged = u;
                         } catch (err) {
-                            console.warn('Union skip feature', i, err.message);
+                            if (DEBUG_CHOROPLETH) console.warn('Union skip feature', i, err.message);
                         }
                     }
                 }
                 if (merged) {
                     this.cityBoundaryLayer = L.geoJSON(merged, { style: () => style });
                     this.cityBoundaryLayer.addTo(this.map);
-                    console.log('Tagum City boundary (Turf union) added');
+                    if (DEBUG_CHOROPLETH) console.log('Tagum City boundary (Turf union) added');
                     return;
                 }
             } catch (e) {
-                console.warn('Turf union failed:', e.message);
+                if (DEBUG_CHOROPLETH) console.warn('Turf union failed:', e.message);
             }
         }
         addBoundaryFromData({ features: this.barangayData });
-        console.log('Tagum City boundary (barangay outlines fallback) added');
+        if (DEBUG_CHOROPLETH) console.log('Tagum City boundary (barangay outlines fallback) added');
     }
 
     createZoningLayer(viewType) {
-        console.log('=== createZoningLayer called ===');
-        console.log('viewType:', viewType);
-        console.log('barangayData length:', this.barangayData.length);
-        console.log('zoningData keys:', this.zoningData ? Object.keys(this.zoningData).length : 0);
+        if (DEBUG_CHOROPLETH) console.log('=== createZoningLayer called ===');
+        if (DEBUG_CHOROPLETH) console.log('viewType:', viewType);
+        if (DEBUG_CHOROPLETH) console.log('barangayData length:', this.barangayData.length);
+        if (DEBUG_CHOROPLETH) console.log('zoningData keys:', this.zoningData ? Object.keys(this.zoningData).length : 0);
         
         if (!this.barangayData.length) {
             console.error('No barangay data available');
@@ -1061,7 +1064,7 @@ class SimpleChoropleth {
         
         // Ensure stats are calculated before creating the layer
         if (!this.barangayStats || Object.keys(this.barangayStats).length === 0) {
-            console.log('Barangay stats not calculated yet, calculating now...');
+            if (DEBUG_CHOROPLETH) console.log('Barangay stats not calculated yet, calculating now...');
             this.calculateBarangayStats();
         }
 
@@ -1070,12 +1073,12 @@ class SimpleChoropleth {
             try {
                 this.map.removeLayer(this.choroplethLayer);
             } catch (e) {
-                console.log('Error removing existing layer:', e);
+                if (DEBUG_CHOROPLETH) console.log('Error removing existing layer:', e);
             }
         }
 
         // Create zoning layer based on view type
-        console.log('Creating GeoJSON layer with zoning colors...');
+        if (DEBUG_CHOROPLETH) console.log('Creating GeoJSON layer with zoning colors...');
         let coloredCount = 0;
         let defaultCount = 0;
         
@@ -1145,7 +1148,7 @@ class SimpleChoropleth {
                     }
                 } else {
                     defaultCount++;
-                    console.log('No zoning data for barangay:', barangayName);
+                    if (DEBUG_CHOROPLETH) console.log('No zoning data for barangay:', barangayName);
                 }
                 
                 return {
@@ -1209,9 +1212,9 @@ class SimpleChoropleth {
 
         // Add to map
         this.choroplethLayer.addTo(this.map);
-        console.log('Zoning layer created and added to map');
-        console.log('Colored barangays:', coloredCount, 'Default (gray):', defaultCount);
-        console.log('=== createZoningLayer completed ===');
+        if (DEBUG_CHOROPLETH) console.log('Zoning layer created and added to map');
+        if (DEBUG_CHOROPLETH) console.log('Colored barangays:', coloredCount, 'Default (gray):', defaultCount);
+        if (DEBUG_CHOROPLETH) console.log('=== createZoningLayer completed ===');
     }
 
     createZoningPopup(name, barangay, stats, zoneInfo = null, viewType = 'projects') {
@@ -1297,7 +1300,7 @@ class SimpleChoropleth {
                 infraShare = ((stats.totalProjects / allTotals) * 100).toFixed(2);
             }
         } catch (e) {
-            console.warn('Error computing infrastructure share for barangay popup:', e);
+            if (DEBUG_CHOROPLETH) console.warn('Error computing infrastructure share for barangay popup:', e);
         }
 
         const delayedCount = typeof stats.delayedProjects === 'number' ? stats.delayedProjects : 0;

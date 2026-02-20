@@ -1,7 +1,11 @@
 /**
  * Real-Time Updates using Server-Sent Events (SSE)
  * Handles notifications, dashboard updates, and project status changes
+ * Set window.DEBUG_REALTIME = true or ?debug=1 in URL to show connection logs.
  */
+(function() {
+    window.DEBUG_REALTIME = window.DEBUG_REALTIME === true || /[?&]debug=1/.test(window.location.search || '');
+})();
 
 class RealtimeManager {
     constructor() {
@@ -14,6 +18,7 @@ class RealtimeManager {
         this.isConnected = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
+        this._errorLogged = {}; // Log SSE errors once per key to avoid console spam (e.g. ERR_QUIC_PROTOCOL_ERROR)
     }
 
     /**
@@ -25,12 +30,12 @@ class RealtimeManager {
         }
 
         if (this.eventSources.notifications) {
-            console.log('✅ Notifications SSE already connected');
+            if (window.DEBUG_REALTIME) console.log('✅ Notifications SSE already connected');
             return; // Already connected
         }
 
         const url = '/projeng/api/realtime/notifications/';
-        console.log('🔌 Connecting to notifications SSE:', url);
+        if (window.DEBUG_REALTIME) console.log('🔌 Connecting to notifications SSE:', url);
         this._connectSSE('notifications', url);
     }
 
@@ -84,20 +89,24 @@ class RealtimeManager {
                 const data = JSON.parse(event.data);
                 this._handleMessage(key, data);
             } catch (e) {
-                // Silently ignore parsing errors for heartbeat or empty messages
-                if (event.data && !event.data.startsWith(':')) {
+                if (event.data && !event.data.startsWith(':') && window.DEBUG_REALTIME) {
                     console.error('Error parsing SSE data:', e, event.data);
                 }
             }
         };
 
         eventSource.onerror = (error) => {
-            console.error(`SSE connection error for ${key}:`, error);
+            // Log once per key to avoid flooding console (e.g. ERR_QUIC_PROTOCOL_ERROR on reconnect)
+            if (!this._errorLogged[key]) {
+                this._errorLogged[key] = true;
+                console.warn(`SSE connection issue for ${key} (reconnecting silently). Set DEBUG_REALTIME=true for details.`, error);
+            }
             this._handleError(key, error);
         };
 
         eventSource.onopen = () => {
-            console.log(`✅ SSE connected: ${key}`, url);
+            this._errorLogged[key] = false; // Reset so future errors are logged once again
+            if (window.DEBUG_REALTIME) console.log('✅ SSE connected:', key, url);
             this.isConnected = true;
             this.reconnectAttempts = 0;
         };
@@ -115,8 +124,7 @@ class RealtimeManager {
         }
         
         if (data.type === 'error') {
-            // Only log if there's an actual error message
-            if (data.message) {
+            if (data.message && window.DEBUG_REALTIME) {
                 console.error('SSE error:', data.message);
             }
             return;
@@ -146,12 +154,12 @@ class RealtimeManager {
             delete this.eventSources[key];
         }
 
-        // Attempt reconnection
+        // Attempt reconnection (silent unless DEBUG_REALTIME to avoid console spam)
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-            console.log(`Reconnecting ${key} in ${delay}ms...`);
-            
+            if (window.DEBUG_REALTIME) console.log('Reconnecting', key, 'in', delay, 'ms...');
+
             setTimeout(() => {
                 // Reconnect based on key
                 if (key === 'notifications') {
@@ -164,7 +172,7 @@ class RealtimeManager {
                 }
             }, delay);
         } else {
-            console.error(`Max reconnection attempts reached for ${key}`);
+            if (window.DEBUG_REALTIME) console.warn('Max reconnection attempts reached for', key);
             this.isConnected = false;
         }
     }
@@ -228,7 +236,7 @@ function addShownNotificationId(id) {
             sessionStorage.setItem('shownNotificationIds', JSON.stringify(shown));
         }
     } catch (e) {
-        console.error('Error storing shown notification ID:', e);
+        if (window.DEBUG_REALTIME) console.error('Error storing shown notification ID:', e);
     }
 }
 
@@ -237,20 +245,17 @@ function hasNotificationBeenShown(id) {
 }
 
 function setupRealtimeNotifications() {
-    console.log('🔔 Setting up real-time notifications...');
+    if (window.DEBUG_REALTIME) console.log('🔔 Setting up real-time notifications...');
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
-    
-    // Don't return early - we need to setup notifications even if bell doesn't exist
-    // The toast notification works independently of the bell
-    
+
     if (!window.realtimeManager) {
-        console.error('❌ RealtimeManager not initialized!');
+        if (window.DEBUG_REALTIME) console.error('❌ RealtimeManager not initialized!');
         return;
     }
 
     window.realtimeManager.connectNotifications((data) => {
-        console.log('📨 Received notification data:', data);
+        if (window.DEBUG_REALTIME) console.log('📨 Received notification data:', data);
         if (data.type === 'notification') {
             // Get current count BEFORE updating
             const currentCount = notificationCount ? (parseInt(notificationCount.textContent) || 0) : 0;
@@ -296,7 +301,7 @@ function setupRealtimeNotifications() {
                         sessionStorage.setItem('shownNotificationMessages', JSON.stringify(shownMessages));
                     }
                 } catch (e) {
-                    console.error('Error checking shown messages:', e);
+                    if (window.DEBUG_REALTIME) console.error('Error checking shown messages:', e);
                 }
             }
             
@@ -326,14 +331,7 @@ function setupRealtimeNotifications() {
             );
             
             if (shouldShowToast) {
-                console.log('🔔 Showing toast notification:', notificationMessage, {
-                    countIncreased,
-                    isNewNotification,
-                    messageShown,
-                    notificationId,
-                    currentCount,
-                    newCount
-                });
+                if (window.DEBUG_REALTIME) console.log('🔔 Showing toast:', notificationMessage);
                 showToastNotification(notificationMessage);
                 
                 // Mark as shown immediately to prevent re-showing
@@ -351,7 +349,7 @@ function setupRealtimeNotifications() {
                         sessionStorage.setItem('shownNotificationMessages', JSON.stringify(shownMessages));
                     }
                 } catch (e) {
-                    console.error('Error marking message as shown:', e);
+                    if (window.DEBUG_REALTIME) console.error('Error marking message as shown:', e);
                 }
             }
 
@@ -491,21 +489,14 @@ function updateProjectStatus(data) {
  * Shows a blue pop-up notification in the upper right corner
  */
 function showToastNotification(message) {
-    console.log('🎯 showToastNotification called with message:', message);
     const toastContainer = document.getElementById('toast-notification');
     const toastMessage = document.getElementById('toast-message');
     const toastClose = document.getElementById('toast-close');
-    
-    if (!toastContainer) {
-        console.error('❌ Toast container not found! ID: toast-notification');
+
+    if (!toastContainer || !toastMessage) {
+        if (window.DEBUG_REALTIME) console.warn('Toast elements not found (toast-notification / toast-message)');
         return;
     }
-    if (!toastMessage) {
-        console.error('❌ Toast message element not found! ID: toast-message');
-        return;
-    }
-    
-    console.log('✅ Toast elements found, showing notification...');
     
     // Set message
     toastMessage.textContent = message || 'New notification';
@@ -522,13 +513,9 @@ function showToastNotification(message) {
     // Force reflow to reset animation
     void toastContainer.offsetWidth;
     
-    // Show toast
     toastContainer.classList.remove('hidden');
-    console.log('✅ Toast notification shown');
-    
-    // Auto-hide after 5 seconds
+
     const autoHide = setTimeout(() => {
-        console.log('⏰ Auto-hiding toast notification');
         hideToastNotification();
     }, 5000);
     
@@ -544,7 +531,6 @@ function showToastNotification(message) {
         toastClose.parentNode.replaceChild(newCloseBtn, toastClose);
         
         newCloseBtn.onclick = () => {
-            console.log('🖱️ Toast close button clicked');
             if (toastContainer._autoHideTimeout) {
                 clearTimeout(toastContainer._autoHideTimeout);
             }
