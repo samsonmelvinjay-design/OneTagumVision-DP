@@ -230,11 +230,39 @@ def dashboard(request):
         collab_by_barangay = {k: collab_by_barangay[k] for k in sorted(collab_by_barangay.keys())}
         collab_by_status = {k: collab_by_status[k] for k in sorted(collab_by_status.keys())}
 
-        # Calculate completion rate
+        # Completion rate: default (all projects)
         completion_rate = 0.0
         if project_count > 0:
             completion_rate = (completed_count / project_count) * 100
-        
+        completion_rate_year = None
+        available_years = []
+
+        # Year filter for completion rate only (Quick Stats)
+        try:
+            available_years = [
+                d.year for d in
+                projects.dates('created_at', 'year', order='DESC')
+            ]
+        except Exception:
+            pass
+        year_param = (request.GET.get('year') or '').strip()
+        if year_param and year_param.isdigit():
+            y = int(year_param)
+            if y >= 2000 and y <= 2100 and y in available_years:
+                completion_rate_year = y
+                projects_in_year = projects.filter(created_at__year=y)
+                total_in_year = projects_in_year.count()
+                completed_in_year = 0
+                if total_in_year > 0:
+                    for p in projects_in_year:
+                        progress = latest_progress.get(p.id, 0)
+                        if _compute_dynamic_status(p, progress) == 'completed':
+                            completed_in_year += 1
+                    completion_rate = (completed_in_year / total_in_year) * 100
+                else:
+                    completion_rate = 0.0
+        completion_rate = round(completion_rate, 1)
+
         context = {
             'recent_projects': recent_projects,
             'project_count': project_count,
@@ -242,7 +270,9 @@ def dashboard(request):
             'in_progress_count': in_progress_count,
             'planned_count': planned_count,
             'delayed_count': delayed_count,
-            'completion_rate': round(completion_rate, 1),
+            'completion_rate': completion_rate,
+            'completion_rate_year': completion_rate_year,
+            'available_years': available_years,
             'collab_by_barangay': dict(collab_by_barangay),
             'collab_by_status': dict(collab_by_status),
             'projects_created_labels': projects_created_labels,

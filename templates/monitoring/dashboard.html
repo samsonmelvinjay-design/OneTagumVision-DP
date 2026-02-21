@@ -142,8 +142,21 @@
                     Quick Stats
                 </h2>
                 <div class="space-y-4">
-                    <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                        <span class="text-gray-700 font-medium">Completion Rate</span>
+                    <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg flex-wrap gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-gray-700 font-medium">Completion Rate</span>
+                            {% if completion_rate_year %}<span class="text-gray-500 text-sm">({{ completion_rate_year }})</span>{% endif %}
+                            {% if available_years %}
+                            <form method="get" class="inline" id="quick-stats-year-form">
+                                <select name="year" onchange="this.form.submit()" class="text-sm rounded border border-gray-300 bg-white px-2 py-1 text-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">All years</option>
+                                    {% for y in available_years %}
+                                    <option value="{{ y }}" {% if completion_rate_year == y %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                            {% endif %}
+                        </div>
                         <span class="text-lg font-bold text-blue-600">{{ completion_rate }}%</span>
                     </div>
                     <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
