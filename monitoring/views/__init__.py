@@ -848,21 +848,8 @@ def project_list(request):
     if barangay_filter:
         projects = projects.filter(barangay=barangay_filter)
     
-    # Status filter
-    if status_filter:
-        # Handle "in_progress" to match both "in_progress" and "ongoing" statuses
-        if status_filter == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        elif status_filter == 'delayed':
-            # For delayed, we need to filter projects that are either:
-            # 1. Already marked as delayed in database, OR
-            # 2. Should be delayed (in_progress/ongoing + end_date passed + progress < 99%)
-            # We'll filter these in Python after getting progress data
-            delayed_marked = projects.filter(status='delayed')
-            potentially_delayed = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-            projects = delayed_marked | potentially_delayed
-        else:
-            projects = projects.filter(status=status_filter)
+    # Status filter: applied later using computed status (same logic as Overall Project Metrics)
+    # Do not filter by DB status here; we'll filter by _get_display_status after we have latest_progress
 
     # Source of Funds filter (case-insensitive exact match)
     if source_of_funds_filter:
@@ -927,11 +914,11 @@ def project_list(request):
     # Order by created_at descending
     projects = projects.order_by('-created_at')
     
-    # Get latest progress for all projects to calculate delayed status
+    # Get latest progress for all filtered projects (same source as Overall Project Metrics)
     from django.utils import timezone
     from django.db.models import Max
     from projeng.models import ProjectProgress
-    project_ids = [p.id for p in projects]
+    project_ids = list(projects.values_list('id', flat=True))
     latest_progress = {}
     if project_ids:
         latest_progress_qs = ProjectProgress.objects.filter(
@@ -951,18 +938,16 @@ def project_list(request):
     
     today = timezone.now().date()
     
-    # If filtering by delayed, filter the queryset to only include delayed projects
-    if status_filter == 'delayed':
-        delayed_project_ids = []
-        for p in projects:
-            progress = latest_progress.get(p.id, 0)
-            stored_status = p.status or ''
-            # Check if project should be delayed
-            if stored_status == 'delayed':
-                delayed_project_ids.append(p.id)
-            elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
-                delayed_project_ids.append(p.id)
-        projects = projects.filter(id__in=delayed_project_ids)
+    # Filter by computed status (same logic as Overall Project Metrics / City Overview)
+    if status_filter:
+        matching_ids = []
+        for row in Project.objects.filter(id__in=project_ids).values_list('id', 'end_date', 'status'):
+            pid, end_date, stored = row
+            progress = latest_progress.get(pid, 0)
+            display_status = _get_display_status(progress, end_date, stored or '', today)
+            if display_status == status_filter:
+                matching_ids.append(pid)
+        projects = projects.filter(id__in=matching_ids)
     
     paginator = Paginator(projects, 15)  # Show 15 projects per page
     page_number = request.GET.get('page')
@@ -993,23 +978,8 @@ def project_list(request):
             if progress == 0:
                 progress = getattr(p, 'progress', 0) or 0
             
-            # Calculate actual status dynamically (including delayed)
-            stored_status = p.status or ''
-            calculated_status = stored_status
-            
-            # Priority with new rules:
-            # - Completed: progress == 100
-            # - Delayed: end date has passed AND progress < 99
-            if progress == 100:
-                calculated_status = 'completed'
-            elif p.end_date and p.end_date < today and progress < 99:
-                calculated_status = 'delayed'
-            elif stored_status == 'delayed':
-                calculated_status = 'delayed'
-            elif stored_status in ['in_progress', 'ongoing']:
-                calculated_status = 'in_progress'
-            elif stored_status in ['planned', 'pending']:
-                calculated_status = 'planned'
+            # Use same display status as Overall Project Metrics / City Overview
+            calculated_status = _get_display_status(progress, p.end_date, (p.status or ''), today)
             
             # Safely get image URL
             image_url = ''

@@ -96,16 +96,17 @@ class RealtimeManager {
         };
 
         eventSource.onerror = (error) => {
-            // Log once per key to avoid flooding console (e.g. ERR_QUIC_PROTOCOL_ERROR on reconnect)
+            // Log once per key per page load to avoid flooding console (e.g. ERR_QUIC_PROTOCOL_ERROR)
             if (!this._errorLogged[key]) {
                 this._errorLogged[key] = true;
-                console.warn(`SSE connection issue for ${key} (reconnecting silently). Set DEBUG_REALTIME=true for details.`, error);
+                const msg = `SSE connection issue for ${key} (reconnecting silently). Set DEBUG_REALTIME=true for details.`;
+                console.warn(msg, window.DEBUG_REALTIME ? error : '(If you see ERR_QUIC_PROTOCOL_ERROR, it is often a browser/network quirk with long-lived connections; app still works.)');
             }
             this._handleError(key, error);
         };
 
         eventSource.onopen = () => {
-            this._errorLogged[key] = false; // Reset so future errors are logged once again
+            // Do not reset _errorLogged here so we only ever log one warning per stream per page load
             if (window.DEBUG_REALTIME) console.log('✅ SSE connected:', key, url);
             this.isConnected = true;
             this.reconnectAttempts = 0;
