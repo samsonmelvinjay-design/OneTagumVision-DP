@@ -1490,9 +1490,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Zoning Control dropdown toggle
+    // Zoning Control dropdown toggle — stay open when clicking the map (e.g. barangay popup)
     const zoningControlDropdown = document.getElementById('zoning-control-dropdown');
     const zoningControlToggle = document.getElementById('zoning-control-toggle');
+    const mapContainerForZoning = document.getElementById('map');
     if (zoningControlDropdown && zoningControlToggle) {
         zoningControlToggle.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1500,10 +1501,12 @@ document.addEventListener('DOMContentLoaded', function() {
             zoningControlToggle.setAttribute('aria-expanded', zoningControlDropdown.classList.contains('open'));
         });
         document.addEventListener('click', function(e) {
-            if (zoningControlDropdown.classList.contains('open') && !zoningControlDropdown.contains(e.target)) {
-                zoningControlDropdown.classList.remove('open');
-                zoningControlToggle.setAttribute('aria-expanded', 'false');
-            }
+            if (!zoningControlDropdown.classList.contains('open')) return;
+            if (zoningControlDropdown.contains(e.target)) return;
+            // Keep dropdown open when user clicks the map (e.g. to open barangay details popup)
+            if (mapContainerForZoning && mapContainerForZoning.contains(e.target)) return;
+            zoningControlDropdown.classList.remove('open');
+            zoningControlToggle.setAttribute('aria-expanded', 'false');
         });
     }
 

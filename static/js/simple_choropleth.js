@@ -13,7 +13,7 @@ class SimpleChoropleth {
         this.choroplethLayer = null; // Kept for backward compat; use choroplethLayers when multiple views
         this.choroplethLayers = {};   // viewType -> L.layer; allows multiple view types on at once
         this.cityBoundaryLayer = null; // Blue outline of whole Tagum City when choropleth is off
-        this.showCityOutline = true;   // Toggle for city outline in Zoning Control (independent of view)
+        this.showCityOutline = false;  // Off by default; user enables via "City outline only" in Zoning Control
         this.legend = null;
         this.summaryPanel = null;
         this.barangayData = [];
@@ -991,7 +991,7 @@ class SimpleChoropleth {
             this.cityBoundaryLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
                 style: () => style
             });
-            this.cityBoundaryLayer.addTo(this.map);
+            if (this.showCityOutline) this.cityBoundaryLayer.addTo(this.map);
             if (DEBUG_CHOROPLETH) console.log('Tagum City boundary outline added');
         };
         if (this.cityBoundaryUrl) {
@@ -1029,7 +1029,7 @@ class SimpleChoropleth {
                 }
                 if (merged) {
                     this.cityBoundaryLayer = L.geoJSON(merged, { style: () => style });
-                    this.cityBoundaryLayer.addTo(this.map);
+                    if (this.showCityOutline) this.cityBoundaryLayer.addTo(this.map);
                     if (DEBUG_CHOROPLETH) console.log('Tagum City boundary (Turf union) added');
                     return;
                 }
@@ -1039,6 +1039,7 @@ class SimpleChoropleth {
         }
         addBoundaryFromData({ features: this.barangayData });
         if (DEBUG_CHOROPLETH) console.log('Tagum City boundary (barangay outlines fallback) added');
+        // addBoundaryFromData already checks showCityOutline before addTo(map)
     }
 
     createZoningLayer(viewType) {
