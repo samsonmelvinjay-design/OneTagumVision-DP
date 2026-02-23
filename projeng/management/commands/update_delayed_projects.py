@@ -10,7 +10,7 @@ class Command(BaseCommand):
         updated = 0
         for project in Project.objects.all():
             latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            progress = float(latest_progress.percentage_complete) if latest_progress else 0
             if progress < 99 and project.end_date and project.end_date < today:
                 if project.status != 'delayed':
                     project.status = 'delayed'

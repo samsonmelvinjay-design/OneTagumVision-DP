@@ -14,8 +14,8 @@ class Command(BaseCommand):
     help = 'Combine individual barangay GeoJSON files into one combined file'
     
     def handle(self, *args, **options):
-        coord_dir = os.path.join(settings.BASE_DIR, 'coord')
-        output_file = os.path.join(settings.BASE_DIR, 'static', 'data', 'tagum_barangays.geojson')
+        coord_dir = str(getattr(settings, 'COORD_DIR', settings.BASE_DIR / 'coord'))
+        output_file = os.path.join(str(getattr(settings, 'STATIC_SOURCE_DIR', settings.BASE_DIR / 'static')), 'data', 'tagum_barangays.geojson')
         
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_file), exist_ok=True)

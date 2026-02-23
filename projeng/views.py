@@ -45,6 +45,7 @@ from django.db import transaction
 import traceback
 from django.db.models import ProtectedError
 from django.contrib.auth.views import redirect_to_login
+from django.conf import settings
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -127,10 +128,10 @@ def dashboard(request):
         all_assigned_projects = all_assigned_projects.prefetch_related(progress_prefetch)
         for project in all_assigned_projects:
             latest_progress = project.latest_progress_list[0] if hasattr(project, 'latest_progress_list') and project.latest_progress_list else None
-            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            progress = float(latest_progress.percentage_complete) if latest_progress else 0
             status = project.status
-            # Completed only when progress is exactly 100
-            if progress == 100:
+            # Completed when progress is 100 (or >= 99)
+            if progress >= 99:
                 status = 'completed'
             # Delayed when end date has passed and progress is still below 99
             elif project.end_date and project.end_date < today and progress < 99:
@@ -233,7 +234,7 @@ def dashboard(request):
             
             # Prepare projects_data for JavaScript
             latest_progress = project.latest_progress_list[0] if hasattr(project, 'latest_progress_list') and project.latest_progress_list else None
-            progress = int(latest_progress.percentage_complete) if latest_progress else 0
+            progress = float(latest_progress.percentage_complete) if latest_progress else 0
             projects_data.append({
                 'id': project.id,
                 'name': project.name,
@@ -345,7 +346,7 @@ def my_projects_view(request):
             if latest:
                 progress_times[item['project_id']] = latest.created_at
                 if latest.percentage_complete is not None:
-                    latest_progress_percent[item['project_id']] = int(latest.percentage_complete)
+                    latest_progress_percent[item['project_id']] = float(latest.percentage_complete)
         
         # Get latest cost times
         latest_costs = ProjectCost.objects.filter(
@@ -382,8 +383,8 @@ def my_projects_view(request):
         
         # Calculate actual status dynamically (same logic as head engineer module)
         calculated_status = stored_status
-        # Completed only when progress is exactly 100
-        if progress == 100:
+        # Completed when progress >= 99
+        if progress >= 99:
             calculated_status = 'completed'
         # Delayed when end date has passed and progress is still below 99
         elif project.end_date and project.end_date < today and progress < 99:
@@ -470,7 +471,7 @@ def projeng_map_view(request):
     projects_data = []
     for p in projects_with_coords:
         latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
-        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(latest_progress.percentage_complete) if latest_progress else 0
         projects_data.append({
             'id': p.id,
             'name': p.name,
@@ -505,7 +506,7 @@ def upload_docs_view(request):
     projects_data = []
     for project in assigned_projects:
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(latest_progress.percentage_complete) if latest_progress else 0
         projects_data.append({
             'id': project.id,
             'name': project.name,
@@ -833,49 +834,39 @@ def project_detail_view(request, pk):
             progress_dates.append(progress.date.strftime('%Y-%m-%d'))
             progress_percentages.append(progress.percentage_complete)
         
-        # Timeline Comparison: Expected vs Actual Progress
+        # Timeline Comparison: Expected vs Actual Progress (working days only: exclude weekends + PH holidays)
         timeline_comparison = None
         if project.start_date and project.end_date:
             from datetime import date, timedelta
             import json
+            from projeng.working_days import working_days_between
             today = date.today()
-            total_days = (project.end_date - project.start_date).days
-            elapsed_days = (today - project.start_date).days if today >= project.start_date else 0
-            
+            total_days = working_days_between(project.start_date, project.end_date)
+            elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
+
             if total_days > 0 and elapsed_days >= 0:
-                # Calculate expected progress based on linear timeline
+                # Calculate expected progress based on linear timeline (working days)
                 expected_progress = min(100, (elapsed_days / total_days) * 100)
                 actual_progress = progress_percentages[-1] if progress_percentages else 0
                 progress_variance = actual_progress - expected_progress
-                
-                # Generate expected progress data points for chart
-                # Combine actual progress dates with expected timeline dates for better alignment
-                all_dates_set = set(progress_dates)  # Actual progress update dates
-                # Add weekly expected dates from start to today
+
+                # Generate expected progress data points for chart (working days per date)
+                all_dates_set = set(progress_dates)
                 current_date = project.start_date
                 while current_date <= project.end_date and current_date <= today:
                     all_dates_set.add(current_date.strftime('%Y-%m-%d'))
-                    current_date += timedelta(days=7)  # Weekly intervals
-                
-                # Sort all dates
+                    current_date += timedelta(days=7)
                 all_dates_sorted = sorted(list(all_dates_set))
-                
-                # Calculate expected progress for each date
+
                 expected_progress_data = []
                 actual_progress_aligned = []
-                
                 for date_str in all_dates_sorted:
-                    # Parse date string (format: YYYY-MM-DD)
                     year, month, day = map(int, date_str.split('-'))
                     date_obj = date(year, month, day)
-                    days_elapsed = (date_obj - project.start_date).days
-                    if days_elapsed >= 0:
-                        expected_pct = min(100, (days_elapsed / total_days) * 100) if total_days > 0 else 0
-                        expected_progress_data.append(expected_pct)
-                    else:
-                        expected_progress_data.append(0)
-                    
-                    # Find actual progress for this date (use latest progress up to this date)
+                    working_elapsed = working_days_between(project.start_date, date_obj) if date_obj >= project.start_date else 0
+                    expected_pct = min(100, (working_elapsed / total_days) * 100) if total_days > 0 else 0
+                    expected_progress_data.append(expected_pct)
                     actual_pct = 0
                     for i, prog_date in enumerate(progress_dates):
                         if prog_date <= date_str:
@@ -883,20 +874,18 @@ def project_detail_view(request, pk):
                         else:
                             break
                     actual_progress_aligned.append(actual_pct)
-                
-                expected_dates = all_dates_sorted
-                
+
                 timeline_comparison = {
                     'expected_progress': round(expected_progress, 2),
                     'actual_progress': actual_progress,
                     'progress_variance': round(progress_variance, 2),
                     'elapsed_days': elapsed_days,
                     'total_days': total_days,
-                    'remaining_days': max(0, (project.end_date - today).days),
+                    'remaining_days': remaining_days,
                     'is_ahead': progress_variance > 0,
-                    'is_behind': progress_variance < -5,  # Consider behind if more than 5% behind
+                    'is_behind': progress_variance < -5,
                     'expected_progress_data': expected_progress_data,
-                    'expected_dates': expected_dates,
+                    'expected_dates': all_dates_sorted,
                     'actual_progress_aligned': actual_progress_aligned,
                 }
         
@@ -942,13 +931,74 @@ def project_detail_view(request, pk):
         
         # Convert lists to JSON for JavaScript
         import json
+        from collections import defaultdict
         progress_dates_json = json.dumps(progress_dates)
         progress_percentages_json = json.dumps(progress_percentages)
         timeline_comparison_json = json.dumps(timeline_comparison) if timeline_comparison else None
         expected_dates_json = json.dumps(timeline_comparison['expected_dates']) if timeline_comparison else '[]'
         expected_progress_data_json = json.dumps(timeline_comparison['expected_progress_data']) if timeline_comparison else '[]'
         actual_progress_aligned_json = json.dumps(timeline_comparison['actual_progress_aligned']) if timeline_comparison else '[]'
-        
+
+        # Report data for PDFMake (Print Report)
+        progress_updates_for_report = ProjectProgress.objects.filter(project=project).order_by('date', 'created_at').select_related('created_by')
+        costs_for_report = ProjectCost.objects.filter(project=project).order_by('date').select_related('created_by')
+        cost_breakdown = defaultdict(float)
+        for c in costs_for_report:
+            cost_breakdown[c.get_cost_type_display()] += float(c.amount or 0)
+        latest_progress_obj = ProjectProgress.objects.filter(project=project).order_by('-date', '-created_at').first()
+        budget_status_label = 'UNDER BUDGET'
+        if budget_utilization >= 100:
+            budget_status_label = 'OVER BUDGET'
+        elif budget_utilization >= 90:
+            budget_status_label = 'AT RISK'
+        if timeline_comparison:
+            days_elapsed = timeline_comparison.get('elapsed_days', 0)
+            total_days = timeline_comparison.get('total_days', 0)
+            days_remaining = timeline_comparison.get('remaining_days', 0)
+            expected_progress = timeline_comparison.get('expected_progress')
+            progress_variance = timeline_comparison.get('progress_variance')
+        else:
+            days_elapsed = total_days = days_remaining = 0
+            expected_progress = progress_variance = None
+        report_data = {
+            'project': {
+                'name': project.name or '',
+                'prn': project.prn or '',
+                'barangay': project.barangay or '',
+                'status': project.get_status_display() if hasattr(project, 'get_status_display') else (project.status or ''),
+                'start_date': project.start_date.strftime('%B %d, %Y') if project.start_date else '',
+                'end_date': project.end_date.strftime('%B %d, %Y') if project.end_date else '',
+                'project_cost': project_cost,
+                'source_of_funds': getattr(project, 'source_of_funds', '') or '',
+                'description': (project.description or '')[:200],
+            },
+            'assigned_engineers': [u.get_full_name() or u.username for u in project.assigned_engineers.all()],
+            'latest_progress_pct': latest_progress_obj.percentage_complete if latest_progress_obj else 0,
+            'total_cost': total_cost_float,
+            'budget': project_cost,
+            'remaining_budget': remaining_budget,
+            'budget_utilization': float(budget_utilization),
+            'budget_status_label': budget_status_label,
+            'days_elapsed': days_elapsed,
+            'total_days': total_days,
+            'days_remaining': days_remaining,
+            'expected_progress': expected_progress,
+            'progress_variance': progress_variance,
+            'cost_breakdown': dict(cost_breakdown),
+            'generated_by': request.user.get_full_name() or request.user.username,
+            'generated_at': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
+            'progress_updates': [
+                {
+                    'date': u.date.strftime('%Y-%m-%d') if getattr(u, 'date', None) else '',
+                    'percentage_complete': getattr(u, 'percentage_complete', 0),
+                    'description': (getattr(u, 'description', None) or '')[:80],
+                    'engineer': u.created_by.get_full_name() or getattr(u.created_by, 'username', '') if getattr(u, 'created_by', None) else '',
+                }
+                for u in progress_updates_for_report
+            ],
+            'uploaded_images': [],  # Project engineer report without embedded images
+        }
+
         return render(request, 'projeng/project_detail.html', {
             'project': project,
             'status_choices': Project.STATUS_CHOICES,
@@ -970,6 +1020,7 @@ def project_detail_view(request, pk):
             'budget_utilization': budget_utilization,
             'budget_status': budget_status,
             'over_budget_amount': over_budget_amount,
+            'report_data': report_data,
         })
     except Project.DoesNotExist:
         raise Http404("Project does not exist.")
@@ -1185,22 +1236,24 @@ def project_analytics(request, pk):
             progress_percentages.append(progress.percentage_complete)
             progress_dates.append(progress.date.isoformat())
         
-        # Timeline comparison (simplified)
+        # Timeline comparison (working days only: exclude weekends + PH holidays)
         timeline_comparison = None
         if project.start_date and project.end_date:
+            from projeng.working_days import working_days_between
             today = timezone.now().date()
-            total_days = (project.end_date - project.start_date).days
-            elapsed_days = (today - project.start_date).days if today >= project.start_date else 0
+            total_days = working_days_between(project.start_date, project.end_date)
+            elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
             expected_progress = min(100, (elapsed_days / total_days * 100)) if total_days > 0 else 0
             progress_variance = total_progress - expected_progress
-            
+
             timeline_comparison = {
                 'expected_progress': round(expected_progress, 2),
                 'actual_progress': total_progress,
                 'progress_variance': round(progress_variance, 2),
                 'elapsed_days': elapsed_days,
                 'total_days': total_days,
-                'remaining_days': max(0, (project.end_date - today).days),
+                'remaining_days': remaining_days,
                 'is_ahead': progress_variance > 0,
                 'is_behind': progress_variance < -5,
                 'expected_progress_data': [expected_progress],
@@ -1338,12 +1391,12 @@ def add_progress_update(request, pk):
             raw_percentage = request.POST.get('percentage_complete')
             print(f"DEBUG: Raw percentage_complete value: {raw_percentage!r}")
             try:
-                percentage_complete = int(raw_percentage)
+                percentage_complete = round(float(raw_percentage), 2)  # store exact input, max 2 decimals
                 if not (0 <= percentage_complete <= 100):
                     raise ValueError("Percentage out of range")
-            except Exception as e:
+            except (TypeError, ValueError) as e:
                 logging.exception("Invalid percentage value")
-                return JsonResponse({'error': 'Invalid percentage value. Please enter a number between 0 and 100.'}, status=400)
+                return JsonResponse({'error': 'Invalid percentage value. Please enter a number between 0 and 100 (decimals allowed, e.g. 20.25).'}, status=400)
             description = request.POST.get('description')
 
             print('Current user:', request.user, '| Authenticated:', request.user.is_authenticated)
@@ -1384,15 +1437,7 @@ def add_progress_update(request, pk):
                     'error': f'Photos are required for progress increases greater than 10%. Please upload at least one photo showing the work completed.'
                 }, status=400)
             
-            # Timeline validation: ensure progress is within the timeline (with 10% buffer)
-            if project.start_date and project.end_date:
-                total_days = (project.end_date - project.start_date).days
-                elapsed_days = (progress_date - project.start_date).days
-                if total_days > 0 and elapsed_days >= 0:
-                    elapsed_percent = (elapsed_days / total_days) * 100
-                    allowed_progress = elapsed_percent + 10  # 10% buffer
-                    if percentage_complete > allowed_progress:
-                        return JsonResponse({'error': f'Progress ({percentage_complete}%) exceeds what is reasonable for the current timeline (allowed up to {allowed_progress:.1f}%).'}, status=400)
+            # Timeline validation disabled: engineers can enter any progress from current up to 100%.
 
             # Audit log for progress update
             import logging
@@ -1536,11 +1581,11 @@ def edit_progress_update(request, pk, update_id):
 
     raw_percentage = request.POST.get('percentage_complete')
     try:
-        new_percentage = int(raw_percentage)
+        new_percentage = round(float(raw_percentage), 2)
         if not (0 <= new_percentage <= 100):
             raise ValueError("Percentage out of range")
-    except Exception:
-        return HttpResponseBadRequest("Invalid percentage value. Please enter a number between 0 and 100.")
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("Invalid percentage value. Please enter a number between 0 and 100 (decimals allowed).")
 
     new_description = (request.POST.get('description') or '').strip()
     new_justification = (request.POST.get('justification') or '').strip()
@@ -1590,18 +1635,7 @@ def edit_progress_update(request, pk, update_id):
     if delta < 0 and not new_justification:
         return HttpResponseBadRequest("Justification is required when decreasing progress (correction).")
 
-    # Timeline validation (same idea as add): use the update's date
-    if project.start_date and project.end_date and progress.date:
-        total_days = (project.end_date - project.start_date).days
-        elapsed_days = (progress.date - project.start_date).days
-        if total_days > 0 and elapsed_days >= 0:
-            elapsed_percent = (elapsed_days / total_days) * 100
-            allowed_progress = elapsed_percent + 10  # 10% buffer
-            if new_percentage > allowed_progress:
-                return HttpResponseBadRequest(
-                    f"Progress ({new_percentage}%) exceeds what is reasonable for the update date "
-                    f"(allowed up to {allowed_progress:.1f}%)."
-                )
+    # Timeline validation disabled (match add_progress).
 
     # Create audit history record
     ProjectProgressEditHistory.objects.create(
@@ -2412,7 +2446,7 @@ def map_projects_api(request):
                 created_at=item['max_created']
             ).order_by('-created_at').first()
             if latest and latest.percentage_complete is not None:
-                latest_progress_percent[item['project_id']] = int(latest.percentage_complete)
+                latest_progress_percent[item['project_id']] = float(latest.percentage_complete)
     
     # Calculate status dynamically (including delayed)
     today = timezone.now().date()
@@ -2423,8 +2457,8 @@ def map_projects_api(request):
         
         # Calculate actual status dynamically (same logic as my_projects_view)
         calculated_status = stored_status
-        # Completed only when progress is exactly 100
-        if progress == 100:
+        # Completed when progress >= 99
+        if progress >= 99:
             calculated_status = 'completed'
         # Delayed when end date has passed and progress is still below 99
         elif p.end_date and p.end_date < today and progress < 99:
@@ -2465,10 +2499,10 @@ def dashboard_card_data_api(request):
     status_counts = {'planned': 0, 'in_progress': 0, 'completed': 0, 'delayed': 0}
     for project in all_assigned_projects:
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = int(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(latest_progress.percentage_complete) if latest_progress else 0
         status = project.status
-        # Completed only when progress is exactly 100
-        if progress == 100:
+        # Completed when progress >= 99
+        if progress >= 99:
             status = 'completed'
         # Delayed when end date has passed and progress is still below 99
         elif project.end_date and project.end_date < today and progress < 99:

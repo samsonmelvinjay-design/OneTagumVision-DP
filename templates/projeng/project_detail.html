@@ -64,16 +64,14 @@
                 <h1 class="text-3xl font-bold text-gray-900">Project Details</h1>
             </div>
             <div class="flex items-center gap-2 flex-wrap justify-end">
-                {% if project.project_cost %}
-                    <button type="button"
-                            onclick="window.showBudgetRequestModal && window.showBudgetRequestModal()"
-                            class="px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold inline-flex items-center gap-2 shadow-sm">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m2 8H7a2 2 0 01-2-2V6a2 2 0 012-2h8l4 4v10a2 2 0 01-2 2z"/>
-                        </svg>
-                        Request Budget
-                    </button>
-                {% endif %}
+                <button type="button"
+                        id="print-report-btn"
+                        class="px-4 py-2.5 rounded-lg bg-gray-600 text-white hover:bg-gray-700 text-sm font-semibold inline-flex items-center gap-2 shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    Print Report
+                </button>
 
                 <a href="{% url 'projeng:projeng_add_progress_update' project.pk %}" 
                    class="px-4 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-semibold inline-flex items-center gap-2 shadow-sm">
@@ -119,55 +117,13 @@
             <div class="mt-6">
                 <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
                     <span class="font-medium">Project Progress</span>
-                    <span class="font-semibold text-gray-900">{{ project.progress }}%</span>
+                    <span class="font-semibold text-gray-900">{{ project.progress|floatformat:2 }}%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                     <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300" style="width: {{ project.progress }}%"></div>
                 </div>
             </div>
             {% endif %}
-        </div>
-    </div>
-
-    <!-- Budget Request Modal -->
-    <div id="budgetRequestModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-bold text-gray-900">Request Additional Budget</h3>
-                <button type="button" onclick="window.hideBudgetRequestModal && window.hideBudgetRequestModal()"
-                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-            </div>
-            <form method="post" enctype="multipart/form-data" action="{% url 'projeng:projeng_create_budget_request' project_id=project.pk %}" class="p-6 space-y-4">
-                {% csrf_token %}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Requested Amount (₱)</label>
-                    <input name="requested_amount" type="number" step="0.01" min="0.01" required
-                           class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                           placeholder="e.g., 50000" />
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Reason / Justification</label>
-                    <textarea name="reason" rows="4" required
-                              class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-                              placeholder="Explain why additional budget is needed (materials, scope changes, etc.)"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Proof / Attachments (optional)</label>
-                    <input name="proofs" type="file" multiple
-                           class="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
-                    <p class="text-xs text-gray-500 mt-1">You can attach quotations, photos, letters, or any supporting documents.</p>
-                </div>
-                <div class="flex gap-3 pt-2">
-                    <button type="submit"
-                            class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-lg font-semibold transition">
-                        Submit Request
-                    </button>
-                    <button type="button" onclick="window.hideBudgetRequestModal && window.hideBudgetRequestModal()"
-                            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-3 rounded-lg font-semibold transition">
-                        Cancel
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
@@ -680,8 +636,12 @@
                     </p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 mb-1">Time Remaining</p>
+                    <p class="text-xs text-gray-500 mb-1">Days Remaining</p>
                     <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.remaining_days }} days</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Total Working Days</p>
+                    <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.total_days }} days</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 mb-1">Performance Ratio</p>
@@ -873,23 +833,6 @@
         }
         return cookieValue;
     }
-
-    // Budget Request Modal helpers
-    window.showBudgetRequestModal = function() {
-        const modal = document.getElementById('budgetRequestModal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-    };
-
-    window.hideBudgetRequestModal = function() {
-        const modal = document.getElementById('budgetRequestModal');
-        if (!modal) return;
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.style.overflow = '';
-    };
 
     document.addEventListener('DOMContentLoaded', function() {
         const statusSelect = document.getElementById('project-status');
@@ -1347,6 +1290,10 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
+{% if report_data %}
+{{ report_data|json_script:"report-data" }}
+{% endif %}
+
 <script>
 function openDocumentsModal() {
     document.getElementById('documentsModal').classList.remove('hidden');
@@ -1496,4 +1443,165 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+{% if report_data %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
+<script>
+(function() {
+    function fmtNum(n) { return n != null ? Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'; }
+    function fmtPct(n) { return n != null ? Number(n).toFixed(2) + '%' : 'N/A'; }
+
+    var reportDataEl = document.getElementById('report-data');
+    var printBtn = document.getElementById('print-report-btn');
+    if (!reportDataEl || !printBtn) return;
+
+    function buildPdfAndOpen() {
+        try {
+            var data = JSON.parse(reportDataEl.textContent);
+            var p = data.project || {};
+            var scheduled = data.expected_progress != null ? Number(data.expected_progress).toFixed(2) + '%' : 'N/A';
+            var actual = data.latest_progress_pct != null ? Number(data.latest_progress_pct).toFixed(2) + '%' : 'N/A';
+            var slippage = data.progress_variance != null ? Number(data.progress_variance).toFixed(2) + '%' : 'N/A';
+
+            function detailRow(label, value) {
+                return {
+                    columns: [
+                        { width: 170, text: label, bold: true },
+                        { width: '*', text: ': ' + (value || 'N/A') }
+                    ],
+                    margin: [0, 2, 0, 0]
+                };
+            }
+
+            var durationText = data.total_days ? data.total_days + ' WORKING DAYS' : 'N/A';
+            var elapsedText = data.days_elapsed != null ? String(data.days_elapsed) : 'N/A';
+            var remainingText = data.days_remaining != null ? String(data.days_remaining) : 'N/A';
+
+            var topInfoTable = {
+                table: {
+                    widths: [130, '*'],
+                    body: [
+                        [{ text: 'PROJECT NAME:', bold: true }, { text: p.name || 'N/A' }],
+                        [{ text: 'LOCATION:', bold: true }, { text: p.barangay || 'N/A' }],
+                        [{ text: 'REFERENCE NUMBER:', bold: true }, { text: p.prn || 'N/A' }]
+                    ]
+                },
+                layout: {
+                    hLineWidth: function() { return 0.5; },
+                    vLineWidth: function() { return 0.5; }
+                },
+                margin: [0, 12, 0, 12]
+            };
+
+            var detailsSection = [
+                detailRow('Project Cost', '₱' + fmtNum(data.budget)),
+                detailRow('Source of fund', p.source_of_funds || 'N/A'),
+                detailRow('Date Started', p.start_date || 'N/A'),
+                detailRow('Target Date of Completion', p.end_date || 'N/A'),
+                detailRow('Project Duration', durationText),
+                detailRow('No. of Time Extension (if any)', 'N/A'),
+                detailRow('Revised target date of completion', 'N/A'),
+                detailRow('No. of Days Elapsed to date', elapsedText),
+                detailRow('Remaining No. of Days', remainingText),
+                { text: 'Project Description', bold: true, margin: [0, 8, 0, 2] },
+                { text: (p.description || 'N/A').substring(0, 500) },
+                detailRow('Mode of Implementation', p.mode_of_implementation || 'BY ADMINISTRATION')
+            ];
+
+            var statusText = (p.status || '').toUpperCase();
+            var remarksProjectText = 'PROJECT ' + (statusText === 'IN PROGRESS' ? 'ON GOING' : (statusText || 'ON GOING'));
+
+            var remarksTable = {
+                table: {
+                    widths: ['*', 180],
+                    body: [[
+                        { text: 'REMARKS', bold: true, alignment: 'center', fillColor: '#1a1a1a', color: 'white' },
+                        { text: remarksProjectText, bold: true, alignment: 'center', fillColor: '#1a1a1a', color: 'white' }
+                    ]]
+                },
+                layout: 'noBorders',
+                margin: [0, 16, 0, 24]
+            };
+
+            var preparedName = (data.assigned_engineers && data.assigned_engineers[0])
+                ? data.assigned_engineers[0]
+                : (data.generated_by || '');
+            var concurredName = data.generated_by || '';
+
+            var content = [
+                { text: 'REPUBLIC OF THE PHILIPPINES', alignment: 'center', fontSize: 9 },
+                { text: 'PROVINCE OF DAVAO DEL NORTE', alignment: 'center', fontSize: 9 },
+                { text: 'CITY OF TAGUM', alignment: 'center', fontSize: 9 },
+                {
+                    table: {
+                        widths: ['*', '*'],
+                        body: [[
+                            { text: 'CITY OF TAGUM', fillColor: '#2d5016', color: 'white', alignment: 'center', bold: true },
+                            { text: 'CEO - CONSTRUCTION DIVISION', fillColor: '#2d5016', color: 'white', alignment: 'center', bold: true }
+                        ]]
+                    },
+                    layout: 'noBorders',
+                    margin: [0, 8, 0, 8]
+                },
+                { text: 'INDIVIDUAL PROJECT INFORMATION', alignment: 'center', fillColor: '#1a1a1a', color: 'white', bold: true, margin: [0, 0, 0, 4] },
+                { text: 'AS OF: ' + (data.generated_at || ''), alignment: 'center', fontSize: 10, margin: [0, 0, 0, 12] },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0 }], margin: [0, 4, 0, 12] },
+                topInfoTable,
+                {
+                    stack: detailsSection,
+                    margin: [0, 4, 0, 0]
+                },
+                remarksTable,
+                {
+                    columns: [
+                        {
+                            width: '*',
+                            stack: [
+                                { text: 'Prepared by:' },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 160, y2: 0 }], margin: [0, 8, 0, 4] },
+                                { text: preparedName, bold: true },
+                                { text: 'Project In-Charge', fontSize: 9 }
+                            ]
+                        },
+                        {
+                            width: '*',
+                            stack: [
+                                { text: 'Concurred by:' },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 160, y2: 0 }], margin: [0, 8, 0, 4] },
+                                { text: concurredName, bold: true },
+                                { text: 'Project Engineer', fontSize: 9 }
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 0]
+                }
+            ];
+
+            var doc = {
+                pageSize: 'A4',
+                pageMargins: [40, 40, 40, 60],
+                defaultStyle: { fontSize: 10, font: 'Roboto' },
+                styles: { label: { bold: true }, sectionTitle: { bold: true, fontSize: 10 } },
+                footer: function(i, n) { return { text: 'Page ' + i + ' of ' + n, alignment: 'center', fontSize: 8 }; },
+                content: content
+            };
+            if (typeof pdfMake !== 'undefined') {
+                pdfMake.createPdf(doc).open();
+            } else {
+                alert('PDF library not loaded. Please refresh and try again.');
+            }
+        } catch (err) {
+            console.error('PDF generation error:', err);
+            alert('Failed to generate PDF: ' + (err.message || 'Unknown error'));
+        }
+    }
+
+    window.printReportPdf = buildPdfAndOpen;
+    printBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        buildPdfAndOpen();
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -44,7 +44,7 @@ class Command(BaseCommand):
         if not media_dir:
             # Use MEDIA_ROOT if it points to local; else default to project media/
             mr = getattr(settings, "MEDIA_ROOT", "")
-            media_dir = mr if mr and os.path.isdir(mr) else str(Path(settings.BASE_DIR) / "media")
+            media_dir = mr if mr and os.path.isdir(mr) else str(getattr(settings, 'MEDIA_ROOT_DIR', Path(settings.BASE_DIR) / "media"))
         dry_run = options.get("dry_run")
 
         if not os.path.isdir(media_dir):

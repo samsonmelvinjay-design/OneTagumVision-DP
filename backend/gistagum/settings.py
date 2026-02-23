@@ -7,8 +7,20 @@ try:
 except Exception:  # linter-safe optional dependency
     dj_database_url = None
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths: BASE_DIR = backend/, PROJECT_ROOT = repo root (for frontend & shared assets)
 BASE_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BASE_DIR.parent
+# Frontend assets: prefer frontend/ if present, else project root (templates/, static/)
+FRONTEND_DIR = PROJECT_ROOT / 'frontend'
+if (FRONTEND_DIR / 'templates').exists():
+    TEMPLATES_DIR = FRONTEND_DIR / 'templates'
+    STATIC_SOURCE_DIR = FRONTEND_DIR / 'static'
+else:
+    TEMPLATES_DIR = PROJECT_ROOT / 'templates'
+    STATIC_SOURCE_DIR = PROJECT_ROOT / 'static'
+MEDIA_ROOT_DIR = PROJECT_ROOT / 'media'
+COORD_DIR = PROJECT_ROOT / 'coord'
+GEOJSON_WHOLETAGUM = PROJECT_ROOT / 'wholetagumexport.geojson'
 
 
 def get_env_int(var_name: str, default: int) -> int:
@@ -174,7 +186,7 @@ ROOT_URLCONF = 'gistagum.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [str(TEMPLATES_DIR)],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -278,8 +290,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [str(STATIC_SOURCE_DIR)]
+STATIC_ROOT = str(BASE_DIR / 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
@@ -364,7 +376,7 @@ if SPACES_CONFIGURED:
 else:
     # Use local file storage (development or when Spaces is not configured)
     MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    MEDIA_ROOT = str(MEDIA_ROOT_DIR)
     
     if USE_SPACES:
         print("WARNING: USE_SPACES is enabled but Spaces credentials are missing. Using local storage.")
@@ -443,6 +455,12 @@ else:
         logger = logging.getLogger(__name__)
         logger.warning("Email credentials not fully configured; using console email backend. "
                        "Password reset emails will appear in server logs.")
+
+# CEO - Construction Division report footer (Individual Project Information)
+# Used on the printed PDF report from the Project Engineer module.
+CEO_REPORT_ADDRESS = os.environ.get('CEO_REPORT_ADDRESS', 'Municipal Tipes / Brgy. Mangagwa Viasi')
+CEO_REPORT_PHONE = os.environ.get('CEO_REPORT_PHONE', '(084) 648-3800 / Local 805')
+CEO_REPORT_EMAIL = os.environ.get('CEO_REPORT_EMAIL', 'ceo.constructionofh@gmail.com')
 
 # Caching Configuration
 # Use in-memory cache for development, Redis for production (if available)

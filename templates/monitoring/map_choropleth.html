@@ -246,8 +246,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: createMarkerIcon(project.status)
                 });
                 
-                // Use project.total_progress for the popup progress bar
+                // Use project.total_progress for the popup progress bar (show with 2 decimals)
                 const displayProgress = project.progress !== undefined ? project.progress : 0;
+                const progressLabel = displayProgress !== undefined && !isNaN(Number(displayProgress)) ? Number(displayProgress).toFixed(2) : '0.00';
 
                 marker.bindPopup(`
                     <div class="p-3 min-w-[220px]">
@@ -272,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="block"><span class='font-semibold'>Lat:</span> ${project.latitude}, <span class='font-semibold'>Lng:</span> ${project.longitude}</span>
                         </div>
                         <div class="text-xs text-gray-500 mb-2">
-                             <span class="block"><span class='font-semibold'>Progress:</span> ${displayProgress}%</span>
+                             <span class="block"><span class='font-semibold'>Progress:</span> ${progressLabel}%</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                              <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${displayProgress}%"></div>
@@ -528,14 +529,13 @@ window.openDetailsModal = function(id) {
             }
         }
 
-        // Display progress bar
+        // Display progress bar (support float; show with 2 decimals)
         if (progressSection && progressBar && progressText) {
-             // Use project.progress for the modal progress bar
-             const modalProgressValue = project.progress !== undefined ? parseInt(project.progress, 10) : null;
+             const modalProgressValue = project.progress !== undefined ? parseFloat(project.progress) : null;
              if ((project.status === 'ongoing' || project.status === 'in_progress') && modalProgressValue !== null && !isNaN(modalProgressValue) && modalProgressValue >= 0 && modalProgressValue <= 100) {
                 progressSection.classList.remove('hidden');
                 progressBar.style.width = modalProgressValue + '%';
-                progressText.textContent = modalProgressValue + '% Complete';
+                progressText.textContent = Number(modalProgressValue).toFixed(2) + '% Complete';
             } else {
                 progressSection.classList.add('hidden');
             }

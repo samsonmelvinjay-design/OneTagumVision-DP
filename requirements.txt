@@ -1,3 +1,7 @@
+# Use Python 3.11 or 3.12 for this project (scikit-learn has no wheels for 3.14).
+# On Windows without C++ Build Tools, use: pip install -r requirements-base.txt
+# Then optionally: pip install -r requirements-ml.txt (needs Build Tools for scikit-learn)
+# https://visualstudio.microsoft.com/visual-cpp-build-tools/
 asgiref==3.8.1
 Django==5.2.1
 django-browser-reload==1.18.0
@@ -27,3 +31,4 @@ boto3==1.34.0  # AWS SDK for Python (used by django-storages for Spaces)
 scikit-learn==1.3.2
 numpy==1.26.2
 pandas==2.1.4
+holidays>=0.40  # Optional: PH holidays for years not in projeng.working_days (2026 is built-in)

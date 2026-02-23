@@ -69,7 +69,7 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_update = models.DateField(blank=True, null=True)
-    progress = models.PositiveIntegerField(default=0, help_text="Project progress in percentage (0-100)", blank=True, null=True)
+    progress = models.FloatField(default=0, blank=True, null=True, help_text="Project progress in percentage (0-100); decimals allowed")
 
     # Project Type (for Zone Compatibility Recommendation)
     project_type = models.ForeignKey(
@@ -195,9 +195,9 @@ class SourceOfFunds(models.Model):
 class ProjectProgress(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='progress_updates')
     date = models.DateField()
-    percentage_complete = models.IntegerField(
+    percentage_complete = models.FloatField(
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Percentage of project completion (0-100)"
+        help_text="Percentage of project completion (0-100); decimals allowed (e.g. 20.25)"
     )
     description = models.TextField(help_text="Detailed description of progress made and work completed")
     milestone = models.ForeignKey(
@@ -240,8 +240,8 @@ class ProjectProgressEditHistory(models.Model):
     edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     edited_at = models.DateTimeField(auto_now_add=True)
 
-    from_percentage = models.IntegerField()
-    to_percentage = models.IntegerField()
+    from_percentage = models.FloatField()
+    to_percentage = models.FloatField()
     from_description = models.TextField(blank=True, null=True)
     to_description = models.TextField(blank=True, null=True)
     from_justification = models.TextField(blank=True, null=True)

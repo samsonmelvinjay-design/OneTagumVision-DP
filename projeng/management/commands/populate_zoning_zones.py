@@ -25,7 +25,8 @@ class Command(BaseCommand):
         
         # If relative path, look in project root
         if not os.path.isabs(file_path):
-            file_path = os.path.join(settings.BASE_DIR, file_path)
+            project_root = getattr(settings, 'PROJECT_ROOT', settings.BASE_DIR)
+            file_path = os.path.join(str(project_root), file_path)
         
         # Check if file exists
         if not os.path.exists(file_path):

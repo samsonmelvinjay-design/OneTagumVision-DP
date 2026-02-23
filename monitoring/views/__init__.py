@@ -32,6 +32,7 @@ except Exception:
 from django.conf import settings
 from collections import Counter, defaultdict
 from monitoring.forms import ProjectForm
+from projeng.working_days import working_days_between
 
 # Import centralized access control functions (MUST be before views that use them)
 from gistagum.access_control import (
@@ -135,21 +136,21 @@ def dashboard(request):
                     created_at=item['latest_created']
                 ).order_by('-created_at').first()
                 if latest and latest.percentage_complete is not None:
-                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+                    latest_progress[item['project_id']] = float(latest.percentage_complete)
         
         # Helper to standardize status logic across dashboards
         def _compute_dynamic_status(project, progress_value):
             """
             Normalize a project's status.
             New rule:
-              - Completed: progress == 100
+              - Completed: progress >= 99
               - Delayed: end date has passed AND progress < 99
             """
             status = (project.status or '').lower()
-            progress = int(progress_value or 0)
+            progress = float(progress_value or 0)
 
-            # Completed only when progress is exactly 100
-            if progress == 100:
+            # Completed when progress >= 99
+            if progress >= 99:
                 return 'completed'
 
             # Delayed when end date has passed and progress is still below 99
@@ -363,9 +364,11 @@ def dashboard_budget_utilization_data(request):
 @login_required
 @prevent_project_engineer_access
 def dashboard_collab_analytics_data(request):
-    """API endpoint for Projects per Barangay and Projects per Status, filtered by period (week/month/year)."""
+    """API endpoint for Projects per Barangay and Projects per Status, filtered by period (week/month/year).
+    Uses same dynamic status logic as dashboard so Delayed (end_date passed + progress < 99) appears in both charts."""
     from projeng.models import Project
     from django.http import JsonResponse
+    from django.db.models import Max
     from datetime import timedelta
     from collections import defaultdict
 
@@ -374,6 +377,7 @@ def dashboard_collab_analytics_data(request):
 
     period = (request.GET.get('period') or 'month').strip().lower()
     now = timezone.now().date()
+    today = now
     if period == 'week':
         start_date = now - timedelta(days=7)
     elif period == 'year':
@@ -382,22 +386,61 @@ def dashboard_collab_analytics_data(request):
         start_date = now - timedelta(days=30)
 
     projects = Project.objects.filter(created_at__date__gte=start_date)
+    project_ids = [p.id for p in projects]
+    latest_progress = {}
+    if project_ids:
+        latest_progress_qs = ProjectProgress.objects.filter(
+            project_id__in=project_ids
+        ).values('project_id').annotate(
+            latest_date=Max('date'),
+            latest_created=Max('created_at')
+        )
+        for item in latest_progress_qs:
+            latest = ProjectProgress.objects.filter(
+                project_id=item['project_id'],
+                date=item['latest_date'],
+                created_at=item['latest_created']
+            ).order_by('-created_at').first()
+            if latest and latest.percentage_complete is not None:
+                latest_progress[item['project_id']] = float(latest.percentage_complete)
+
+    def _compute_dynamic_status(project, progress_value):
+        status = (project.status or '').lower()
+        progress = float(progress_value or 0)
+        if progress >= 99:
+            return 'completed'
+        if project.end_date and project.end_date < today and progress < 99:
+            return 'delayed'
+        if status == 'delayed':
+            return 'delayed'
+        if status in ['in_progress', 'ongoing']:
+            return 'in_progress'
+        if status in ['planned', 'pending']:
+            return 'planned'
+        return status or 'unknown'
+
     collab_by_barangay = defaultdict(int)
     collab_by_status = defaultdict(int)
     for p in projects:
         if p.barangay and isinstance(p.barangay, str) and p.barangay.strip():
             collab_by_barangay[p.barangay.strip()] += 1
-        if p.status and isinstance(p.status, str) and p.status.strip():
-            status = (
-                'Ongoing' if p.status in ['in_progress', 'ongoing'] else
-                'Planned' if p.status in ['planned', 'pending'] else
-                'Completed' if p.status == 'completed' else
-                'Delayed' if p.status == 'delayed' else p.status.title()
-            )
-            collab_by_status[status] += 1
+        progress = latest_progress.get(p.id, 0)
+        normalized = _compute_dynamic_status(p, progress)
+        display_status = (
+            'Ongoing' if normalized == 'in_progress' else
+            'Planned' if normalized == 'planned' else
+            'Completed' if normalized == 'completed' else
+            'Delayed' if normalized == 'delayed' else
+            (normalized.replace('_', ' ').title() if normalized else 'Other')
+        )
+        collab_by_status[display_status] += 1
     collab_by_barangay = {k: collab_by_barangay[k] for k in sorted(collab_by_barangay.keys())}
-    collab_by_status = {k: collab_by_status[k] for k in sorted(collab_by_status.keys())}
-    return JsonResponse({'barangay': collab_by_barangay, 'status': dict(collab_by_status)})
+    # Fixed order so Delayed appears in both charts: Completed, Ongoing, Planned, Delayed (then any others)
+    status_order = ['Completed', 'Ongoing', 'Planned', 'Delayed']
+    ordered = [(k, collab_by_status[k]) for k in status_order if k in collab_by_status]
+    others = [(k, collab_by_status[k]) for k in sorted(collab_by_status) if k not in status_order]
+    collab_by_status = dict(ordered + others)
+    return JsonResponse({'barangay': collab_by_barangay, 'status': collab_by_status})
 
 
 @login_required
@@ -934,7 +977,7 @@ def project_list(request):
                 created_at=item['latest_created']
             ).order_by('-created_at').first()
             if latest and latest.percentage_complete is not None:
-                latest_progress[item['project_id']] = int(latest.percentage_complete)
+                latest_progress[item['project_id']] = float(latest.percentage_complete)
     
     today = timezone.now().date()
     
@@ -1172,7 +1215,7 @@ def map_view(request):
                     created_at=item['latest_created']
                 ).order_by('-created_at').first()
                 if latest and latest.percentage_complete is not None:
-                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+                    latest_progress[item['project_id']] = float(latest.percentage_complete)
         
         today = timezone.now().date()
         projects_data = []
@@ -1320,7 +1363,7 @@ def overall_project_metrics_api(request):
                     created_at=item['latest_created']
                 ).order_by('-created_at').first()
                 if latest and latest.percentage_complete is not None:
-                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+                    latest_progress[item['project_id']] = float(latest.percentage_complete)
         
         # Calculate status counts using same logic as map markers (_get_display_status)
         today = timezone.now().date()
@@ -1391,7 +1434,7 @@ def _get_display_status(progress, end_date, stored_status, today):
 def _compute_project_progress_map(project_qs):
     """
     Helper: given a Project queryset, return (latest_progress_dict, today_date).
-    latest_progress_dict maps project_id -> int(progress_percentage).
+    latest_progress_dict maps project_id -> float(progress_percentage).
     """
     from projeng.models import ProjectProgress
     from django.db.models import Max
@@ -1414,7 +1457,7 @@ def _compute_project_progress_map(project_qs):
             ).order_by('-created_at').first()
             if latest and latest.percentage_complete is not None:
                 try:
-                    latest_progress[item['project_id']] = int(latest.percentage_complete)
+                    latest_progress[item['project_id']] = float(latest.percentage_complete)
                 except (TypeError, ValueError):
                     continue
 
@@ -2491,7 +2534,7 @@ def head_engineer_analytics(request):
                 created_at=item['latest_created']
             ).order_by('-created_at').first()
             if latest and latest.percentage_complete is not None:
-                latest_progress_all[item['project_id']] = int(latest.percentage_complete)
+                latest_progress_all[item['project_id']] = float(latest.percentage_complete)
 
     today = timezone.now().date()
     total_projects_all = base_projects.count()
@@ -2570,13 +2613,13 @@ def head_engineer_analytics(request):
         elif latest_progress and latest_progress.percentage_complete is not None:
             # Ensure progress is between 0 and 100
             try:
-                progress = max(0, min(100, int(latest_progress.percentage_complete)))
+                progress = max(0, min(100, float(latest_progress.percentage_complete)))
             except (ValueError, TypeError):
                 progress = 0
         elif hasattr(p, 'progress') and p.progress is not None:
             # Fallback to project's direct progress field
             try:
-                progress = max(0, min(100, int(p.progress)))
+                progress = max(0, min(100, float(p.progress)))
             except (ValueError, TypeError):
                 progress = 0
         else:
@@ -2863,20 +2906,26 @@ def head_engineer_project_detail(request, pk):
             logger.warning(f"Error calculating budget utilization: {e}")
             budget_utilization = 0
         
-        timeline_data = {
-            'start_date': project.start_date,
-            'end_date': project.end_date,
-            'days_elapsed': (project.end_date - project.start_date).days if project.start_date and project.end_date else None,
-            'total_days': (project.end_date - project.start_date).days if project.start_date and project.end_date else None,
-        }
-        
-        # Serializable report data for client-side PDFMake (comprehensive layout)
+        # Timeline: working days only (exclude weekends + PH holidays)
         from django.utils import timezone as tz
         from collections import defaultdict
         today = tz.now().date()
-        total_days = (project.end_date - project.start_date).days if project.start_date and project.end_date else 0
-        days_elapsed = (today - project.start_date).days if project.start_date else 0
-        days_remaining = total_days - days_elapsed if total_days > 0 else 0
+        total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
+        if project.start_date and project.end_date:
+            days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            days_remaining = working_days_between(today, project.end_date) if today <= project.end_date else 0
+        else:
+            days_elapsed = 0
+            days_remaining = 0
+        
+        timeline_data = {
+            'start_date': project.start_date,
+            'end_date': project.end_date,
+            'days_elapsed': days_elapsed if (project.start_date and project.end_date) else None,
+            'total_days': total_days if (project.start_date and project.end_date) else None,
+        }
+        
+        # Serializable report data for client-side PDFMake (comprehensive layout)
         budget = float(project.project_cost) if project.project_cost else 0
         remaining_budget = budget - total_cost if budget else 0
         expected_progress = min(100.0, (days_elapsed / total_days * 100.0)) if total_days > 0 else None
@@ -2989,7 +3038,8 @@ def head_dashboard_card_data_api(request):
     return HttpResponse("head_dashboard_card_data_api placeholder")
 
 def barangay_geojson_view(request):
-    geojson_path = os.path.join(settings.BASE_DIR, 'static', 'data', 'tagum_barangays.geojson')
+    static_dir = getattr(settings, 'STATIC_SOURCE_DIR', None) or (getattr(settings, 'PROJECT_ROOT', settings.BASE_DIR) / 'static')
+    geojson_path = os.path.join(str(static_dir), 'data', 'tagum_barangays.geojson')
     with open(geojson_path, 'r', encoding='utf-8') as f:
         geojson_data = json.load(f)
     return JsonResponse(geojson_data, safe=False)
@@ -2997,9 +3047,11 @@ def barangay_geojson_view(request):
 
 def tagum_city_boundary_geojson_view(request):
     """Serve whole Tagum City boundary (OSM admin boundary) - single outline, no barangays."""
-    geojson_path = os.path.join(settings.BASE_DIR, 'wholetagumexport.geojson')
+    project_root = getattr(settings, 'PROJECT_ROOT', settings.BASE_DIR)
+    static_dir = getattr(settings, 'STATIC_SOURCE_DIR', None) or (project_root / 'static')
+    geojson_path = str(getattr(settings, 'GEOJSON_WHOLETAGUM', project_root / 'wholetagumexport.geojson'))
     if not os.path.isfile(geojson_path):
-        geojson_path = os.path.join(settings.BASE_DIR, 'static', 'data', 'tagum_city_boundary.geojson')
+        geojson_path = os.path.join(str(static_dir), 'data', 'tagum_city_boundary.geojson')
     with open(geojson_path, 'r', encoding='utf-8') as f:
         geojson_data = json.load(f)
     return JsonResponse(geojson_data, safe=False)
@@ -3047,16 +3099,15 @@ def export_project_timeline_pdf(request, pk):
     total_progress = latest_progress.percentage_complete if latest_progress else 0
 
     today = timezone.now().date()
-    total_days = (project.end_date - project.start_date).days if getattr(project, 'start_date', None) and getattr(project, 'end_date', None) else 0
-    days_elapsed = (today - project.start_date).days if getattr(project, 'start_date', None) else 0
-    days_remaining = (total_days - days_elapsed) if total_days > 0 else 0
+    total_days = working_days_between(project.start_date, project.end_date) if getattr(project, 'start_date', None) and getattr(project, 'end_date', None) else 0
+    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if getattr(project, 'start_date', None) and today >= project.start_date else 0
+    days_remaining = working_days_between(today, project.end_date) if getattr(project, 'end_date', None) and today <= project.end_date else 0
 
     expected_progress = None
     progress_variance = None
     performance_ratio = None
     if getattr(project, 'start_date', None) and getattr(project, 'end_date', None) and total_days > 0:
-        elapsed_days = max(0, min(total_days, days_elapsed))
-        expected_progress = min(100.0, (elapsed_days / total_days) * 100.0)
+        expected_progress = min(100.0, (days_elapsed / total_days) * 100.0)
         progress_variance = float(total_progress) - float(expected_progress)
         performance_ratio = (float(total_progress) / float(expected_progress)) if expected_progress > 0 else None
 
@@ -3969,18 +4020,17 @@ def export_project_comprehensive_pdf(request, pk):
     efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
     project_budget_ratio = (float(total_cost) / float(budget)) if budget > 0 else None
     
-    # Calculate timeline
+    # Calculate timeline (working days only: exclude weekends + PH holidays)
     today = timezone.now().date()
-    days_elapsed = (today - project.start_date).days if project.start_date else 0
-    total_days = (project.end_date - project.start_date).days if project.start_date and project.end_date else 0
-    days_remaining = total_days - days_elapsed if total_days > 0 else 0
+    total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
+    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
+    days_remaining = working_days_between(today, project.end_date) if project.end_date and today <= project.end_date else 0
 
     expected_progress = None
     progress_variance = None
     performance_ratio = None
     if project.start_date and project.end_date and total_days > 0:
-        elapsed_days = max(0, min(total_days, days_elapsed))
-        expected_progress = min(100.0, (elapsed_days / total_days) * 100.0)
+        expected_progress = min(100.0, (days_elapsed / total_days) * 100.0)
         progress_variance = float(total_progress) - float(expected_progress)
         performance_ratio = (float(total_progress) / float(expected_progress)) if expected_progress > 0 else None
 
@@ -4175,14 +4225,13 @@ def export_project_comprehensive_excel(request, pk):
     efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
 
     today = timezone.now().date()
-    days_elapsed = (today - project.start_date).days if project.start_date else 0
-    total_days = (project.end_date - project.start_date).days if project.start_date and project.end_date else 0
+    total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
+    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
     expected_progress = None
     progress_variance = None
     performance_ratio = None
     if project.start_date and project.end_date and total_days > 0:
-        elapsed_days = max(0, min(total_days, days_elapsed))
-        expected_progress = min(100.0, (elapsed_days / total_days) * 100.0)
+        expected_progress = min(100.0, (days_elapsed / total_days) * 100.0)
         progress_variance = float(total_progress) - float(expected_progress)
         performance_ratio = (float(total_progress) / float(expected_progress)) if expected_progress > 0 else None
 
@@ -4385,14 +4434,13 @@ def export_project_comprehensive_csv(request, pk):
     efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
 
     today = timezone.now().date()
-    days_elapsed = (today - project.start_date).days if project.start_date else 0
-    total_days = (project.end_date - project.start_date).days if project.start_date and project.end_date else 0
+    total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
+    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
     expected_progress = None
     progress_variance = None
     performance_ratio = None
     if project.start_date and project.end_date and total_days > 0:
-        elapsed_days = max(0, min(total_days, days_elapsed))
-        expected_progress = min(100.0, (elapsed_days / total_days) * 100.0)
+        expected_progress = min(100.0, (days_elapsed / total_days) * 100.0)
         progress_variance = float(total_progress) - float(expected_progress)
         performance_ratio = (float(total_progress) / float(expected_progress)) if expected_progress > 0 else None
 

@@ -1226,8 +1226,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon: createMarkerIcon(project.status)
                 });
                 
-                // Use project.total_progress for the popup progress bar
-                const displayProgress = project.progress !== undefined ? project.progress : 0; // Use project.progress as updated in the view
+                // Use project.progress for the popup; show with 2 decimals
+                const displayProgress = project.progress !== undefined ? project.progress : 0;
+                const progressLabel = displayProgress !== undefined && !isNaN(Number(displayProgress)) ? Number(displayProgress).toFixed(2) : '0.00';
 
                 marker.bindPopup(`
                     <div class="p-4 min-w-[260px] bg-white">
@@ -1254,11 +1255,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             </svg>
                             <span>${project.barangay || 'Unknown location'}</span>
                         </div>
-                        ${displayProgress !== undefined && displayProgress !== null && !isNaN(parseInt(displayProgress, 10)) && parseInt(displayProgress, 10) >= 0 && parseInt(displayProgress, 10) <= 100 ? `
+                        ${displayProgress !== undefined && displayProgress !== null && !isNaN(Number(displayProgress)) && Number(displayProgress) >= 0 && Number(displayProgress) <= 100 ? `
                         <div class="mb-3">
                             <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
                                 <span class="font-medium">Progress</span>
-                                <span class="font-semibold text-gray-900">${displayProgress}%</span>
+                                <span class="font-semibold text-gray-900">${progressLabel}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${displayProgress}%"></div>
@@ -2169,14 +2170,13 @@ window.openDetailsModal = function(id) {
             }
         }
 
-        // Display progress bar - show for any project with progress data
+        // Display progress bar - show with 2 decimals (support float)
         if (progressSection && progressBar && progressText) {
-             // Use project.progress for the modal progress bar
-             const modalProgressValue = project.progress !== undefined ? parseInt(project.progress, 10) : null;
+             const modalProgressValue = project.progress !== undefined ? parseFloat(project.progress) : null;
              if (modalProgressValue !== null && !isNaN(modalProgressValue) && modalProgressValue >= 0 && modalProgressValue <= 100) {
                 progressSection.classList.remove('hidden');
                 progressBar.style.width = modalProgressValue + '%';
-                progressText.textContent = modalProgressValue + '% Complete';
+                progressText.textContent = Number(modalProgressValue).toFixed(2) + '% Complete';
             } else {
                 progressSection.classList.add('hidden');
             }

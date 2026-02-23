@@ -224,7 +224,7 @@ def sse_project_status(request, project_id=None):
                             'type': 'project_status',
                             'project_id': project.id,
                             'status': project.status,
-                            'progress': int(latest_progress.percentage_complete) if latest_progress else 0,
+                            'progress': float(latest_progress.percentage_complete) if latest_progress else 0,
                             'updated_at': timezone.localtime(project.updated_at if hasattr(project, 'updated_at') else project.created_at).isoformat()  # Convert to local timezone
                         }
                         yield f"data: {json.dumps(data)}\n\n"

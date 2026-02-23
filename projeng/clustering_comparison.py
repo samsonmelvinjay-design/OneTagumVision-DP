@@ -4,14 +4,22 @@ Compares Administrative Spatial Analysis, K-Means, DBSCAN, and Hierarchical Clus
 """
 
 import time
-import numpy as np
-import pandas as pd
 from typing import Dict, List, Tuple, Optional
-from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
-from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
-from sklearn.preprocessing import StandardScaler
+
 from django.db.models import Q
 from .models import Project, BarangayMetadata
+
+try:
+    import numpy as np
+    import pandas as pd
+    from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
+    from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
+    from sklearn.preprocessing import StandardScaler
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
+    np = None  # type: ignore
+    pd = None  # type: ignore
 
 
 class AdministrativeSpatialAnalysis:
@@ -539,6 +547,12 @@ class ClusteringAlgorithmComparator:
 
 def run_clustering_comparison() -> Dict:
     """Main function to run the clustering comparison"""
+    if not HAS_ML:
+        raise ImportError(
+            "Clustering comparison requires scikit-learn, numpy, and pandas. "
+            "Install with: pip install -r requirements-ml.txt "
+            "(On Windows you may need Microsoft C++ Build Tools: https://visualstudio.microsoft.com/visual-cpp-build-tools/)"
+        )
     comparator = ClusteringAlgorithmComparator()
     
     try:

@@ -1,0 +1,6 @@
+# Machine learning / clustering (needs Microsoft C++ Build Tools on Windows if building from source).
+# Install after requirements-base.txt. Or use: pip install scikit-learn numpy pandas
+# (newer pip may use pre-built wheels and skip the build.)
+scikit-learn==1.3.2
+numpy==1.26.2
+pandas==2.1.4

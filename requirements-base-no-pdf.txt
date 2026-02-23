@@ -1,0 +1,27 @@
+# Use this if you're on Python 3.14 or hit errors building xhtml2pdf/reportlab.
+# PDF export will show "unavailable" until you install xhtml2pdf on a supported Python (3.11/3.12).
+# Prefer using Python 3.11 or 3.12 and requirements-base.txt for full features.
+
+asgiref==3.8.1
+Django==5.2.1
+django-browser-reload==1.18.0
+django-tailwind==4.0.1
+django-model-utils==4.3.1
+openpyxl==3.1.2
+gunicorn==23.0.0
+packaging==25.0
+pillow==11.2.1
+psycopg2-binary==2.9.9
+sqlparse==0.5.3
+tzdata==2025.2
+django-extensions
+whitenoise==6.7.0
+dj-database-url==2.2.0
+python-dotenv==1.0.1
+django-redis==5.4.0
+celery==5.3.4
+channels==4.0.0
+channels-redis==4.1.0
+daphne==4.0.0
+django-storages==1.14.2
+boto3==1.34.0

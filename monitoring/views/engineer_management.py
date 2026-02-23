@@ -142,7 +142,7 @@ def engineer_detail(request, engineer_id):
         for rec in progresses:
             if rec['project_id'] not in seen:
                 seen.add(rec['project_id'])
-                latest_progress[rec['project_id']] = int(rec['percentage_complete'])
+                latest_progress[rec['project_id']] = float(rec['percentage_complete'])
     
     # Calculate statistics (including dynamic delayed status)
     total_projects = assigned_projects.count()
