@@ -24,17 +24,35 @@
 
 /* Modal should have higher z-index but not interfere with map */
 #details-modal {
-  z-index: 10000 !important;
+  z-index: 20010 !important;
 }
 
 /* View Report modal: make injected content use full width (no white space) */
-#report-modal-body .container {
+#report-modal-body {
+  display: flex;
+  justify-content: center;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+#report-modal-content {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+#report-modal-content .container {
   max-width: 100% !important;
   width: 100% !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+#report-modal-content .no-print {
+  display: none !important;
+}
+#report-modal-content > * {
+  width: 100%;
 }
 #report-modal-body .min-h-screen {
   min-height: auto;
@@ -645,7 +663,7 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 </script>
 
 <!-- View Details Modal (Initially hidden) -->
-<div id="details-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-40" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out; position: fixed; z-index: 10000;">
+<div id="details-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-40" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out; position: fixed; z-index: 20010;">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl relative mx-4 my-4 max-h-[85vh] overflow-hidden flex flex-col" style="position: relative; z-index: 10000; pointer-events: auto;">
         <!-- Header with Gradient -->
         <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-6 py-4 relative flex-shrink-0">
@@ -780,10 +798,10 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 </div>
 
 <!-- Report Modal: OUTSIDE details-modal so it stacks above Barangay panel and Project Details -->
-<div id="report-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden" style="z-index: 25000;">
+<div id="report-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-start justify-center overflow-y-auto hidden pt-6 pb-6" style="z-index: 25000;">
     <!-- Full-width card inside overlay so left/right spacing is even and no extra background shows -->
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-none max-h-[70vh] flex flex-col overflow-hidden my-6 mx-4 lg:mx-8">
-        <div class="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-600 to-purple-600 flex-shrink-0">
+    <div class="bg-white rounded-2xl shadow-2xl w-[96vw] sm:w-[94vw] lg:w-[88vw] xl:w-[84vw] 2xl:w-[80vw] max-w-[1400px] h-[calc(100vh-3rem)] max-h-[calc(100vh-3rem)] flex flex-col overflow-hidden my-0 mx-2 lg:mx-0">
+        <div class="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-600 to-purple-600 flex-shrink-0">
             <h3 class="text-white font-semibold text-sm">Project Report</h3>
             <button id="close-report-modal" class="text-white hover:text-gray-200 text-xl font-bold w-7 h-7 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
         </div>
@@ -825,7 +843,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Show loading state
-            reportModalBody.innerHTML = '<div class="p-4 text-sm text-gray-500">Loading project report...</div>';
+            reportModalBody.innerHTML = '<div id="report-modal-content"><div class="p-4 text-sm text-gray-500">Loading project report...</div></div>';
             reportModal.classList.remove('hidden');
 
             try {
@@ -841,10 +859,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const html = await response.text();
-                reportModalBody.innerHTML = html;
+                const parsed = new DOMParser().parseFromString(html, 'text/html');
+                const extractedRoot =
+                    parsed.querySelector('.bg-gradient-to-br.from-gray-50.to-gray-100.min-h-screen') ||
+                    parsed.querySelector('main') ||
+                    parsed.body;
+
+                const extractedHtml = extractedRoot ? extractedRoot.innerHTML : html;
+                reportModalBody.innerHTML = `<div id="report-modal-content">${extractedHtml}</div>`;
             } catch (error) {
                 console.error('Error loading project report for modal:', error);
-                reportModalBody.innerHTML = '<div class="p-4 text-sm text-red-600">Unable to load project report. Please open the full report page instead.</div>';
+                reportModalBody.innerHTML = '<div id="report-modal-content"><div class="p-4 text-sm text-red-600">Unable to load project report. Please open the full report page instead.</div></div>';
             }
         });
     }
@@ -854,7 +879,7 @@ document.addEventListener('DOMContentLoaded', function() {
             reportModal.classList.add('hidden');
             // Optional: reset content
             if (reportModalBody) {
-                reportModalBody.innerHTML = '<div class="p-4 text-sm text-gray-500">Loading project report...</div>';
+                reportModalBody.innerHTML = '<div id="report-modal-content"><div class="p-4 text-sm text-gray-500">Loading project report...</div></div>';
             }
         });
     }

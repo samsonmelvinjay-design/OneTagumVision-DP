@@ -28,6 +28,7 @@ urlpatterns = [
     path('projects/<int:pk>/', views.project_detail, name='project_detail'),
     path('projects/<int:project_id>/forward-budget-alert/', views.forward_budget_alert_to_finance_view, name='forward_budget_alert'),
     path('monitoring/projects/<int:pk>/detail/', views.head_engineer_project_detail, name='monitoring_project_detail'),
+    path('monitoring/projects/<int:pk>/config-settings/', views.project_config_settings_api, name='project_config_settings_api'),
     path('dashboard/api/card-data/', views.head_dashboard_card_data_api, name='head_dashboard_card_data_api'),
     path('dashboard/budget-utilization-data/', views.dashboard_budget_utilization_data, name='dashboard_budget_utilization_data'),
     path('dashboard/collab-analytics-data/', views.dashboard_collab_analytics_data, name='dashboard_collab_analytics_data'),

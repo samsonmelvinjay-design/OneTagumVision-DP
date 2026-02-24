@@ -622,8 +622,20 @@
             <!-- Timeline Metrics -->
             <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200">
                 <div>
-                    <p class="text-xs text-gray-500 mb-1">Expected Progress</p>
-                    <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.expected_progress }}%</p>
+                    <p class="text-xs text-gray-500 mb-1">
+                        {% if timeline_comparison.configured_target_date %}
+                            Target ({{ timeline_comparison.configured_target_date }})
+                        {% else %}
+                            Expected Progress
+                        {% endif %}
+                    </p>
+                    <p class="text-lg font-semibold text-gray-900">
+                        {% if timeline_comparison.configured_target_progress != None %}
+                            {{ timeline_comparison.configured_target_progress }}%
+                        {% else %}
+                            {{ timeline_comparison.expected_progress }}%
+                        {% endif %}
+                    </p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 mb-1">Actual Progress</p>
@@ -1463,117 +1475,136 @@ document.addEventListener('DOMContentLoaded', function() {
             var actual = data.latest_progress_pct != null ? Number(data.latest_progress_pct).toFixed(2) + '%' : 'N/A';
             var slippage = data.progress_variance != null ? Number(data.progress_variance).toFixed(2) + '%' : 'N/A';
 
-            function detailRow(label, value) {
-                return {
-                    columns: [
-                        { width: 170, text: label, bold: true },
-                        { width: '*', text: ': ' + (value || 'N/A') }
-                    ],
-                    margin: [0, 2, 0, 0]
-                };
+            function linedRow(label, value) {
+                return [
+                    { text: label, bold: true, margin: [0, 2, 0, 2] },
+                    { text: ': ' + (value || 'N/A'), margin: [0, 2, 0, 2] }
+                ];
             }
 
             var durationText = data.total_days ? data.total_days + ' WORKING DAYS' : 'N/A';
             var elapsedText = data.days_elapsed != null ? String(data.days_elapsed) : 'N/A';
             var remainingText = data.days_remaining != null ? String(data.days_remaining) : 'N/A';
-
-            var topInfoTable = {
-                table: {
-                    widths: [130, '*'],
-                    body: [
-                        [{ text: 'PROJECT NAME:', bold: true }, { text: p.name || 'N/A' }],
-                        [{ text: 'LOCATION:', bold: true }, { text: p.barangay || 'N/A' }],
-                        [{ text: 'REFERENCE NUMBER:', bold: true }, { text: p.prn || 'N/A' }]
-                    ]
-                },
-                layout: {
-                    hLineWidth: function() { return 0.5; },
-                    vLineWidth: function() { return 0.5; }
-                },
-                margin: [0, 12, 0, 12]
-            };
-
-            var detailsSection = [
-                detailRow('Project Cost', '₱' + fmtNum(data.budget)),
-                detailRow('Source of fund', p.source_of_funds || 'N/A'),
-                detailRow('Date Started', p.start_date || 'N/A'),
-                detailRow('Target Date of Completion', p.end_date || 'N/A'),
-                detailRow('Project Duration', durationText),
-                detailRow('No. of Time Extension (if any)', 'N/A'),
-                detailRow('Revised target date of completion', 'N/A'),
-                detailRow('No. of Days Elapsed to date', elapsedText),
-                detailRow('Remaining No. of Days', remainingText),
-                { text: 'Project Description', bold: true, margin: [0, 8, 0, 2] },
-                { text: (p.description || 'N/A').substring(0, 500) },
-                detailRow('Mode of Implementation', p.mode_of_implementation || 'BY ADMINISTRATION')
-            ];
-
+            var extensionCount = data.extension_count != null ? String(data.extension_count) : 'N/A';
+            var revisedTargetDate = data.revised_target_date || 'N/A';
             var statusText = (p.status || '').toUpperCase();
-            var remarksProjectText = 'PROJECT ' + (statusText === 'IN PROGRESS' ? 'ON GOING' : (statusText || 'ON GOING'));
-
-            var remarksTable = {
-                table: {
-                    widths: ['*', 180],
-                    body: [[
-                        { text: 'REMARKS', bold: true, alignment: 'center', fillColor: '#1a1a1a', color: 'white' },
-                        { text: remarksProjectText, bold: true, alignment: 'center', fillColor: '#1a1a1a', color: 'white' }
-                    ]]
-                },
-                layout: 'noBorders',
-                margin: [0, 16, 0, 24]
-            };
+            var remarksProjectText = statusText === 'IN PROGRESS' ? 'PROJECT ON GOING' : ('PROJECT ' + (statusText || 'ON GOING'));
+            var asOfText = (p.start_date && p.end_date)
+                ? ('AS OF: ' + p.start_date.toUpperCase() + ' TO ' + p.end_date.toUpperCase())
+                : ('AS OF: ' + (data.generated_at || '').toUpperCase());
 
             var preparedName = (data.assigned_engineers && data.assigned_engineers[0])
                 ? data.assigned_engineers[0]
-                : (data.generated_by || '');
-            var concurredName = data.generated_by || '';
+                : (data.generated_by || 'N/A');
+            var concurredName = data.generated_by || 'N/A';
 
             var content = [
-                { text: 'REPUBLIC OF THE PHILIPPINES', alignment: 'center', fontSize: 9 },
-                { text: 'PROVINCE OF DAVAO DEL NORTE', alignment: 'center', fontSize: 9 },
-                { text: 'CITY OF TAGUM', alignment: 'center', fontSize: 9 },
                 {
                     table: {
-                        widths: ['*', '*'],
+                        widths: ['*'],
+                        body: [[{ text: 'CITY OF TAGUM    |    CEO - CONSTRUCTION DIVISION', alignment: 'center', color: 'white', bold: true, fillColor: '#4f8a3e', margin: [0, 3, 0, 3] }]]
+                    },
+                    layout: 'noBorders',
+                    margin: [0, 0, 0, 2]
+                },
+                {
+                    table: {
+                        widths: ['*'],
+                        body: [[{ text: 'INDIVIDUAL PROJECT INFORMATION', alignment: 'center', color: 'white', bold: true, fillColor: '#3f3a37', margin: [0, 4, 0, 4], fontSize: 13 }]]
+                    },
+                    layout: 'noBorders',
+                    margin: [0, 0, 0, 2]
+                },
+                { text: asOfText, alignment: 'center', fontSize: 10, bold: true, margin: [0, 0, 0, 8] },
+                {
+                    table: {
+                        widths: [170, '*'],
+                        body: [
+                            [{ text: 'PROJECT NAME:', bold: true }, { text: p.name || 'N/A' }],
+                            [{ text: 'LOCATION:', bold: true }, { text: p.barangay || 'N/A' }],
+                            [{ text: 'REFERENCE NUMBER:', bold: true }, { text: p.prn || 'N/A' }]
+                        ]
+                    },
+                    layout: {
+                        hLineColor: function() { return '#666666'; },
+                        vLineColor: function() { return '#666666'; },
+                        hLineWidth: function() { return 0.8; },
+                        vLineWidth: function() { return 0.8; }
+                    },
+                    margin: [0, 4, 0, 10]
+                },
+                {
+                    table: {
+                        widths: [200, '*'],
+                        body: [
+                            linedRow('Project Cost', 'PHP ' + fmtNum(data.budget)),
+                            linedRow('Source of fund', p.source_of_funds || 'N/A'),
+                            linedRow('Date Started', p.start_date || 'N/A'),
+                            linedRow('Target Date of Completion', p.end_date || 'N/A'),
+                            linedRow('Project Duration', durationText),
+                            linedRow('No. of Time Extension (if any)', extensionCount),
+                            linedRow('Revised target date of completion', revisedTargetDate),
+                            linedRow('No. of Days Elapsed to date', elapsedText),
+                            linedRow('Remaining No. of Days', remainingText),
+                            linedRow('Project Description', p.description || 'N/A'),
+                            linedRow('Mode of Implementation', p.mode_of_implementation || 'BY ADMINISTRATION')
+                        ]
+                    },
+                    layout: {
+                        hLineColor: function() { return '#8d8d8d'; },
+                        vLineWidth: function() { return 0; },
+                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; }
+                    },
+                    margin: [0, 0, 0, 8]
+                },
+                {
+                    table: {
+                        widths: [240, '*'],
+                        body: [
+                            linedRow('Scheduled Project Accomplishment', scheduled),
+                            linedRow('Actual Project Accomplishment', actual),
+                            linedRow('Slippage', slippage)
+                        ]
+                    },
+                    layout: {
+                        hLineColor: function() { return '#8d8d8d'; },
+                        vLineWidth: function() { return 0; },
+                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; }
+                    },
+                    margin: [0, 2, 0, 10]
+                },
+                {
+                    table: {
+                        widths: ['*', 220],
                         body: [[
-                            { text: 'CITY OF TAGUM', fillColor: '#2d5016', color: 'white', alignment: 'center', bold: true },
-                            { text: 'CEO - CONSTRUCTION DIVISION', fillColor: '#2d5016', color: 'white', alignment: 'center', bold: true }
+                            { text: 'REMARKS', bold: true, alignment: 'center', fillColor: '#4d4844', color: 'white' },
+                            { text: remarksProjectText, bold: true, alignment: 'center', fillColor: '#4d4844', color: 'white' }
                         ]]
                     },
                     layout: 'noBorders',
-                    margin: [0, 8, 0, 8]
+                    margin: [0, 8, 0, 26]
                 },
-                { text: 'INDIVIDUAL PROJECT INFORMATION', alignment: 'center', fillColor: '#1a1a1a', color: 'white', bold: true, margin: [0, 0, 0, 4] },
-                { text: 'AS OF: ' + (data.generated_at || ''), alignment: 'center', fontSize: 10, margin: [0, 0, 0, 12] },
-                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0 }], margin: [0, 4, 0, 12] },
-                topInfoTable,
-                {
-                    stack: detailsSection,
-                    margin: [0, 4, 0, 0]
-                },
-                remarksTable,
                 {
                     columns: [
                         {
                             width: '*',
                             stack: [
-                                { text: 'Prepared by:' },
-                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 160, y2: 0 }], margin: [0, 8, 0, 4] },
-                                { text: preparedName, bold: true },
-                                { text: 'Project In-Charge', fontSize: 9 }
+                                { text: 'Prepared by:', margin: [0, 0, 0, 14] },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
+                                { text: preparedName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
+                                { text: 'Project In-Charge', alignment: 'center' }
                             ]
                         },
                         {
                             width: '*',
                             stack: [
-                                { text: 'Concurred by:' },
-                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 160, y2: 0 }], margin: [0, 8, 0, 4] },
-                                { text: concurredName, bold: true },
-                                { text: 'Project Engineer', fontSize: 9 }
+                                { text: 'Concurred by:', margin: [0, 0, 0, 14] },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
+                                { text: concurredName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
+                                { text: 'Project Engineer', alignment: 'center' }
                             ]
                         }
-                    ],
-                    margin: [0, 0, 0, 0]
+                    ]
                 }
             ];
 

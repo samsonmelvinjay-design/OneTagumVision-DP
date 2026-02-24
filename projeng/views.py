@@ -11,7 +11,7 @@ from .models import (
     Layer, Project, ProjectProgress, ProjectCost, ProgressPhoto, ProjectDocument,
     Notification, BarangayMetadata, ZoningZone,
     BudgetRequest, BudgetRequestAttachment, BudgetRequestStatusHistory,
-    ProjectProgressEditHistory
+    ProjectProgressEditHistory, ProjectConfiguredProgress, ProjectExtensionHistory
 )
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
@@ -46,6 +46,7 @@ import traceback
 from django.db.models import ProtectedError
 from django.contrib.auth.views import redirect_to_login
 from django.conf import settings
+from datetime import date as dt_date
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -58,6 +59,110 @@ from gistagum.access_control import (
     head_engineer_required,
     get_user_dashboard_url
 )
+
+
+def _configured_expected_timeline(project, progress_dates, progress_percentages, actual_progress, today, elapsed_days, total_days, remaining_days):
+    """Build timeline comparison using Head Engineer configured expected checkpoints."""
+    configured_rows = list(
+        ProjectConfiguredProgress.objects.filter(project=project).order_by('target_date').values('target_date', 'percentage')
+    )
+    if not configured_rows:
+        return None
+
+    configured_points = [(row['target_date'], float(row['percentage'])) for row in configured_rows]
+
+    # Build interpolation points:
+    # - Start at project start date with 0%
+    # - Follow configured checkpoints (15th/30th)
+    points = []
+    if project.start_date:
+        points.append((project.start_date, 0.0))
+    points.extend(configured_points)
+    # Keep unique by date, preserving last value on duplicates
+    merged = {}
+    for d, pct in points:
+        merged[d] = pct
+    points = sorted(merged.items(), key=lambda x: x[0])
+
+    def expected_on(target_date):
+        if not points:
+            return 0.0
+        if target_date <= points[0][0]:
+            return float(points[0][1])
+
+        for i in range(1, len(points)):
+            prev_date, prev_pct = points[i - 1]
+            next_date, next_pct = points[i]
+            if target_date <= next_date:
+                total_span = (next_date - prev_date).days
+                if total_span <= 0:
+                    return float(next_pct)
+                elapsed_span = (target_date - prev_date).days
+                ratio = max(0.0, min(1.0, elapsed_span / total_span))
+                return float(prev_pct + (next_pct - prev_pct) * ratio)
+
+        # After the last configured checkpoint, hold the last expected value.
+        return float(points[-1][1])
+
+    all_dates_set = set(progress_dates)
+    for d, _pct in configured_points:
+        all_dates_set.add(d.strftime('%Y-%m-%d'))
+    # Keep chart relevant to timeline window
+    chart_end = min(today, project.end_date) if project.end_date else today
+    if chart_end and chart_end >= project.start_date:
+        all_dates_set.add(chart_end.strftime('%Y-%m-%d'))
+
+    all_dates_sorted = sorted(all_dates_set)
+    expected_progress_data = []
+    actual_progress_aligned = []
+
+    for date_str in all_dates_sorted:
+        y, m, d = map(int, date_str.split('-'))
+        date_obj = dt_date(y, m, d)
+        expected_progress_data.append(expected_on(date_obj))
+        actual_pct = 0
+        for i, prog_date in enumerate(progress_dates):
+            if prog_date <= date_str:
+                actual_pct = progress_percentages[i]
+            else:
+                break
+        actual_progress_aligned.append(actual_pct)
+
+    expected_progress = expected_on(chart_end) if chart_end else 0
+
+    # Display target: nearest upcoming configured date, otherwise latest configured date.
+    upcoming = [p for p in configured_points if p[0] >= today]
+    display_target_date, display_target_pct = (upcoming[0] if upcoming else configured_points[-1])
+    # Variance should match what the card displays as target.
+    progress_variance = actual_progress - float(display_target_pct)
+
+    return {
+        'expected_progress': round(expected_progress, 2),
+        'configured_target_date': display_target_date.strftime('%m/%d/%Y') if display_target_date else None,
+        'configured_target_progress': round(float(display_target_pct), 2),
+        'actual_progress': actual_progress,
+        'progress_variance': round(progress_variance, 2),
+        'elapsed_days': elapsed_days,
+        'total_days': total_days,
+        'remaining_days': remaining_days,
+        'is_ahead': progress_variance > 0,
+        'is_behind': progress_variance < -5,
+        'expected_progress_data': expected_progress_data,
+        'expected_dates': all_dates_sorted,
+        'actual_progress_aligned': actual_progress_aligned,
+    }
+
+
+def _get_configured_target_for_display(project, today=None):
+    """Return configured target checkpoint for display: nearest upcoming else latest."""
+    if today is None:
+        today = timezone.now().date()
+    target = ProjectConfiguredProgress.objects.filter(project=project, target_date__gte=today).order_by('target_date').first()
+    if not target:
+        target = ProjectConfiguredProgress.objects.filter(project=project).order_by('-target_date').first()
+    if not target:
+        return None, None
+    return target.target_date, float(target.percentage)
 
 def is_staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
@@ -846,48 +951,61 @@ def project_detail_view(request, pk):
             remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
 
             if total_days > 0 and elapsed_days >= 0:
-                # Calculate expected progress based on linear timeline (working days)
-                expected_progress = min(100, (elapsed_days / total_days) * 100)
                 actual_progress = progress_percentages[-1] if progress_percentages else 0
-                progress_variance = actual_progress - expected_progress
 
-                # Generate expected progress data points for chart (working days per date)
-                all_dates_set = set(progress_dates)
-                current_date = project.start_date
-                while current_date <= project.end_date and current_date <= today:
-                    all_dates_set.add(current_date.strftime('%Y-%m-%d'))
-                    current_date += timedelta(days=7)
-                all_dates_sorted = sorted(list(all_dates_set))
+                # Prefer Head Engineer configured expected schedule (15th/30th checkpoints).
+                timeline_comparison = _configured_expected_timeline(
+                    project=project,
+                    progress_dates=progress_dates,
+                    progress_percentages=progress_percentages,
+                    actual_progress=actual_progress,
+                    today=today,
+                    elapsed_days=elapsed_days,
+                    total_days=total_days,
+                    remaining_days=remaining_days,
+                )
 
-                expected_progress_data = []
-                actual_progress_aligned = []
-                for date_str in all_dates_sorted:
-                    year, month, day = map(int, date_str.split('-'))
-                    date_obj = date(year, month, day)
-                    working_elapsed = working_days_between(project.start_date, date_obj) if date_obj >= project.start_date else 0
-                    expected_pct = min(100, (working_elapsed / total_days) * 100) if total_days > 0 else 0
-                    expected_progress_data.append(expected_pct)
-                    actual_pct = 0
-                    for i, prog_date in enumerate(progress_dates):
-                        if prog_date <= date_str:
-                            actual_pct = progress_percentages[i]
-                        else:
-                            break
-                    actual_progress_aligned.append(actual_pct)
+                # Fallback to linear expected progress if no configured schedule exists.
+                if timeline_comparison is None:
+                    expected_progress = min(100, (elapsed_days / total_days) * 100)
+                    progress_variance = actual_progress - expected_progress
 
-                timeline_comparison = {
-                    'expected_progress': round(expected_progress, 2),
-                    'actual_progress': actual_progress,
-                    'progress_variance': round(progress_variance, 2),
-                    'elapsed_days': elapsed_days,
-                    'total_days': total_days,
-                    'remaining_days': remaining_days,
-                    'is_ahead': progress_variance > 0,
-                    'is_behind': progress_variance < -5,
-                    'expected_progress_data': expected_progress_data,
-                    'expected_dates': all_dates_sorted,
-                    'actual_progress_aligned': actual_progress_aligned,
-                }
+                    all_dates_set = set(progress_dates)
+                    current_date = project.start_date
+                    while current_date <= project.end_date and current_date <= today:
+                        all_dates_set.add(current_date.strftime('%Y-%m-%d'))
+                        current_date += timedelta(days=7)
+                    all_dates_sorted = sorted(list(all_dates_set))
+
+                    expected_progress_data = []
+                    actual_progress_aligned = []
+                    for date_str in all_dates_sorted:
+                        year, month, day = map(int, date_str.split('-'))
+                        date_obj = date(year, month, day)
+                        working_elapsed = working_days_between(project.start_date, date_obj) if date_obj >= project.start_date else 0
+                        expected_pct = min(100, (working_elapsed / total_days) * 100) if total_days > 0 else 0
+                        expected_progress_data.append(expected_pct)
+                        actual_pct = 0
+                        for i, prog_date in enumerate(progress_dates):
+                            if prog_date <= date_str:
+                                actual_pct = progress_percentages[i]
+                            else:
+                                break
+                        actual_progress_aligned.append(actual_pct)
+
+                    timeline_comparison = {
+                        'expected_progress': round(expected_progress, 2),
+                        'actual_progress': actual_progress,
+                        'progress_variance': round(progress_variance, 2),
+                        'elapsed_days': elapsed_days,
+                        'total_days': total_days,
+                        'remaining_days': remaining_days,
+                        'is_ahead': progress_variance > 0,
+                        'is_behind': progress_variance < -5,
+                        'expected_progress_data': expected_progress_data,
+                        'expected_dates': all_dates_sorted,
+                        'actual_progress_aligned': actual_progress_aligned,
+                    }
         
         # Calculate budget information
         from django.db.models import Sum
@@ -960,6 +1078,11 @@ def project_detail_view(request, pk):
         else:
             days_elapsed = total_days = days_remaining = 0
             expected_progress = progress_variance = None
+
+        extension_count = ProjectExtensionHistory.objects.filter(project=project).count()
+        latest_extension = ProjectExtensionHistory.objects.filter(project=project).order_by('-created_at').first()
+        revised_target_date = latest_extension.new_end_date.strftime('%B %d, %Y') if latest_extension else None
+
         report_data = {
             'project': {
                 'name': project.name or '',
@@ -971,6 +1094,7 @@ def project_detail_view(request, pk):
                 'project_cost': project_cost,
                 'source_of_funds': getattr(project, 'source_of_funds', '') or '',
                 'description': (project.description or '')[:200],
+                'mode_of_implementation': 'BY ADMINISTRATION',
             },
             'assigned_engineers': [u.get_full_name() or u.username for u in project.assigned_engineers.all()],
             'latest_progress_pct': latest_progress_obj.percentage_complete if latest_progress_obj else 0,
@@ -984,6 +1108,8 @@ def project_detail_view(request, pk):
             'days_remaining': days_remaining,
             'expected_progress': expected_progress,
             'progress_variance': progress_variance,
+            'extension_count': extension_count,
+            'revised_target_date': revised_target_date,
             'cost_breakdown': dict(cost_breakdown),
             'generated_by': request.user.get_full_name() or request.user.username,
             'generated_at': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
@@ -1244,22 +1370,34 @@ def project_analytics(request, pk):
             total_days = working_days_between(project.start_date, project.end_date)
             elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
             remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
-            expected_progress = min(100, (elapsed_days / total_days * 100)) if total_days > 0 else 0
-            progress_variance = total_progress - expected_progress
 
-            timeline_comparison = {
-                'expected_progress': round(expected_progress, 2),
-                'actual_progress': total_progress,
-                'progress_variance': round(progress_variance, 2),
-                'elapsed_days': elapsed_days,
-                'total_days': total_days,
-                'remaining_days': remaining_days,
-                'is_ahead': progress_variance > 0,
-                'is_behind': progress_variance < -5,
-                'expected_progress_data': [expected_progress],
-                'expected_dates': [project.start_date.isoformat()],
-                'actual_progress_aligned': [total_progress],
-            }
+            timeline_comparison = _configured_expected_timeline(
+                project=project,
+                progress_dates=progress_dates,
+                progress_percentages=progress_percentages,
+                actual_progress=float(total_progress or 0),
+                today=today,
+                elapsed_days=elapsed_days,
+                total_days=total_days,
+                remaining_days=remaining_days,
+            )
+
+            if timeline_comparison is None:
+                expected_progress = min(100, (elapsed_days / total_days * 100)) if total_days > 0 else 0
+                progress_variance = total_progress - expected_progress
+                timeline_comparison = {
+                    'expected_progress': round(expected_progress, 2),
+                    'actual_progress': total_progress,
+                    'progress_variance': round(progress_variance, 2),
+                    'elapsed_days': elapsed_days,
+                    'total_days': total_days,
+                    'remaining_days': remaining_days,
+                    'is_ahead': progress_variance > 0,
+                    'is_behind': progress_variance < -5,
+                    'expected_progress_data': [expected_progress],
+                    'expected_dates': [project.start_date.isoformat()],
+                    'actual_progress_aligned': [total_progress],
+                }
 
         # Ratios for comprehensive analytics (panel: #11/#19/#29)
         performance_ratio = (float(total_progress) / float(timeline_comparison['expected_progress'])) if (timeline_comparison and timeline_comparison.get('expected_progress')) else None
@@ -1372,6 +1510,7 @@ def add_progress_update(request, pk):
         # Get current progress percentage
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date', '-created_at').first()
         current_progress = latest_progress.percentage_complete if latest_progress else (project.progress or 0)
+        configured_target_date, configured_target_progress = _get_configured_target_for_display(project, today=today)
         
         # Get milestones for this project
         milestones = ProjectMilestone.objects.filter(project=project, is_completed=False).order_by('target_date')
@@ -1381,7 +1520,9 @@ def add_progress_update(request, pk):
             'today': today,
             'cost_types': ProjectCost.COST_TYPES,
             'current_progress': current_progress,
-            'milestones': milestones
+            'milestones': milestones,
+            'configured_target_date': configured_target_date,
+            'configured_target_progress': configured_target_progress,
         })
     
     if request.method == 'POST':
@@ -1712,6 +1853,7 @@ def add_cost_entry(request, pk):
         # Get current progress percentage (for consistency, even though cost form doesn't use it)
         latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date', '-created_at').first()
         current_progress = latest_progress.percentage_complete if latest_progress else (project.progress or 0)
+        configured_target_date, configured_target_progress = _get_configured_target_for_display(project, today=today)
         
         # Get milestones for this project
         milestones = ProjectMilestone.objects.filter(project=project, is_completed=False).order_by('target_date')
@@ -1721,7 +1863,9 @@ def add_cost_entry(request, pk):
             'today': today,
             'cost_types': ProjectCost.COST_TYPES,
             'current_progress': current_progress,
-            'milestones': milestones
+            'milestones': milestones,
+            'configured_target_date': configured_target_date,
+            'configured_target_progress': configured_target_progress,
         })
     
     if request.method == 'POST':

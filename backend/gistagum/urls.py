@@ -10,10 +10,12 @@ from monitoring import views as monitoring_views
 from django.shortcuts import redirect
 from projeng.views import engineer_projects_api
 from django.contrib.auth.decorators import login_required
+from django.templatetags.static import static as static_file
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('__reload__/', include('django_browser_reload.urls')),
+    path('favicon.ico', RedirectView.as_view(url=static_file('img/logo-onetagumvision.png'), permanent=False)),
     path('health/', health_check, name='health_check'),  # Health check endpoint
     path('logout/', secure_logout, name='logout'),
     path('accounts/login/', dual_login, name='login'),
