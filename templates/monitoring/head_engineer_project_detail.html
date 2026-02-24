@@ -22,6 +22,12 @@
                     <p class="text-gray-600 text-sm lg:text-base">Comprehensive project timeline and analytics</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 no-print">
+                    <button id="open-config-settings-btn" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317a1 1 0 011.35-.936l.651.323a1 1 0 001.348-.936V2.75a1 1 0 011.447-.894l.729.365a1 1 0 00.447.109h.03a1 1 0 00.922-.61l.31-.744A1 1 0 0118.49 1h.02a1 1 0 01.936.65l.31.744a1 1 0 00.922.61h.03a1 1 0 00.447-.109l.729-.365A1 1 0 0123.33 2.75v.018a1 1 0 01-.936.936l-.651.323a1 1 0 00-.46.584 7.004 7.004 0 01-10.958 7.492 7.004 7.004 0 01-.999-9.786z"></path>
+                        </svg>
+                        Configure Project Settings
+                    </button>
                     <!-- Export Dropdown -->
                     <div class="relative inline-block">
                         <button id="export-dropdown-btn" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg">
@@ -76,7 +82,20 @@
             <div class="mb-4">
                 <div class="flex items-center justify-between mb-2">
                     <h2 class="text-lg font-bold text-gray-800">Overall Progress</h2>
-                    <span class="text-2xl font-bold text-blue-600">{{ latest_progress.percentage_complete|default:0|floatformat:2 }}%</span>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-blue-600">{{ latest_progress.percentage_complete|default:0|floatformat:2 }}%</div>
+                        <div class="text-xs font-semibold text-emerald-600">
+                            {% if configured_expected_date %}
+                                Target ({{ configured_expected_date|date:"m/d/Y" }}):
+                                {{ configured_expected_progress|floatformat:2 }}%
+                            {% elif expected_progress != None %}
+                                Expected:
+                                {{ expected_progress|floatformat:2 }}%
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                     <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2" style="width: {{ latest_progress.percentage_complete|default:0 }}%; min-width: {% if latest_progress.percentage_complete > 0 %}8px{% else %}0{% endif %}">
@@ -460,6 +479,76 @@
     </div>
 </div>
 
+<!-- Configure Project Settings Modal -->
+<div id="project-config-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-5 border-b border-gray-200">
+            <h3 class="text-2xl font-bold text-gray-900">Project Configuration Settings</h3>
+            <button id="close-config-modal-btn" type="button" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-lg font-semibold text-blue-600">Add Custom Date</h4>
+                        <button id="add-custom-date-btn" type="button" class="text-sm px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">Add</button>
+                    </div>
+                    <p class="text-gray-700 mb-2">Available Dates (15th and 30th):</p>
+                    <div class="border border-gray-200 rounded-md overflow-hidden">
+                        <div class="grid grid-cols-2 bg-gray-100 text-gray-600 text-sm font-semibold px-3 py-2">
+                            <span>Date</span>
+                            <span>Set Percentage</span>
+                        </div>
+                        <div id="available-dates-list" class="max-h-56 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <h4 class="text-lg font-semibold mb-2">Currently Saved Progress</h4>
+                    <div class="border border-gray-200 rounded-md overflow-hidden">
+                        <div class="grid grid-cols-2 bg-gray-100 text-gray-600 text-sm font-semibold px-3 py-2">
+                            <span>Date</span>
+                            <span>Percentage (%)</span>
+                        </div>
+                        <div id="saved-progress-list" class="max-h-56 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <h4 class="text-xl font-semibold text-red-500 mb-3">Extend Project</h4>
+                    <label for="new-project-end-date" class="block text-base font-medium text-gray-700 mb-2">New Project End Date:</label>
+                    <input id="new-project-end-date" type="date" class="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                    <button id="save-extension-btn" type="button" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors">
+                        Save Extension
+                    </button>
+                </div>
+
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <h4 class="text-xl font-semibold mb-3">Project Extension History</h4>
+                    <div class="border border-gray-200 rounded-md overflow-hidden">
+                        <div class="grid grid-cols-3 bg-gray-100 text-gray-600 text-sm font-semibold px-3 py-2">
+                            <span>Previous End Date</span>
+                            <span>New End Date</span>
+                            <span>Set By</span>
+                        </div>
+                        <div id="extension-history-list" class="max-h-40 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 border-t border-gray-200 flex justify-end gap-3">
+            <button id="cancel-config-btn" type="button" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg">Cancel</button>
+            <button id="save-config-changes-btn" type="button" class="px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg">Save Changes</button>
+        </div>
+    </div>
+</div>
+
 <script>
     // Toggle export dropdown
     document.getElementById('export-dropdown-btn').addEventListener('click', function(e) {
@@ -499,6 +588,374 @@
             if (e.target === this) {
                 hideForwardToFinanceModal();
             }
+        });
+    }
+
+    // Configure Project Settings modal
+    const configModal = document.getElementById('project-config-modal');
+    const openConfigBtn = document.getElementById('open-config-settings-btn');
+    const closeConfigBtn = document.getElementById('close-config-modal-btn');
+    const cancelConfigBtn = document.getElementById('cancel-config-btn');
+    const saveConfigChangesBtn = document.getElementById('save-config-changes-btn');
+    const addCustomDateBtn = document.getElementById('add-custom-date-btn');
+    const saveExtensionBtn = document.getElementById('save-extension-btn');
+    const newProjectEndDateInput = document.getElementById('new-project-end-date');
+    const availableDatesList = document.getElementById('available-dates-list');
+    const savedProgressList = document.getElementById('saved-progress-list');
+    const extensionHistoryList = document.getElementById('extension-history-list');
+
+    const currentUserName = "{{ request.user.get_full_name|default:request.user.username|escapejs }}";
+    const configApiUrl = "{% url 'project_config_settings_api' project.pk %}";
+    const startDateSeed = "{{ project.start_date|date:'Y-m-d' }}";
+    const endDateSeed = "{{ project.end_date|date:'Y-m-d' }}";
+    let currentProjectEndDate = endDateSeed;
+    const configuredProgress = {};
+    const extensionHistory = [];
+    const customDates = [];
+    let isConfigLoading = false;
+
+    function parseDateSafe(value) {
+        if (!value) return null;
+        const raw = String(value).trim();
+        let y, m, d;
+        const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const mdy = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+
+        if (iso) {
+            y = Number(iso[1]);
+            m = Number(iso[2]);
+            d = Number(iso[3]);
+        } else if (mdy) {
+            m = Number(mdy[1]);
+            d = Number(mdy[2]);
+            y = Number(mdy[3]);
+        } else {
+            return null;
+        }
+
+        const parsed = new Date(y, m - 1, d);
+        if (parsed.getFullYear() !== y || parsed.getMonth() !== (m - 1) || parsed.getDate() !== d) {
+            return null;
+        }
+        return parsed;
+    }
+
+    function toIsoDate(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function formatDisplayDate(dateValue) {
+        const parsed = parseDateSafe(dateValue);
+        if (!parsed) return dateValue;
+        return new Intl.DateTimeFormat('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(parsed);
+    }
+
+    function buildDefaultDates(startIso, endIso) {
+        const start = parseDateSafe(startIso);
+        const end = parseDateSafe(endIso);
+        if (!start || !end || start > end) return [];
+
+        const out = [];
+        const ptr = new Date(start.getFullYear(), start.getMonth(), 1);
+        while (ptr <= end) {
+            [15, 30].forEach(function(dayNum) {
+                const candidate = new Date(ptr.getFullYear(), ptr.getMonth(), dayNum);
+                if (candidate.getMonth() === ptr.getMonth() && candidate >= start && candidate <= end) {
+                    out.push(toIsoDate(candidate));
+                }
+            });
+            ptr.setMonth(ptr.getMonth() + 1);
+        }
+        return Array.from(new Set(out)).sort();
+    }
+
+    function getAllDates() {
+        const base = buildDefaultDates(startDateSeed, currentProjectEndDate);
+        const savedDates = Object.keys(configuredProgress);
+        return Array.from(new Set(base.concat(customDates).concat(savedDates))).sort();
+    }
+
+    function collectProgressInputs() {
+        const inputs = availableDatesList ? Array.from(availableDatesList.querySelectorAll('[data-progress-input]')) : [];
+        const items = [];
+        inputs.forEach(function(input) {
+            const dateIso = input.getAttribute('data-progress-input');
+            const raw = String(input.value || '').trim();
+            if (!dateIso || raw === '') return;
+            const num = parseFloat(raw);
+            if (Number.isNaN(num) || num < 0 || num > 100) return;
+            items.push({ date: dateIso, percentage: num });
+        });
+        return items;
+    }
+
+    function getCsrfToken() {
+        const name = 'csrftoken=';
+        const decoded = decodeURIComponent(document.cookie || '');
+        const parts = decoded.split(';');
+        for (let i = 0; i < parts.length; i += 1) {
+            const c = parts[i].trim();
+            if (c.indexOf(name) === 0) return c.substring(name.length);
+        }
+        return '';
+    }
+
+    async function configApiRequest(payload) {
+        const response = await fetch(configApiUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+            throw new Error(data.error || `Request failed with ${response.status}`);
+        }
+        return data;
+    }
+
+    async function loadConfigData() {
+        const response = await fetch(configApiUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+            throw new Error(data.error || `Failed to load configuration (${response.status})`);
+        }
+
+        Object.keys(configuredProgress).forEach(function(key) { delete configuredProgress[key]; });
+        extensionHistory.length = 0;
+        customDates.length = 0;
+
+        currentProjectEndDate = data.project && data.project.end_date ? data.project.end_date : endDateSeed;
+
+        (data.saved_progress || []).forEach(function(item) {
+            configuredProgress[item.date] = Number(item.percentage);
+        });
+        (data.extension_history || []).forEach(function(item) {
+            extensionHistory.push({
+                previousEndDate: item.previous_end_date,
+                newEndDate: item.new_end_date,
+                setBy: item.set_by || currentUserName || 'Head Engineer',
+            });
+        });
+
+        const baseDates = buildDefaultDates(startDateSeed, currentProjectEndDate);
+        Object.keys(configuredProgress).forEach(function(dateIso) {
+            if (!baseDates.includes(dateIso) && !customDates.includes(dateIso)) {
+                customDates.push(dateIso);
+            }
+        });
+    }
+
+    function renderSavedProgress() {
+        const keys = Object.keys(configuredProgress).sort();
+        if (keys.length === 0) {
+            savedProgressList.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500">No progress saved yet.</div>';
+            return;
+        }
+        savedProgressList.innerHTML = keys.map(function(key) {
+            return `
+                <div class="grid grid-cols-2 px-3 py-2 border-t border-gray-100 text-sm">
+                    <span class="text-gray-800">${formatDisplayDate(key)}</span>
+                    <span class="font-semibold text-gray-900">${configuredProgress[key].toFixed(2)}%</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderAvailableDates() {
+        const dates = getAllDates();
+        if (dates.length === 0) {
+            availableDatesList.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500">No dates available. Add a custom date.</div>';
+            return;
+        }
+        availableDatesList.innerHTML = dates.map(function(dateIso) {
+            const value = configuredProgress[dateIso] != null ? configuredProgress[dateIso] : '';
+            return `
+                <div class="grid grid-cols-2 gap-2 px-3 py-2 border-t border-gray-100 items-center">
+                    <span class="text-sm text-gray-800">${formatDisplayDate(dateIso)}</span>
+                    <div class="flex items-center gap-2">
+                        <input type="number" min="0" max="100" step="0.01" value="${value}" data-progress-input="${dateIso}" class="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm">
+                        <button type="button" data-set-progress="${dateIso}" class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 rounded-md">Set</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderExtensionHistory() {
+        if (extensionHistory.length === 0) {
+            extensionHistoryList.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500">No extension history yet.</div>';
+            return;
+        }
+        extensionHistoryList.innerHTML = extensionHistory.slice().reverse().map(function(item) {
+            return `
+                <div class="grid grid-cols-3 px-3 py-2 border-t border-gray-100 text-sm">
+                    <span class="text-gray-700">${formatDisplayDate(item.previousEndDate)}</span>
+                    <span class="font-semibold text-gray-900">${formatDisplayDate(item.newEndDate)}</span>
+                    <span class="text-gray-700">${item.setBy}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function openConfigModal() {
+        if (isConfigLoading) return;
+        isConfigLoading = true;
+        availableDatesList.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500">Loading configuration...</div>';
+        savedProgressList.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500">Loading configuration...</div>';
+        extensionHistoryList.innerHTML = '<div class="px-3 py-3 text-sm text-gray-500">Loading configuration...</div>';
+        configModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        try {
+            await loadConfigData();
+        } catch (err) {
+            console.error('Failed to load project configuration:', err);
+            window.alert(err.message || 'Unable to load project configuration.');
+        }
+        renderAvailableDates();
+        renderSavedProgress();
+        renderExtensionHistory();
+        isConfigLoading = false;
+    }
+
+    function closeConfigModal() {
+        configModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    if (openConfigBtn) openConfigBtn.addEventListener('click', openConfigModal);
+    if (closeConfigBtn) closeConfigBtn.addEventListener('click', closeConfigModal);
+    if (cancelConfigBtn) cancelConfigBtn.addEventListener('click', closeConfigModal);
+    if (saveConfigChangesBtn) {
+        saveConfigChangesBtn.addEventListener('click', async function() {
+            const items = collectProgressInputs();
+            const originalText = saveConfigChangesBtn.textContent;
+            saveConfigChangesBtn.disabled = true;
+            saveConfigChangesBtn.textContent = 'Saving...';
+            try {
+                if (items.length > 0) {
+                    await configApiRequest({
+                        action: 'bulk_set_progress',
+                        items: items,
+                    });
+                }
+                await loadConfigData();
+                renderAvailableDates();
+                renderSavedProgress();
+                renderExtensionHistory();
+                closeConfigModal();
+            } catch (err) {
+                window.alert(err.message || 'Failed to save configuration changes.');
+            } finally {
+                saveConfigChangesBtn.disabled = false;
+                saveConfigChangesBtn.textContent = originalText;
+            }
+        });
+    }
+
+    if (addCustomDateBtn) {
+        addCustomDateBtn.addEventListener('click', function() {
+            const value = window.prompt('Enter custom date (MM/DD/YYYY or YYYY-MM-DD):');
+            if (!value) return;
+            const parsed = parseDateSafe(value.trim());
+            if (!parsed) {
+                window.alert('Invalid date format. Use MM/DD/YYYY or YYYY-MM-DD.');
+                return;
+            }
+            const iso = toIsoDate(parsed);
+            if (!customDates.includes(iso)) customDates.push(iso);
+            renderAvailableDates();
+        });
+    }
+
+    if (availableDatesList) {
+        availableDatesList.addEventListener('click', async function(e) {
+            const setBtn = e.target.closest('[data-set-progress]');
+            if (!setBtn) return;
+            const dateIso = setBtn.getAttribute('data-set-progress');
+            const input = availableDatesList.querySelector(`[data-progress-input="${dateIso}"]`);
+            if (!input) return;
+            const num = parseFloat(input.value);
+            if (Number.isNaN(num) || num < 0 || num > 100) {
+                window.alert('Percentage must be between 0 and 100.');
+                return;
+            }
+            const originalText = setBtn.textContent;
+            setBtn.disabled = true;
+            setBtn.textContent = 'Saving...';
+            try {
+                const result = await configApiRequest({
+                    action: 'set_progress',
+                    date: dateIso,
+                    percentage: num,
+                });
+                configuredProgress[result.saved.date] = Number(result.saved.percentage);
+                renderSavedProgress();
+                renderAvailableDates();
+            } catch (err) {
+                window.alert(err.message || 'Failed to save progress setting.');
+            } finally {
+                setBtn.disabled = false;
+                setBtn.textContent = originalText;
+            }
+        });
+    }
+
+    if (saveExtensionBtn) {
+        saveExtensionBtn.addEventListener('click', async function() {
+            const newEndDate = (newProjectEndDateInput && newProjectEndDateInput.value) ? newProjectEndDateInput.value : '';
+            if (!newEndDate) {
+                window.alert('Please select a new project end date.');
+                return;
+            }
+            if (currentProjectEndDate && newEndDate <= currentProjectEndDate) {
+                window.alert('New project end date must be later than current end date.');
+                return;
+            }
+            const originalText = saveExtensionBtn.textContent;
+            saveExtensionBtn.disabled = true;
+            saveExtensionBtn.textContent = 'Saving...';
+            try {
+                const result = await configApiRequest({
+                    action: 'add_extension',
+                    new_end_date: newEndDate,
+                });
+                extensionHistory.push({
+                    previousEndDate: result.extension.previous_end_date,
+                    newEndDate: result.extension.new_end_date,
+                    setBy: result.extension.set_by || currentUserName || 'Head Engineer',
+                });
+                currentProjectEndDate = result.project.end_date || newEndDate;
+                if (newProjectEndDateInput) newProjectEndDateInput.value = '';
+                renderExtensionHistory();
+                renderAvailableDates();
+            } catch (err) {
+                window.alert(err.message || 'Failed to save project extension.');
+            } finally {
+                saveExtensionBtn.disabled = false;
+                saveExtensionBtn.textContent = originalText;
+            }
+        });
+    }
+
+    if (configModal) {
+        configModal.addEventListener('click', function(e) {
+            if (e.target === configModal) closeConfigModal();
         });
     }
 </script>

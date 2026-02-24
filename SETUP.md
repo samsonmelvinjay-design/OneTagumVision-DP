@@ -88,7 +88,7 @@ source .venv/bin/activate
 **Option A — Full install (includes ML: scikit-learn, numpy, pandas):**
 
 ```bash
-pip install -r requirements.txt
+py
 ```
 
 If on Windows you get errors building `scikit-learn` or `numpy`, install **Option B** first, then optionally install the ML stack after installing [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/):

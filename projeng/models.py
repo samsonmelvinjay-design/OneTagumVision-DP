@@ -291,6 +291,58 @@ class ProjectMilestone(models.Model):
         self.completion_date = completion_date
         self.save()
 
+
+class ProjectConfiguredProgress(models.Model):
+    """Configured/planned progress percentage for a specific project date."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='configured_progress')
+    target_date = models.DateField()
+    percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    set_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='configured_progress_set',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['target_date']
+        unique_together = ('project', 'target_date')
+        verbose_name_plural = "Project Configured Progress"
+
+    def __str__(self):
+        return f"{self.project.name} - {self.target_date} ({self.percentage}%)"
+
+
+class ProjectExtensionHistory(models.Model):
+    """Audit trail for project end date extensions."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='extension_history')
+    previous_end_date = models.DateField()
+    new_end_date = models.DateField()
+    set_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_extensions_set',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = "Project Extension History"
+
+    def __str__(self):
+        return f"{self.project.name}: {self.previous_end_date} -> {self.new_end_date}"
+
 class ProjectCost(models.Model):
     COST_TYPES = [
         ('material', 'Material'),

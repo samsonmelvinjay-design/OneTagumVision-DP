@@ -3,6 +3,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from .finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications
 from .engineer_management import (
     engineer_list, engineer_create, engineer_detail,
@@ -10,7 +11,13 @@ from .engineer_management import (
     engineer_delete
 )
 from .budget_notifications import forward_budget_alert_to_finance_view
-from projeng.models import Project, ProjectProgress, ProjectCost
+from projeng.models import (
+    Project,
+    ProjectProgress,
+    ProjectCost,
+    ProjectConfiguredProgress,
+    ProjectExtensionHistory,
+)
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
 from django.template.loader import get_template
@@ -2974,11 +2981,177 @@ def _build_uploaded_images_list(request, progress_updates, image_documents, proj
 
 @login_required
 @head_engineer_required
+@require_http_methods(["GET", "POST"])
+def project_config_settings_api(request, pk):
+    """CRUD endpoint for head engineer project configuration settings modal."""
+    try:
+        project = Project.objects.get(pk=pk)
+    except Project.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Project not found.'}, status=404)
+
+    if request.method == "GET":
+        progress_rows = ProjectConfiguredProgress.objects.filter(project=project).order_by('target_date')
+        extension_rows = ProjectExtensionHistory.objects.filter(project=project).order_by('-created_at')
+        return JsonResponse({
+            'success': True,
+            'project': {
+                'id': project.id,
+                'start_date': project.start_date.isoformat() if project.start_date else None,
+                'end_date': project.end_date.isoformat() if project.end_date else None,
+            },
+            'saved_progress': [
+                {
+                    'date': row.target_date.isoformat(),
+                    'percentage': float(row.percentage),
+                }
+                for row in progress_rows
+            ],
+            'extension_history': [
+                {
+                    'previous_end_date': row.previous_end_date.isoformat(),
+                    'new_end_date': row.new_end_date.isoformat(),
+                    'set_by': row.set_by.get_full_name() if row.set_by and row.set_by.get_full_name() else (row.set_by.username if row.set_by else 'System'),
+                    'created_at': row.created_at.isoformat(),
+                }
+                for row in extension_rows
+            ],
+        })
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    action = payload.get('action')
+    if action == 'set_progress':
+        date_str = (payload.get('date') or '').strip()
+        percentage_raw = payload.get('percentage')
+        if not date_str:
+            return JsonResponse({'success': False, 'error': 'Date is required.'}, status=400)
+
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Date must be YYYY-MM-DD.'}, status=400)
+
+        try:
+            percentage = float(percentage_raw)
+        except (TypeError, ValueError):
+            return JsonResponse({'success': False, 'error': 'Percentage must be numeric.'}, status=400)
+
+        if percentage < 0 or percentage > 100:
+            return JsonResponse({'success': False, 'error': 'Percentage must be between 0 and 100.'}, status=400)
+
+        row, _created = ProjectConfiguredProgress.objects.update_or_create(
+            project=project,
+            target_date=target_date,
+            defaults={
+                'percentage': percentage,
+                'set_by': request.user,
+            }
+        )
+        return JsonResponse({
+            'success': True,
+            'saved': {
+                'date': row.target_date.isoformat(),
+                'percentage': float(row.percentage),
+            }
+        })
+
+    if action == 'bulk_set_progress':
+        items = payload.get('items') or []
+        if not isinstance(items, list):
+            return JsonResponse({'success': False, 'error': 'Items must be a list.'}, status=400)
+
+        saved = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            date_str = str(item.get('date') or '').strip()
+            percentage_raw = item.get('percentage')
+            if not date_str or percentage_raw in (None, ''):
+                continue
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                percentage = float(percentage_raw)
+            except (ValueError, TypeError):
+                continue
+            if percentage < 0 or percentage > 100:
+                continue
+
+            row, _created = ProjectConfiguredProgress.objects.update_or_create(
+                project=project,
+                target_date=target_date,
+                defaults={
+                    'percentage': percentage,
+                    'set_by': request.user,
+                }
+            )
+            saved.append({
+                'date': row.target_date.isoformat(),
+                'percentage': float(row.percentage),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'saved_count': len(saved),
+            'saved': saved,
+        })
+
+    if action == 'add_extension':
+        new_end_date_raw = (payload.get('new_end_date') or '').strip()
+        if not new_end_date_raw:
+            return JsonResponse({'success': False, 'error': 'New end date is required.'}, status=400)
+        try:
+            new_end_date = datetime.strptime(new_end_date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Date must be YYYY-MM-DD.'}, status=400)
+
+        previous_end_date = project.end_date
+        if not previous_end_date:
+            return JsonResponse({'success': False, 'error': 'Project has no current end date to extend.'}, status=400)
+        if new_end_date <= previous_end_date:
+            return JsonResponse({'success': False, 'error': 'New end date must be later than current end date.'}, status=400)
+
+        history = ProjectExtensionHistory.objects.create(
+            project=project,
+            previous_end_date=previous_end_date,
+            new_end_date=new_end_date,
+            set_by=request.user,
+        )
+        project.end_date = new_end_date
+        project.save(update_fields=['end_date', 'updated_at'])
+
+        return JsonResponse({
+            'success': True,
+            'project': {
+                'end_date': project.end_date.isoformat() if project.end_date else None,
+            },
+            'extension': {
+                'previous_end_date': history.previous_end_date.isoformat(),
+                'new_end_date': history.new_end_date.isoformat(),
+                'set_by': request.user.get_full_name() if request.user.get_full_name() else request.user.username,
+                'created_at': history.created_at.isoformat(),
+            },
+        })
+
+    return JsonResponse({'success': False, 'error': 'Unsupported action.'}, status=400)
+
+
+@login_required
+@head_engineer_required
 @xframe_options_exempt  # allow this view to be embedded in iframe (Project Report modal)
 def head_engineer_project_detail(request, pk):
     import logging
     import json
-    from projeng.models import Project, ProjectProgress, ProjectCost, Notification, ProjectDocument
+    from projeng.models import (
+        Project,
+        ProjectProgress,
+        ProjectCost,
+        Notification,
+        ProjectDocument,
+        ProjectConfiguredProgress,
+    )
     from django.contrib.auth.models import User
     from projeng.utils import get_project_from_notification
     from django.http import HttpResponse
@@ -3091,6 +3264,17 @@ def head_engineer_project_detail(request, pk):
         expected_progress = min(100.0, (days_elapsed / total_days * 100.0)) if total_days > 0 else None
         progress_variance = (latest_progress.percentage_complete - expected_progress) if latest_progress and expected_progress is not None else None
         performance_ratio = (latest_progress.percentage_complete / expected_progress) if latest_progress and expected_progress and expected_progress > 0 else None
+
+        # Preferred display target from Configure Project Settings (15th/30th checkpoints)
+        configured_target = ProjectConfiguredProgress.objects.filter(
+            project=project,
+            target_date__gte=today
+        ).order_by('target_date').first()
+        if not configured_target:
+            configured_target = ProjectConfiguredProgress.objects.filter(project=project).order_by('-target_date').first()
+        configured_expected_progress = float(configured_target.percentage) if configured_target else None
+        configured_expected_date = configured_target.target_date if configured_target else None
+
         performance_label = 'N/A'
         if performance_ratio is not None:
             if performance_ratio >= 1.05: performance_label = 'Ahead of schedule'
@@ -3180,6 +3364,9 @@ def head_engineer_project_detail(request, pk):
             'image_documents': image_documents,  # Images only
             'other_documents': other_documents,  # Non-image documents
             'latest_progress': latest_progress,
+            'expected_progress': expected_progress,
+            'configured_expected_progress': configured_expected_progress,
+            'configured_expected_date': configured_expected_date,
             'total_cost': total_cost,
             'budget_utilization': budget_utilization,
             'timeline_data': timeline_data,
