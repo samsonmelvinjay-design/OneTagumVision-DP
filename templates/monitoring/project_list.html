@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     <!-- Left column: PRN, Name, Description, Barangay, Project Cost, Project Type -->
                     <div class="lg:col-span-5 space-y-3">
-                        <div>
+                        <div class="hidden" aria-hidden="true">
                             <label class="font-semibold text-gray-700 text-sm">PRN</label>
                             <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
                                    class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div>
                             <label class="font-semibold text-gray-700 text-sm">Project Type</label>
                             <select id="project-type-select" name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
-                                <option value="">Select project type (optional)</option>
+                                <option value="">Select project type</option>
                                 {% for pt in project_type_options %}
                                     <option value="{{ pt.id }}">{{ pt.name }}</option>
                                 {% endfor %}
@@ -365,12 +365,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <div>
                                         <label class="text-[10px] font-medium text-gray-600">Latitude</label>
                                         <input type="hidden" name="latitude" id="latitude-input" />
-                                        <p class="text-[11px] text-gray-700 mt-1 font-mono" id="latitude-display">Set automatically when you pick a point on the map.</p>
+                                        <p class="text-[11px] text-gray-700 mt-1 font-mono" id="latitude-display">—</p>
                                     </div>
                                     <div>
                                         <label class="text-[10px] font-medium text-gray-600">Longitude</label>
                                         <input type="hidden" name="longitude" id="longitude-input" />
-                                        <p class="text-[11px] text-gray-700 mt-1 font-mono" id="longitude-display">Set automatically when you pick a point on the map.</p>
+                                        <p class="text-[11px] text-gray-700 mt-1 font-mono" id="longitude-display">—</p>
                                     </div>
                                 </div>
                             </div>
@@ -411,38 +411,33 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Status</label>
-                                <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
-                                    <option value="">---------</option>
-                                    <option value="planned">Planned</option>
-                                    <option value="in_progress">Ongoing</option>
-                                    <option value="completed">Completed</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Image</label>
-                                <input type="file" name="image" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer file:mr-2 file:py-1.5 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="image-input" />
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
-                                <select id="source-of-funds-select" name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
-                                    <option value="">Select source of funds</option>
-                                    {% for sof in source_of_funds_options %}
-                                        <option value="{{ sof.name }}">{{ sof.name }}</option>
-                                    {% endfor %}
-                                    <option value="__add_new__">Add new Source of Funds</option>
-                                </select>
-                                <div id="source-of-funds-new-wrap" class="mt-2" style="display: none;">
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
-                                    <input type="text" name="source_of_funds_new" id="source-of-funds-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="font-semibold text-gray-700 text-sm">Status</label>
+                                    <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
+                                        <option value="">---------</option>
+                                        <option value="planned">Planned</option>
+                                        <option value="in_progress">Ongoing</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
+                                    <select id="source-of-funds-select" name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer" required>
+                                        <option value="">Select source of funds</option>
+                                        {% for sof in source_of_funds_options %}
+                                            <option value="{{ sof.name }}">{{ sof.name }}</option>
+                                        {% endfor %}
+                                        <option value="__add_new__">Add new Source of Funds</option>
+                                    </select>
+                                    <div id="source-of-funds-new-wrap" class="mt-2" style="display: none;">
+                                        <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
+                                        <input type="text" name="source_of_funds_new" id="source-of-funds-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                                    </div>
                                 </div>
                             </div>
-                            <div class="relative pt-3 border-t border-gray-100">
+                            <div class="relative">
                                 <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
-                                <p class="text-[10px] text-gray-500 mt-0.5 mb-1">Search or scroll, click to add. Remove with × on chip.</p>
                                 <div id="assigned-engineers-chips" class="mb-1 flex flex-wrap gap-1.5 min-h-[1.5rem]"></div>
                                 <input type="text" id="assigned-engineers-search"
                                        class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-400 outline-none mb-1"
@@ -473,9 +468,8 @@ document.addEventListener('DOMContentLoaded', function () {
             <!-- Header with Gradient -->
             <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
                 <button id="close-details-modal" class="absolute top-3 right-3 text-white hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
-                <div class="flex items-start gap-3 pr-10">
-                    <img id="details-image" class="w-12 h-12 object-cover object-center rounded-lg bg-white bg-opacity-20 border-2 border-white border-opacity-30 shadow-lg flex-shrink-0" alt="Project image" style="display: none;" onerror="this.onerror=null;this.style.display='none';" />
-                    <div class="flex-1 min-w-0">
+                <div class="pr-10">
+                    <div class="min-w-0">
                         <div class="flex items-center gap-2 mb-1 flex-wrap">
                             <h2 class="text-lg font-bold text-white" id="details-title">Project Details</h2>
                             <span id="details-status"></span>
@@ -814,7 +808,6 @@ const projectForm = document.getElementById('project-form');
 const addProjectBtn = document.getElementById('add-project-btn');
 const closeModal = document.getElementById('close-modal');
 const cancelBtn = document.querySelector('button[type="button"][onclick="closeProjectModal()"]');
-const imageInput = document.getElementById('image-input');
 const closeDetailsModal = document.getElementById('close-details-modal');
 const closeDeleteModal = document.getElementById('close-delete-modal');
 const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
@@ -1196,6 +1189,7 @@ function populateEngineers() {
             });
             initAssignedEngineersSelectorOnce();
             renderAssignedEngineerChips();
+            buildAssignedEngineersList();
         })
         .catch(err => {
             console.error('Failed to fetch engineers:', err);
@@ -1207,7 +1201,6 @@ if (addProjectBtn) {
     addProjectBtn.addEventListener('click', function() {
         editProjectId = null;
         projectForm.setAttribute('data-mode', 'add');
-        if (imageInput) imageInput.required = true;
         // Update button text for add mode
         const submitBtn = projectForm.querySelector('button[type="submit"]');
         if (submitBtn) {
@@ -1231,7 +1224,6 @@ function formatDate(dateStr) {
 
 window.openDetailsModal = function(id) {
     const detailsModal = document.getElementById('details-modal');
-    const detailsImage = document.getElementById('details-image');
     
     if (!detailsModal) {
         console.error('Details modal not found');
@@ -1259,10 +1251,6 @@ window.openDetailsModal = function(id) {
     document.getElementById('details-start-date').textContent = '—';
     document.getElementById('details-end-date').textContent = '—';
     document.getElementById('details-assigned-engineers').textContent = 'Loading...';
-    if (detailsImage) {
-        detailsImage.src = '';
-        detailsImage.style.display = 'none';
-    }
     document.getElementById('details-map').innerHTML = '<div class="text-gray-400 text-center py-8">Loading...</div>';
     document.getElementById('details-progress-section').classList.add('hidden');
     
@@ -1310,19 +1298,6 @@ window.openDetailsModal = function(id) {
             document.getElementById('details-longitude').textContent = project.longitude || '—';
             document.getElementById('details-start-date').textContent = formatDate(project.start_date) || '—';
             document.getElementById('details-end-date').textContent = formatDate(project.end_date) || '—';
-            
-            // Handle project image
-            if (detailsImage) {
-                if (project.image && project.image.trim() !== '') {
-                    detailsImage.src = project.image;
-                    detailsImage.style.display = 'block';
-                    console.log('Setting project image:', project.image);
-                } else {
-                    detailsImage.src = '';
-                    detailsImage.style.display = 'none';
-                    console.log('No image for project:', project.id);
-                }
-            }
             
             // Initialize map
             setTimeout(() => {
@@ -1544,15 +1519,14 @@ function updateCoordinateDisplays() {
             selectedLngDisplay.textContent = '--';
         }
     }
-    // Update visible lat/lng in Add Project modal
+    // Update visible lat/lng in Add Project modal (show coordinate only)
     const latDisplay = document.getElementById('latitude-display');
     const lngDisplay = document.getElementById('longitude-display');
-    const hint = 'Set automatically when you pick a point on the map.';
     if (latDisplay && latInput) {
-        latDisplay.textContent = latInput.value ? parseFloat(latInput.value).toFixed(6) : hint;
+        latDisplay.textContent = latInput.value ? parseFloat(latInput.value).toFixed(6) : '—';
     }
     if (lngDisplay && lngInput) {
-        lngDisplay.textContent = lngInput.value ? parseFloat(lngInput.value).toFixed(6) : hint;
+        lngDisplay.textContent = lngInput.value ? parseFloat(lngInput.value).toFixed(6) : '—';
     }
 }
 
@@ -2013,8 +1987,6 @@ window.openEditModal = function(id) {
     // Fetch project data from API instead of relying on window.projects
     editProjectId = id;
     projectForm.setAttribute('data-mode', 'edit');
-    if (imageInput) imageInput.required = false;
-    
     // Show loading state
     const submitBtn = projectForm.querySelector('button[type="submit"]');
     const originalBtnText = submitBtn ? submitBtn.innerHTML : '';

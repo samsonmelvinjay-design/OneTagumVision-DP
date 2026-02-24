@@ -387,14 +387,14 @@
                         <td class="col-date">{{ project.start_date|date:"d-M-y"|default:"-" }}</td>
                         <td class="col-date">{{ project.end_date|date:"d-M-y"|default:"-" }}</td>
                         <td class="col-remarks">
-                            {% if project.status == 'completed' %}
+                            {% if project.status_display == 'Completed' %}
                                 100% Completed
-                            {% elif project.status == 'in_progress' or project.status == 'ongoing' %}
+                            {% elif project.status_display == 'Delayed' %}
+                                Delayed
+                            {% elif project.status_display == 'Ongoing' %}
                                 On Going
-                            {% elif project.status == 'planned' or project.status == 'pending' %}
+                            {% elif project.status_display == 'Planned' %}
                                 For Implementation
-                            {% elif project.status == 'delayed' %}
-                                On Going
                             {% else %}
                                 For Pre-Engineering
                             {% endif %}

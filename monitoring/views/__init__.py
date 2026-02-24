@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from .finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications
 from .engineer_management import (
@@ -112,8 +113,8 @@ def dashboard(request):
             projects = Project.objects.filter(assigned_engineers=request.user)
         else:
             projects = Project.objects.none()
-        # Recent projects (5 most recent)
-        recent_projects = projects.order_by('-created_at')[:5]
+        # Recent projects (5 most recent) - will attach computed status after we have latest_progress
+        recent_projects_qs = projects.order_by('-created_at')[:5]
         
         # Calculate metrics with dynamic delayed status
         today = timezone.now().date()
@@ -189,6 +190,31 @@ def dashboard(request):
                 planned_count += 1
             elif normalized_status == 'delayed':
                 delayed_count += 1
+
+        # Build recent projects with computed status so template shows Delayed/Ongoing correctly
+        def _display_status(norm):
+            if norm == 'in_progress':
+                return 'Ongoing'
+            if norm == 'planned':
+                return 'Planned'
+            if norm == 'completed':
+                return 'Completed'
+            if norm == 'delayed':
+                return 'Delayed'
+            return (norm or '').title()
+
+        recent_projects = []
+        for p in recent_projects_qs:
+            norm = normalized_status_by_id.get(p.id, (p.status or '').lower())
+            recent_projects.append({
+                'id': p.id,
+                'name': p.name,
+                'barangay': p.barangay,
+                'created_at': p.created_at,
+                'status_display': _display_status(norm),
+                'status_normalized': norm,
+            })
+
         # Projects created per month (last 12 months)
         from django.db.models import Count
         from django.db.models.functions import TruncMonth
@@ -271,6 +297,7 @@ def dashboard(request):
             'in_progress_count': in_progress_count,
             'planned_count': planned_count,
             'delayed_count': delayed_count,
+            'status_counts': [completed_count, in_progress_count, planned_count, delayed_count],
             'completion_rate': completion_rate,
             'completion_rate_year': completion_rate_year,
             'available_years': available_years,
@@ -1232,6 +1259,18 @@ def map_view(request):
             ):
                 spent_by_project_id[row['project_id']] = row['total_spent'] or Decimal('0.00')
 
+        # Build barangay -> dominant zone_type from ZoningZone (for project details when project has no zone_type)
+        from projeng.models import ZoningZone
+        zone_counts_by_barangay = defaultdict(lambda: defaultdict(int))
+        for row in ZoningZone.objects.filter(is_active=True).values_list('barangay', 'zone_type'):
+            brgy, zt = (row[0] or '').strip(), (row[1] or '').strip()
+            if brgy and zt:
+                zone_counts_by_barangay[brgy][zt] += 1
+        dominant_zone_by_barangay = {
+            brgy: max(counts.items(), key=lambda x: x[1])[0]
+            for brgy, counts in zone_counts_by_barangay.items() if counts
+        }
+
         for p in projects_with_coords:
             try:
                 # Get assigned engineers as a list of usernames
@@ -1271,7 +1310,10 @@ def map_view(request):
                         logger = logging.getLogger(__name__)
                         logger.warning(f"Zone detection failed for project {p.id} in map_view: {str(zone_error)}")
                         # Continue without zone type if detection fails
-                
+                # Fallback: use dominant zone for project's barangay from ZoningZone (same as map popup)
+                if not zone_type and p.barangay:
+                    zone_type = dominant_zone_by_barangay.get((p.barangay or '').strip(), '') or zone_type
+
                 budget_val = p.project_cost if p.project_cost is not None else None
                 spent_val = spent_by_project_id.get(p.id, Decimal('0.00'))
                 remaining_val = (budget_val - spent_val) if budget_val is not None else None
@@ -1632,6 +1674,56 @@ def reports(request):
     source_of_funds_filter = request.GET.get('source_of_funds', '').strip()
     cost_min_filter = request.GET.get('cost_min', '').strip()
     cost_max_filter = request.GET.get('cost_max', '').strip()
+    completed_in_year_filter = request.GET.get('completed_in_year', '').strip()
+    in_progress_for_year_filter = request.GET.get('in_progress_for_year', '').strip()
+    
+    # Filter by "Completed in year": projects that ended in that year and are completed (status completed or progress >= 99%)
+    if completed_in_year_filter:
+        try:
+            year = int(completed_in_year_filter)
+            projects = projects.filter(
+                end_date__year=year,
+                end_date__isnull=False,
+            ).filter(Q(status='completed') | Q(status='in_progress') | Q(status='ongoing'))
+        except (ValueError, TypeError):
+            pass
+    
+    # Filter by "In progress for year": projects in progress for that year. Only show data when the year has started (year <= current year).
+    # For past years: only projects that ended by Dec 31 of that year. For current year: include delayed carry-over.
+    if in_progress_for_year_filter:
+        try:
+            from datetime import date
+            year = int(in_progress_for_year_filter)
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            current_year = timezone.now().year
+            if year > current_year:
+                # Future year: year hasn't started yet, show no projects
+                projects = projects.filter(pk__in=[])
+            elif year < current_year:
+                # Past year: only projects that ended by end of that year (still-ongoing "move" to current year)
+                projects = projects.filter(
+                    Q(status='in_progress') | Q(status='ongoing'),
+                    start_date__lte=year_end,
+                    end_date__lte=year_end,
+                    end_date__isnull=False,
+                )
+            else:
+                # Current year: standard in-progress + delayed carry-over (ended before this year, still unfinished)
+                standard = (
+                    (Q(status='in_progress') | Q(status='ongoing'))
+                    & (Q(end_date__gte=year_start) | Q(end_date__isnull=True))
+                )
+                carry_over = (
+                    (Q(status='in_progress') | Q(status='ongoing') | Q(status='delayed'))
+                    & Q(end_date__lt=year_start)
+                    & Q(end_date__isnull=False)
+                )
+                projects = projects.filter(
+                    Q(start_date__lte=year_end) & (standard | carry_over)
+                )
+        except (ValueError, TypeError):
+            pass
     
     # Filter by barangay
     if barangay_filter:
@@ -1681,6 +1773,33 @@ def reports(request):
         except (ValueError, TypeError):
             pass
     
+    # When "Completed for year" is set: keep only projects that are completed (status completed or progress >= 99%)
+    if completed_in_year_filter:
+        try:
+            from projeng.models import ProjectProgress
+            from django.db.models import Max
+            candidate_ids = list(projects.values_list('id', flat=True))
+            if candidate_ids:
+                progress_qs = ProjectProgress.objects.filter(project_id__in=candidate_ids).values('project_id').annotate(
+                    latest_date=Max('date'), latest_created=Max('created_at')
+                )
+                progress_map = {}
+                for item in progress_qs:
+                    latest = ProjectProgress.objects.filter(
+                        project_id=item['project_id'], date=item['latest_date'], created_at=item['latest_created']
+                    ).order_by('-id').first()
+                    if latest and latest.percentage_complete is not None:
+                        progress_map[item['project_id']] = float(latest.percentage_complete)
+                status_by_id = dict(Project.objects.filter(id__in=candidate_ids).values_list('id', 'status'))
+                completed_ids = [
+                    pid for pid in candidate_ids
+                    if (str(status_by_id.get(pid) or '').lower() == 'completed')
+                    or (progress_map.get(pid, 0) >= 99)
+                ]
+                projects = projects.filter(id__in=completed_ids)
+        except (ValueError, TypeError):
+            pass
+    
     # Calculate budget metrics
     total_budget = 0
     total_spent = 0
@@ -1724,6 +1843,42 @@ def reports(request):
             if latest and latest.percentage_complete is not None:
                 latest_progress_map[item['project_id']] = float(latest.percentage_complete)
 
+    # Same dynamic status as dashboard: delayed when end_date passed and progress < 99
+    today = timezone.now().date()
+
+    def _compute_dynamic_status(project, progress_value):
+        status = (project.status or '').lower()
+        progress = float(progress_value or 0)
+        if progress >= 99:
+            return 'completed'
+        if project.end_date and project.end_date < today and progress < 99:
+            return 'delayed'
+        if status == 'delayed':
+            return 'delayed'
+        if status in ['in_progress', 'ongoing']:
+            return 'in_progress'
+        if status in ['planned', 'pending']:
+            return 'planned'
+        if status == 'completed':
+            return 'completed'
+        return status or ''
+
+    def _report_status_display(normalized_status):
+        if not normalized_status:
+            return ''
+        s = (normalized_status or '').strip().lower()
+        if s in ('in_progress', 'ongoing'):
+            return 'Ongoing'
+        if s in ('planned', 'pending'):
+            return 'Planned'
+        if s == 'completed':
+            return 'Completed'
+        if s == 'delayed':
+            return 'Delayed'
+        if s == 'cancelled':
+            return 'Cancelled'
+        return (normalized_status or '').strip().title() or ''
+
     # Prepare data for JS and summary cards
     projects_list = []
     status_map = defaultdict(int)
@@ -1732,6 +1887,7 @@ def reports(request):
         progress_val = latest_progress_map.get(p.id)
         if progress_val is None:
             progress_val = getattr(p, 'progress', 0) or 0
+        normalized_status = _compute_dynamic_status(p, progress_val)
         projects_list.append({
             'id': p.id,
             'name': p.name,
@@ -1744,20 +1900,20 @@ def reports(request):
             'start_date': str(p.start_date) if p.start_date else '',
             'end_date': str(p.end_date) if p.end_date else '',
             'status': p.status,
+            'status_display': _report_status_display(normalized_status),
             'progress': progress_val,
         })
-        # For charts
-        status = p.status
-        if status in ['in_progress', 'ongoing']:
+        # For charts/summary use normalized status so counts match dashboard
+        if normalized_status == 'in_progress':
             status_map['Ongoing'] += 1
-        elif status in ['planned', 'pending']:
+        elif normalized_status == 'planned':
             status_map['Planned'] += 1
-        elif status == 'completed':
+        elif normalized_status == 'completed':
             status_map['Completed'] += 1
-        elif status == 'delayed':
+        elif normalized_status == 'delayed':
             status_map['Delayed'] += 1
         else:
-            status_map[status.title()] += 1
+            status_map[_report_status_display(normalized_status) or 'Other'] += 1
         if p.barangay:
             barangay_map[p.barangay] += 1
     status_labels = list(status_map.keys())
@@ -1784,6 +1940,9 @@ def reports(request):
         'selected_source_of_funds': source_of_funds_filter,
         'selected_cost_min': cost_min_filter,
         'selected_cost_max': cost_max_filter,
+        'selected_completed_in_year': completed_in_year_filter,
+        'selected_in_progress_for_year': in_progress_for_year_filter,
+        'report_years': list(range(timezone.now().year - 5, timezone.now().year + 4)),  # e.g. 2021..2029 for 2026
     }
     return render(request, 'monitoring/reports.html', context)
 
@@ -2815,6 +2974,7 @@ def _build_uploaded_images_list(request, progress_updates, image_documents, proj
 
 @login_required
 @head_engineer_required
+@xframe_options_exempt  # allow this view to be embedded in iframe (Project Report modal)
 def head_engineer_project_detail(request, pk):
     import logging
     import json
@@ -3214,6 +3374,48 @@ def export_reports_csv(request):
     status_filter = request.GET.get('status', '').strip()
     start_date_filter = request.GET.get('start_date', '').strip()
     end_date_filter = request.GET.get('end_date', '').strip()
+    completed_in_year_filter = request.GET.get('completed_in_year', '').strip()
+    in_progress_for_year_filter = request.GET.get('in_progress_for_year', '').strip()
+    if completed_in_year_filter:
+        try:
+            year = int(completed_in_year_filter)
+            projects = projects.filter(
+                end_date__year=year,
+                end_date__isnull=False,
+            ).filter(Q(status='completed') | Q(status='in_progress') | Q(status='ongoing'))
+        except (ValueError, TypeError):
+            pass
+    if in_progress_for_year_filter:
+        try:
+            from datetime import date
+            year = int(in_progress_for_year_filter)
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            current_year = timezone.now().year
+            if year > current_year:
+                projects = projects.filter(pk__in=[])
+            elif year < current_year:
+                projects = projects.filter(
+                    Q(status='in_progress') | Q(status='ongoing'),
+                    start_date__lte=year_end,
+                    end_date__lte=year_end,
+                    end_date__isnull=False,
+                )
+            else:
+                standard = (
+                    (Q(status='in_progress') | Q(status='ongoing'))
+                    & (Q(end_date__gte=year_start) | Q(end_date__isnull=True))
+                )
+                carry_over = (
+                    (Q(status='in_progress') | Q(status='ongoing') | Q(status='delayed'))
+                    & Q(end_date__lt=year_start)
+                    & Q(end_date__isnull=False)
+                )
+                projects = projects.filter(
+                    Q(start_date__lte=year_end) & (standard | carry_over)
+                )
+        except (ValueError, TypeError):
+            pass
     
     # Filter by barangay
     if barangay_filter:
@@ -3266,6 +3468,41 @@ def export_reports_csv(request):
         except (ValueError, TypeError):
             pass
     
+    # Evaluate and compute dynamic status (same as reports page) for CSV
+    project_list = list(projects)
+    latest_progress, _today = _compute_project_progress_map(Project.objects.filter(id__in=[p.id for p in project_list]))
+    if completed_in_year_filter:
+        project_list = [p for p in project_list if (str(p.status or '').lower() == 'completed') or (latest_progress.get(p.id, 0) >= 99)]
+
+    def _export_compute_status(project, progress_val):
+        s = (project.status or '').lower()
+        progress = float(progress_val or 0)
+        if progress >= 99:
+            return 'completed'
+        if project.end_date and project.end_date < _today and progress < 99:
+            return 'delayed'
+        if s == 'delayed':
+            return 'delayed'
+        if s in ('in_progress', 'ongoing'):
+            return 'in_progress'
+        if s in ('planned', 'pending'):
+            return 'planned'
+        if s == 'completed':
+            return 'completed'
+        return s or ''
+
+    def _export_status_display(project, progress_val):
+        n = _export_compute_status(project, progress_val)
+        if n == 'in_progress':
+            return 'Ongoing'
+        if n == 'planned':
+            return 'Planned'
+        if n == 'completed':
+            return 'Completed'
+        if n == 'delayed':
+            return 'Delayed'
+        return (n or '').strip().title() or ''
+
     # Create the HttpResponse object with the appropriate CSV header
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="projects_report_{timezone.now().strftime("%Y%m%d")}.csv"'
@@ -3273,9 +3510,10 @@ def export_reports_csv(request):
     writer = csv.writer(response)
     # Write the header row
     writer.writerow(['#', 'PRN#', 'Name of Project', 'Project Description', 'Barangay', 'Project Cost', 'Source of Funds', 'Date Started', 'Date Ended', 'Status'])
-    
+
     # Write data rows
-    for i, project in enumerate(projects):
+    for i, project in enumerate(project_list):
+        pct = latest_progress.get(project.id, 0)
         writer.writerow([
             i + 1,
             project.prn or '',
@@ -3286,7 +3524,7 @@ def export_reports_csv(request):
             project.source_of_funds or '',
             project.start_date.strftime('%Y-%m-%d') if project.start_date else '',
             project.end_date.strftime('%Y-%m-%d') if project.end_date else '',
-            project.get_status_display() or '',
+            _export_status_display(project, pct),
         ])
     
     return response
@@ -3309,6 +3547,48 @@ def export_reports_excel(request):
     status_filter = request.GET.get('status', '').strip()
     start_date_filter = request.GET.get('start_date', '').strip()
     end_date_filter = request.GET.get('end_date', '').strip()
+    completed_in_year_filter = request.GET.get('completed_in_year', '').strip()
+    in_progress_for_year_filter = request.GET.get('in_progress_for_year', '').strip()
+    if completed_in_year_filter:
+        try:
+            year = int(completed_in_year_filter)
+            projects = projects.filter(
+                end_date__year=year,
+                end_date__isnull=False,
+            ).filter(Q(status='completed') | Q(status='in_progress') | Q(status='ongoing'))
+        except (ValueError, TypeError):
+            pass
+    if in_progress_for_year_filter:
+        try:
+            from datetime import date
+            year = int(in_progress_for_year_filter)
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            current_year = timezone.now().year
+            if year > current_year:
+                projects = projects.filter(pk__in=[])
+            elif year < current_year:
+                projects = projects.filter(
+                    Q(status='in_progress') | Q(status='ongoing'),
+                    start_date__lte=year_end,
+                    end_date__lte=year_end,
+                    end_date__isnull=False,
+                )
+            else:
+                standard = (
+                    (Q(status='in_progress') | Q(status='ongoing'))
+                    & (Q(end_date__gte=year_start) | Q(end_date__isnull=True))
+                )
+                carry_over = (
+                    (Q(status='in_progress') | Q(status='ongoing') | Q(status='delayed'))
+                    & Q(end_date__lt=year_start)
+                    & Q(end_date__isnull=False)
+                )
+                projects = projects.filter(
+                    Q(start_date__lte=year_end) & (standard | carry_over)
+                )
+        except (ValueError, TypeError):
+            pass
     
     # Filter by barangay
     if barangay_filter:
@@ -3361,6 +3641,41 @@ def export_reports_excel(request):
         except (ValueError, TypeError):
             pass
     
+    # Evaluate and compute dynamic status (same as reports page) for Excel
+    project_list = list(projects)
+    latest_progress, _today = _compute_project_progress_map(Project.objects.filter(id__in=[p.id for p in project_list]))
+    if completed_in_year_filter:
+        project_list = [p for p in project_list if (str(p.status or '').lower() == 'completed') or (latest_progress.get(p.id, 0) >= 99)]
+
+    def _export_compute_status(project, progress_val):
+        s = (project.status or '').lower()
+        progress = float(progress_val or 0)
+        if progress >= 99:
+            return 'completed'
+        if project.end_date and project.end_date < _today and progress < 99:
+            return 'delayed'
+        if s == 'delayed':
+            return 'delayed'
+        if s in ('in_progress', 'ongoing'):
+            return 'in_progress'
+        if s in ('planned', 'pending'):
+            return 'planned'
+        if s == 'completed':
+            return 'completed'
+        return s or ''
+
+    def _export_status_display(project, progress_val):
+        n = _export_compute_status(project, progress_val)
+        if n == 'in_progress':
+            return 'Ongoing'
+        if n == 'planned':
+            return 'Planned'
+        if n == 'completed':
+            return 'Completed'
+        if n == 'delayed':
+            return 'Delayed'
+        return (n or '').strip().title() or ''
+
     # Create a new workbook and select the active sheet
     workbook = openpyxl.Workbook()
     sheet = workbook.active
@@ -3369,9 +3684,10 @@ def export_reports_excel(request):
     # Write the header row
     headers = ['#', 'PRN#', 'Name of Project', 'Project Description', 'Barangay', 'Project Cost', 'Source of Funds', 'Date Started', 'Date Ended', 'Status']
     sheet.append(headers)
-    
+
     # Write data rows
-    for i, project in enumerate(projects):
+    for i, project in enumerate(project_list):
+        pct = latest_progress.get(project.id, 0)
         sheet.append([
             i + 1,
             project.prn or '',
@@ -3382,7 +3698,7 @@ def export_reports_excel(request):
             project.source_of_funds or '',
             project.start_date.strftime('%Y-%m-%d') if project.start_date else '',
             project.end_date.strftime('%Y-%m-%d') if project.end_date else '',
-            project.get_status_display() or '',
+            _export_status_display(project, pct),
         ])
     
     # Create an in-memory BytesIO stream
@@ -3415,6 +3731,48 @@ def export_reports_pdf(request):
     status_filter = request.GET.get('status', '').strip()
     start_date_filter = request.GET.get('start_date', '').strip()
     end_date_filter = request.GET.get('end_date', '').strip()
+    completed_in_year_filter = request.GET.get('completed_in_year', '').strip()
+    in_progress_for_year_filter = request.GET.get('in_progress_for_year', '').strip()
+    if completed_in_year_filter:
+        try:
+            year = int(completed_in_year_filter)
+            projects = projects.filter(
+                end_date__year=year,
+                end_date__isnull=False,
+            ).filter(Q(status='completed') | Q(status='in_progress') | Q(status='ongoing'))
+        except (ValueError, TypeError):
+            pass
+    if in_progress_for_year_filter:
+        try:
+            from datetime import date
+            year = int(in_progress_for_year_filter)
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            current_year = timezone.now().year
+            if year > current_year:
+                projects = projects.filter(pk__in=[])
+            elif year < current_year:
+                projects = projects.filter(
+                    Q(status='in_progress') | Q(status='ongoing'),
+                    start_date__lte=year_end,
+                    end_date__lte=year_end,
+                    end_date__isnull=False,
+                )
+            else:
+                standard = (
+                    (Q(status='in_progress') | Q(status='ongoing'))
+                    & (Q(end_date__gte=year_start) | Q(end_date__isnull=True))
+                )
+                carry_over = (
+                    (Q(status='in_progress') | Q(status='ongoing') | Q(status='delayed'))
+                    & Q(end_date__lt=year_start)
+                    & Q(end_date__isnull=False)
+                )
+                projects = projects.filter(
+                    Q(start_date__lte=year_end) & (standard | carry_over)
+                )
+        except (ValueError, TypeError):
+            pass
     
     # Filter by barangay
     if barangay_filter:
@@ -3446,39 +3804,81 @@ def export_reports_pdf(request):
         except (ValueError, TypeError):
             pass  # Invalid date format, ignore filter
     
-    # Calculate summary statistics
-    total_projects = projects.count()
+    # Evaluate and compute dynamic status (same as reports page) for PDF
+    project_list = list(projects)
+    latest_progress, _today = _compute_project_progress_map(Project.objects.filter(id__in=[p.id for p in project_list]))
+    if completed_in_year_filter:
+        project_list = [p for p in project_list if (str(p.status or '').lower() == 'completed') or (latest_progress.get(p.id, 0) >= 99)]
+    total_projects = len(project_list)
+
+    def _pdf_compute_status(project, progress_val):
+        s = (project.status or '').lower()
+        progress = float(progress_val or 0)
+        if progress >= 99:
+            return 'completed'
+        if project.end_date and project.end_date < _today and progress < 99:
+            return 'delayed'
+        if s == 'delayed':
+            return 'delayed'
+        if s in ('in_progress', 'ongoing'):
+            return 'in_progress'
+        if s in ('planned', 'pending'):
+            return 'planned'
+        if s == 'completed':
+            return 'completed'
+        return s or ''
+
+    def _pdf_status_display(project, progress_val):
+        n = _pdf_compute_status(project, progress_val)
+        if n == 'in_progress':
+            return 'Ongoing'
+        if n == 'planned':
+            return 'Planned'
+        if n == 'completed':
+            return 'Completed'
+        if n == 'delayed':
+            return 'Delayed'
+        return (n or '').strip().title() or ''
+
     status_map = defaultdict(int)
     barangay_map = defaultdict(int)
     total_budget = 0
-    
-    for p in projects:
-        # Status counts
-        status = p.status
-        if status in ['in_progress', 'ongoing']:
+    projects_for_template = []
+
+    for p in project_list:
+        pct = latest_progress.get(p.id, 0)
+        normalized = _pdf_compute_status(p, pct)
+        status_display = _pdf_status_display(p, pct)
+        if normalized == 'in_progress':
             status_map['Ongoing'] += 1
-        elif status in ['planned', 'pending']:
+        elif normalized == 'planned':
             status_map['Planned'] += 1
-        elif status == 'completed':
+        elif normalized == 'completed':
             status_map['Completed'] += 1
-        elif status == 'delayed':
+        elif normalized == 'delayed':
             status_map['Delayed'] += 1
         else:
-            status_map[status.title()] += 1
-        
-        # Barangay counts
+            status_map[status_display or 'Other'] += 1
         if p.barangay:
             barangay_map[p.barangay] += 1
-        
-        # Budget totals
         if p.project_cost:
             total_budget += float(p.project_cost)
-    
+        projects_for_template.append({
+            'prn': p.prn,
+            'name': p.name,
+            'description': p.description,
+            'barangay': p.barangay,
+            'project_cost': p.project_cost,
+            'start_date': p.start_date,
+            'end_date': p.end_date,
+            'status_display': status_display,
+        })
+
     completed_count = status_map.get('Completed', 0)
     ongoing_count = status_map.get('Ongoing', 0)
     planned_count = status_map.get('Planned', 0)
     delayed_count = status_map.get('Delayed', 0)
-    
+
     # Get top barangay
     top_barangay = None
     top_barangay_count = 0
@@ -3488,16 +3888,16 @@ def export_reports_pdf(request):
         top_barangay_count = top_barangay[1]
     else:
         top_barangay_name = "N/A"
-    
+
     # If xhtml2pdf is unavailable, return a friendly message
     if pisa is None:
         return HttpResponse('PDF export is temporarily unavailable (missing xhtml2pdf/reportlab).', content_type='text/plain')
-    
+
     # Render the HTML template for the PDF
     template_path = 'monitoring/reports_pdf.html'
     template = get_template(template_path)
     context = {
-        'projects': projects,
+        'projects': projects_for_template,
         'total_projects': total_projects,
         'completed_count': completed_count,
         'ongoing_count': ongoing_count,

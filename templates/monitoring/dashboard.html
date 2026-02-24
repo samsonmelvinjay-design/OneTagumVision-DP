@@ -116,8 +116,8 @@
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {% if project.status == 'completed' %}bg-green-100 text-green-700{% elif project.status == 'in_progress' or project.status == 'ongoing' %}bg-blue-100 text-blue-700{% elif project.status == 'planned' or project.status == 'pending' %}bg-yellow-100 text-yellow-700{% elif project.status == 'delayed' %}bg-red-100 text-red-700{% else %}bg-gray-100 text-gray-700{% endif %}">
-                                    {{ project.get_status_display }}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {% if project.status_normalized == 'completed' %}bg-green-100 text-green-700{% elif project.status_normalized == 'in_progress' %}bg-yellow-100 text-yellow-700{% elif project.status_normalized == 'planned' %}bg-purple-100 text-purple-700{% elif project.status_normalized == 'delayed' %}bg-red-100 text-red-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                                    {{ project.status_display }}
                                 </span>
                             </div>
                         </div>
@@ -372,12 +372,38 @@
 {{ collab_by_status|default:'{}'|json_script:"collab-status-data" }}
 {{ projects_created_labels|default:"[]"|json_script:"projects-created-labels" }}
 {{ projects_created_counts|default:"[]"|json_script:"projects-created-counts" }}
+{{ status_counts|json_script:"status-counts-data" }}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const calcPercent = (value, total) => total > 0 ? ((value / total) * 100) : 0;
         const fmtMoney = (value) => '₱' + Number(value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        // Card color palette (matches dashboard metric cards: Completed=green, In Progress=orange, Planned=purple, Delayed=red, Total=blue)
+        const CARD = {
+            green: 'rgba(46, 204, 113, 0.85)',   // #2ECC71 - Completed
+            greenB: 'rgba(46, 204, 113, 1)',
+            orange: 'rgba(243, 156, 18, 0.85)',  // #F39C12 - In Progress
+            orangeB: 'rgba(243, 156, 18, 1)',
+            purple: 'rgba(155, 89, 182, 0.85)',  // #9B59B6 - Planned
+            purpleB: 'rgba(155, 89, 182, 1)',
+            red: 'rgba(231, 76, 60, 0.85)',      // #E74C3C - Delayed
+            redB: 'rgba(231, 76, 60, 1)',
+            blue: 'rgba(59, 130, 246, 0.85)',    // Total / other
+            blueB: 'rgba(59, 130, 246, 1)'
+        };
+        const STATUS_PALETTE_BG = [CARD.green, CARD.orange, CARD.purple, CARD.red];
+        const STATUS_PALETTE_BD = [CARD.greenB, CARD.orangeB, CARD.purpleB, CARD.redB];
+        const CHART_PALETTE_BG = [CARD.green, CARD.orange, CARD.purple, CARD.red, CARD.blue];
+        const CHART_PALETTE_BD = [CARD.greenB, CARD.orangeB, CARD.purpleB, CARD.redB, CARD.blueB];
+        function statusColorsByLabels(labels) {
+            const map = { 'Completed': 0, 'In Progress': 1, 'Ongoing': 1, 'Planned': 2, 'Delayed': 3 };
+            return labels.map(l => {
+                const i = map[l] !== undefined ? map[l] : (labels.indexOf(l) % CHART_PALETTE_BG.length);
+                return { bg: CHART_PALETTE_BG[i], bd: CHART_PALETTE_BD[i] };
+            });
+        }
         // Legend with inline data: "Label: value (pct%)" - pass useMoney and suffix via closure
         function createLegendWithData(useMoney, suffix, showPct) {
             if (showPct === undefined) showPct = true;
@@ -431,6 +457,7 @@
                             const ctx = document.getElementById('projectStatusChart');
                             if (!ctx) return;
                             if (projectStatusChart) projectStatusChart.destroy();
+                            const statusColors = statusColorsByLabels(labels);
                             projectStatusChart = new Chart(ctx.getContext('2d'), {
                                 type: 'doughnut',
                                 data: {
@@ -438,8 +465,8 @@
                                     datasets: [{
                                         label: 'Projects',
                                         data: values,
-                                        backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(59, 130, 246, 0.8)', 'rgba(251, 191, 36, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(139, 92, 246, 0.8)'],
-                                        borderColor: ['rgba(34, 197, 94, 1)', 'rgba(59, 130, 246, 1)', 'rgba(251, 191, 36, 1)', 'rgba(239, 68, 68, 1)', 'rgba(139, 92, 246, 1)'],
+                                        backgroundColor: statusColors.map(c => c.bg),
+                                        borderColor: statusColors.map(c => c.bd),
                                         borderWidth: 2
                                     }]
                                 },
@@ -454,6 +481,11 @@
                         try {
                             const ctx = document.getElementById('budgetUtilizationChart').getContext('2d');
                             if (budgetUtilChart) budgetUtilChart.destroy();
+                            const ds = (data.datasets || [])[0];
+                            if (ds && ds.data) {
+                                ds.backgroundColor = ds.data.map(d => d > 100 ? CARD.red : d > 80 ? CARD.orange : CARD.green);
+                                ds.borderColor = ds.data.map(d => d > 100 ? CARD.redB : d > 80 ? CARD.orangeB : CARD.greenB);
+                            }
                             budgetUtilChart = new Chart(ctx, {
                                 type: 'bar', data: data,
                                 options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', layout: { padding: { right: 30 } },
@@ -480,6 +512,12 @@
                         try {
                             const ctx = document.getElementById('costBreakdownChart').getContext('2d');
                             if (costBreakdownChart) costBreakdownChart.destroy();
+                            const labels = data.labels || [];
+                            const ds = (data.datasets || [])[0];
+                            if (ds) {
+                                ds.backgroundColor = labels.map((_, i) => CHART_PALETTE_BG[i % CHART_PALETTE_BG.length]);
+                                ds.borderColor = labels.map((_, i) => CHART_PALETTE_BD[i % CHART_PALETTE_BD.length]);
+                            }
                             costBreakdownChart = new Chart(ctx, {
                                 type: 'pie', data: data,
                                 options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: {
@@ -514,7 +552,7 @@
                             const ctx = document.getElementById('projectsPerMonthChart').getContext('2d');
                             if (projectsPerMonthChart) projectsPerMonthChart.destroy();
                             const pmDatasets = (data.datasets || [{ label: 'Projects Created', data: [] }]).map((d,i) => ({
-                                ...d, backgroundColor: 'rgba(59, 130, 246, 0.7)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, borderRadius: 6
+                                ...d, backgroundColor: CARD.blue, borderColor: CARD.blueB, borderWidth: 1, borderRadius: 6
                             }));
                             projectsPerMonthChart = new Chart(ctx, {
                                 type: 'bar',
@@ -554,7 +592,7 @@
         // Chart 1: Overall Status Distribution (doughnut)
         const statusCtx = document.getElementById('projectStatusChart').getContext('2d');
         const statusLabels = ['Completed', 'In Progress', 'Planned', 'Delayed'];
-        const statusCounts = [{{ completed_count }}, {{ in_progress_count }}, {{ planned_count }}, {{ delayed_count }}];
+        const statusCounts = JSON.parse(document.getElementById('status-counts-data').textContent);
         const statusTotal = statusCounts.reduce((a, b) => a + b, 0);
         if (projectStatusChart) projectStatusChart.destroy();
         projectStatusChart = new Chart(statusCtx, {
@@ -564,18 +602,8 @@
                 datasets: [{
                     label: 'Projects',
                     data: statusCounts,
-                    backgroundColor: [
-                        'rgba(34, 197, 94, 0.8)',
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(251, 191, 36, 0.8)',
-                        'rgba(239, 68, 68, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgba(34, 197, 94, 1)',
-                        'rgba(59, 130, 246, 1)',
-                        'rgba(251, 191, 36, 1)',
-                        'rgba(239, 68, 68, 1)'
-                    ],
+                    backgroundColor: STATUS_PALETTE_BG,
+                    borderColor: STATUS_PALETTE_BD,
                     borderWidth: 2
                 }]
             },
@@ -612,8 +640,8 @@
                         datasets: [{
                             label: 'Projects',
                             data: [0],
-                            backgroundColor: 'rgba(148, 163, 184, 0.7)',
-                            borderColor: 'rgba(148, 163, 184, 1)',
+                            backgroundColor: CARD.blue,
+                            borderColor: CARD.blueB,
                             borderWidth: 1
                         }]
                     },
@@ -634,8 +662,8 @@
                     datasets: [{
                         label: 'Projects',
                         data: barVals,
-                        backgroundColor: barKeys.map((_,i) => ['rgba(59, 130, 246, 0.7)', 'rgba(34, 197, 94, 0.7)', 'rgba(251, 191, 36, 0.7)'][i % 3]),
-                        borderColor: barKeys.map((_,i) => ['rgba(59, 130, 246, 1)', 'rgba(34, 197, 94, 1)', 'rgba(251, 191, 36, 1)'][i % 3]),
+                        backgroundColor: barKeys.map((_, i) => CHART_PALETTE_BG[i % CHART_PALETTE_BG.length]),
+                        borderColor: barKeys.map((_, i) => CHART_PALETTE_BD[i % CHART_PALETTE_BD.length]),
                         borderWidth: 1,
                         borderRadius: 4
                     }]
@@ -665,8 +693,8 @@
                         datasets: [{
                             label: 'Projects',
                             data: [0],
-                            backgroundColor: ['rgba(148, 163, 184, 0.6)'],
-                            borderColor: ['rgba(148, 163, 184, 1)'],
+                            backgroundColor: [CARD.blue],
+                            borderColor: [CARD.blueB],
                             borderWidth: 1
                         }]
                     },
@@ -674,7 +702,7 @@
                 });
                 return;
             }
-            const polarColors = ['rgba(59, 130, 246, 0.6)', 'rgba(34, 197, 94, 0.6)', 'rgba(251, 191, 36, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(239, 68, 68, 0.6)'];
+            const statusColorMap = statusColorsByLabels(statusKeys);
             collabStatusChart = new Chart(statusCtx2.getContext('2d'), {
                 type: 'polarArea',
                 data: {
@@ -682,8 +710,8 @@
                     datasets: [{
                         label: 'Projects',
                         data: statusVals,
-                        backgroundColor: statusKeys.map((_,i) => polarColors[i % polarColors.length]),
-                        borderColor: statusKeys.map((_,i) => polarColors[i % polarColors.length].replace('0.6', '1')),
+                        backgroundColor: statusColorMap.map(c => c.bg),
+                        borderColor: statusColorMap.map(c => c.bd),
                         borderWidth: 1
                     }]
                 },

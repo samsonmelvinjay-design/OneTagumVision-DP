@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneTagumVision</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%233B82F6' x='6' y='32' width='10' height='22'/%3E%3Crect fill='%232563EB' x='20' y='24' width='12' height='30'/%3E%3Crect fill='%231E40AF' x='36' y='16' width='10' height='38'/%3E%3Crect fill='%2360A5FA' x='50' y='40' width='8' height='14'/%3E%3Crect fill='%231E293B' x='0' y='54' width='64' height='4'/%3E%3C/svg%3E">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Leaflet from CDN (includes marker images; local leaflet lacked images/ folder) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
@@ -67,7 +68,7 @@
                 </a>
                 <a href="{% url 'finance_projects' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" /></svg>
-                    Projects
+                    Project Lists
                 </a>
                 <a href="{% url 'finance_cost_management' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m-7-7h14" /></svg>
@@ -96,7 +97,7 @@
                     <svg class="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    Projects
+                    Project Lists
                 </a>
                 {% if user|has_group:"Head Engineer" %}
                 <a href="{% url 'head_engineer_analytics' %}" class="text-gray-300 hover:bg-gray-700 hover:text-white group flex items-center px-2 py-2 text-base font-medium rounded-md">

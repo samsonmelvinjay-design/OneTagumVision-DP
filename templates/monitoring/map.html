@@ -27,6 +27,34 @@
   z-index: 10000 !important;
 }
 
+/* View Report modal: make injected content use full width (no white space) */
+#report-modal-body .container {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+#report-modal-body .min-h-screen {
+  min-height: auto;
+}
+#report-modal-body .grid {
+  width: 100%;
+}
+#report-modal-body table {
+  width: 100%;
+  max-width: 100%;
+}
+#report-modal-body [class*="map"] {
+  max-width: 100%;
+  width: 100%;
+}
+#report-modal-body .rounded-xl {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Ensure map controls are above modal */
 .leaflet-control-container {
   z-index: 10001 !important;
@@ -251,8 +279,8 @@
                             <div class="flex gap-3 items-center">
                                 <div class="flex gap-2 flex-1 min-w-0">
                                     <button id="btn-completed" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all text-sm h-[38px] whitespace-nowrap">Completed</button>
-                                    <button id="btn-ongoing" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all text-sm h-[38px] whitespace-nowrap">In Progress</button>
-                                    <button id="btn-planned" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 transition-all text-sm h-[38px] whitespace-nowrap">Planned</button>
+                                    <button id="btn-ongoing" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 transition-all text-sm h-[38px] whitespace-nowrap">In Progress</button>
+                                    <button id="btn-planned" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all text-sm h-[38px] whitespace-nowrap">Planned</button>
                                     <button id="btn-delayed" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all text-sm h-[38px] whitespace-nowrap">Delayed</button>
                                 </div>
                                 {% if is_head_engineer %}
@@ -291,6 +319,9 @@
                                 <input type="checkbox" id="zoning-city-outline-toggle" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer">
                                 <span class="text-xs font-medium text-gray-700 group-hover:text-blue-600 transition-colors cursor-pointer">City outline only</span>
                             </label>
+                        </div>
+                        <div id="zoning-data-empty-hint" class="hidden mb-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800" role="alert">
+                            Barangay metadata is missing. View types will work after you run: <code class="bg-amber-100 px-1 rounded">python manage.py populate_barangay_metadata</code>. See <strong>docs/POPULATE_ZONING_DATA.md</strong>.
                         </div>
                         <label class="block text-xs font-semibold mb-2 text-gray-700" title="Check one to show that layer. Uncheck it to return to markers only.">View Type</label>
                         <div class="space-y-1.5" id="zoning-view-controls">
@@ -375,7 +406,7 @@ window.showBarangayProjectsModal = function(barangayName) {
     } else {
         emptyEl.classList.add('hidden');
         const statusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'Ongoing', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
-        const statusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-blue-100 text-blue-800', ongoing: 'bg-blue-100 text-blue-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
+        const statusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-yellow-100 text-yellow-800', ongoing: 'bg-yellow-100 text-yellow-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
         filtered.forEach(function(p, i) {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-gray-50';
@@ -538,9 +569,6 @@ window.openAddProjectModal = function() {
     if (form) {
         form.setAttribute('data-mode', 'add');
     }
-    const imgInput = document.getElementById('image-input');
-    if (imgInput) imgInput.required = true;
-    
     if (typeof populateEngineers === 'function') {
         populateEngineers();
     }
@@ -622,46 +650,46 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
         <!-- Header with Gradient -->
         <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-6 py-4 relative flex-shrink-0">
             <button id="close-details-modal" class="absolute top-3 right-3 text-white hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
-            <a id="view-report-button" href="#" class="absolute top-3 right-12 bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-semibold py-2 px-4 rounded-lg transition-all flex items-center gap-2 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                View Report
-            </a>
-            <div class="flex items-start gap-4 pr-10">
-                <img id="details-image" class="w-16 h-16 object-cover object-center rounded-xl bg-white bg-opacity-20 border-2 border-white border-opacity-30 shadow-lg flex-shrink-0" alt="Project image" style="display: none;" onerror="this.onerror=null;this.style.display='none';" />
-                <div class="flex-1 min-w-0">
+            <div class="pr-10">
+                <div class="min-w-0">
                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                         <h2 class="text-xl font-bold text-white" id="details-title">Project Details</h2>
                         <span id="details-status"></span>
                     </div>
                     <div class="text-base font-semibold text-white mb-1" id="details-name"></div>
-                    <div class="text-xs text-blue-100 font-mono" id="details-prn"></div>
+                    <div class="text-sm text-blue-100 font-mono" id="details-prn"></div>
                 </div>
             </div>
         </div>
         
-        <!-- Content - Scrollable -->
-        <div class="p-5 overflow-y-auto flex-1">
+        <!-- Content - Scrollable so all project details are visible -->
+        <div class="p-5 overflow-y-auto flex-1 min-h-0">
+            <!-- View Report - opens report in nested modal (stays on page) -->
+            <button type="button" id="view-report-button" class="mb-4 inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all text-sm shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                View Report
+            </button>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <!-- Project Info Card -->
                 <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border-l-4 border-blue-500">
                     <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">ℹ️</div>
-                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Project Info</h3>
+                        <div class="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">ℹ️</div>
+                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Project Info</h3>
                     </div>
                     <div class="space-y-2">
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Description</div>
-                            <div class="text-xs font-medium text-gray-800" id="details-description">No description</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Description</div>
+                            <div class="text-sm font-medium text-gray-800" id="details-description">No description</div>
                         </div>
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Date Started</div>
-                            <div class="text-xs font-medium text-gray-800" id="details-start-date">—</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Date Started</div>
+                            <div class="text-sm font-medium text-gray-800" id="details-start-date">—</div>
                         </div>
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Date Ended</div>
-                            <div class="text-xs font-medium text-gray-800" id="details-end-date">—</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Date Ended</div>
+                            <div class="text-sm font-medium text-gray-800" id="details-end-date">—</div>
                         </div>
                     </div>
                 </div>
@@ -669,25 +697,25 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
                 <!-- Financial Card -->
                 <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 border-l-4 border-yellow-500">
                     <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">💰</div>
-                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Financial</h3>
+                        <div class="w-7 h-7 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">💰</div>
+                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Financial</h3>
                     </div>
                     <div class="space-y-2">
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Project Cost</div>
-                            <div class="text-xs font-semibold text-gray-800" id="details-cost">—</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Project Cost</div>
+                            <div class="text-sm font-semibold text-gray-800" id="details-cost">—</div>
                         </div>
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Total Spent</div>
-                            <div class="text-xs font-semibold text-gray-800" id="details-spent">—</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Total Spent</div>
+                            <div class="text-sm font-semibold text-gray-800" id="details-spent">—</div>
                         </div>
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Remaining Funds</div>
-                            <div class="text-xs font-semibold text-gray-800" id="details-remaining">—</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Remaining Funds</div>
+                            <div class="text-sm font-semibold text-gray-800" id="details-remaining">—</div>
                         </div>
                         <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-xs text-gray-500 uppercase mb-1">Source of Funds</div>
-                            <div class="text-xs font-semibold text-gray-800" id="details-funds">—</div>
+                            <div class="text-sm text-gray-500 uppercase mb-1">Source of Funds</div>
+                            <div class="text-sm font-semibold text-gray-800" id="details-funds">—</div>
                         </div>
                     </div>
                 </div>
@@ -695,25 +723,25 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
                 <!-- Progress Card (Conditional) -->
                 <div id="details-progress-section" class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 border-l-4 border-purple-500 hidden">
                     <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📈</div>
-                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Progress</h3>
+                        <div class="w-7 h-7 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">📈</div>
+                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Progress</h3>
                     </div>
                     <div class="bg-white rounded-lg p-3 shadow-sm">
                         <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                             <div id="details-progress-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
-                        <div id="details-progress-text" class="text-xs font-semibold text-gray-700 text-center">0% Complete</div>
+                        <div id="details-progress-text" class="text-sm font-semibold text-gray-700 text-center">0% Complete</div>
                     </div>
                 </div>
                 
                 <!-- Assigned Engineers Card -->
                 <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-3 border-l-4 border-gray-400">
                     <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-xs">👷</div>
-                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Assigned Engineer(s)</h3>
+                        <div class="w-7 h-7 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">👷</div>
+                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Assigned Engineer(s)</h3>
                     </div>
                     <div class="bg-white rounded-lg p-2 shadow-sm">
-                        <div id="details-assigned-engineers" class="text-xs text-gray-700">None assigned</div>
+                        <div id="details-assigned-engineers" class="text-sm text-gray-700">None assigned</div>
                     </div>
                 </div>
                 
@@ -730,10 +758,6 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
                             <div class="bg-white rounded-lg p-3 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Barangay</div>
                                 <div class="text-sm font-semibold text-gray-800" id="details-barangay">—</div>
-                            </div>
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
-                                <div class="text-xs text-gray-500 uppercase mb-1">Zone Type</div>
-                                <div class="text-sm font-semibold text-gray-800" id="details-zone-type">—</div>
                             </div>
                             <div class="bg-white rounded-lg p-3 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Latitude</div>
@@ -755,6 +779,20 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
     </div>
 </div>
 
+<!-- Report Modal: OUTSIDE details-modal so it stacks above Barangay panel and Project Details -->
+<div id="report-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden" style="z-index: 25000;">
+    <!-- Full-width card inside overlay so left/right spacing is even and no extra background shows -->
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-none max-h-[70vh] flex flex-col overflow-hidden my-6 mx-4 lg:mx-8">
+        <div class="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-600 to-purple-600 flex-shrink-0">
+            <h3 class="text-white font-semibold text-sm">Project Report</h3>
+            <button id="close-report-modal" class="text-white hover:text-gray-200 text-xl font-bold w-7 h-7 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
+        </div>
+        <div id="report-modal-body" class="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-gray-50 w-full">
+            <div class="p-4 text-sm text-gray-500 w-full">Loading project report...</div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Check if Leaflet is loaded
@@ -769,6 +807,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('Leaflet loaded successfully, version:', L.version || 'unknown');
+
+    // Nested report modal elements (modal-inside-modal, loads HTML via fetch instead of iframe)
+    const reportModal = document.getElementById('report-modal');
+    const reportModalBody = document.getElementById('report-modal-body');
+    const closeReportModalButton = document.getElementById('close-report-modal');
+
+    const viewReportTrigger = document.getElementById('view-report-button');
+    if (viewReportTrigger && reportModal && reportModalBody) {
+        viewReportTrigger.addEventListener('click', async function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const url = this.dataset.reportUrl || '';
+            if (!url) {
+                console.warn('No report URL set for this project.');
+                return;
+            }
+
+            // Show loading state
+            reportModalBody.innerHTML = '<div class="p-4 text-sm text-gray-500">Loading project report...</div>';
+            reportModal.classList.remove('hidden');
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status}`);
+                }
+
+                const html = await response.text();
+                reportModalBody.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading project report for modal:', error);
+                reportModalBody.innerHTML = '<div class="p-4 text-sm text-red-600">Unable to load project report. Please open the full report page instead.</div>';
+            }
+        });
+    }
+
+    if (closeReportModalButton && reportModal) {
+        closeReportModalButton.addEventListener('click', function () {
+            reportModal.classList.add('hidden');
+            // Optional: reset content
+            if (reportModalBody) {
+                reportModalBody.innerHTML = '<div class="p-4 text-sm text-gray-500">Loading project report...</div>';
+            }
+        });
+    }
 
     // Global variables
     let map = null;
@@ -979,6 +1068,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     zoningControlDropdown.style.setProperty('z-index', '10001', 'important');
                 }
                 
+                // Stick Barangay Infrastructure Ranking panel to the right edge in fullscreen
+                const rankingPanel = document.getElementById('barangay-ranking-panel');
+                if (rankingPanel) {
+                    rankingPanel.style.setProperty('position', 'fixed', 'important');
+                    rankingPanel.style.setProperty('top', '160px', 'important');
+                    rankingPanel.style.setProperty('right', '0', 'important');
+                    rankingPanel.style.setProperty('z-index', '10001', 'important');
+                }
+                
                 isFullscreen = true;
                 
                 // Invalidate map size after a short delay
@@ -1026,6 +1124,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     zoningControlDropdown.style.removeProperty('top');
                     zoningControlDropdown.style.removeProperty('right');
                     zoningControlDropdown.style.removeProperty('z-index');
+                }
+                
+                // Restore Barangay Infrastructure Ranking panel to normal (floating) position
+                const rankingPanel = document.getElementById('barangay-ranking-panel');
+                if (rankingPanel) {
+                    rankingPanel.style.position = 'absolute';
+                    rankingPanel.style.top = '160px';
+                    rankingPanel.style.right = '12px';
+                    rankingPanel.style.zIndex = '10001';
                 }
                 
                 // Update button
@@ -1101,13 +1208,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 200);
 
-    // Function to create modern custom marker icon with shadow
+    // Function to create modern custom marker icon with shadow (colors match dashboard cards)
     function createMarkerIcon(status) {
-        // Use status color
-        let color = '#f59e0b'; // Planned - amber
+        let color = '#a855f7'; // Planned - purple
         if (status === 'completed') color = '#10b981'; // Completed - green
         else if (status === 'delayed') color = '#ef4444'; // Delayed - red
-        else if (status === 'ongoing' || status === 'in_progress') color = '#3b82f6'; // Ongoing - blue
+        else if (status === 'ongoing' || status === 'in_progress') color = '#eab308'; // In Progress - yellow
         
         // Generate unique filter ID to avoid conflicts
         const filterId = 'shadow-' + Math.random().toString(36).substr(2, 9);
@@ -1344,6 +1450,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 choroplethMap.initialize().then(() => {
                     choroplethMapReady = true; // Mark as ready
                     console.log('Choropleth map initialized successfully and ready');
+                    // Limit zoom-out and pan to Tagum City boundary + padding so northern/outlying project markers are visible
+                    const tagumBounds = typeof choroplethMap.getTagumBounds === 'function' ? choroplethMap.getTagumBounds() : null;
+                    if (tagumBounds && tagumBounds.isValid && tagumBounds.isValid()) {
+                        const paddingRatio = 0.25; // 25% padding on all sides so projects north/south of city are in view
+                        const paddedBounds = tagumBounds.pad ? tagumBounds.pad(paddingRatio) : tagumBounds;
+                        map.setMaxBounds(paddedBounds);
+                        map.options.maxBoundsViscosity = 1.0; // Keep view strictly inside bounds
+                        try {
+                            const zoomForBounds = map.getBoundsZoom(paddedBounds);
+                            if (typeof zoomForBounds === 'number' && zoomForBounds >= 0) map.setMinZoom(zoomForBounds);
+                        } catch (e) { console.warn('Could not set minZoom from bounds:', e); }
+                    }
                     // Default: markers only (no city outline, no choropleth). User can enable "City outline only" or a view type from Zoning Control.
                     const cityOutlineCheckbox = document.getElementById('zoning-city-outline-toggle');
                     if (cityOutlineCheckbox && cityOutlineCheckbox.checked) {
@@ -1527,29 +1645,26 @@ document.addEventListener('DOMContentLoaded', function() {
             statusFilter = status.toLowerCase();
         }
         
-        // Reset all buttons to inactive state
-        // Remove all active styles
+        // Reset all buttons to inactive state (colors match dashboard: green, yellow, purple, red)
         btnCompleted.classList.remove('bg-green-100', 'text-green-800', 'border-green-400', 'bg-green-600', 'text-white', 'border-green-600');
-        btnOngoing.classList.remove('bg-blue-100', 'text-blue-800', 'border-blue-400', 'bg-blue-600', 'text-white', 'border-blue-600');
-        btnPlanned.classList.remove('bg-yellow-100', 'text-yellow-800', 'border-yellow-400', 'bg-yellow-600', 'text-white', 'border-yellow-600');
+        btnOngoing.classList.remove('bg-yellow-100', 'text-yellow-800', 'border-yellow-400', 'bg-yellow-600', 'text-white', 'border-yellow-600');
+        btnPlanned.classList.remove('bg-purple-100', 'text-purple-800', 'border-purple-400', 'bg-purple-600', 'text-white', 'border-purple-600');
         btnDelayed.classList.remove('bg-red-100', 'text-red-800', 'border-red-400', 'bg-red-600', 'text-white', 'border-red-600');
         
-        // Set all buttons to default inactive styles
         btnCompleted.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
-        btnOngoing.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
-        btnPlanned.classList.add('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
+        btnOngoing.classList.add('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
+        btnPlanned.classList.add('bg-purple-50', 'text-purple-700', 'border-purple-200');
         btnDelayed.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
         
-        // Highlight active button with darker shade
         if (statusFilter === 'completed') {
             btnCompleted.classList.remove('bg-green-50', 'text-green-700', 'border-green-200');
             btnCompleted.classList.add('bg-green-100', 'text-green-800', 'border-green-400');
         } else if (statusFilter === 'ongoing') {
-            btnOngoing.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-200');
-            btnOngoing.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-400');
+            btnOngoing.classList.remove('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
+            btnOngoing.classList.add('bg-yellow-100', 'text-yellow-800', 'border-yellow-400');
         } else if (statusFilter === 'planned') {
-            btnPlanned.classList.remove('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
-            btnPlanned.classList.add('bg-yellow-100', 'text-yellow-800', 'border-yellow-400');
+            btnPlanned.classList.remove('bg-purple-50', 'text-purple-700', 'border-purple-200');
+            btnPlanned.classList.add('bg-purple-100', 'text-purple-800', 'border-purple-400');
         } else if (statusFilter === 'delayed') {
             btnDelayed.classList.remove('bg-red-50', 'text-red-700', 'border-red-200');
             btnDelayed.classList.add('bg-red-100', 'text-red-800', 'border-red-400');
@@ -1613,11 +1728,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span>Completed</span>
                     </div>
                     <div style="display: flex; align-items: center; margin: 4px 0;">
-                        <i style="background: #3b82f6; width: 18px; height: 18px; border-radius: 50%; display: inline-block; margin-right: 8px;"></i>
+                        <i style="background: #eab308; width: 18px; height: 18px; border-radius: 50%; display: inline-block; margin-right: 8px;"></i>
                         <span>In Progress</span>
                     </div>
                     <div style="display: flex; align-items: center; margin: 4px 0;">
-                        <i style="background: #f59e0b; width: 18px; height: 18px; border-radius: 50%; display: inline-block; margin-right: 8px;"></i>
+                        <i style="background: #a855f7; width: 18px; height: 18px; border-radius: 50%; display: inline-block; margin-right: 8px;"></i>
                         <span>Planned</span>
                     </div>
                     <div style="display: flex; align-items: center; margin: 4px 0;">
@@ -2001,8 +2116,8 @@ document.addEventListener('DOMContentLoaded', function() {
                   <span style="font-size:20px;font-weight:bold;">${completedProjects}</span>
                   <span style="color:#333;">Completed</span>
                 </div>
-                <div style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-                  <span style="color:#f59e0b;font-size:20px;">&#9201;</span>
+                <div style="background:#fef9c3;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+                  <span style="color:#eab308;font-size:20px;">&#9201;</span>
                   <span style="font-size:20px;font-weight:bold;">${ongoingProjects}</span>
                   <span style="color:#333;">In Progress</span>
                 </div>
@@ -2064,10 +2179,10 @@ window.openDetailsModal = function(id) {
         return; // Stop if modal not found
     }
 
-    // Set the view report button href
+    // Set the view report URL for the nested modal (no navigation)
     const viewReportButton = document.getElementById('view-report-button');
     if (viewReportButton) {
-        viewReportButton.href = `/dashboard/monitoring/projects/${id}/detail/`;
+        viewReportButton.dataset.reportUrl = `/dashboard/monitoring/projects/${id}/detail/`;
     }
 
     // Temporarily disable map interactions while modal is open
@@ -2085,13 +2200,11 @@ window.openDetailsModal = function(id) {
     detailsModal.style.opacity = '1';
     detailsModal.style.display = 'flex'; // Keep display flex for centering
 
-    const detailsImage = document.getElementById('details-image');
     const detailsTitle = document.getElementById('details-title');
     const detailsStatus = document.getElementById('details-status');
     const detailsName = document.getElementById('details-name');
     const detailsPrn = document.getElementById('details-prn');
     const detailsBarangay = document.getElementById('details-barangay');
-    const detailsZoneType = document.getElementById('details-zone-type');
     const detailsCost = document.getElementById('details-cost');
     const detailsSpent = document.getElementById('details-spent');
     const detailsRemaining = document.getElementById('details-remaining');
@@ -2125,7 +2238,6 @@ window.openDetailsModal = function(id) {
         if (detailsName) detailsName.textContent = project.name || '';
         if (detailsPrn) detailsPrn.textContent = `PRN#: ${project.prn || 'N/A'}`;
         if (detailsBarangay) detailsBarangay.textContent = project.barangay || '';
-        if (detailsZoneType) detailsZoneType.textContent = project.zone_type || 'Not assigned';
         const fmtMoney = (val) => `₱${parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         if (detailsCost) detailsCost.textContent = project.project_cost ? fmtMoney(project.project_cost) : '—';
         if (detailsSpent) detailsSpent.textContent = project.total_spent ? fmtMoney(project.total_spent) : '—';
@@ -2182,17 +2294,6 @@ window.openDetailsModal = function(id) {
             }
         }
 
-        // Handle image
-        if (detailsImage) {
-            if (project.image) {
-                detailsImage.src = project.image;
-                detailsImage.style.display = 'block';
-            } else {
-                detailsImage.src = '';
-                detailsImage.style.display = 'none';
-            }
-        }
-
         // Handle map in modal
         if (detailsMapDiv) {
             // Small delay before initializing the map to ensure modal is visible and map container has dimensions
@@ -2246,6 +2347,8 @@ function getStatusBadge(status) {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-semibold">Ongoing</span>';
     } else if (status === 'planned' || status === 'pending') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">Planned</span>';
+    } else if (status === 'delayed') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Delayed</span>';
     } else {
         return status;
     }
@@ -2268,7 +2371,7 @@ function formatDate(dateStr) {
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
                 <!-- Left column: PRN, Name, Description, Barangay, Project Cost, Project Type -->
                 <div class="lg:col-span-5 space-y-3">
-                    <div>
+                    <div class="hidden" aria-hidden="true">
                         <label class="font-semibold text-gray-700 text-sm">PRN</label>
                         <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
                                class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none" />
@@ -2321,7 +2424,7 @@ function formatDate(dateStr) {
                     <div>
                         <label class="font-semibold text-gray-700 text-sm">Project Type</label>
                         <select id="project-type-select" name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
-                            <option value="">Select project type (optional)</option>
+                            <option value="">Select project type</option>
                             {% for pt in project_type_options %}
                                 <option value="{{ pt.id }}">{{ pt.name }}</option>
                             {% endfor %}
@@ -2344,12 +2447,12 @@ function formatDate(dateStr) {
                                 <div>
                                     <label class="text-[10px] font-medium text-gray-600">Latitude</label>
                                     <input type="hidden" name="latitude" id="latitude-input" />
-                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="latitude-display">Set automatically when you pick a point on the map.</p>
+                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="latitude-display">—</p>
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-medium text-gray-600">Longitude</label>
                                     <input type="hidden" name="longitude" id="longitude-input" />
-                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="longitude-display">Set automatically when you pick a point on the map.</p>
+                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="longitude-display">—</p>
                                 </div>
                             </div>
                         </div>
@@ -2391,38 +2494,33 @@ function formatDate(dateStr) {
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">Status</label>
-                            <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
-                                <option value="">---------</option>
-                                <option value="planned">Planned</option>
-                                <option value="in_progress">Ongoing</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">Image</label>
-                            <input type="file" name="image" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer file:mr-2 file:py-1.5 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="image-input" />
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
-                            <select id="source-of-funds-select" name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
-                                <option value="">Select source of funds</option>
-                                {% for sof in source_of_funds_options %}
-                                    <option value="{{ sof.name }}">{{ sof.name }}</option>
-                                {% endfor %}
-                                <option value="__add_new__">Add new Source of Funds</option>
-                            </select>
-                            <div id="source-of-funds-new-wrap" class="mt-2" style="display: none;">
-                                <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
-                                <input type="text" name="source_of_funds_new" id="source-of-funds-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                        <div class="space-y-3">
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Status</label>
+                                <select name="status" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
+                                    <option value="">---------</option>
+                                    <option value="planned">Planned</option>
+                                    <option value="in_progress">Ongoing</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
+                                <select id="source-of-funds-select" name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer" required>
+                                    <option value="">Select source of funds</option>
+                                    {% for sof in source_of_funds_options %}
+                                        <option value="{{ sof.name }}">{{ sof.name }}</option>
+                                    {% endfor %}
+                                    <option value="__add_new__">Add new Source of Funds</option>
+                                </select>
+                                <div id="source-of-funds-new-wrap" class="mt-2" style="display: none;">
+                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block">Or add new</label>
+                                    <input type="text" name="source_of_funds_new" id="source-of-funds-new-input" class="mt-0.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Type new (optional)" />
+                                </div>
                             </div>
                         </div>
-                        <div class="relative pt-3 border-t border-gray-100">
+                        <div class="relative">
                             <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mt-0.5 mb-1">Search or scroll, click to add. Remove with × on chip.</p>
                             <div id="assigned-engineers-chips" class="mb-1 flex flex-wrap gap-1.5 min-h-[1.5rem]"></div>
                             <input type="text" id="assigned-engineers-search"
                                    class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-400 outline-none mb-1"
@@ -2534,7 +2632,6 @@ let projectForm = null;
 let addProjectBtn = null;
 let closeModal = null;
 let cancelBtn = null;
-let imageInput = null;
 let modalBarangaySelect = null;
 let assignedEngineersSelect = null;
 let successToast = null;
@@ -3154,6 +3251,7 @@ function initAssignedEngineersSelectorOnce() {
 
 // Expose for other parts of this template
 window.renderAssignedEngineerChips = renderAssignedEngineerChips;
+window.buildAssignedEngineersList = buildAssignedEngineersList;
 window.initAssignedEngineersSelectorOnce = initAssignedEngineersSelectorOnce;
 
 // Source of funds UX: show input when "Add new Source of Funds" selected, auto-add to dropdown on blur/Enter
@@ -3441,6 +3539,9 @@ function populateEngineers() {
             if (typeof window.renderAssignedEngineerChips === 'function') {
                 window.renderAssignedEngineerChips();
             }
+            if (typeof window.buildAssignedEngineersList === 'function') {
+                window.buildAssignedEngineersList();
+            }
         })
         .catch(err => {
             console.error('Failed to fetch engineers:', err);
@@ -3465,7 +3566,6 @@ function populateEngineers() {
         addProjectBtn = document.getElementById('add-project-btn');
         closeModal = document.getElementById('close-modal');
         cancelBtn = document.querySelector('button[type="button"][onclick="closeProjectModal()"]');
-        imageInput = document.getElementById('image-input');
         modalBarangaySelect = document.getElementById('modal-barangay-select');
         assignedEngineersSelect = document.getElementById('assigned-engineers-select');
         successToast = document.getElementById('success-toast');
@@ -3475,7 +3575,6 @@ function populateEngineers() {
             addProjectBtn.addEventListener('click', function() {
                 editProjectId = null;
                 projectForm.setAttribute('data-mode', 'add');
-                if (imageInput) imageInput.required = true;
                 populateEngineers();
                 showModal();
             });
@@ -3549,18 +3648,17 @@ function initializeMapPopupElements() {
     lngInput = document.getElementById('longitude-input');
 }
 
-// Update visible latitude/longitude in the Add Project modal
+// Update visible latitude/longitude in the Add Project modal (show coordinate only)
 function updateLocationDisplays() {
     const latIn = document.getElementById('latitude-input');
     const lngIn = document.getElementById('longitude-input');
     const latDisplay = document.getElementById('latitude-display');
     const lngDisplay = document.getElementById('longitude-display');
-    const hint = 'Set automatically when you pick a point on the map.';
     if (latDisplay) {
-        latDisplay.textContent = (latIn && latIn.value) ? parseFloat(latIn.value).toFixed(6) : hint;
+        latDisplay.textContent = (latIn && latIn.value) ? parseFloat(latIn.value).toFixed(6) : '—';
     }
     if (lngDisplay) {
-        lngDisplay.textContent = (lngIn && lngIn.value) ? parseFloat(lngIn.value).toFixed(6) : hint;
+        lngDisplay.textContent = (lngIn && lngIn.value) ? parseFloat(lngIn.value).toFixed(6) : '—';
     }
 }
 

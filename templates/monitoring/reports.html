@@ -41,7 +41,7 @@
 
         {# Filters card — same style as Project List / All Project Analytics #}
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <form method="get" id="filter-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-4">
+            <form method="get" id="filter-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-10 gap-4">
                 <div>
                     <label for="barangay-filter" class="block text-sm font-semibold text-gray-700 mb-2">Barangay</label>
                     <select id="barangay-filter" name="barangay" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300 cursor-pointer">
@@ -82,6 +82,26 @@
                     </select>
                 </div>
                 <div>
+                    <label for="in-progress-for-year-filter" class="block text-sm font-semibold text-gray-700 mb-2">In progress for year</label>
+                    <select id="in-progress-for-year-filter" name="in_progress_for_year" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300 cursor-pointer">
+                        <option value="" {% if not selected_in_progress_for_year %}selected{% endif %}>All years</option>
+                        {% for y in report_years %}
+                            <option value="{{ y }}" {% if selected_in_progress_for_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Projects still in progress during the selected year</p>
+                </div>
+                <div>
+                    <label for="completed-for-year-filter" class="block text-sm font-semibold text-gray-700 mb-2">Completed for year</label>
+                    <select id="completed-for-year-filter" name="completed_in_year" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300 cursor-pointer">
+                        <option value="" {% if not selected_completed_in_year %}selected{% endif %}>All years</option>
+                        {% for y in report_years %}
+                            <option value="{{ y }}" {% if selected_completed_in_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Projects with status Completed or progress ≥99% and end date (date ended) in the selected year</p>
+                </div>
+                <div>
                     <label for="start-date-filter" class="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
                     <input type="date" id="start-date-filter" name="start_date" value="{{ selected_start_date|default:'' }}" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300">
                 </div>
@@ -110,6 +130,12 @@
                     <button type="button" id="clear-filters-btn" class="w-full lg:w-auto px-4 py-2.5 text-base font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition border-2 border-gray-200 whitespace-nowrap">Clear Filters</button>
                 </div>
             </form>
+            {% if selected_in_progress_for_year %}
+            <p class="text-sm text-blue-700 mt-2">Showing projects <strong>in progress</strong> for <strong>{{ selected_in_progress_for_year }}</strong>. Future years show no projects until that year has started. For past years, only projects that ended by Dec 31 of that year are shown. For the current year, delayed or still-unfinished projects whose end date was in a previous year are also included.</p>
+            {% endif %}
+            {% if selected_completed_in_year %}
+            <p class="text-sm text-green-700 mt-2">Showing projects <strong>completed</strong> in <strong>{{ selected_completed_in_year }}</strong> (status Completed or progress ≥99%, with end date in {{ selected_completed_in_year }}).</p>
+            {% endif %}
             <p id="result-count" class="text-sm text-gray-500 mt-4">Showing <strong id="result-count-num">0</strong> projects</p>
         </div>
 
@@ -183,6 +209,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const sourceOfFundsFilter = document.getElementById('source-of-funds-filter');
     const costMinFilter = document.getElementById('cost-min-filter');
     const costMaxFilter = document.getElementById('cost-max-filter');
+    const inProgressForYearFilter = document.getElementById('in-progress-for-year-filter');
+    const completedForYearFilter = document.getElementById('completed-for-year-filter');
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
     const projectsTableBody = document.getElementById('projects-table-body');
     const resultCountNum = document.getElementById('result-count-num');
@@ -211,17 +239,20 @@ document.addEventListener('DOMContentLoaded', function() {
         return isNaN(num) ? cost : '₱' + num.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     }
 
-    function getStatusBadge(status) {
-        const n = normalizeStatus(status);
+    // Badge colors match dashboard metric cards: Completed=green, In Progress/Ongoing=yellow, Planned=purple, Delayed=red
+    function getStatusBadge(status, statusDisplay) {
+        const label = (statusDisplay && statusDisplay.trim()) ? statusDisplay.trim() : (normalizeStatus(status) === 'in_progress' ? 'Ongoing' : (status ? String(status).charAt(0).toUpperCase() + String(status).slice(1) : '—'));
+        const displayKey = (label || '').toLowerCase();
         const map = {
             completed: 'bg-green-100 text-green-800',
-            in_progress: 'bg-blue-100 text-blue-800',
-            planned: 'bg-amber-100 text-amber-800',
+            ongoing: 'bg-yellow-100 text-yellow-800',
+            'in progress': 'bg-yellow-100 text-yellow-800',
+            in_progress: 'bg-yellow-100 text-yellow-800',
+            planned: 'bg-purple-100 text-purple-800',
             delayed: 'bg-red-100 text-red-800'
         };
-        const label = n === 'in_progress' ? 'Ongoing' : (n.charAt(0).toUpperCase() + n.slice(1));
-        const cls = map[n] || 'bg-gray-100 text-gray-800';
-        return '<span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + cls + '">' + label + '</span>';
+        const cls = map[displayKey] || map[normalizeStatus(status)] || 'bg-gray-100 text-gray-800';
+        return '<span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + cls + '">' + escapeHtml(label) + '</span>';
     }
 
     function escapeHtml(str) {
@@ -244,9 +275,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const matchBarangay = !barangay || (p.barangay && p.barangay.trim().toLowerCase() === barangay.trim().toLowerCase());
             let matchStatus = true;
             if (status) {
-                const nFilter = normalizeStatus(status);
-                const nProject = normalizeStatus(p.status);
-                matchStatus = nFilter === 'in_progress' ? (nProject === 'in_progress') : (nProject === nFilter);
+                // Use status_display (computed: Delayed/Ongoing/Planned/Completed) so filter matches dashboard
+                const filterDisplay = status === 'delayed' ? 'Delayed' : status === 'in_progress' ? 'Ongoing' : status === 'planned' ? 'Planned' : status === 'completed' ? 'Completed' : (status || '').trim();
+                const projectDisplay = (p.status_display && p.status_display.trim()) || (normalizeStatus(p.status) === 'in_progress' ? 'Ongoing' : (p.status || '').trim().title());
+                matchStatus = !filterDisplay || (projectDisplay && projectDisplay.trim() === filterDisplay);
             }
             let matchDate = true;
             if (startDate && p.start_date) matchDate = matchDate && (new Date(p.start_date) >= new Date(startDate));
@@ -295,13 +327,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<td class="px-4 py-3 text-sm text-gray-600 break-words align-top">' + escapeHtml(project.source_of_funds || '—') + '</td>' +
                 '<td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap align-top">' + formatDate(project.start_date) + '</td>' +
                 '<td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap align-top">' + formatDate(project.end_date) + '</td>' +
-                '<td class="px-4 py-3 align-top">' + getStatusBadge(project.status) + '</td>';
+                '<td class="px-4 py-3 align-top">' + getStatusBadge(project.status, project.status_display) + '</td>';
             projectsTableBody.appendChild(row);
         });
     }
 
     if (barangayFilter) barangayFilter.addEventListener('change', filterAndRender);
     if (statusFilter) statusFilter.addEventListener('change', filterAndRender);
+    if (inProgressForYearFilter) {
+        inProgressForYearFilter.addEventListener('change', function() {
+            const form = document.getElementById('filter-form');
+            if (form) form.submit();
+        });
+    }
+    if (completedForYearFilter) {
+        completedForYearFilter.addEventListener('change', function() {
+            const form = document.getElementById('filter-form');
+            if (form) form.submit();
+        });
+    }
     if (startDateFilter) startDateFilter.addEventListener('change', filterAndRender);
     if (endDateFilter) endDateFilter.addEventListener('change', filterAndRender);
     if (sourceOfFundsFilter) sourceOfFundsFilter.addEventListener('change', filterAndRender);
@@ -311,6 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
         clearFiltersBtn.addEventListener('click', function() {
             if (barangayFilter) barangayFilter.value = '';
             if (statusFilter) statusFilter.value = '';
+            if (inProgressForYearFilter) inProgressForYearFilter.value = '';
+            if (completedForYearFilter) completedForYearFilter.value = '';
             if (startDateFilter) startDateFilter.value = '';
             if (endDateFilter) endDateFilter.value = '';
             if (sourceOfFundsFilter) sourceOfFundsFilter.value = '';
@@ -343,6 +389,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const params = new URLSearchParams();
         if (barangayFilter && barangayFilter.value) params.append('barangay', barangayFilter.value);
         if (statusFilter && statusFilter.value) params.append('status', statusFilter.value);
+        if (inProgressForYearFilter && inProgressForYearFilter.value) params.append('in_progress_for_year', inProgressForYearFilter.value);
+        if (completedForYearFilter && completedForYearFilter.value) params.append('completed_in_year', completedForYearFilter.value);
         if (startDateFilter && startDateFilter.value) params.append('start_date', startDateFilter.value);
         if (endDateFilter && endDateFilter.value) params.append('end_date', endDateFilter.value);
         if (sourceOfFundsFilter && sourceOfFundsFilter.value) params.append('source_of_funds', sourceOfFundsFilter.value);
@@ -415,6 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const progress = p.progress != null ? Number(p.progress) : 0;
             const desc = (p.description || '').toString();
             const descShort = desc.length > 50 ? desc.substring(0, 50) + '...' : desc;
+            const statusText = (p.status_display && String(p.status_display).trim()) ? String(p.status_display).trim() : getRemarks(p.status, progress);
             tableBody.push([
                 { text: String(idx + 1), alignment: 'center', fontSize: 6 },
                 { text: (p.prn || '').toString(), fontSize: 6 },
@@ -425,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 { text: (p.source_of_funds || '').toString(), fontSize: 6 },
                 { text: toDdMonYy(p.start_date), alignment: 'center', fontSize: 6 },
                 { text: toDdMonYy(p.end_date), alignment: 'center', fontSize: 6 },
-                { text: getRemarks(p.status, progress), fontSize: 6 }
+                { text: statusText, fontSize: 6 }
             ]);
         });
 

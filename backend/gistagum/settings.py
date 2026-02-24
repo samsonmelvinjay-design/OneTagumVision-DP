@@ -395,7 +395,10 @@ PASSWORD_RESET_TIMEOUT = 604800  # 7 days in seconds (longer timeout for better 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+# Allow pages from this site to be embedded in iframes on the same origin.
+# This is required so the Project Report view can be shown inside the
+# modal iframe on the dashboard map page.
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # HTTPS and SSL Settings (for production)
 if not DEBUG:

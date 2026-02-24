@@ -653,6 +653,21 @@ class SimpleChoropleth {
         if (DEBUG_CHOROPLETH) console.log('Choropleth cleanup completed');
     }
 
+    /**
+     * Get the bounding box of Tagum City (all barangay features). Use for map.setMaxBounds / minZoom.
+     * @returns {L.LatLngBounds|null}
+     */
+    getTagumBounds() {
+        if (!this.barangayData || !this.barangayData.length) return null;
+        try {
+            const layer = L.geoJSON({ type: 'FeatureCollection', features: this.barangayData });
+            return layer.getBounds();
+        } catch (e) {
+            if (DEBUG_CHOROPLETH) console.warn('getTagumBounds failed:', e);
+            return null;
+        }
+    }
+
     async initialize() {
         try {
             if (DEBUG_CHOROPLETH) console.log('=== SimpleChoropleth.initialize() START ===');
@@ -726,14 +741,13 @@ class SimpleChoropleth {
                     console.error('- Then run the command again');
                     console.error('- Restore the import after');
                     console.error('');
-                    console.error('See POPULATE_ZONING_DATA.md for detailed instructions.');
+                    console.error('See docs/POPULATE_ZONING_DATA.md in the project for detailed instructions.');
                     console.error('========================================');
-                    
-                    // Show user-friendly message in UI if possible
-                    if (typeof alert !== 'undefined') {
-                        if (DEBUG_CHOROPLETH) console.warn('Showing alert to user...');
-                    }
+                    const hintEl = document.getElementById('zoning-data-empty-hint');
+                    if (hintEl) hintEl.classList.remove('hidden');
                 } else {
+                    const hintEl = document.getElementById('zoning-data-empty-hint');
+                    if (hintEl) hintEl.classList.add('hidden');
                     data.barangays.forEach(barangay => {
                         this.zoningData[barangay.name] = barangay;
                     });

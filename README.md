@@ -1,82 +1,61 @@
-# A GIS-driven platform: A project monitoring and visualization for tagum city
+# OneTagumVision-DP
 
-A Django-based platform for monitoring and visualizing government projects using Leaflet and OpenStreetMap.
+A GIS-driven platform for project monitoring and visualization for Tagum City. Django-based, with Leaflet and OpenStreetMap for maps and dashboards.
 
 ## Features
 
 - Project listing and details
 - Interactive map visualization
+- Monitoring dashboard and reports (including PDF export)
 - Admin interface for project management
+- Optional: DigitalOcean Spaces for media storage, Celery/Channels for background tasks and WebSockets
 
-## Setup
+## Quick start (local)
 
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   cd gistagum
-   ```
+From the **project root** (folder containing `manage.py`):
 
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+# Clone and enter project
+git clone <repository-url>
+cd OneTagumVision-DP
 
-3. Run migrations:
-   ```
-   python manage.py migrate
-   ```
+# Virtual environment (recommended)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1   # Windows PowerShell
+# source .venv/bin/activate     # Linux/macOS
 
-4. Create a superuser (optional):
-   ```
-   python manage.py createsuperuser
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-5. Run the development server:
-   ```
-   python manage.py runserver
-   ```
+# Copy and edit environment variables
+copy .env.example .env
+# Set DJANGO_SECRET_KEY (see SETUP.md for how to generate)
 
-6. Visit http://127.0.0.1:8000/ to view the project list and map.
+# Database and run
+python manage.py migrate
+python manage.py runserver
+```
 
-## Data Migration (Restore Database and Media Files)
+Visit **http://127.0.0.1:8000/** for the app and **http://127.0.0.1:8000/admin/** for the admin.
 
-To fully restore the project with all data and uploaded files on a new machine:
+**Full instructions** — including what to download/install, database options, deployment, and troubleshooting — are in **[SETUP.md](SETUP.md)**.
 
-1. **Clone the repository:**
-   ```sh
-   git clone https://github.com/kennethkeeen/GISONETAGUMVISION.git
-   cd GISONETAGUMVISION
-   ```
+## Data migration (restore database and media on a new machine)
 
-2. **Install dependencies:**
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-3. **Restore the database:**
-   - If using SQLite, copy the `.sqlite3` file if present.
-   - If using a SQL dump (e.g., `gistagumdb.sql`), import it into your database system:
-     - For SQLite: You can use the file directly.
-     - For PostgreSQL/MySQL: Use your DB tool to import the `.sql` file.
-
-4. **Restore media files:**
-   - The `media/` and `project_images/` folders are included in the repository. No extra steps needed.
-
-5. **Run migrations (if needed):**
-   ```sh
-   python manage.py migrate
-   ```
-
-6. **Run the development server:**
-   ```sh
-   python manage.py runserver
-   ```
-
-7. **Access the app:**
-   - Visit http://127.0.0.1:8000/ in your browser.
+1. Clone the repo and install dependencies (see [SETUP.md](SETUP.md)).
+2. **Restore the database:**
+   - **SQLite:** copy the existing `backend/db.sqlite3` (or your `.sqlite3` file) into place.
+   - **PostgreSQL:** import your dump, e.g. `psql "DATABASE_URL" < backup.sql`.
+3. **Restore media:** copy `media/` (and any `project_images/` folders) into the project root if needed.
+4. Run `python manage.py migrate` (for Postgres or if schema changed).
+5. Run `python manage.py runserver` and open http://127.0.0.1:8000/.
 
 ## Usage
 
-- Admin: http://127.0.0.1:8000/admin/
-- Project List: http://127.0.0.1:8000/
-- Map View: http://127.0.0.1:8000/map/ 
+| Page | URL |
+|------|-----|
+| App / project list | http://127.0.0.1:8000/ |
+| Map view | http://127.0.0.1:8000/map/ |
+| Admin | http://127.0.0.1:8000/admin/ |
+
+For deployment, environment variables, and troubleshooting, see **[SETUP.md](SETUP.md)**. 
