@@ -36,15 +36,6 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         # Add Strict-Transport-Security for HTTPS (uncomment in production)
         # response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         
-        # Check if user is accessing a protected page without authentication
-        if not request.user.is_authenticated:
-            # For protected URLs, ensure they redirect to login
-            protected_paths = ['/admin/', '/monitoring/', '/projeng/']
-            if any(request.path.startswith(path) for path in protected_paths):
-                # Clear any existing session data
-                request.session.flush()
-                return redirect('login')
-        
         return response
     
     def process_request(self, request):
@@ -55,9 +46,11 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         if request.path == '/health/' or request.path == '/health':
             return None
         
-        # If user is not authenticated but has session data, clear it
-        if not request.user.is_authenticated and request.session:
-            # Clear session data for unauthenticated users
-            request.session.flush()
-        
+        # Keep anonymous sessions intact on public pages (e.g. login/password reset).
+        # Force-redirect only when an anonymous user hits protected areas.
+        if not request.user.is_authenticated:
+            protected_paths = ('/admin/', '/monitoring/', '/projeng/', '/dashboard/')
+            if any(request.path.startswith(path) for path in protected_paths):
+                return redirect('login')
+
         return None

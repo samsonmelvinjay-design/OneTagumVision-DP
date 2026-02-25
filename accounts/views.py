@@ -24,8 +24,11 @@ def dual_login(request):
             return redirect('/dashboard/')
     
     if request.method == 'POST':
-        username = request.POST['username'].strip()
-        password = request.POST['password']
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        if not username or not password:
+            error = 'Please enter both username and password.'
+            return render(request, 'registration/dual_login.html', {'error': error})
         user = authenticate(request, username=username, password=password)
         if user is not None:
             # Allow superusers to bypass group checks
