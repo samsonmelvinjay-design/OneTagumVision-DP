@@ -120,7 +120,7 @@
                     </thead>
                     <tbody id="project-table-body" class="bg-white divide-y divide-gray-200">
                         {% for project in page_obj.object_list %}
-                        <tr data-project-id="{{ project.id }}" class="hover:bg-blue-50 transition-colors duration-150">
+                        <tr data-project-id="{{ project.id }}" class="hover:bg-blue-50 transition-colors duration-150 cursor-pointer">
                             <td class="px-4 py-4 text-sm font-medium text-gray-900">{{ page_obj.start_index|add:forloop.counter0 }}</td>
                             <td class="px-4 py-4 text-sm text-gray-700 project-prn font-mono">{{ project.prn|default_if_none:'—' }}</td>
                             <td class="px-4 py-4 text-sm font-semibold text-gray-900 break-words project-name">{{ project.name }}</td>
@@ -142,9 +142,9 @@
                                 {% elif calculated_status == 'delayed' %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Delayed</span>
                                 {% elif calculated_status == 'ongoing' or calculated_status == 'in_progress' %}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Ongoing</span>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Ongoing</span>
                                 {% elif calculated_status == 'planned' or calculated_status == 'pending' %}
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Planned</span>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">Planned</span>
                                 {% else %}
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ calculated_status|title }}</span>
                                 {% endif %}
@@ -152,12 +152,6 @@
                             </td>
                             <td class="px-4 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button title="View" onclick="openDetailsModal({{ project.id }})" class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </button>
                                     <button title="Edit" onclick="openEditModal({{ project.id }})" class="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all duration-200">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -579,10 +573,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <div class="text-xs font-semibold text-gray-800" id="details-barangay">—</div>
                                 </div>
                                 <div class="bg-white rounded-lg p-2 shadow-sm">
-                                    <div class="text-xs text-gray-500 uppercase mb-1">Zone Type</div>
-                                    <div class="text-xs font-semibold text-gray-800" id="details-zone-type">—</div>
-                                </div>
-                                <div class="bg-white rounded-lg p-2 shadow-sm">
                                     <div class="text-xs text-gray-500 uppercase mb-1">Latitude</div>
                                     <div class="text-xs font-mono text-gray-700" id="details-latitude">—</div>
                                 </div>
@@ -817,6 +807,24 @@ const modalBarangaySelect = document.getElementById('modal-barangay-select');
 const assignedEngineersSelect = document.getElementById('assigned-engineers-select');
 const assignedEngineersSearch = document.getElementById('assigned-engineers-search');
 const assignedEngineersChips = document.getElementById('assigned-engineers-chips');
+const detailsModal = document.getElementById('details-modal');
+
+function initProjectRowClickOpenDetails() {
+    const rows = document.querySelectorAll('#project-table-body tr[data-project-id]');
+    rows.forEach((row) => {
+        if (row.dataset.detailsClickBound === '1') return;
+        row.dataset.detailsClickBound = '1';
+        row.classList.add('cursor-pointer');
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('button, a, input, select, textarea, label')) return;
+            const id = row.getAttribute('data-project-id');
+            if (id) {
+                window.openDetailsModal(parseInt(id, 10));
+            }
+        });
+    });
+}
+initProjectRowClickOpenDetails();
 
 // Source of funds UX: show input when "Add new Source of Funds" selected, auto-add to dropdown on blur/Enter
 function initSourceOfFundsUX() {
@@ -1223,8 +1231,6 @@ function formatDate(dateStr) {
 }
 
 window.openDetailsModal = function(id) {
-    const detailsModal = document.getElementById('details-modal');
-    
     if (!detailsModal) {
         console.error('Details modal not found');
         return;
@@ -1239,8 +1245,6 @@ window.openDetailsModal = function(id) {
     document.getElementById('details-name').textContent = '';
     document.getElementById('details-prn').textContent = '';
     document.getElementById('details-barangay').textContent = '—';
-    const detailsZoneTypeEl = document.getElementById('details-zone-type');
-    if (detailsZoneTypeEl) detailsZoneTypeEl.textContent = '—';
     document.getElementById('details-cost').textContent = '—';
     if (document.getElementById('details-spent')) document.getElementById('details-spent').textContent = '—';
     if (document.getElementById('details-remaining')) document.getElementById('details-remaining').textContent = '—';
@@ -1275,8 +1279,6 @@ window.openDetailsModal = function(id) {
             document.getElementById('details-name').textContent = project.name || '';
             document.getElementById('details-prn').textContent = project.prn ? `PRN#: ${project.prn}` : '';
             document.getElementById('details-barangay').textContent = project.barangay || '—';
-            const detailsZoneTypeEl = document.getElementById('details-zone-type');
-            if (detailsZoneTypeEl) detailsZoneTypeEl.textContent = project.zone_type || 'Not assigned';
             const fmtMoney = (val) => `₱${parseFloat(val).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('details-cost').textContent = project.project_cost ? fmtMoney(project.project_cost) : '—';
             if (document.getElementById('details-spent')) {
@@ -1388,6 +1390,13 @@ window.closeDetailsModalFunc = function() {
     }
 };
 if (closeDetailsModal) closeDetailsModal.addEventListener('click', window.closeDetailsModalFunc);
+if (detailsModal) {
+    detailsModal.addEventListener('mousedown', function(e) {
+        if (e.target === detailsModal) {
+            window.closeDetailsModalFunc();
+        }
+    });
+}
 
 // --- Delete Modal ---
 window.openDeleteModal = function(id) {
@@ -1964,9 +1973,9 @@ function getStatusBadge(status) {
     if (status === 'completed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Completed</span>';
     } else if (status === 'in_progress' || status === 'ongoing') {
-        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-semibold">Ongoing</span>';
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">Ongoing</span>';
     } else if (status === 'planned' || status === 'pending') {
-        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">Planned</span>';
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700 font-semibold">Planned</span>';
     } else if (status === 'delayed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Delayed</span>';
     } else {
