@@ -1,0 +1,19 @@
+name: Deploy to Droplet
+
+on:
+  push:
+    branches: [ "main" ]   # change if you deploy from another branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH (password auth)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          password: ${{ secrets.DROPLET_PASSWORD }}
+          port: 22
+          script: |
+            /srv/OneTagumVision-DP/deploy.sh
