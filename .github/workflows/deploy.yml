@@ -11,9 +11,9 @@ jobs:
       - name: Deploy over SSH (password auth)
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DROPLET_HOST }}
-          username: ${{ secrets.DROPLET_USER }}
-          password: ${{ secrets.DROPLET_PASSWORD }}
+          host: ${{ 167.71.215.2 }}
+          username: ${{ deploy }}
+          password: ${{ Pandamoniom123! }}
           port: 22
           script: |
             /srv/OneTagumVision-DP/deploy.sh
