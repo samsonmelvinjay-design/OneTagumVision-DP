@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.views import PasswordResetView
 from django.core.mail import send_mail
 import logging
+from gistagum.access_control import is_head_engineer, is_finance_manager, is_project_engineer
 
 def dual_login(request):
     print("dual_login view received a request.") # Debug print at the very beginning
@@ -14,11 +15,11 @@ def dual_login(request):
     # If already logged in, redirect to appropriate dashboard
     if request.user.is_authenticated:
         print(f"User {request.user.username} is already authenticated, redirecting...")
-        if request.user.is_superuser or request.user.groups.filter(name='Head Engineer').exists():
+        if is_head_engineer(request.user):
             return redirect('/dashboard/')
-        elif request.user.groups.filter(name='Finance Manager').exists():
+        elif is_finance_manager(request.user):
             return redirect('/dashboard/finance/dashboard/')
-        elif request.user.groups.filter(name='Project Engineer').exists():
+        elif is_project_engineer(request.user):
             return redirect('/projeng/dashboard/')
         else:
             return redirect('/dashboard/')
@@ -41,17 +42,17 @@ def dual_login(request):
             # Debug: show user groups
             user_groups = list(user.groups.values_list('name', flat=True))
             print(f"Authenticated user: {user.username}, groups={user_groups}")
-            if user.groups.filter(name='Finance Manager').exists():
+            if is_finance_manager(user):
                 print(f"Finance Manager detected, redirecting to finance dashboard")
                 login(request, user)
                 request.session['show_login_success'] = True
                 return redirect('/dashboard/finance/dashboard/')
-            elif user.groups.filter(name='Head Engineer').exists():
+            elif is_head_engineer(user):
                 print(f"Head Engineer detected, redirecting to /dashboard/")
                 login(request, user)
                 request.session['show_login_success'] = True
                 return redirect('/dashboard/')
-            elif user.groups.filter(name='Project Engineer').exists():
+            elif is_project_engineer(user):
                 print(f"Project Engineer detected, redirecting to projeng dashboard")
                 login(request, user)
                 request.session['show_login_success'] = True
