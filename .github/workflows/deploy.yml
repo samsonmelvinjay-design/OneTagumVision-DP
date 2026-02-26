@@ -14,12 +14,12 @@ jobs:
           sudo apt-get install -y netcat-openbsd
           nc -vz ${{ secrets.DROPLET_HOST }} 22
 
-      - name: Deploy over SSH (password auth)
+      - name: Deploy over SSH (key auth)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
-          password: ${{ secrets.DROPLET_PASSWORD }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
           port: 22
           script: |
             /srv/OneTagumVision-DP/deploy.sh
