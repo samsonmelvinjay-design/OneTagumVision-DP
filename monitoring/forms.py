@@ -155,12 +155,9 @@ class EngineerCreateForm(forms.ModelForm):
         # These can be added to a UserProfile model in the future if needed
         if commit:
             user.save()
-            # Add user to Project Engineer group
-            try:
-                project_engineer_group = Group.objects.get(name='Project Engineer')
-                user.groups.add(project_engineer_group)
-            except Group.DoesNotExist:
-                pass
+            # Add user to Project Engineer group (create it if missing)
+            project_engineer_group, _ = Group.objects.get_or_create(name='Project Engineer')
+            user.groups.add(project_engineer_group)
         return user
 
 

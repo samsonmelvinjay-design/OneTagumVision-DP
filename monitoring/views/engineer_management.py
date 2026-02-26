@@ -16,14 +16,18 @@ from gistagum.access_control import head_engineer_required
 @head_engineer_required
 def engineer_list(request):
     """List all Project Engineers with search and filter functionality"""
-    # Get all Project Engineers (exclude Head Engineers and superusers)
+    # Get all Project Engineers (exclude Head Engineers and superusers).
+    # Do not fail closed when Head Engineer group is missing in production.
     try:
         project_engineer_group = Group.objects.get(name='Project Engineer')
-        head_engineer_group = Group.objects.get(name='Head Engineer')
-        engineers = User.objects.filter(groups=project_engineer_group)
-        engineers = engineers.exclude(groups=head_engineer_group).exclude(is_superuser=True)
     except Group.DoesNotExist:
         engineers = User.objects.none()
+    else:
+        engineers = User.objects.filter(groups=project_engineer_group).exclude(is_superuser=True)
+        head_engineer_group = Group.objects.filter(name='Head Engineer').first()
+        if head_engineer_group is not None:
+            engineers = engineers.exclude(groups=head_engineer_group)
+        engineers = engineers.distinct()
 
     # Search functionality
     search_query = request.GET.get('search', '')
