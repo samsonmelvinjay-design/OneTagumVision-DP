@@ -15,19 +15,27 @@ from gistagum.access_control import head_engineer_required
 
 @head_engineer_required
 def engineer_list(request):
-    """List all Project Engineers with search and filter functionality"""
-    # Get all Project Engineers (exclude Head Engineers and superusers).
-    # Do not fail closed when Head Engineer group is missing in production.
-    try:
-        project_engineer_group = Group.objects.get(name='Project Engineer')
-    except Group.DoesNotExist:
-        engineers = User.objects.none()
-    else:
-        engineers = User.objects.filter(groups=project_engineer_group).exclude(is_superuser=True)
-        head_engineer_group = Group.objects.filter(name='Head Engineer').first()
+    """List Project Engineers and Finance Managers with search and filter functionality"""
+    project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
+    finance_manager_group = Group.objects.filter(name__iexact='Finance Manager').first()
+    head_engineer_group = Group.objects.filter(name__iexact='Head Engineer').first()
+
+    role_filter = Q()
+    has_role_filter = False
+    if project_engineer_group is not None:
+        role_filter |= Q(groups=project_engineer_group)
+        has_role_filter = True
+    if finance_manager_group is not None:
+        role_filter |= Q(groups=finance_manager_group)
+        has_role_filter = True
+
+    if has_role_filter:
+        engineers = User.objects.filter(role_filter).exclude(is_superuser=True).prefetch_related('groups')
         if head_engineer_group is not None:
             engineers = engineers.exclude(groups=head_engineer_group)
         engineers = engineers.distinct()
+    else:
+        engineers = User.objects.none()
 
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -65,13 +73,18 @@ def engineer_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Get project counts for each engineer on current page
+    # Get project counts for each user on current page
     engineers_with_counts = []
     for engineer in page_obj:
         project_count = engineer.assigned_projects.count()
+        user_role = 'Project Engineer'
+        group_names = {g.name.lower() for g in engineer.groups.all()}
+        if 'finance manager' in group_names:
+            user_role = 'Finance Manager'
         engineers_with_counts.append({
             'engineer': engineer,
             'project_count': project_count,
+            'role_label': user_role,
         })
 
     context = {
@@ -87,28 +100,34 @@ def engineer_list(request):
 
 @head_engineer_required
 def engineer_create(request):
-    """Create a new Project Engineer account"""
+    """Create a new Project Engineer or Finance Manager account"""
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    role_key = (request.POST.get('role') or request.GET.get('role') or 'project_engineer').strip().lower()
+    if role_key not in ['project_engineer', 'finance_manager']:
+        role_key = 'project_engineer'
+    role_label = 'Finance Manager' if role_key == 'finance_manager' else 'Project Engineer'
     
     if request.method == 'POST':
-        form = EngineerCreateForm(request.POST)
+        form = EngineerCreateForm(request.POST, role=role_key)
         if form.is_valid():
-            engineer = form.save()
+            engineer = form.save(role=role_key)
             if is_ajax:
                 from django.http import JsonResponse
                 return JsonResponse({
                     'success': True,
-                    'message': f'Engineer account "{engineer.username}" has been created successfully!',
+                    'message': f'{role_label} account "{engineer.username}" has been created successfully!',
                     'redirect_url': f'/dashboard/engineers/{engineer.id}/'
                 })
-            messages.success(request, f'Engineer account "{engineer.username}" has been created successfully!')
+            messages.success(request, f'{role_label} account "{engineer.username}" has been created successfully!')
             return redirect('engineer_detail', engineer_id=engineer.id)
     else:
-        form = EngineerCreateForm()
+        form = EngineerCreateForm(role=role_key)
 
     context = {
         'form': form,
-        'title': 'Create New Engineer Account',
+        'title': f'Create New {role_label} Account',
+        'role_key': role_key,
+        'role_label': role_label,
     }
     
     # If AJAX request, return just the form content (modal version)

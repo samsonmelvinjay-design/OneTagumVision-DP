@@ -88,6 +88,10 @@ class ProjectForm(forms.ModelForm):
 
 class EngineerCreateForm(forms.ModelForm):
     """Form for creating a new Project Engineer account"""
+    def __init__(self, *args, **kwargs):
+        self.role = kwargs.pop('role', 'project_engineer')
+        super().__init__(*args, **kwargs)
+
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
         label='Password',
@@ -148,16 +152,17 @@ class EngineerCreateForm(forms.ModelForm):
 
         return cleaned_data
 
-    def save(self, commit=True):
+    def save(self, commit=True, role=None):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data['password'])
         # Note: phone and department fields are not saved as they're not part of User model
         # These can be added to a UserProfile model in the future if needed
         if commit:
             user.save()
-            # Add user to Project Engineer group (create it if missing)
-            project_engineer_group, _ = Group.objects.get_or_create(name='Project Engineer')
-            user.groups.add(project_engineer_group)
+            role_key = (role or self.role or 'project_engineer').strip().lower()
+            group_name = 'Finance Manager' if role_key == 'finance_manager' else 'Project Engineer'
+            role_group, _ = Group.objects.get_or_create(name=group_name)
+            user.groups.add(role_group)
         return user
 
 

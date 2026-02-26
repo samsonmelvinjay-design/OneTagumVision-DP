@@ -1,10 +1,10 @@
-<!-- Create Engineer Form (for modal) -->
+<!-- Create User Form (for modal) -->
 <div>
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900">Create New Engineer Account</h2>
-            <p class="text-gray-600 mt-1">Fill in the information below to create a new Project Engineer account</p>
+            <h2 class="text-2xl font-bold text-gray-900">Create New {{ role_label }} Account</h2>
+            <p class="text-gray-600 mt-1">Fill in the information below to create a new {{ role_label }} account</p>
         </div>
     </div>
 
@@ -20,6 +20,7 @@
     <!-- Form -->
     <form method="post" class="space-y-6">
         {% csrf_token %}
+        <input type="hidden" name="role" value="{{ role_key|default:'project_engineer' }}">
         
         <!-- Username -->
         <div>
@@ -172,7 +173,7 @@
                 Cancel
             </button>
             <button type="submit" class="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800">
-                Create Engineer Account
+                Create {{ role_label }} Account
             </button>
         </div>
     </form>
