@@ -3,224 +3,153 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Project Timeline - {{ project.name }}</title>
+    <title>Individual Project Information - {{ project.name }}</title>
     <style>
-        @page {
-            size: A4;
-            margin: 2cm;
-        }
+        @page { size: A4; margin: 12mm 12mm 12mm 12mm; }
         body {
-            font-family: Arial, sans-serif;
-            font-size: 10pt;
+            font-family: "Times New Roman", serif;
+            font-size: 11pt;
+            color: #000;
         }
-        h1 {
+        .spacer-8 { height: 8px; }
+        .spacer-12 { height: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        .band td {
+            background: #2f5f1f;
+            color: #fff;
+            font-weight: bold;
             text-align: center;
-            color: #1e40af;
-            margin-bottom: 10px;
+            border: 1px solid #2f5f1f;
+            padding: 2px 6px;
         }
-        h2 {
-            color: #3b82f6;
-            border-bottom: 2px solid #3b82f6;
-            padding-bottom: 5px;
-            margin-top: 20px;
-        }
-        .project-info {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f9fafb;
-            border-radius: 5px;
-        }
-        .info-row {
-            margin: 5px 0;
-        }
-        .info-label {
+        .title td {
+            background: #3d3836;
+            color: #fff;
             font-weight: bold;
-            display: inline-block;
-            width: 150px;
+            text-align: center;
+            border: 1px solid #3d3836;
+            font-size: 16px;
+            padding: 4px 6px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
+        .asof { text-align: center; font-weight: bold; margin: 8px 0 10px 0; font-size: 11pt; }
+        .meta td {
+            border: 1px solid #777;
+            padding: 3px 6px;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+        .meta .label { width: 32%; font-weight: bold; }
+        .lines td {
+            border-bottom: 1px solid #999;
+            padding: 3px 4px;
+            vertical-align: top;
         }
-        th {
-            background-color: #3b82f6;
-            color: white;
+        .lines .label { width: 46%; font-weight: bold; }
+        .remark td {
+            background: #3d3836;
+            color: #fff;
             font-weight: bold;
+            text-align: center;
+            border: 1px solid #3d3836;
+            padding: 4px 6px;
         }
-        tr:nth-child(even) {
-            background-color: #f9fafb;
+        .sig td {
+            width: 50%;
+            vertical-align: top;
+            padding-top: 12px;
         }
-        .header-info {
-            margin-bottom: 20px;
-            text-align: right;
+        .sig-line {
+            border-bottom: 1px solid #000;
+            margin: 14px 18px 4px 0;
+            height: 12px;
         }
-        .text-right {
-            text-align: right;
-        }
+        .page { text-align: center; font-size: 8pt; margin-top: 14px; }
     </style>
 </head>
 <body>
-    <h1>Project Timeline Report</h1>
-    <div class="header-info">
-        <p>Generated: {{ "now"|date:"F d, Y H:i" }}</p>
-    </div>
-    
-    <div class="project-info">
-        <div class="info-row">
-            <span class="info-label">Project Name:</span>
-            <span>{{ project.name }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">PRN:</span>
-            <span>{{ project.prn|default:"N/A" }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Barangay:</span>
-            <span>{{ project.barangay|default:"N/A" }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Status:</span>
-            <span>{{ project.get_status_display }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Start Date:</span>
-            <span>{{ project.start_date|date:"Y-m-d"|default:"N/A" }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">End Date:</span>
-            <span>{{ project.end_date|date:"Y-m-d"|default:"N/A" }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Budget:</span>
-            <span>₱{{ budget|floatformat:2|intcomma }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Total Spent:</span>
-            <span>₱{{ total_cost|floatformat:2|intcomma }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Remaining Budget:</span>
-            <span>₱{{ remaining_budget|floatformat:2|intcomma }}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Budget Utilization:</span>
-            <span>{{ budget_utilization|floatformat:2 }}% ({{ budget_status_label }})</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Assigned Engineers:</span>
-            <span>
-                {% if projeng_project and projeng_project.assigned_engineers.all %}
-                    {% for engineer in projeng_project.assigned_engineers.all %}
-                        {{ engineer.get_full_name|default:engineer.username }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                {% else %}
-                    N/A
-                {% endif %}
-            </span>
-        </div>
+    <table class="band">
+        <tr>
+            <td>CITY OF TAGUM</td>
+            <td>CEO - CONSTRUCTION DIVISION</td>
+        </tr>
+    </table>
+
+    <table class="title">
+        <tr><td>INDIVIDUAL PROJECT INFORMATION</td></tr>
+    </table>
+
+    <div class="asof">
+        AS OF:
+        {% if project.start_date and project.end_date %}
+            {{ project.start_date|date:"F d, Y" }} TO {{ project.end_date|date:"F d, Y" }}
+        {% else %}
+            {% now "F d, Y" %}
+        {% endif %}
     </div>
 
-    <h2>Performance & Satisfaction Summary</h2>
-    <div class="project-info">
-        <div class="info-row">
-            <span class="info-label">Latest Progress:</span>
-            <span>{{ total_progress|default:0 }}%</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Expected Progress:</span>
-            <span>{% if expected_progress is not None %}{{ expected_progress|floatformat:2 }}%{% else %}N/A{% endif %}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Progress Variance:</span>
-            <span>{% if progress_variance is not None %}{{ progress_variance|floatformat:2 }}%{% else %}N/A{% endif %}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Performance Ratio:</span>
-            <span>{% if performance_ratio is not None %}{{ performance_ratio|floatformat:2 }}{% else %}N/A{% endif %}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Efficiency Ratio:</span>
-            <span>{% if efficiency_ratio is not None %}{{ efficiency_ratio|floatformat:2 }}{% else %}N/A{% endif %}</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Achieve Satisfaction:</span>
-            <span>{% if satisfaction_score is not None %}{{ satisfaction_score|floatformat:1 }} / 100 ({{ satisfaction_label }}){% else %}N/A{% endif %}</span>
-        </div>
-        <div class="info-row" style="font-size: 9pt; color: #6b7280;">
-            <span class="info-label">Basis:</span>
-            <span>
-                Efficiency = Progress ÷ Budget Used %; Performance = Progress ÷ Expected; Satisfaction = avg(schedule alignment, budget alignment) with over-budget penalty.
-            </span>
-        </div>
-    </div>
-    
-    <h2>Progress Updates</h2>
-    {% if progress_updates %}
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Percentage Complete</th>
-                <th>Description</th>
-                <th>Engineer</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for update in progress_updates %}
-            <tr>
-                <td>{{ update.date|date:"Y-m-d" }}</td>
-                <td>{{ update.percentage_complete }}%</td>
-                <td>{{ update.description }}</td>
-                <td>
-                    {% if update.created_by %}
-                        {{ update.created_by.get_full_name|default:update.created_by.username }}
+    <table class="meta">
+        <tr><td class="label">PROJECT NAME:</td><td>{{ project.name|default:"N/A" }}</td></tr>
+        <tr><td class="label">LOCATION:</td><td>{{ project.barangay|default:"N/A" }}</td></tr>
+        <tr><td class="label">REFERENCE NUMBER:</td><td>{{ project.prn|default:"N/A" }}</td></tr>
+    </table>
+
+    <div class="spacer-8"></div>
+
+    <table class="lines">
+        <tr><td class="label">Project Cost</td><td>: PHP {{ budget|floatformat:2|default:"0.00"|intcomma }}</td></tr>
+        <tr><td class="label">Source of fund</td><td>: {{ project.source_of_funds|default:"N/A" }}</td></tr>
+        <tr><td class="label">Date Started</td><td>: {{ project.start_date|date:"F d, Y"|default:"N/A" }}</td></tr>
+        <tr><td class="label">Target Date of Completion</td><td>: {{ project.end_date|date:"F d, Y"|default:"N/A" }}</td></tr>
+        <tr><td class="label">Project Duration</td><td>: {% if total_days %}{{ total_days }} WORKING DAYS{% else %}N/A{% endif %}</td></tr>
+        <tr><td class="label">No. of Time Extension (if any)</td><td>: N/A</td></tr>
+        <tr><td class="label">Revised target date of completion</td><td>: N/A</td></tr>
+        <tr><td class="label">No. of Days Elapsed to date</td><td>: {{ days_elapsed|default:"N/A" }}</td></tr>
+        <tr><td class="label">Remaining No. of Days</td><td>: {{ days_remaining|default:"N/A" }}</td></tr>
+        <tr><td class="label">Project Description</td><td>: {{ project.description|default:"N/A" }}</td></tr>
+        <tr><td class="label">Mode of Implementation</td><td>: BY ADMINISTRATION</td></tr>
+        <tr><td class="label">Scheduled Project Accomplishment</td><td>: {% if expected_progress is not None %}{{ expected_progress|floatformat:2 }}%{% else %}N/A{% endif %}</td></tr>
+        <tr><td class="label">Actual Project Accomplishment</td><td>: {{ total_progress|default:0 }}%</td></tr>
+        <tr><td class="label">Slippage</td><td>: {% if progress_variance is not None %}{{ progress_variance|floatformat:2 }}%{% else %}N/A{% endif %}</td></tr>
+    </table>
+
+    <div class="spacer-12"></div>
+
+    <table class="remark">
+        <tr>
+            <td>REMARKS</td>
+            <td>
+                {% if project.status == 'completed' %}PROJECT COMPLETED
+                {% elif project.status == 'delayed' %}PROJECT DELAYED
+                {% elif project.status == 'planned' or project.status == 'pending' %}PROJECT PLANNED
+                {% else %}PROJECT ON GOING
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <table class="sig">
+        <tr>
+            <td>
+                <div>Prepared by:</div>
+                <div class="sig-line"></div>
+                <div><strong>
+                    {% if projeng_project and projeng_project.assigned_engineers.all %}
+                        {% for engineer in projeng_project.assigned_engineers.all %}
+                            {% if forloop.first %}{{ engineer.get_full_name|default:engineer.username }}{% endif %}
+                        {% endfor %}
                     {% else %}
                         N/A
                     {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
+                </strong></div>
+                <div>Project In-Charge</div>
+            </td>
+            <td>
+                <div>Concurred by:</div>
+                <div class="sig-line"></div>
+                <div><strong>Head Engineer</strong></div>
+                <div>Head Engineer</div>
+            </td>
+        </tr>
     </table>
-    {% else %}
-    <p>No progress updates available.</p>
-    {% endif %}
-    
-    <h2>Cost Entries</h2>
-    {% if costs %}
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Cost Type</th>
-                <th>Description</th>
-                <th class="text-right">Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for cost in costs %}
-            <tr>
-                <td>{{ cost.date|date:"Y-m-d" }}</td>
-                <td>{{ cost.get_cost_type_display }}</td>
-                <td>{{ cost.description }}</td>
-                <td class="text-right">₱{{ cost.amount|floatformat:2|intcomma }}</td>
-            </tr>
-            {% endfor %}
-            <tr style="font-weight: bold; background-color: #e5e7eb;">
-                <td colspan="3" class="text-right">Total:</td>
-                <td class="text-right">₱{{ total_cost|floatformat:2|intcomma }}</td>
-            </tr>
-        </tbody>
-    </table>
-    {% else %}
-    <p>No cost entries available.</p>
-    {% endif %}
+
+    <div class="page">Page 1 of 1</div>
 </body>
 </html>
-

@@ -1487,8 +1487,11 @@ document.addEventListener('DOMContentLoaded', function() {
             var remainingText = data.days_remaining != null ? String(data.days_remaining) : 'N/A';
             var extensionCount = data.extension_count != null ? String(data.extension_count) : 'N/A';
             var revisedTargetDate = data.revised_target_date || 'N/A';
-            var statusText = (p.status || '').toUpperCase();
-            var remarksProjectText = statusText === 'IN PROGRESS' ? 'PROJECT ON GOING' : ('PROJECT ' + (statusText || 'ON GOING'));
+            var statusText = (p.status || '').toLowerCase();
+            var remarksProjectText = 'PROJECT ON GOING';
+            if (statusText === 'completed') remarksProjectText = 'PROJECT COMPLETED';
+            else if (statusText === 'delayed') remarksProjectText = 'PROJECT DELAYED';
+            else if (statusText === 'planned' || statusText === 'pending') remarksProjectText = 'PROJECT PLANNED';
             var asOfText = (p.start_date && p.end_date)
                 ? ('AS OF: ' + p.start_date.toUpperCase() + ' TO ' + p.end_date.toUpperCase())
                 : ('AS OF: ' + (data.generated_at || '').toUpperCase());
@@ -1601,7 +1604,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 { text: 'Concurred by:', margin: [0, 0, 0, 14] },
                                 { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
                                 { text: concurredName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
-                                { text: 'Project Engineer', alignment: 'center' }
+                                { text: 'Head Engineer', alignment: 'center' }
                             ]
                         }
                     ]
@@ -1610,7 +1613,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var doc = {
                 pageSize: 'A4',
-                pageMargins: [40, 40, 40, 60],
+                pageMargins: [36, 30, 36, 46],
                 defaultStyle: { fontSize: 10, font: 'Roboto' },
                 styles: { label: { bold: true }, sectionTitle: { bold: true, fontSize: 10 } },
                 footer: function(i, n) { return { text: 'Page ' + i + ' of ' + n, alignment: 'center', fontSize: 8 }; },
