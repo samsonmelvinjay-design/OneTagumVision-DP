@@ -15,10 +15,12 @@ class ProjectForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Filter the queryset for assigned_engineers to only include Project Engineers
-        try:
-            project_engineer_group = Group.objects.get(name='Project Engineer')
-            self.fields['assigned_engineers'].queryset = User.objects.filter(groups=project_engineer_group)
-        except Group.DoesNotExist:
+        project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
+        if project_engineer_group is not None:
+            self.fields['assigned_engineers'].queryset = User.objects.filter(
+                groups=project_engineer_group
+            ).exclude(is_superuser=True).distinct()
+        else:
             # If the group doesn't exist, show no users in the dropdown
             self.fields['assigned_engineers'].queryset = User.objects.none()
         

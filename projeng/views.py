@@ -1258,20 +1258,24 @@ def get_project_engineers(request):
     if not (request.user.is_authenticated and (
         request.user.is_staff or
         request.user.is_superuser or
-        request.user.groups.filter(name='Head Engineer').exists()
+        request.user.groups.filter(name__iexact='Head Engineer').exists()
     )):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'error': 'Not authorized'}, status=403)
         return redirect_to_login(request.get_full_path())
     try:
-        project_engineer_group = Group.objects.get(name='Project Engineer')
-        head_engineer_group = Group.objects.get(name='Head Engineer')
+        project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
+        if project_engineer_group is None:
+            return JsonResponse([], safe=False)
+
         engineers = User.objects.filter(groups=project_engineer_group)
-        engineers = engineers.exclude(groups=head_engineer_group).exclude(is_superuser=True).order_by('username')
+        head_engineer_group = Group.objects.filter(name__iexact='Head Engineer').first()
+        if head_engineer_group is not None:
+            engineers = engineers.exclude(groups=head_engineer_group)
+
+        engineers = engineers.exclude(is_superuser=True).distinct().order_by('username')
         engineers_data = [{'id': engineer.id, 'username': engineer.username, 'full_name': engineer.get_full_name() or engineer.username} for engineer in engineers]
         return JsonResponse(engineers_data, safe=False)
-    except Group.DoesNotExist:
-        return JsonResponse([], safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
