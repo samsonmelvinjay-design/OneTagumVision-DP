@@ -1235,10 +1235,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to create modern custom marker icon with shadow (colors match dashboard cards)
     function createMarkerIcon(status) {
+        const normalizedStatus = normalizeProjectStatus(status);
         let color = '#a855f7'; // Planned - purple
-        if (status === 'completed') color = '#10b981'; // Completed - green
-        else if (status === 'delayed') color = '#ef4444'; // Delayed - red
-        else if (status === 'ongoing' || status === 'in_progress') color = '#eab308'; // In Progress - yellow
+        if (normalizedStatus === 'completed') color = '#10b981'; // Completed - green
+        else if (normalizedStatus === 'delayed') color = '#ef4444'; // Delayed - red
+        else if (normalizedStatus === 'in_progress') color = '#eab308'; // In Progress - yellow
         
         // Generate unique filter ID to avoid conflicts
         const filterId = 'shadow-' + Math.random().toString(36).substr(2, 9);
@@ -1278,6 +1279,33 @@ document.addEventListener('DOMContentLoaded', function() {
             popupAnchor: [0, -40],
             className: 'custom-marker-icon'
         });
+    }
+
+    function normalizeProjectStatus(status) {
+        const s = (status || '').toString().trim().toLowerCase();
+        if (s === 'ongoing' || s === 'in_progress') return 'in_progress';
+        if (s === 'planned' || s === 'pending') return 'planned';
+        if (s === 'completed') return 'completed';
+        if (s === 'delayed') return 'delayed';
+        return s;
+    }
+
+    function getProjectStatusLabel(status) {
+        const normalized = normalizeProjectStatus(status);
+        if (normalized === 'in_progress') return 'In Progress';
+        if (normalized === 'planned') return 'Planned';
+        if (normalized === 'completed') return 'Completed';
+        if (normalized === 'delayed') return 'Delayed';
+        return (status || '').toString().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function getProjectStatusBadgeClass(status) {
+        const normalized = normalizeProjectStatus(status);
+        if (normalized === 'completed') return 'bg-green-50 text-green-700 border border-green-200';
+        if (normalized === 'in_progress') return 'bg-yellow-50 text-yellow-700 border border-yellow-200';
+        if (normalized === 'planned') return 'bg-purple-50 text-purple-700 border border-purple-200';
+        if (normalized === 'delayed') return 'bg-red-50 text-red-700 border border-red-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
 
     // Helper: get projects that match current filters and have valid coordinates
@@ -1352,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Rendering markers for', filteredProjects.length, 'filtered projects');
 
         filteredProjects.forEach(project => {
-            let projectStatus = (project.status || '').toLowerCase();
+            const projectStatus = normalizeProjectStatus(project.status || '');
                 const marker = L.marker([parseFloat(project.latitude), parseFloat(project.longitude)], {
                     icon: createMarkerIcon(project.status)
                 });
@@ -1371,11 +1399,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="flex items-center gap-2 mb-3 flex-wrap">
                             <span class="px-3 py-1 text-xs rounded-full font-semibold shadow-sm
-                                ${projectStatus === 'delayed' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                  projectStatus === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' : 
-                                  (projectStatus === 'ongoing' || projectStatus === 'in_progress') ? 'bg-blue-50 text-blue-700 border border-blue-200' : 
-                                  (projectStatus === 'planned' || projectStatus === 'pending') ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-50 text-gray-700 border border-gray-200'}">
-                                ${project.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : ''}
+                                ${getProjectStatusBadgeClass(projectStatus)}">
+                                ${getProjectStatusLabel(projectStatus)}
                             </span>
                             ${project.zone_type ? `<span class="px-3 py-1 text-xs rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">Zone: ${project.zone_type}</span>` : ''}
                         </div>
@@ -2366,13 +2391,14 @@ window.openDetailsModal = function(id) {
 
 // Include the getStatusBadge function (copy from project_list.html)
 function getStatusBadge(status) {
-    if (status === 'completed') {
+    const normalizedStatus = normalizeProjectStatus(status);
+    if (normalizedStatus === 'completed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Completed</span>';
-    } else if (status === 'in_progress' || status === 'ongoing') {
-        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-semibold">Ongoing</span>';
-    } else if (status === 'planned' || status === 'pending') {
-        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">Planned</span>';
-    } else if (status === 'delayed') {
+    } else if (normalizedStatus === 'in_progress') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">In Progress</span>';
+    } else if (normalizedStatus === 'planned') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700 font-semibold">Planned</span>';
+    } else if (normalizedStatus === 'delayed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Delayed</span>';
     } else {
         return status;
