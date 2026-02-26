@@ -28,44 +28,6 @@
                         </svg>
                         Configure Project Settings
                     </button>
-                    <!-- Export Dropdown -->
-                    <div class="relative inline-block">
-                        <button id="export-dropdown-btn" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            Generate Report
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </button>
-                        <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
-                            <a href="#" id="export-pdf-btn" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Export to PDF
-                                </div>
-                            </a>
-                            <a href="{% url 'export_project_comprehensive_excel' project.pk %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors border-b border-gray-100">
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    Export to Excel
-                                </div>
-                            </a>
-                            <a href="{% url 'export_project_comprehensive_csv' project.pk %}" target="_blank" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 transition-colors">
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    Export to CSV
-                                </div>
-                            </a>
-                        </div>
-                    </div>
                     <a href="{% url 'head_engineer_analytics' %}"
                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -550,28 +512,6 @@
 </div>
 
 <script>
-    // Toggle export dropdown
-    document.getElementById('export-dropdown-btn').addEventListener('click', function(e) {
-        e.stopPropagation();
-        const dropdown = document.getElementById('export-dropdown');
-        dropdown.classList.toggle('hidden');
-    });
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        const dropdown = document.getElementById('export-dropdown');
-        const btn = document.getElementById('export-dropdown-btn');
-        if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.add('hidden');
-        }
-    });
-    // Close dropdown when any export link is clicked
-    var exportDropdownMenu = document.getElementById('export-dropdown');
-    if (exportDropdownMenu) {
-        exportDropdownMenu.querySelectorAll('a[target="_blank"]').forEach(function(link) {
-            link.addEventListener('click', function() { exportDropdownMenu.classList.add('hidden'); });
-        });
-    }
-
     // Forward to Finance Modal Functions
     function showForwardToFinanceModal() {
         document.getElementById('forwardToFinanceModal').classList.remove('hidden');
@@ -1234,7 +1174,9 @@ document.addEventListener('keydown', function(e) {
     function fmtNum(n) { return n != null ? Number(n).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A'; }
     function fmtPct(n) { return n != null ? Number(n).toFixed(2) + '%' : 'N/A'; }
 
-    document.getElementById('export-pdf-btn').addEventListener('click', function(e) {
+    var exportPdfBtn = document.getElementById('export-pdf-btn');
+    if (!exportPdfBtn) return;
+    exportPdfBtn.addEventListener('click', function(e) {
         e.preventDefault();
         var dd = document.getElementById('export-dropdown');
         if (dd) dd.classList.add('hidden');
@@ -1369,7 +1311,8 @@ document.addEventListener('keydown', function(e) {
 </script>
 {% else %}
 <script>
-document.getElementById('export-pdf-btn').addEventListener('click', function(e) {
+var exportPdfBtnFallback = document.getElementById('export-pdf-btn');
+if (exportPdfBtnFallback) exportPdfBtnFallback.addEventListener('click', function(e) {
     e.preventDefault();
     var dd = document.getElementById('export-dropdown');
     if (dd) dd.classList.add('hidden');
