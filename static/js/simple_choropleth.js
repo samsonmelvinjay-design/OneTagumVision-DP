@@ -576,6 +576,14 @@ class SimpleChoropleth {
         const plannedProjects = metrics.planned || 0;
         const delayedProjects = metrics.delayed || 0;
 
+        // City Overview already renders its own metrics panel.
+        // Avoid creating a second Leaflet control (it appears as an empty white tab).
+        const externalSummaryPanelExists = !!document.getElementById('summary-panel-content');
+        if (!this.summaryPanel && externalSummaryPanelExists) {
+            if (DEBUG_CHOROPLETH) console.log('External summary panel detected; skipping SimpleChoropleth summary panel creation.');
+            return;
+        }
+
         // Create or update summary panel
         if (!this.summaryPanel) {
             this.summaryPanel = L.control({ position: 'topleft' });
