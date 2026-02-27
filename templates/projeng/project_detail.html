@@ -102,35 +102,32 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm font-medium text-gray-700">Change Status:</label>
-                    <select id="project-status" class="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
-                        {% for value, text in status_choices %}
-                            <option value="{{ value }}" {% if project.status == value %}selected{% endif %}>{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
             </div>
             
-            <!-- Progress Bar (Only for In Progress projects) -->
-            {% if project.status == 'in_progress' and project.progress is not None %}
             <div class="mt-6">
                 <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
-                    <span class="font-medium">Project Progress</span>
-                    <span class="font-semibold text-gray-900">{{ project.progress|floatformat:2 }}%</span>
+                    <span class="font-medium">Expected Progress</span>
+                    {% if configured_target_progress is not None %}
+                        <span class="font-semibold text-gray-900">{{ configured_target_progress|floatformat:2 }}%</span>
+                    {% else %}
+                        <span class="font-semibold text-gray-500">Not set</span>
+                    {% endif %}
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300" style="width: {{ project.progress }}%"></div>
+                    <div class="bg-gradient-to-r from-slate-500 to-slate-600 h-3 rounded-full transition-all duration-300"
+                         style="width: {% if configured_target_progress is not None %}{{ configured_target_progress }}{% else %}0{% endif %}%"></div>
                 </div>
+                {% if configured_target_date %}
+                    <p class="text-xs text-gray-500 mt-2">Target date: {{ configured_target_date|date:"F j, Y" }}</p>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
 
     <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left Column: Basic Information -->
-        <div class="lg:col-span-2 space-y-6">
+        <div class="space-y-6">
             <!-- Basic Information Card -->
             <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -213,6 +210,9 @@
                 </div>
             </div>
 
+        </div>
+
+        <div class="space-y-6">
             <!-- Location & Financials Card -->
             <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -364,31 +364,9 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Right Column: Project Image & Quick Actions -->
-        <div class="space-y-6">
-            <!-- Project Image Card -->
-            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    Project Image
-                </h3>
-                {% if project.image %}
-                    <img src="{{ project.image.url }}" alt="Project Image" class="w-full h-auto rounded-lg shadow-sm border border-gray-200" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27 viewBox=%270 0 24 24%27 fill=%27%239ca3af%27%3E%3Cpath d=%27M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%27/%3E%3C/svg%3E'; this.alt='Image unavailable';">
-                {% else %}
-                    <div class="w-full h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                        <div class="text-center">
-                            <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                            <p class="text-sm text-gray-500">No image uploaded</p>
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-
+    <div class="mt-6">
             <!-- Project Documents Card -->
             <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center justify-between mb-4">
@@ -501,88 +479,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Budget Requests (History) -->
-    <div id="budget-requests" class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m2 8H7a2 2 0 01-2-2V6a2 2 0 012-2h8l4 4v10a2 2 0 01-2 2z"/>
-                </svg>
-                Budget Requests
-            </h3>
-        </div>
-
-        {% if budget_requests and budget_requests|length > 0 %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Requested</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Approved</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">By</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proof</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for br in budget_requests %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ br.created_at|date:"M d, Y" }}</td>
-                            <td class="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">₱{{ br.requested_amount|floatformat:2|intcomma }}</td>
-                            <td class="px-4 py-3 text-sm whitespace-nowrap">
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold
-                                    {% if br.status == 'approved' %}bg-green-100 text-green-800
-                                    {% elif br.status == 'rejected' %}bg-red-100 text-red-800
-                                    {% elif br.status == 'pending' %}bg-amber-100 text-amber-800
-                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                    {{ br.get_status_display }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                                {% if br.approved_amount %}
-                                    ₱{{ br.approved_amount|floatformat:2|intcomma }}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                                {{ br.requested_by.get_full_name|default:br.requested_by.username }}
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700">
-                                {% if br.attachments.all %}
-                                    <div class="flex flex-col gap-1">
-                                        {% for att in br.attachments.all %}
-                                            <a href="{{ att.file.url }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 font-medium">
-                                                Attachment {{ forloop.counter }}
-                                            </a>
-                                        {% endfor %}
-                                    </div>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr class="bg-gray-50">
-                            <td colspan="6" class="px-4 py-3 text-sm text-gray-700">
-                                <div class="font-semibold text-gray-800 mb-1">Reason:</div>
-                                <div class="text-gray-700">{{ br.reason }}</div>
-                                {% if br.decision_notes %}
-                                    <div class="font-semibold text-gray-800 mt-3 mb-1">Decision Notes:</div>
-                                    <div class="text-gray-700">{{ br.decision_notes }}</div>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="text-sm text-gray-500">No budget requests yet.</p>
-        {% endif %}
-    </div>
-
     <!-- Progress Trends Chart (if available) -->
     {% if progress_timeline_data|length > 0 %}
     <div class="mt-6">
@@ -830,85 +726,6 @@
 </div>
 
 <script>
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const statusSelect = document.getElementById('project-status');
-        if (statusSelect) {
-            statusSelect.addEventListener('change', function() {
-                const newStatus = this.value;
-                const projectId = {{ project.pk }};
-                const url = `{% url 'projeng:projeng_update_project_status' project.pk %}`;
-
-                // Show loading state
-                const originalValue = this.value;
-                this.disabled = true;
-                this.style.opacity = '0.6';
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    this.disabled = false;
-                    this.style.opacity = '1';
-                    
-                    if (data.success) {
-                        console.log('Status updated successfully:', data.new_status_display);
-                        // Update status badge if needed
-                        const statusBadge = document.querySelector('.status-badge');
-                        if (statusBadge && data.new_status_display) {
-                            statusBadge.textContent = data.new_status_display;
-                            // Update badge color based on new status
-                            statusBadge.className = 'status-badge ';
-                            if (newStatus === 'completed') {
-                                statusBadge.className += 'bg-green-50 text-green-800 border-green-200';
-                            } else if (newStatus === 'in_progress') {
-                                statusBadge.className += 'bg-blue-50 text-blue-800 border-blue-200';
-                            } else if (newStatus === 'planned') {
-                                statusBadge.className += 'bg-amber-50 text-amber-800 border-amber-200';
-                            } else if (newStatus === 'delayed') {
-                                statusBadge.className += 'bg-red-50 text-red-800 border-red-200';
-                            } else {
-                                statusBadge.className += 'bg-gray-50 text-gray-800 border-gray-200';
-                            }
-                        }
-                    } else {
-                        console.error('Error updating status:', data.error);
-                        alert('Failed to update status: ' + (data.error || 'Unknown error'));
-                        this.value = originalValue;
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert('An error occurred while updating status.');
-                    this.value = originalValue;
-                    this.disabled = false;
-                    this.style.opacity = '1';
-                });
-            });
-        }
-    });
-    
     // Budget Alert Modal Functions - Make them globally accessible
     window.showBudgetAlertModal = function() {
         const modal = document.getElementById('budgetAlertModal');

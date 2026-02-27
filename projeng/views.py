@@ -865,44 +865,6 @@ def project_detail_view(request, pk):
                 'icon': 'currency-dollar',
                 'color': 'yellow'
             })
-
-        # Add budget requests (additional budget) to activity history
-        budget_requests = (
-            BudgetRequest.objects
-            .filter(project=project)
-            .select_related('requested_by', 'reviewed_by')
-            .prefetch_related('attachments', 'history')
-            .order_by('-created_at')
-        )
-        for br in budget_requests:
-            activity_log.append({
-                'type': 'budget_request',
-                'timestamp': br.created_at,
-                'user': br.requested_by,
-                'message': f'Budget request submitted: ₱{float(br.requested_amount):,.2f} ({br.get_status_display()})',
-                'description': br.reason,
-                'requested_amount': br.requested_amount,
-                'status': br.status,
-                'icon': 'clipboard',
-                'color': 'indigo'
-            })
-            if br.reviewed_at and br.reviewed_by and br.status in ['approved', 'rejected', 'cancelled']:
-                activity_log.append({
-                    'type': 'budget_request_decision',
-                    'timestamp': br.reviewed_at,
-                    'user': br.reviewed_by,
-                    'message': (
-                        f'Budget request {br.get_status_display().lower()}'
-                        + (f': ₱{float(br.approved_amount):,.2f} approved' if br.status == 'approved' and br.approved_amount else '')
-                    ),
-                    'description': br.decision_notes,
-                    'status': br.status,
-                    'approved_amount': br.approved_amount,
-                    'decision_notes': br.decision_notes,
-                    'icon': 'check-circle' if br.status == 'approved' else 'x-circle',
-                    'color': 'green' if br.status == 'approved' else 'red'
-                })
-        
         # Add document uploads
         documents = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
         for doc in documents:
@@ -938,6 +900,9 @@ def project_detail_view(request, pk):
             })
             progress_dates.append(progress.date.strftime('%Y-%m-%d'))
             progress_percentages.append(progress.percentage_complete)
+
+        today = timezone.now().date()
+        configured_target_date, configured_target_progress = _get_configured_target_for_display(project, today=today)
         
         # Timeline Comparison: Expected vs Actual Progress (working days only: exclude weekends + PH holidays)
         timeline_comparison = None
@@ -945,7 +910,6 @@ def project_detail_view(request, pk):
             from datetime import date, timedelta
             import json
             from projeng.working_days import working_days_between
-            today = date.today()
             total_days = working_days_between(project.start_date, project.end_date)
             elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
             remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
@@ -1127,10 +1091,10 @@ def project_detail_view(request, pk):
 
         return render(request, 'projeng/project_detail.html', {
             'project': project,
-            'status_choices': Project.STATUS_CHOICES,
             'activity_log': activity_log,
             'documents': documents,  # Pass documents for dedicated section
-            'budget_requests': budget_requests,
+            'configured_target_date': configured_target_date,
+            'configured_target_progress': configured_target_progress,
             'can_edit_any_progress': is_head_engineer(request.user),
             'progress_timeline_data': progress_timeline_data,
             'progress_dates': progress_dates_json,
