@@ -1,11 +1,15 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import Http404
+from django.contrib import messages
 from projeng.models import Project, ProjectCost
 from django.db.models import Sum
 from collections import defaultdict
 from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator
+from decimal import Decimal, InvalidOperation
+from datetime import datetime
+from django.urls import reverse
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -18,11 +22,81 @@ from gistagum.access_control import (
 
 @login_required
 @finance_manager_required
+def finance_reports(request):
+    """
+    Finance Manager reports landing page (screenshot-based UI).
+    This page links to existing export/report endpoints (budget reports + project reports).
+    """
+    from django.utils import timezone
+    year_now = timezone.now().year
+    years = list(range(year_now - 5, year_now + 1))
+    months = [
+        {'value': 1, 'label': 'January'},
+        {'value': 2, 'label': 'February'},
+        {'value': 3, 'label': 'March'},
+        {'value': 4, 'label': 'April'},
+        {'value': 5, 'label': 'May'},
+        {'value': 6, 'label': 'June'},
+        {'value': 7, 'label': 'July'},
+        {'value': 8, 'label': 'August'},
+        {'value': 9, 'label': 'September'},
+        {'value': 10, 'label': 'October'},
+        {'value': 11, 'label': 'November'},
+        {'value': 12, 'label': 'December'},
+    ]
+
+    # Categories based on existing project types for UI dropdown
+    categories = []
+    try:
+        categories = list(
+            Project.objects
+            .exclude(project_type__isnull=True)
+            .values_list('project_type__name', flat=True)
+            .distinct()
+            .order_by('project_type__name')
+        )
+        categories = [c for c in categories if c]
+    except Exception:
+        categories = []
+
+    return render(request, 'finance_manager/finance_reports.html', {
+        'years': years,
+        'months': months,
+        'categories': categories,
+        'default_year': year_now,
+        'default_month': timezone.now().month,
+    })
+
+@login_required
+@finance_manager_required
 def finance_dashboard(request):
     projects = Project.objects.all()
     total_budget = projects.aggregate(total=Sum('project_cost'))['total'] or 0
     total_spent = ProjectCost.objects.aggregate(total=Sum('amount'))['total'] or 0
     remaining = total_budget - total_spent
+
+    # Screenshot-based dashboard metrics
+    active_projects_count = projects.filter(status__in=['in_progress', 'ongoing']).count()
+    over_budget_count = 0
+    near_limit_count = 0
+    budget_by_barangay_spent = defaultdict(float)
+
+    # Recent activity (latest cost entries)
+    recent_costs = (
+        ProjectCost.objects
+        .select_related('project')
+        .order_by('-date', '-id')[:8]
+    )
+    recent_activity = []
+    for c in recent_costs:
+        recent_activity.append({
+            'project_name': getattr(c.project, 'name', '') if getattr(c, 'project', None) else '',
+            'barangay': getattr(c.project, 'barangay', '') if getattr(c, 'project', None) else '',
+            'amount': float(getattr(c, 'amount', 0) or 0),
+            'cost_type': c.get_cost_type_display() if hasattr(c, 'get_cost_type_display') else '',
+            'date': getattr(c, 'date', None),
+        })
+
     # Bar Chart: Top 10 projects by budget
     project_financials = []
     for project in projects:
@@ -32,6 +106,20 @@ def finance_dashboard(request):
             'budget': float(project.project_cost or 0),
             'spent': float(spent),
         })
+        # Track over-budget / near-limit counts and barangay distribution
+        try:
+            budget_val = float(project.project_cost or 0)
+            spent_val = float(spent or 0)
+            if budget_val > 0:
+                used_pct = (spent_val / budget_val) * 100.0
+                if used_pct > 100.0:
+                    over_budget_count += 1
+                elif used_pct >= 85.0:
+                    near_limit_count += 1
+            if project.barangay:
+                budget_by_barangay_spent[str(project.barangay).strip()] += spent_val
+        except Exception:
+            pass
     top_projects = sorted(project_financials, key=lambda x: x['budget'], reverse=True)[:10]
     project_names = [p['name'] for p in top_projects]
     project_budgets = [p['budget'] for p in top_projects]
@@ -58,6 +146,16 @@ def finance_dashboard(request):
     # Doughnut Chart: Budget utilization
     utilization_data = [float(total_spent), float(remaining)]
     utilization_percentage = (float(total_spent) / float(total_budget) * 100) if total_budget > 0 else 0
+
+    # Budget distribution by barangay (Top 6 by spent)
+    barangay_items = sorted(
+        [{'barangay': k, 'spent': v} for k, v in budget_by_barangay_spent.items() if k],
+        key=lambda x: x['spent'],
+        reverse=True
+    )[:6]
+    max_spent = max([i['spent'] for i in barangay_items], default=0) or 0
+    for i in barangay_items:
+        i['percent'] = round((i['spent'] / max_spent) * 100.0, 2) if max_spent > 0 else 0.0
     context = {
         'total_budget': total_budget,
         'total_spent': total_spent,
@@ -70,6 +168,12 @@ def finance_dashboard(request):
         'months': months,
         'cumulative': cumulative,
         'utilization_data': utilization_data,
+        # New UI data (Finance Manager refreshed layout)
+        'active_projects_count': active_projects_count,
+        'over_budget_count': over_budget_count,
+        'near_limit_count': near_limit_count,
+        'recent_activity': recent_activity,
+        'budget_by_barangay': barangay_items,
     }
     return render(request, 'finance_manager/finance_dashboard.html', context)
 
@@ -87,9 +191,25 @@ def finance_projects(request):
         # Filters
         barangay_filter = request.GET.get('barangay')
         status_filter = request.GET.get('status')
+        category_filter = (request.GET.get('category') or '').strip()
+        prn_filter = (request.GET.get('prn') or '').strip()
+        q = (request.GET.get('q') or '').strip()
         projects = Project.objects.all()
         if barangay_filter:
             projects = projects.filter(barangay=barangay_filter)
+        if prn_filter:
+            projects = projects.filter(prn__icontains=prn_filter)
+        if q:
+            projects = projects.filter(Q(name__icontains=q))
+        if category_filter:
+            # Best-effort: Project.project_type FK or project_type string
+            try:
+                projects = projects.filter(project_type__name=category_filter)
+            except Exception:
+                try:
+                    projects = projects.filter(project_type=category_filter)
+                except Exception:
+                    pass
         if status_filter:
             
             if status_filter == 'delayed':
@@ -118,9 +238,25 @@ def finance_projects(request):
             else:
                 projects = projects.filter(status=status_filter)
         
-        # List of projects with their financials
+        # Latest progress (bulk)
+        latest_progress_by_project_id = {}
+        try:
+            progress_qs = (
+                ProjectProgress.objects
+                .filter(project__in=projects)
+                .order_by('project_id', '-date', '-created_at')
+            )
+            for row in progress_qs:
+                pid = row.project_id
+                if pid not in latest_progress_by_project_id:
+                    latest_progress_by_project_id[pid] = float(row.percentage_complete or 0)
+        except Exception:
+            pass
+
+        # List of projects with their financials (for pagination / legacy)
         project_financials = []
         today = timezone.now().date()
+        project_cards = []
         for project in projects:
             try:
                 spent = ProjectCost.objects.filter(project=project).aggregate(total=Sum('amount'))['total'] or 0
@@ -147,6 +283,51 @@ def finance_projects(request):
                     'remaining': remaining_proj,
                     'status': actual_status,
                     'threshold': threshold,
+                })
+
+                # Card data for screenshot layout
+                progress_pct = latest_progress_by_project_id.get(project.id, 0.0)
+                progress_pct = max(0.0, min(100.0, float(progress_pct)))
+                # Use cross-platform date formatting (Windows does not support %-m / %-d).
+                start_display = (
+                    f"{project.start_date.month}/{project.start_date.day}/{project.start_date.year}"
+                    if getattr(project, 'start_date', None) else ''
+                )
+                end_display = (
+                    f"{project.end_date.month}/{project.end_date.day}/{project.end_date.year}"
+                    if getattr(project, 'end_date', None) else ''
+                )
+                date_range = (f"{start_display} - {end_display}" if (start_display or end_display) else '')
+                # Assigned engineer / contractor best-effort
+                engineer_name = ''
+                try:
+                    eng = getattr(project, 'assigned_engineer', None)
+                    if eng:
+                        engineer_name = eng.get_full_name() or eng.username
+                except Exception:
+                    engineer_name = ''
+                contractor = getattr(project, 'contractor', '') if hasattr(project, 'contractor') else ''
+                category_name = ''
+                try:
+                    pt = getattr(project, 'project_type', None)
+                    category_name = getattr(pt, 'name', '') if pt else ''
+                    if not category_name and isinstance(pt, str):
+                        category_name = pt
+                except Exception:
+                    category_name = ''
+                project_cards.append({
+                    'id': project.id,
+                    'prn': project.prn or '',
+                    'status': actual_status,
+                    'name': project.name,
+                    'barangay': project.barangay or '',
+                    'category': category_name,
+                    'date_range': date_range,
+                    'budget': budget_float,
+                    'spent': spent_float,
+                    'progress_pct': progress_pct,
+                    'engineer_name': engineer_name,
+                    'contractor': contractor or '',
                 })
             except Exception as e:
                 logger.error(f"Error processing project {project.id}: {str(e)}", exc_info=True)
@@ -208,6 +389,7 @@ def finance_projects(request):
         context = {
             'project_financials': list(page_obj.object_list),
             'page_obj': page_obj,
+            'project_cards': project_cards,
             'project_names': project_names,
             'project_names_json': project_names_json,
             'project_budgets': project_budgets,
@@ -220,6 +402,13 @@ def finance_projects(request):
             'all_statuses': all_statuses,
             'selected_barangay': barangay_filter or '',
             'selected_status': status_filter or '',
+            'selected_category': category_filter,
+            'selected_prn': prn_filter,
+            'q': q,
+            'categories': sorted(
+                [c for c in set([p.get('category') for p in project_cards if p.get('category')])],
+                key=lambda x: x.lower()
+            ),
         }
         return render(request, 'finance_manager/finance_projects.html', context)
     except Exception as e:
@@ -236,15 +425,67 @@ def finance_cost_management(request):
     logger = logging.getLogger(__name__)
     
     try:
+        if request.method == 'POST' and request.POST.get('action') == 'add_cost_entry':
+            next_url = (request.POST.get('next') or '').strip() or reverse('finance_cost_management')
+            if not next_url.startswith('/'):
+                next_url = reverse('finance_cost_management')
+            try:
+                project = get_object_or_404(Project, id=int(request.POST.get('project_id') or 0))
+                cost_type = (request.POST.get('cost_type') or '').strip()
+                valid_cost_types = {k for k, _ in ProjectCost.COST_TYPES}
+                if cost_type not in valid_cost_types:
+                    raise ValueError('Please select a valid cost type.')
+
+                amount_raw = (request.POST.get('amount') or '').replace(',', '').strip()
+                amount = Decimal(amount_raw)
+                if amount <= 0:
+                    raise ValueError('Amount must be greater than 0.')
+
+                date_raw = (request.POST.get('date') or '').strip()
+                if date_raw:
+                    entry_date = datetime.strptime(date_raw, '%Y-%m-%d').date()
+                else:
+                    from django.utils import timezone
+                    entry_date = timezone.now().date()
+
+                description = (request.POST.get('description') or '').strip() or 'No remarks provided.'
+                receipt = request.FILES.get('receipt')
+
+                ProjectCost.objects.create(
+                    project=project,
+                    date=entry_date,
+                    cost_type=cost_type,
+                    description=description,
+                    amount=amount,
+                    receipt=receipt,
+                    created_by=request.user,
+                )
+                messages.success(request, f'Cost entry saved for {project.name}.')
+            except (ValueError, InvalidOperation) as e:
+                messages.error(request, str(e) or 'Invalid amount.')
+            except Exception as e:
+                logger.error(f"Error adding cost entry: {str(e)}", exc_info=True)
+                messages.error(request, 'Unable to save cost entry. Please try again.')
+            return redirect(next_url)
+
         # Filters
-        prn_filter = request.GET.get('prn')
+        prn_filter = (request.GET.get('prn') or '').strip()
         barangay_filter = request.GET.get('barangay')
         budget_status_filter = request.GET.get('budget_status')
+        year_filter = request.GET.get('year')
+        from django.db.models import Q
         projects = Project.objects.all()
         if prn_filter:
-            projects = projects.filter(prn__icontains=prn_filter)
+            projects = projects.filter(Q(prn__icontains=prn_filter))
         if barangay_filter:
             projects = projects.filter(barangay=barangay_filter)
+        if year_filter:
+            try:
+                year_int = int(year_filter)
+                # Use start year as the primary year filter (matches typical reporting UX)
+                projects = projects.filter(start_date__year=year_int)
+            except (TypeError, ValueError):
+                year_filter = ''
         
         # Prepare financials
         project_financials = []
@@ -276,6 +517,15 @@ def finance_cost_management(request):
                 
                 # Calculate threshold (20% of budget) for color coding
                 threshold = budget_float * 0.2
+
+                # Badge used in refreshed UI
+                percent_used = utilization_percentage if budget_float > 0 else 0.0
+                if percent_used > 100:
+                    status_label = 'Over Budget'
+                elif percent_used >= 85:
+                    status_label = 'Near Limit'
+                else:
+                    status_label = 'Within Budget'
                 
                 project_financials.append({
                     'id': project.id,
@@ -287,6 +537,8 @@ def finance_cost_management(request):
                     'remaining': remaining,
                     'budget_status': budget_status,
                     'threshold': threshold,
+                    'percent_used': percent_used,
+                    'status_label': status_label,
                 })
             except Exception as e:
                 logger.error(f"Error processing project {project.id}: {str(e)}", exc_info=True)
@@ -301,6 +553,13 @@ def finance_cost_management(request):
         
         # Total projects in the filtered list (for display)
         total_projects = len(project_financials)
+
+        # Screenshot summary cards
+        total_approved_budget = sum([p.get('budget', 0) for p in project_financials]) if project_financials else 0
+        total_spent_sum = sum([p.get('spent', 0) for p in project_financials]) if project_financials else 0
+        total_remaining_sum = sum([p.get('remaining', 0) for p in project_financials]) if project_financials else 0
+        near_limit_count = len([p for p in project_financials if 85 <= (p.get('percent_used') or 0) <= 100])
+        over_count = len([p for p in project_financials if (p.get('percent_used') or 0) > 100])
         
         # Pagination - 25 items per page
         paginator = Paginator(project_financials, 25)
@@ -309,6 +568,56 @@ def finance_cost_management(request):
             page_obj = paginator.get_page(page_number)
         except:
             page_obj = paginator.get_page(1)
+
+        # Drawer payload for currently visible projects
+        page_projects = list(page_obj.object_list)
+        page_project_ids = [p.get('id') for p in page_projects if p.get('id')]
+        costs_map = defaultdict(list)
+        breakdown_map = defaultdict(lambda: {
+            'material': 0.0,
+            'labor': 0.0,
+            'equipment': 0.0,
+            'other': 0.0,
+        })
+        if page_project_ids:
+            for c in ProjectCost.objects.filter(project_id__in=page_project_ids).order_by('-date', '-id'):
+                amt = float(c.amount or 0)
+                ctype = c.cost_type if c.cost_type in breakdown_map[c.project_id] else 'other'
+                breakdown_map[c.project_id][ctype] += amt
+                costs_map[c.project_id].append({
+                    'cost_type': c.get_cost_type_display(),
+                    'date': f"{c.date.strftime('%b')} {c.date.day}, {c.date.year}" if c.date else '',
+                    'description': c.description or '',
+                    'amount': amt,
+                })
+
+        project_drawer_data = {}
+        for p in page_projects:
+            pid = p.get('id')
+            if not pid:
+                continue
+            b = breakdown_map[pid]
+            total_direct = b['material'] + b['labor'] + b['equipment']
+            total_indirect = b['other']
+            project_drawer_data[str(pid)] = {
+                'id': pid,
+                'prn': p.get('prn') or '',
+                'name': p.get('name') or '',
+                'barangay': p.get('barangay') or '',
+                'budget': float(p.get('budget') or 0),
+                'spent': float(p.get('spent') or 0),
+                'remaining': float(p.get('remaining') or 0),
+                'percent_used': float(p.get('percent_used') or 0),
+                'breakdown': {
+                    'material': b['material'],
+                    'labor': b['labor'],
+                    'direct': total_direct,
+                    'indirect': total_indirect,
+                    'contingency': max(float(p.get('remaining') or 0), 0.0),
+                    'total_project_cost': float(p.get('budget') or 0),
+                },
+                'history': costs_map[pid],
+            }
         
         # For filters - get unique barangays from all projects
         # Get all barangays, strip whitespace, convert to set for uniqueness, then sort
@@ -332,10 +641,22 @@ def finance_cost_management(request):
             'over_budget_count': over_budget_count,
             'within_budget_count': within_budget_count,
             'under_budget_count': under_budget_count,
+            'near_limit_count': near_limit_count,
+            'over_count': over_count,
+            'total_approved_budget': total_approved_budget,
+            'total_spent_sum': total_spent_sum,
+            'total_remaining_sum': total_remaining_sum,
             'all_barangays': all_barangays,
             'selected_prn': prn_filter or '',
             'selected_barangay': barangay_filter or '',
             'selected_budget_status': budget_status_filter or '',
+            'selected_year': year_filter or '',
+            'cost_type_options': ProjectCost.COST_TYPES,
+            'project_drawer_data': project_drawer_data,
+            'year_options': sorted(
+                {d.year for d in Project.objects.exclude(start_date__isnull=True).values_list('start_date', flat=True) if d},
+                reverse=True
+            ),
         }
         return render(request, 'finance_manager/finance_cost_management.html', context)
     except Exception as e:

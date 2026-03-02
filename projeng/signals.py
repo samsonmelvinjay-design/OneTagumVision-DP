@@ -39,18 +39,16 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
     # Prevent recursion: if we're already syncing this project, skip
     if instance.id in _syncing_projects:
         return
-    
-    # Skip sync if this is a new project being created (optimize performance)
-    # The sync can happen asynchronously or on-demand
-    # Only sync on updates to avoid blocking project creation
-    if created:
-        # For new projects, skip immediate sync to improve performance
-        # Can be synced later if needed via a background task or manual sync
-        return
-    
+
     print(f"SIGNAL: sync_projeng_to_monitoring called for Project id={instance.id}, prn={instance.prn}")
     try:
         if instance.prn:
+            status_map = {
+                'planned': 'pending',
+                'ongoing': 'in_progress',
+            }
+            mapped_status = status_map.get(instance.status, instance.status or 'pending')
+
             # Mark this project as being synced
             if instance.id:
                 _syncing_projects.add(instance.id)
@@ -59,11 +57,11 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
                 prn=instance.prn,
                 defaults={
                     'name': instance.name,
-                    'description': instance.description,
+                    'description': (instance.description or ''),
                     'barangay': instance.barangay,
                     'project_cost': str(instance.project_cost) if instance.project_cost is not None else '',
                     'source_of_funds': instance.source_of_funds,
-                    'status': instance.status,
+                    'status': mapped_status,
                     'latitude': instance.latitude or 0,
                     'longitude': instance.longitude or 0,
                     'start_date': instance.start_date,
@@ -73,11 +71,11 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
             )
             if not created:
                 monitoring_project.name = instance.name
-                monitoring_project.description = instance.description
+                monitoring_project.description = (instance.description or '')
                 monitoring_project.barangay = instance.barangay
                 monitoring_project.project_cost = str(instance.project_cost) if instance.project_cost is not None else ''
                 monitoring_project.source_of_funds = instance.source_of_funds
-                monitoring_project.status = instance.status
+                monitoring_project.status = mapped_status
                 monitoring_project.latitude = instance.latitude or 0
                 monitoring_project.longitude = instance.longitude or 0
                 monitoring_project.start_date = instance.start_date

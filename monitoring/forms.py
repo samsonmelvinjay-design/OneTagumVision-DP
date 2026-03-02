@@ -14,6 +14,9 @@ class ProjectForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['prn'].required = True
+        self.fields['prn'].widget.attrs['placeholder'] = 'Enter PRN manually'
+
         # Filter the queryset for assigned_engineers to only include Project Engineers
         project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
         if project_engineer_group is not None:
@@ -48,12 +51,20 @@ class ProjectForm(forms.ModelForm):
             self.fields['zone_type'].help_text = 'Recommended zone will be shown after selecting project type and location'
             self.fields['zone_type'].widget.attrs['class'] = 'rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none'
 
+    def clean_prn(self):
+        prn = (self.cleaned_data.get('prn') or '').strip()
+        if not prn:
+            raise ValidationError('PRN is required.')
+        return prn
+
     def clean(self):
         cleaned_data = super().clean()
         status = cleaned_data.get('status', '').lower()
         barangay = cleaned_data.get('barangay')
         latitude = cleaned_data.get('latitude')
         longitude = cleaned_data.get('longitude')
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
         
         # Location is always required
         errors = {}
@@ -82,6 +93,22 @@ class ProjectForm(forms.ModelForm):
         if status == 'delayed':
             if not barangay:
                 errors['barangay'] = 'Barangay is required for delayed projects.'
+
+        # Date rules by status:
+        # - planned: dates are optional
+        # - in_progress/ongoing: start date required
+        # - completed/delayed: both start and end dates required
+        if status in ('in_progress', 'ongoing'):
+            if not start_date:
+                errors['start_date'] = 'Start date is required when status is In Progress.'
+        elif status in ('completed', 'delayed'):
+            if not start_date:
+                errors['start_date'] = 'Start date is required when status is Completed or Delayed.'
+            if not end_date:
+                errors['end_date'] = 'End date is required when status is Completed or Delayed.'
+
+        if start_date and end_date and end_date < start_date:
+            errors['end_date'] = 'End date cannot be earlier than start date.'
         
         if errors:
             raise ValidationError(errors)

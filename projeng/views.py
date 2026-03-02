@@ -41,12 +41,14 @@ from .utils import (
     forward_budget_alert_to_finance
 )
 from django.views.decorators.http import require_GET, require_http_methods
-from django.db import transaction
+from django.db import transaction, DatabaseError
 import traceback
 from django.db.models import ProtectedError
 from django.contrib.auth.views import redirect_to_login
 from django.conf import settings
 from datetime import date as dt_date
+
+logger = logging.getLogger(__name__)
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -63,9 +65,19 @@ from gistagum.access_control import (
 
 def _configured_expected_timeline(project, progress_dates, progress_percentages, actual_progress, today, elapsed_days, total_days, remaining_days):
     """Build timeline comparison using Head Engineer configured expected checkpoints."""
-    configured_rows = list(
-        ProjectConfiguredProgress.objects.filter(project=project).order_by('target_date').values('target_date', 'percentage')
-    )
+    try:
+        configured_rows = list(
+            ProjectConfiguredProgress.objects.filter(project=project)
+            .order_by('target_date')
+            .values('target_date', 'percentage')
+        )
+    except DatabaseError as exc:
+        logger.warning(
+            "Configured progress table unavailable for project %s; fallback to computed timeline. Error: %s",
+            getattr(project, 'id', 'unknown'),
+            exc,
+        )
+        return None
     if not configured_rows:
         return None
 
@@ -157,9 +169,25 @@ def _get_configured_target_for_display(project, today=None):
     """Return configured target checkpoint for display: nearest upcoming else latest."""
     if today is None:
         today = timezone.now().date()
-    target = ProjectConfiguredProgress.objects.filter(project=project, target_date__gte=today).order_by('target_date').first()
-    if not target:
-        target = ProjectConfiguredProgress.objects.filter(project=project).order_by('-target_date').first()
+    try:
+        target = (
+            ProjectConfiguredProgress.objects.filter(project=project, target_date__gte=today)
+            .order_by('target_date')
+            .first()
+        )
+        if not target:
+            target = (
+                ProjectConfiguredProgress.objects.filter(project=project)
+                .order_by('-target_date')
+                .first()
+            )
+    except DatabaseError as exc:
+        logger.warning(
+            "Configured target lookup unavailable for project %s; continuing without target. Error: %s",
+            getattr(project, 'id', 'unknown'),
+            exc,
+        )
+        return None, None
     if not target:
         return None, None
     return target.target_date, float(target.percentage)
@@ -828,24 +856,57 @@ def project_detail_view(request, pk):
             'color': 'blue'
         })
         
-        # Add progress updates
-        progress_updates = ProjectProgress.objects.filter(project=project).select_related('created_by', 'milestone').order_by('-created_at')
+        # Add progress updates (include edit explanation + milestone details)
+        from django.db.models import Prefetch
+        from projeng.models import ProjectProgressEditHistory
+        progress_updates = (
+            ProjectProgress.objects
+            .filter(project=project)
+            .select_related('created_by', 'updated_by', 'milestone')
+            .prefetch_related(
+                Prefetch(
+                    'edit_history',
+                    queryset=ProjectProgressEditHistory.objects.select_related('edited_by').order_by('-edited_at'),
+                    to_attr='prefetched_edit_history',
+                )
+            )
+            .order_by('-created_at')
+        )
+
         for progress in progress_updates:
+            latest_edit = None
+            if getattr(progress, 'prefetched_edit_history', None):
+                latest_edit = progress.prefetched_edit_history[0]
+
+            is_edit = bool(progress.is_edited and latest_edit)
             milestone_info = ''
-            if progress.milestone:
-                milestone_info = f' (Milestone: {progress.milestone.name})'
-            
+
+            from_pct = latest_edit.from_percentage if latest_edit else None
+            to_pct = latest_edit.to_percentage if latest_edit else None
+            edit_reason = (latest_edit.edit_reason if latest_edit else progress.last_edit_reason) or None
+
+            if is_edit and from_pct is not None and to_pct is not None:
+                msg = f'Progress edited: {from_pct}% → {to_pct}%{milestone_info}'
+            else:
+                msg = f'Progress updated to {progress.percentage_complete}%{milestone_info}'
+
             activity_log.append({
                 'type': 'progress_update',
+                'is_edit': is_edit,
+                'edit_reason': edit_reason,
+                'from_percentage': from_pct,
+                'to_percentage': to_pct,
                 'progress_id': progress.id,
-                'timestamp': progress.created_at,
-                'user': progress.created_by,
-                'message': f'Progress updated to {progress.percentage_complete}%{milestone_info}',
+                'timestamp': (latest_edit.edited_at if is_edit else progress.created_at),
+                'user': (latest_edit.edited_by if is_edit else progress.created_by),
+                'message': msg,
                 'description': progress.description,
                 'justification': progress.justification,
                 'date': progress.date,
                 'percentage': progress.percentage_complete,
-                'milestone': progress.milestone.name if progress.milestone else None,
+                'milestone': None,
+                'milestone_target_date': None,
+                'milestone_description': None,
                 'icon': 'chart-bar',
                 'color': 'green'
             })
@@ -900,6 +961,11 @@ def project_detail_view(request, pk):
             })
             progress_dates.append(progress.date.strftime('%Y-%m-%d'))
             progress_percentages.append(progress.percentage_complete)
+
+        # Latest actual progress for header display
+        latest_actual_progress = float(progress_percentages[-1]) if progress_percentages else 0.0
+        latest_actual_progress = max(0.0, min(100.0, latest_actual_progress))
+        show_actual_progress_label_inside = latest_actual_progress >= 15.0
 
         today = timezone.now().date()
         configured_target_date, configured_target_progress = _get_configured_target_for_display(project, today=today)
@@ -1043,9 +1109,22 @@ def project_detail_view(request, pk):
             days_elapsed = total_days = days_remaining = 0
             expected_progress = progress_variance = None
 
-        extension_count = ProjectExtensionHistory.objects.filter(project=project).count()
-        latest_extension = ProjectExtensionHistory.objects.filter(project=project).order_by('-created_at').first()
-        revised_target_date = latest_extension.new_end_date.strftime('%B %d, %Y') if latest_extension else None
+        try:
+            extension_count = ProjectExtensionHistory.objects.filter(project=project).count()
+            latest_extension = (
+                ProjectExtensionHistory.objects.filter(project=project)
+                .order_by('-created_at')
+                .first()
+            )
+            revised_target_date = latest_extension.new_end_date.strftime('%B %d, %Y') if latest_extension else None
+        except DatabaseError as exc:
+            logger.warning(
+                "Project extension history unavailable for project %s; continuing without extension data. Error: %s",
+                getattr(project, 'id', 'unknown'),
+                exc,
+            )
+            extension_count = 0
+            revised_target_date = None
 
         report_data = {
             'project': {
@@ -1095,6 +1174,8 @@ def project_detail_view(request, pk):
             'documents': documents,  # Pass documents for dedicated section
             'configured_target_date': configured_target_date,
             'configured_target_progress': configured_target_progress,
+            'latest_actual_progress': latest_actual_progress,
+            'show_actual_progress_label_inside': show_actual_progress_label_inside,
             'can_edit_any_progress': is_head_engineer(request.user),
             'progress_timeline_data': progress_timeline_data,
             'progress_dates': progress_dates_json,
@@ -1526,12 +1607,6 @@ def add_progress_update(request, pk):
                     'error': f'Progress cannot decrease. Current progress is {current_progress}%. If you need to correct this, please contact an administrator.'
                 }, status=400)
             
-            # Validation: Prevent unrealistic jumps (more than 30% increase in one update)
-            if percentage_complete > current_progress + 30:
-                return JsonResponse({
-                    'error': f'Progress increase is too large. Current progress is {current_progress}%. Maximum allowed increase is 30% per update (up to {current_progress + 30}%).'
-                }, status=400)
-            
             # Validation: Require justification for increases >10%
             justification = request.POST.get('justification', '').strip()
             if progress_increase > 10 and not justification:
@@ -1545,6 +1620,17 @@ def add_progress_update(request, pk):
                 return JsonResponse({
                     'error': f'Photos are required for progress increases greater than 10%. Please upload at least one photo showing the work completed.'
                 }, status=400)
+
+            # Allow large jumps when requirements are provided (justification + photos).
+            # If missing, block as "too large".
+            if progress_increase > 30:
+                if not justification or len(uploaded_photos) == 0:
+                    return JsonResponse({
+                        'error': (
+                            f'Progress increase is too large. Current progress is {current_progress}%. '
+                            f'For increases above 30%, please provide justification and at least one photo.'
+                        )
+                    }, status=400)
             
             # Timeline validation disabled: engineers can enter any progress from current up to 100%.
 
@@ -1679,10 +1765,18 @@ def edit_progress_update(request, pk, update_id):
     milestones = ProjectMilestone.objects.filter(project=project).order_by('target_date', 'created_at')
 
     if request.method == 'GET':
+        base_template = 'base.html' if is_head_engineer(request.user) else 'projeng_base.html'
+        current_percentage = float(progress.percentage_complete or 0)
+        max_without_evidence = round(min(100.0, current_percentage + 30.0), 2)
+        has_existing_photos = progress.photos.exists()
         return render(request, 'projeng/edit_progress_update.html', {
+            'base_template': base_template,
             'project': project,
             'progress_update': progress,
             'milestones': milestones,
+            'current_percentage': current_percentage,
+            'max_without_evidence': max_without_evidence,
+            'has_existing_photos': has_existing_photos,
         })
 
     if request.method != 'POST':
@@ -1705,24 +1799,33 @@ def edit_progress_update(request, pk, update_id):
     if not edit_reason:
         return HttpResponseBadRequest("Edit reason is required.")
 
-    milestone_id = (request.POST.get('milestone') or '').strip()
-    milestone = None
-    if milestone_id:
-        try:
-            milestone = ProjectMilestone.objects.get(pk=int(milestone_id), project=project)
-        except Exception:
-            milestone = None
+    # Milestone selection is currently hidden in the UI; keep existing milestone unless explicitly provided.
+    milestone = progress.milestone
+    if 'milestone' in request.POST:
+        milestone_id = (request.POST.get('milestone') or '').strip()
+        milestone = None
+        if milestone_id:
+            try:
+                milestone = ProjectMilestone.objects.get(pk=int(milestone_id), project=project)
+            except Exception:
+                milestone = None
 
     uploaded_photos = request.FILES.getlist('photos')
 
     old_percentage = progress.percentage_complete
     delta = new_percentage - old_percentage
 
-    # Validation: prevent unrealistic jumps (more than 30% change in one edit)
+    # Allow large jumps on edit when requirements are provided (justification + photos).
     if delta > 30:
-        return HttpResponseBadRequest(
-            f"Progress increase is too large. Maximum allowed increase is 30% per edit (up to {old_percentage + 30}%)."
-        )
+        existing_photo_count = progress.photos.count()
+        if not new_justification:
+            return HttpResponseBadRequest(
+                f"Progress increase is too large. For increases above 30%, justification is required (increase: {delta}%)."
+            )
+        if existing_photo_count + len(uploaded_photos) == 0:
+            return HttpResponseBadRequest(
+                "For increases above 30%, at least one photo is required."
+            )
     if delta < -30:
         return HttpResponseBadRequest(
             f"Progress decrease is too large. Maximum allowed decrease is 30% per edit (down to {old_percentage - 30}%)."
@@ -1795,6 +1898,22 @@ def edit_progress_update(request, pk, update_id):
             monitoring_project.save(update_fields=["progress"])
     except MonitoringProject.DoesNotExist:
         pass
+
+    # Notify Head Engineers about the edit
+    try:
+        from projeng.utils import notify_head_engineers, notify_admins, format_project_display
+        editor_name = request.user.get_full_name() or request.user.username
+        project_display = format_project_display(project)
+        notif_message = (
+            f"Progress update edited for project '{project_display}' by {editor_name}: "
+            f"{old_percentage}% → {new_percentage}% (Date: {progress.date}). "
+            f"Reason: {edit_reason}"
+        )
+        notify_head_engineers(notif_message, check_duplicates=True)
+        notify_admins(notif_message, check_duplicates=True)
+    except Exception:
+        # Don't block save on notification failure
+        logging.exception("Failed to notify head engineers about progress edit")
 
     messages.success(request, "Progress update edited successfully.")
     return redirect('projeng:projeng_project_detail', pk=project.pk)

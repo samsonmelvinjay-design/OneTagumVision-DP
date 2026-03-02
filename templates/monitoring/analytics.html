@@ -246,11 +246,11 @@
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ project.status_display }}</span>
                                 {% endif %}
                             </td>
-                            <td class="px-4 py-4 text-sm text-gray-600">
-                                {{ project.start_date|default:'—' }}
+                            <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                                {{ project.start_date_display|default:"--" }}
                             </td>
-                            <td class="px-4 py-4 text-sm text-gray-600">
-                                {{ project.end_date|default:'—' }}
+                            <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                                {{ project.end_date_display|default:"--" }}
                             </td>
                             {% if user_role == 'head_engineer' %}
                             <td class="px-4 py-4 text-sm text-gray-600">
@@ -269,8 +269,8 @@
                                 {% if user_role == 'head_engineer' %}
                                     {% if project.id %}
                                         <a href="{% url 'monitoring_project_detail' project.id %}"
-                                           class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg">
-                                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md shadow-sm transition-all duration-200 hover:shadow-md whitespace-nowrap">
+                                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                            </svg>
                                            Timeline Report

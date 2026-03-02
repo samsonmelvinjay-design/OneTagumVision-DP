@@ -29,42 +29,30 @@
     </div>
 </div>
 
-<div class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="mb-8">
-        <div class="flex justify-between items-center mb-4">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">Notifications</h1>
-                <p class="text-gray-600">Stay updated with budget alerts and project updates</p>
-            </div>
-            <div class="flex items-center space-x-3">
-                {% if unread_count > 0 %}
-                <span class="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg flex items-center" id="unreadCount">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                    </svg>
-                    {{ unread_count }} unread
-                </span>
-                {% endif %}
-                <button id="markAllReadBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center font-medium">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Mark All as Read
-                </button>
-                <button id="deleteAllBtn" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center font-medium">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                    Delete All
-                </button>
-            </div>
-        </div>
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Notifications</h1>
+        <p class="text-sm text-gray-600 mt-1">Stay updated with budget alerts and project updates</p>
     </div>
+    <div class="flex items-center gap-2 flex-wrap">
+        {% if unread_count > 0 %}
+        <span class="inline-flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm font-semibold" id="unreadCount">
+            <span class="h-2 w-2 bg-red-600 rounded-full"></span>
+            {{ unread_count }} unread
+        </span>
+        {% endif %}
+        <button id="markAllReadBtn" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">
+            Mark all read
+        </button>
+        <button id="deleteAllBtn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition">
+            Delete all
+        </button>
+    </div>
+</div>
 
     {% if notifications %}
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div class="divide-y divide-gray-200">
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div class="divide-y divide-gray-100">
                 {% for item in notifications_with_projects %}
                 {% with notification=item.notification project_id=item.project_id is_clickable=item.is_clickable %}
                 <div class="p-5 hover:bg-gray-50 transition-all duration-200 {% if not notification.is_read %}bg-blue-50 border-l-4 border-blue-500{% else %}border-l-4 border-transparent{% endif %} notification-item {% if is_clickable %}cursor-pointer{% endif %}" 
@@ -116,7 +104,7 @@
                         </div>
                         <div class="flex space-x-2 ml-4 flex-shrink-0" onclick="event.stopPropagation();">
                             {% if not notification.is_read and not is_clickable %}
-                            <button class="mark-read-btn text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200" 
+                            <button class="mark-read-btn text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200" 
                                     data-notification-id="{{ notification.id }}">
                                 <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -124,7 +112,7 @@
                                 Mark Read
                             </button>
                             {% endif %}
-                            <button class="delete-notification-btn text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200" 
+                            <button class="delete-notification-btn text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200" 
                                     data-notification-id="{{ notification.id }}">
                                 <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -139,7 +127,7 @@
             </div>
         </div>
     {% else %}
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
+        <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
             <div class="text-gray-400 mb-6">
                 <svg class="mx-auto h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -149,7 +137,6 @@
             <p class="text-gray-500 text-lg">No new notifications at the moment.</p>
         </div>
     {% endif %}
-</div>
 
 <script>
 // Function to redirect to project detail page - Define globally before DOMContentLoaded
@@ -294,11 +281,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Update unread count
                     const unreadCount = document.getElementById('unreadCount');
-                    const currentCount = parseInt(unreadCount.textContent);
-                    unreadCount.textContent = `${currentCount - 1} unread`;
-                    
-                    if (currentCount - 1 === 0) {
-                        unreadCount.style.display = 'none';
+                    if (unreadCount) {
+                        const currentCount = parseInt(unreadCount.textContent) || 0;
+                        unreadCount.textContent = `${Math.max(0, currentCount - 1)} unread`;
+                        if (currentCount - 1 <= 0) {
+                            unreadCount.style.display = 'none';
+                        }
                     }
                 }
             });
@@ -366,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Real-time notification updates - automatically add new notifications to list
     function addNotificationToList(notificationData) {
         const notificationsContainer = document.querySelector('.divide-y');
-        const emptyState = document.querySelector('.bg-white.rounded-lg.shadow-md.p-8.text-center');
+        const emptyState = document.querySelector('.bg-white.rounded-xl.border.border-gray-200.p-12.text-center');
         
         if (!notificationsContainer) return;
         
@@ -474,11 +462,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Update unread count
                         const unreadCount = document.getElementById('unreadCount');
-                        const currentCount = parseInt(unreadCount.textContent) || 0;
-                        unreadCount.textContent = `${currentCount - 1} unread`;
-                        
-                        if (currentCount - 1 === 0) {
-                            unreadCount.style.display = 'none';
+                        if (unreadCount) {
+                            const currentCount = parseInt(unreadCount.textContent) || 0;
+                            unreadCount.textContent = `${Math.max(0, currentCount - 1)} unread`;
+                            if (currentCount - 1 <= 0) {
+                                unreadCount.style.display = 'none';
+                            }
                         }
                     }
                 });

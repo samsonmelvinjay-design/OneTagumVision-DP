@@ -1,407 +1,117 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Architect's Dashboard</h1>
-        <p class="text-gray-600">Overview of project finances and budget utilization</p>
-    </div>
+<div class="mb-6">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+    <p class="text-sm text-gray-600 mt-1">Comprehensive view of all engineering projects and budgets</p>
+</div>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-blue-100 text-sm font-medium mb-1">Total Budget</p>
-                    <p class="text-3xl font-bold">₱{{ total_budget|floatformat:0|intcomma|default:"0" }}</p>
-                </div>
-                <div class="bg-blue-400 bg-opacity-30 rounded-full p-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
+<!-- Metric Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Active Projects</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">{{ active_projects_count|default:0 }}</p>
             </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-green-100 text-sm font-medium mb-1">Total Spent</p>
-                    <p class="text-3xl font-bold">₱{{ total_spent|floatformat:0|intcomma|default:"0" }}</p>
-                </div>
-                <div class="bg-green-400 bg-opacity-30 rounded-full p-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-yellow-100 text-sm font-medium mb-1">Remaining Budget</p>
-                    <p class="text-3xl font-bold">₱{{ remaining|floatformat:0|intcomma|default:"0" }}</p>
-                </div>
-                <div class="bg-yellow-400 bg-opacity-30 rounded-full p-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-200">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-purple-100 text-sm font-medium mb-1">Utilization Rate</p>
-                    <p class="text-3xl font-bold">
-                        {% if total_budget > 0 %}
-                            {{ utilization_percentage|floatformat:1|default:"0" }}%
-                        {% else %}
-                            0%
-                        {% endif %}
-                    </p>
-                </div>
-                <div class="bg-purple-400 bg-opacity-30 rounded-full p-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                </div>
+            <div class="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10" />
+                </svg>
             </div>
         </div>
     </div>
-
-    <!-- Charts Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top 10 Projects by Budget -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                    Top 10 Projects by Budget
-                </h3>
-                <div class="chart-period-wrap flex items-center gap-2" data-chart-id="financeTopProjects">
-                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                    <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                        <option value="week">Weekly</option>
-                        <option value="month" selected>Monthly</option>
-                        <option value="year">Yearly</option>
-                    </select>
-                </div>
+    <div class="bg-green-50 border border-green-200 rounded-xl p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-green-700 uppercase tracking-wide">Total Budget</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">₱{{ total_budget|floatformat:0|intcomma|default:"0" }}</p>
             </div>
-            <div style="height: 350px;">
-                <canvas id="barChart"></canvas>
+            <div class="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center text-white">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1" />
+                </svg>
             </div>
         </div>
-
-        <!-- Spending by Cost Type -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
-                    </svg>
-                    Spending by Cost Type
-                </h3>
-                <div class="chart-period-wrap flex items-center gap-2" data-chart-id="financeCostType">
-                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                    <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white">
-                        <option value="week">Weekly</option>
-                        <option value="month" selected>Monthly</option>
-                        <option value="year">Yearly</option>
-                    </select>
-                </div>
+    </div>
+    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-yellow-700 uppercase tracking-wide">Total Spent</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">₱{{ total_spent|floatformat:0|intcomma|default:"0" }}</p>
             </div>
-            <div style="height: 350px;">
-                <canvas id="pieChart"></canvas>
+            <div class="h-10 w-10 rounded-xl bg-yellow-500 flex items-center justify-center text-white">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9" />
+                </svg>
             </div>
         </div>
-
-        <!-- Cumulative Spending Over Time -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                    </svg>
-                    Cumulative Spending Over Time
-                </h3>
-                <div class="chart-period-wrap flex items-center gap-2" data-chart-id="financeSpending">
-                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                    <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white">
-                        <option value="week">Weekly</option>
-                        <option value="month" selected>Monthly</option>
-                        <option value="year">Yearly</option>
-                    </select>
-                </div>
+    </div>
+    <div class="bg-red-50 border border-red-200 rounded-xl p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs font-semibold text-red-700 uppercase tracking-wide">Over Budget</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">{{ over_budget_count|default:0 }}</p>
             </div>
-            <div style="height: 350px;">
-                <canvas id="lineChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Budget Utilization -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                    </svg>
-                    Budget Utilization
-                </h3>
-                <div class="chart-period-wrap flex items-center gap-2" data-chart-id="financeUtilization">
-                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                    <select class="chart-period-select px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-gray-200 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 bg-white">
-                        <option value="week">Weekly</option>
-                        <option value="month" selected>Monthly</option>
-                        <option value="year">Yearly</option>
-                    </select>
-                </div>
-            </div>
-            <div style="height: 350px;">
-                <canvas id="doughnutChart"></canvas>
+            <div class="h-10 w-10 rounded-xl bg-red-600 flex items-center justify-center text-white">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 18h13.86c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 15c-.77 1.333.192 3 1.732 3z" />
+                </svg>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const projectNames = {{ project_names|safe }};
-const projectBudgets = {{ project_budgets|safe }};
-const projectSpent = {{ project_spent|safe }};
-const costByType = {{ cost_by_type|safe }};
-const months = {{ months|safe }};
-const cumulative = {{ cumulative|safe }};
-const utilizationData = {{ utilization_data|safe }};
 
-// Bar Chart: Top 10 Projects by Budget
-const barCtx = document.getElementById('barChart').getContext('2d');
-new Chart(barCtx, {
-    type: 'bar',
-    data: {
-        labels: projectNames,
-        datasets: [
-            {
-                label: 'Budget',
-                data: projectBudgets,
-                backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                borderColor: 'rgba(59, 130, 246, 1)',
-                borderWidth: 2,
-                borderRadius: 6
-            },
-            {
-                label: 'Spent',
-                data: projectSpent,
-                backgroundColor: 'rgba(34, 197, 94, 0.8)',
-                borderColor: 'rgba(34, 197, 94, 1)',
-                borderWidth: 2,
-                borderRadius: 6
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { 
-                position: 'top',
-                labels: {
-                    padding: 15,
-                    font: { size: 12, weight: '500' }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                titleFont: { size: 14, weight: 'bold' },
-                bodyFont: { size: 13 }
-            }
-        },
-        scales: { 
-            y: { 
-                beginAtZero: true,
-                grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                ticks: {
-                    callback: function(value) {
-                        return '₱' + value.toLocaleString();
-                    }
-                }
-            },
-            x: {
-                grid: { display: false }
-            }
-        }
-    }
-});
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Recent Activity -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900">Recent Activity</h2>
+            <div class="text-xs text-gray-500">Latest cost entries</div>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for a in recent_activity %}
+            <div class="py-3 flex items-start gap-3">
+                <span class="mt-2 h-2.5 w-2.5 rounded-full bg-green-500 flex-shrink-0"></span>
+                <div class="min-w-0 flex-1">
+                    <div class="text-sm font-semibold text-gray-900 truncate">{{ a.project_name|default:"Project" }}</div>
+                    <div class="text-xs text-gray-500 truncate">
+                        {{ a.cost_type|default:"Cost" }} • ₱{{ a.amount|floatformat:0|intcomma }} • {{ a.date|date:"M j, Y"|default:"—" }}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="py-8 text-sm text-gray-500 text-center">No recent activity yet.</div>
+            {% endfor %}
+        </div>
+    </div>
 
-// Pie Chart: Spending by Cost Type
-const pieCtx = document.getElementById('pieChart').getContext('2d');
-const costTypeLabels = Object.keys(costByType);
-const costTypeData = Object.values(costByType);
-new Chart(pieCtx, {
-    type: 'pie',
-    data: {
-        labels: costTypeLabels,
-        datasets: [{
-            data: costTypeData,
-            backgroundColor: [
-                'rgba(59, 130, 246, 0.8)',
-                'rgba(251, 191, 36, 0.8)',
-                'rgba(34, 197, 94, 0.8)',
-                'rgba(239, 68, 68, 0.8)',
-                'rgba(168, 85, 247, 0.8)',
-                'rgba(236, 72, 153, 0.8)'
-            ],
-            borderColor: [
-                'rgba(59, 130, 246, 1)',
-                'rgba(251, 191, 36, 1)',
-                'rgba(34, 197, 94, 1)',
-                'rgba(239, 68, 68, 1)',
-                'rgba(168, 85, 247, 1)',
-                'rgba(236, 72, 153, 1)'
-            ],
-            borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { 
-                position: 'bottom',
-                labels: {
-                    padding: 15,
-                    font: { size: 12, weight: '500' }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                callbacks: {
-                    label: function(context) {
-                        const label = context.label || '';
-                        const value = '₱' + context.parsed.toLocaleString();
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = ((context.parsed / total) * 100).toFixed(1);
-                        return label + ': ' + value + ' (' + percentage + '%)';
-                    }
-                }
-            }
-        }
-    }
-});
-
-// Line Chart: Cumulative Spending Over Time
-const lineCtx = document.getElementById('lineChart').getContext('2d');
-new Chart(lineCtx, {
-    type: 'line',
-    data: {
-        labels: months,
-        datasets: [{
-            label: 'Cumulative Spending',
-            data: cumulative,
-            fill: true,
-            borderColor: 'rgba(59, 130, 246, 1)',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4,
-            borderWidth: 3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { 
-                position: 'top',
-                labels: {
-                    padding: 15,
-                    font: { size: 12, weight: '500' }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                callbacks: {
-                    label: function(context) {
-                        return '₱' + context.parsed.y.toLocaleString();
-                    }
-                }
-            }
-        },
-        scales: { 
-            y: { 
-                beginAtZero: true,
-                grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                ticks: {
-                    callback: function(value) {
-                        return '₱' + value.toLocaleString();
-                    }
-                }
-            },
-            x: {
-                grid: { display: false }
-            }
-        }
-    }
-});
-
-// Doughnut Chart: Budget Utilization
-const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
-new Chart(doughnutCtx, {
-    type: 'doughnut',
-    data: {
-        labels: ['Spent', 'Remaining'],
-        datasets: [{
-            data: utilizationData,
-            backgroundColor: [
-                'rgba(34, 197, 94, 0.8)',
-                'rgba(251, 191, 36, 0.8)'
-            ],
-            borderColor: [
-                'rgba(34, 197, 94, 1)',
-                'rgba(251, 191, 36, 1)'
-            ],
-            borderWidth: 3
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { 
-            legend: { 
-                position: 'bottom',
-                labels: {
-                    padding: 15,
-                    font: { size: 12, weight: '500' }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                callbacks: {
-                    label: function(context) {
-                        const label = context.label || '';
-                        const value = '₱' + context.parsed.toLocaleString();
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = ((context.parsed / total) * 100).toFixed(1);
-                        return label + ': ' + value + ' (' + percentage + '%)';
-                    }
-                }
-            }
-        }
-    }
-});
-</script>
+    <!-- Budget Distribution by Barangay -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900">Budget Distribution by Barangay</h2>
+            <div class="text-xs text-gray-500">By total spent</div>
+        </div>
+        <div class="space-y-4">
+            {% for b in budget_by_barangay %}
+            <div>
+                <div class="flex items-center justify-between text-xs text-gray-600 mb-2">
+                    <span class="font-semibold text-gray-900">{{ b.barangay }}</span>
+                    <span class="text-gray-500">₱{{ b.spent|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-2.5 bg-gray-900" style="width: {{ b.percent }}%"></div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="py-8 text-sm text-gray-500 text-center">No barangay data yet.</div>
+            {% endfor %}
+        </div>
+        <div class="mt-5 text-xs text-gray-500">
+            Legend: <span class="inline-flex items-center gap-2 ml-2"><span class="h-2 w-2 bg-green-500 rounded-full inline-block"></span>Within budget</span>
+            <span class="inline-flex items-center gap-2 ml-3"><span class="h-2 w-2 bg-yellow-500 rounded-full inline-block"></span>Near limit</span>
+            <span class="inline-flex items-center gap-2 ml-3"><span class="h-2 w-2 bg-red-600 rounded-full inline-block"></span>Over budget</span>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.db import DatabaseError
 from .finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications
 from .engineer_management import (
     engineer_list, engineer_create, engineer_detail,
@@ -26,6 +27,7 @@ import os
 import json
 import csv
 import io
+import logging
 from datetime import datetime
 import openpyxl
 # Optional PDF libraries
@@ -1340,6 +1342,7 @@ def map_view(request):
                     'prn': p.prn or '',
                     'start_date': str(p.start_date) if p.start_date else "",
                     'end_date': str(p.end_date) if p.end_date else "",
+                    'created_at': p.created_at.isoformat() if getattr(p, 'created_at', None) else "",
                     'image': image_url,
                     'progress': progress_value,
                     'assigned_engineers': assigned_engineers,
@@ -2604,7 +2607,7 @@ def head_engineer_analytics(request):
     from projeng.models import Project, ProjectProgress, SourceOfFunds, ProjectType
     from django.db.models import Max, Q
     from django.core.paginator import Paginator
-    from django.utils import timezone
+    from django.utils import timezone, formats
     from decimal import Decimal, InvalidOperation
     import json
 
@@ -2832,6 +2835,8 @@ def head_engineer_analytics(request):
             'status_display': status_display,
             'start_date': str(p.start_date) if p.start_date else '',
             'end_date': str(p.end_date) if p.end_date else '',
+            'start_date_display': formats.date_format(p.start_date, "N j, Y") if p.start_date else '',
+            'end_date_display': formats.date_format(p.end_date, "N j, Y") if p.end_date else '',
             'assigned_to': assigned_to,
         })
     
@@ -2984,14 +2989,64 @@ def _build_uploaded_images_list(request, progress_updates, image_documents, proj
 @require_http_methods(["GET", "POST"])
 def project_config_settings_api(request, pk):
     """CRUD endpoint for head engineer project configuration settings modal."""
+    logger = logging.getLogger(__name__)
     try:
         project = Project.objects.get(pk=pk)
     except Project.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Project not found.'}, status=404)
 
+    def _current_display_target():
+        """Return nearest upcoming configured target else latest (for header display)."""
+        from django.utils import timezone as tz
+        today = tz.now().date()
+        try:
+            row = (
+                ProjectConfiguredProgress.objects
+                .filter(project=project, target_date__gte=today)
+                .order_by('target_date')
+                .first()
+            )
+            if not row:
+                row = (
+                    ProjectConfiguredProgress.objects
+                    .filter(project=project)
+                    .order_by('-target_date')
+                    .first()
+                )
+        except DatabaseError as exc:
+            logger.warning(
+                "Configured progress table unavailable for project %s in project_config_settings_api: %s",
+                project.id,
+                exc,
+            )
+            return None
+        if not row:
+            return None
+        return {
+            'date': row.target_date.isoformat(),
+            'percentage': float(row.percentage),
+        }
+
     if request.method == "GET":
-        progress_rows = ProjectConfiguredProgress.objects.filter(project=project).order_by('target_date')
-        extension_rows = ProjectExtensionHistory.objects.filter(project=project).order_by('-created_at')
+        try:
+            progress_rows = ProjectConfiguredProgress.objects.filter(project=project).order_by('target_date')
+        except DatabaseError as exc:
+            logger.warning(
+                "Configured progress table unavailable for project %s GET config settings: %s",
+                project.id,
+                exc,
+            )
+            progress_rows = []
+
+        try:
+            extension_rows = ProjectExtensionHistory.objects.filter(project=project).order_by('-created_at')
+        except DatabaseError as exc:
+            logger.warning(
+                "Project extension history table unavailable for project %s GET config settings: %s",
+                project.id,
+                exc,
+            )
+            extension_rows = []
         return JsonResponse({
             'success': True,
             'project': {
@@ -2999,6 +3054,7 @@ def project_config_settings_api(request, pk):
                 'start_date': project.start_date.isoformat() if project.start_date else None,
                 'end_date': project.end_date.isoformat() if project.end_date else None,
             },
+            'display_target': _current_display_target(),
             'saved_progress': [
                 {
                     'date': row.target_date.isoformat(),
@@ -3042,20 +3098,32 @@ def project_config_settings_api(request, pk):
         if percentage < 0 or percentage > 100:
             return JsonResponse({'success': False, 'error': 'Percentage must be between 0 and 100.'}, status=400)
 
-        row, _created = ProjectConfiguredProgress.objects.update_or_create(
-            project=project,
-            target_date=target_date,
-            defaults={
-                'percentage': percentage,
-                'set_by': request.user,
-            }
-        )
+        try:
+            row, _created = ProjectConfiguredProgress.objects.update_or_create(
+                project=project,
+                target_date=target_date,
+                defaults={
+                    'percentage': percentage,
+                    'set_by': request.user,
+                }
+            )
+        except DatabaseError as exc:
+            logger.warning(
+                "Configured progress save failed for project %s: %s",
+                project.id,
+                exc,
+            )
+            return JsonResponse(
+                {'success': False, 'error': 'Configured progress data is currently unavailable.'},
+                status=503,
+            )
         return JsonResponse({
             'success': True,
             'saved': {
                 'date': row.target_date.isoformat(),
                 'percentage': float(row.percentage),
-            }
+            },
+            'display_target': _current_display_target(),
         })
 
     if action == 'bulk_set_progress':
@@ -3079,14 +3147,22 @@ def project_config_settings_api(request, pk):
             if percentage < 0 or percentage > 100:
                 continue
 
-            row, _created = ProjectConfiguredProgress.objects.update_or_create(
-                project=project,
-                target_date=target_date,
-                defaults={
-                    'percentage': percentage,
-                    'set_by': request.user,
-                }
-            )
+            try:
+                row, _created = ProjectConfiguredProgress.objects.update_or_create(
+                    project=project,
+                    target_date=target_date,
+                    defaults={
+                        'percentage': percentage,
+                        'set_by': request.user,
+                    }
+                )
+            except DatabaseError as exc:
+                logger.warning(
+                    "Bulk configured progress save failed for project %s: %s",
+                    project.id,
+                    exc,
+                )
+                continue
             saved.append({
                 'date': row.target_date.isoformat(),
                 'percentage': float(row.percentage),
@@ -3096,6 +3172,7 @@ def project_config_settings_api(request, pk):
             'success': True,
             'saved_count': len(saved),
             'saved': saved,
+            'display_target': _current_display_target(),
         })
 
     if action == 'add_extension':
@@ -3113,12 +3190,23 @@ def project_config_settings_api(request, pk):
         if new_end_date <= previous_end_date:
             return JsonResponse({'success': False, 'error': 'New end date must be later than current end date.'}, status=400)
 
-        history = ProjectExtensionHistory.objects.create(
-            project=project,
-            previous_end_date=previous_end_date,
-            new_end_date=new_end_date,
-            set_by=request.user,
-        )
+        try:
+            history = ProjectExtensionHistory.objects.create(
+                project=project,
+                previous_end_date=previous_end_date,
+                new_end_date=new_end_date,
+                set_by=request.user,
+            )
+        except DatabaseError as exc:
+            logger.warning(
+                "Project extension save failed for project %s: %s",
+                project.id,
+                exc,
+            )
+            return JsonResponse(
+                {'success': False, 'error': 'Project extension history is currently unavailable.'},
+                status=503,
+            )
         project.end_date = new_end_date
         project.save(update_fields=['end_date', 'updated_at'])
 
@@ -3207,6 +3295,52 @@ def head_engineer_project_detail(request, pk):
                 image_documents.append(doc)
             else:
                 other_documents.append(doc)
+
+        # Build unified image gallery: progress photos + image documents
+        document_images = []
+        try:
+            for u in progress_updates:
+                for photo in (u.photos.all() if hasattr(u, 'photos') else []):
+                    try:
+                        if not getattr(photo, 'image', None):
+                            continue
+                        url = photo.image.url
+                        document_images.append({
+                            'id': f'progressphoto-{photo.id}',
+                            'url': url,
+                            'name': f'Progress photo • {u.date.strftime("%b %d, %Y") if getattr(u, "date", None) else "Progress"}',
+                            'uploaded_at': getattr(photo, 'uploaded_at', None) or getattr(u, 'created_at', None),
+                            'uploaded_by': getattr(u, 'created_by', None),
+                            'source': 'progress',
+                        })
+                    except Exception:
+                        continue
+        except Exception:
+            logger.warning("Failed building progress photo gallery", exc_info=True)
+
+        try:
+            for doc in image_documents:
+                try:
+                    if not getattr(doc, 'file', None):
+                        continue
+                    document_images.append({
+                        'id': f'doc-{doc.id}',
+                        'url': doc.file.url,
+                        'name': doc.name or (doc.file.name.rsplit('/', 1)[-1] if doc.file else 'Image'),
+                        'uploaded_at': getattr(doc, 'uploaded_at', None),
+                        'uploaded_by': getattr(doc, 'uploaded_by', None),
+                        'source': 'document',
+                    })
+                except Exception:
+                    continue
+        except Exception:
+            logger.warning("Failed building image document gallery", exc_info=True)
+
+        try:
+            from datetime import datetime
+            document_images.sort(key=lambda x: x.get('uploaded_at') or datetime.min, reverse=True)
+        except Exception:
+            pass
         
         documents = all_documents  # Keep for backward compatibility
         # Analytics & summary
@@ -3266,12 +3400,27 @@ def head_engineer_project_detail(request, pk):
         performance_ratio = (latest_progress.percentage_complete / expected_progress) if latest_progress and expected_progress and expected_progress > 0 else None
 
         # Preferred display target from Configure Project Settings (15th/30th checkpoints)
-        configured_target = ProjectConfiguredProgress.objects.filter(
-            project=project,
-            target_date__gte=today
-        ).order_by('target_date').first()
-        if not configured_target:
-            configured_target = ProjectConfiguredProgress.objects.filter(project=project).order_by('-target_date').first()
+        configured_target = None
+        try:
+            configured_target = (
+                ProjectConfiguredProgress.objects
+                .filter(project=project, target_date__gte=today)
+                .order_by('target_date')
+                .first()
+            )
+            if not configured_target:
+                configured_target = (
+                    ProjectConfiguredProgress.objects
+                    .filter(project=project)
+                    .order_by('-target_date')
+                    .first()
+                )
+        except DatabaseError as exc:
+            logger.warning(
+                "Configured progress table unavailable for head_engineer_project_detail project %s: %s",
+                project.id,
+                exc,
+            )
         configured_expected_progress = float(configured_target.percentage) if configured_target else None
         configured_expected_date = configured_target.target_date if configured_target else None
 
@@ -3363,6 +3512,7 @@ def head_engineer_project_detail(request, pk):
             'documents': documents,  # All documents for backward compatibility
             'image_documents': image_documents,  # Images only
             'other_documents': other_documents,  # Non-image documents
+            'document_images': document_images,  # Progress photos + image docs
             'latest_progress': latest_progress,
             'expected_progress': expected_progress,
             'configured_expected_progress': configured_expected_progress,
@@ -3382,7 +3532,80 @@ def head_engineer_project_detail(request, pk):
 @login_required
 @head_engineer_required
 def head_dashboard_card_data_api(request):
-    return HttpResponse("head_dashboard_card_data_api placeholder")
+    from django.db.models import Max
+    from projeng.models import Notification
+
+    projects = Project.objects.all()
+    project_count = projects.count()
+
+    today = timezone.now().date()
+    project_ids = list(projects.values_list('id', flat=True))
+    latest_progress_map = {}
+    if project_ids:
+        latest_progress_qs = (
+            ProjectProgress.objects
+            .filter(project_id__in=project_ids)
+            .values('project_id')
+            .annotate(latest_date=Max('date'), latest_created=Max('created_at'))
+        )
+        for item in latest_progress_qs:
+            latest = (
+                ProjectProgress.objects
+                .filter(
+                    project_id=item['project_id'],
+                    date=item['latest_date'],
+                    created_at=item['latest_created'],
+                )
+                .order_by('-created_at')
+                .first()
+            )
+            latest_progress_map[item['project_id']] = float(latest.percentage_complete or 0) if latest else 0.0
+
+    completed_count = 0
+    in_progress_count = 0
+    planned_count = 0
+    delayed_count = 0
+
+    for p in projects:
+        progress_val = latest_progress_map.get(p.id, float(p.progress or 0))
+        status = (p.status or '').lower()
+
+        if progress_val >= 99:
+            normalized = 'completed'
+        elif p.end_date and p.end_date < today and progress_val < 99:
+            normalized = 'delayed'
+        elif status in ['in_progress', 'ongoing']:
+            normalized = 'in_progress'
+        elif status in ['planned', 'pending']:
+            normalized = 'planned'
+        elif status == 'delayed':
+            normalized = 'delayed'
+        elif status == 'completed':
+            normalized = 'completed'
+        else:
+            normalized = 'planned'
+
+        if normalized == 'completed':
+            completed_count += 1
+        elif normalized == 'in_progress':
+            in_progress_count += 1
+        elif normalized == 'planned':
+            planned_count += 1
+        elif normalized == 'delayed':
+            delayed_count += 1
+
+    completion_rate = round((completed_count / project_count) * 100, 1) if project_count else 0.0
+    unread_notifications = Notification.objects.filter(recipient=request.user, is_read=False).count()
+
+    return JsonResponse({
+        'project_count': project_count,
+        'completed_count': completed_count,
+        'in_progress_count': in_progress_count,
+        'planned_count': planned_count,
+        'delayed_count': delayed_count,
+        'completion_rate': completion_rate,
+        'unread_notifications': unread_notifications,
+    })
 
 def barangay_geojson_view(request):
     static_dir = getattr(settings, 'STATIC_SOURCE_DIR', None) or (getattr(settings, 'PROJECT_ROOT', settings.BASE_DIR) / 'static')

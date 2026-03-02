@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load user_groups %}
 {% block content %}
 <style>
 #map {
@@ -237,9 +238,31 @@
 <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-6 lg:px-8">
         <!-- Page Header -->
-        <div class="mb-6">
-            <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">City Overview</h1>
-            <p class="text-gray-600 text-sm lg:text-base">Interactive map view of all projects and zoning information across Tagum City</p>
+        <div class="mb-6 flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                    {% if user|has_group:"Finance Manager" %}
+                        Map View
+                    {% else %}
+                        City Overview
+                    {% endif %}
+                </h1>
+                <p class="text-gray-600 text-sm lg:text-base">
+                    {% if user|has_group:"Finance Manager" %}
+                        Geographic visualization of project locations
+                    {% else %}
+                        Interactive map view of all projects and zoning information across Tagum City
+                    {% endif %}
+                </p>
+            </div>
+            {% if is_head_engineer %}
+            <button id="add-project-btn" type="button" class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg whitespace-nowrap">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Add Project
+            </button>
+            {% endif %}
         </div>
 
         <!-- Main Content Card -->
@@ -247,7 +270,7 @@
             <!-- Filter Section (Above Map) -->
             <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                 <div id="filter-section">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                         <!-- Date Range -->
                         <div class="lg:col-span-2 grid grid-cols-2 gap-3">
                             <div>
@@ -258,6 +281,14 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">End Date</label>
                                 <input id="end-date-filter" type="date" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" />
                             </div>
+                        </div>
+
+                        <!-- Year Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Year</label>
+                            <select id="year-filter" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300">
+                                <option value="">All Years</option>
+                            </select>
                         </div>
                         
                         <!-- Barangay Filter -->
@@ -291,7 +322,7 @@
                             </select>
                         </div>
                         
-                        <!-- Status Filters and Add Project Button -->
+                        <!-- Status Filters -->
                         <div class="lg:col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                             <div class="flex gap-3 items-center">
@@ -301,14 +332,6 @@
                                     <button id="btn-planned" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all text-sm h-[38px] whitespace-nowrap">Planned</button>
                                     <button id="btn-delayed" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all text-sm h-[38px] whitespace-nowrap">Delayed</button>
                                 </div>
-                                {% if is_head_engineer %}
-                                <button id="add-project-btn" type="button" class="ml-auto inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg flex-shrink-0">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    Add Project
-                                </button>
-                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -1308,6 +1331,27 @@ document.addEventListener('DOMContentLoaded', function() {
         return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
 
+    function getProjectYear(dateStr) {
+        if (!dateStr) return null;
+        const raw = String(dateStr).trim();
+        const isoMatch = raw.match(/^(\d{4})-/);
+        if (isoMatch) return parseInt(isoMatch[1], 10);
+        const parsed = new Date(raw);
+        if (!isNaN(parsed.getTime())) return parsed.getFullYear();
+        return null;
+    }
+
+    function getProjectYears(project) {
+        const years = [];
+        const startYear = getProjectYear(project.start_date);
+        const endYear = getProjectYear(project.end_date);
+        const createdYear = getProjectYear(project.created_at);
+        if (startYear) years.push(startYear);
+        if (endYear) years.push(endYear);
+        if (createdYear) years.push(createdYear);
+        return Array.from(new Set(years));
+    }
+
     // Helper: get projects that match current filters and have valid coordinates
     function getFilteredProjectsForMap() {
         const results = [];
@@ -1316,9 +1360,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const barangay = barangayFilter.value;
+        const selectedYear = yearFilter ? yearFilter.value : '';
         const startDate = startDateFilter.value;
         const endDate = endDateFilter.value;
-        console.log('Applying filters: Status=', statusFilter, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
+        console.log('Applying filters: Status=', statusFilter, 'Year=', selectedYear, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
 
         window.projects.forEach(project => {
             // Use same status as Overall Project Metrics (backend sends computed status; treat missing as 'planned')
@@ -1338,6 +1383,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusMatch = projectStatus === statusFilter;
             }
             const barangayMatch = !barangay || (project.barangay && project.barangay.toLowerCase() === barangay.toLowerCase());
+            // Year filter logic: match project start year or end year
+            let yearMatch = true;
+            if (selectedYear) {
+                const targetYear = parseInt(selectedYear, 10);
+                const projectYears = getProjectYears(project);
+                yearMatch = projectYears.includes(targetYear);
+            }
             // Date filter logic
             let dateMatch = true;
             if (startDate && project.start_date) {
@@ -1349,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Validate coordinates as numbers
             const hasValidCoords = project.latitude && !isNaN(parseFloat(project.latitude)) && project.longitude && !isNaN(parseFloat(project.longitude));
 
-            if (statusMatch && barangayMatch && dateMatch && hasValidCoords) {
+            if (statusMatch && barangayMatch && yearMatch && dateMatch && hasValidCoords) {
                 results.push(project);
             }
         });
@@ -1804,9 +1856,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     }
 
-    // Add date filter logic in JS
+    // Add date/year filter logic in JS
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
+    const yearFilter = document.getElementById('year-filter');
+
+    function populateYearFilterOptions() {
+        if (!yearFilter) return;
+        const currentValue = yearFilter.value;
+        const years = new Set();
+
+        (window.projects || []).forEach((project) => {
+            getProjectYears(project).forEach((y) => years.add(y));
+        });
+
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
+        yearFilter.innerHTML = '<option value="">All Years</option>';
+        sortedYears.forEach((year) => {
+            const opt = document.createElement('option');
+            opt.value = String(year);
+            opt.textContent = String(year);
+            yearFilter.appendChild(opt);
+        });
+
+        if (currentValue && sortedYears.includes(parseInt(currentValue, 10))) {
+            yearFilter.value = currentValue;
+        }
+    }
+    populateYearFilterOptions();
 
     startDateFilter.addEventListener('change', function() {
         // Always render markers (combined view)
@@ -1822,6 +1899,14 @@ document.addEventListener('DOMContentLoaded', function() {
             renderHeatmap();
         }
     });
+    if (yearFilter) {
+        yearFilter.addEventListener('change', function() {
+            renderMarkers();
+            if (heatmapEnabled) {
+                renderHeatmap();
+            }
+        });
+    }
 
     // Heatmap toggle handler
     if (heatmapToggle) {
@@ -2346,8 +2431,8 @@ window.openDetailsModal = function(id) {
 
         // Handle map in modal
         if (detailsMapDiv) {
-            // Small delay before initializing the map to ensure modal is visible and map container has dimensions
-            setTimeout(() => {
+            // Initialize on next paint so the modal container already has dimensions.
+            requestAnimationFrame(() => {
                 if (window.detailsMap) {
                     window.detailsMap.remove();
                 }
@@ -2380,7 +2465,7 @@ window.openDetailsModal = function(id) {
                 } else {
                     detailsMapDiv.innerHTML = '<div class="text-gray-400 text-center py-8">No location set</div>';
                 }
-            }, 100); // Small delay
+            });
         }
 
     } else {
@@ -2391,7 +2476,12 @@ window.openDetailsModal = function(id) {
 
 // Include the getStatusBadge function (copy from project_list.html)
 function getStatusBadge(status) {
-    const normalizedStatus = normalizeProjectStatus(status);
+    const s = (status || '').toString().trim().toLowerCase();
+    const normalizedStatus =
+        (s === 'ongoing' || s === 'in_progress') ? 'in_progress' :
+        (s === 'planned' || s === 'pending') ? 'planned' :
+        (s === 'completed') ? 'completed' :
+        (s === 'delayed') ? 'delayed' : s;
     if (normalizedStatus === 'completed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Completed</span>';
     } else if (normalizedStatus === 'in_progress') {
@@ -2422,11 +2512,11 @@ function formatDate(dateStr) {
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
                 <!-- Left column: PRN, Name, Description, Barangay, Project Cost, Project Type -->
                 <div class="lg:col-span-5 space-y-3">
-                    <div class="hidden" aria-hidden="true">
+                    <div>
                         <label class="font-semibold text-gray-700 text-sm">PRN</label>
-                        <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
-                               class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none" />
-                        <p class="text-[10px] text-gray-500 mt-0.5">Auto-generated (not editable)</p>
+                        <input type="text" name="prn" required
+                               class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                               placeholder="Enter PRN manually (e.g., PRN-2026-001)" />
                     </div>
                     <div>
                         <label class="font-semibold text-gray-700 text-sm">Name</label>
@@ -2527,23 +2617,24 @@ function formatDate(dateStr) {
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">Start Date</label>
-                            {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                            <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
-                            {% else %}
-                            <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
-                            {% endif %}
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Start Date</label>
+                                {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+                                {% else %}
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">End Date</label>
+                                {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+                                {% else %}
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
+                                {% endif %}
+                            </div>
                         </div>
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">End Date</label>
-                            {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                            <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
-                            {% else %}
-                            <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
-                            {% endif %}
-                        </div>
-                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-3">
                             <div>
@@ -2716,36 +2807,28 @@ function showModal() {
         }
     }
 
-    // Ensure PRN is always auto-generated on Add mode
-    ensureAutoPrn();
+    updateDateRequirementsByStatus();
     if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
 }
 
-async function ensureAutoPrn() {
-    try {
-        const form = document.getElementById('project-form');
-        if (!form) return;
-        const mode = form.getAttribute('data-mode') || 'add';
-        if (mode !== 'add') return; // keep PRN on edit
-        const prnInput = form.elements ? form.elements['prn'] : null;
-        if (!prnInput) return;
-        prnInput.readOnly = true;
-        prnInput.value = 'Generating...';
-        const res = await fetch('/dashboard/api/prn/generate/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const data = await res.json();
-        if (data && data.success && data.prn) {
-            prnInput.value = data.prn;
-        } else {
-            prnInput.value = '';
-            console.error('Failed to generate PRN:', data);
-        }
-    } catch (e) {
-        console.error('Failed to generate PRN:', e);
-        try {
-            const form = document.getElementById('project-form');
-            const prnInput = form && form.elements ? form.elements['prn'] : null;
-            if (prnInput) prnInput.value = '';
-        } catch (_) {}
+function updateDateRequirementsByStatus() {
+    const form = document.getElementById('project-form');
+    if (!form || !form.elements) return;
+    const statusEl = form.elements['status'];
+    const startEl = form.elements['start_date'];
+    const endEl = form.elements['end_date'];
+    if (!statusEl || !startEl || !endEl) return;
+
+    const status = (statusEl.value || '').toLowerCase();
+    if (status === 'planned' || status === '') {
+        startEl.required = false;
+        endEl.required = false;
+    } else if (status === 'in_progress' || status === 'ongoing') {
+        startEl.required = true;
+        endEl.required = false;
+    } else {
+        startEl.required = true;
+        endEl.required = true;
     }
 }
 
@@ -3029,7 +3112,7 @@ function initializeModalButtons() {
                 }
                 
                 // Validate required fields
-                const requiredFields = ['name', 'status', 'latitude', 'longitude'];
+                const requiredFields = ['prn', 'name', 'status', 'latitude', 'longitude'];
                 const missingFields = [];
                 for (const fieldName of requiredFields) {
                     const value = formValues[fieldName] || formData.get(fieldName) || '';
@@ -3632,6 +3715,9 @@ function populateEngineers() {
         }
         if (closeModal) closeModal.addEventListener('click', hideModal);
         if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+        if (projectForm && projectForm.elements && projectForm.elements['status']) {
+            projectForm.elements['status'].addEventListener('change', updateDateRequirementsByStatus);
+        }
         // Click outside modal (on backdrop) closes it using the same hideModal
         if (projectModal) {
             projectModal.addEventListener('click', function(e) {

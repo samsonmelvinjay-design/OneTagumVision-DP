@@ -283,11 +283,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     <!-- Left column: PRN, Name, Description, Barangay, Project Cost, Project Type -->
                     <div class="lg:col-span-5 space-y-3">
-                        <div class="hidden" aria-hidden="true">
+                        <div>
                             <label class="font-semibold text-gray-700 text-sm">PRN</label>
-                            <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
-                                   class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                            <p class="text-[10px] text-gray-500 mt-0.5">Auto-generated (not editable)</p>
+                            <input type="text" name="prn" required
+                                   class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                                   placeholder="Enter PRN manually (e.g., PRN-2026-001)" />
                         </div>
                         <div>
                             <label class="font-semibold text-gray-700 text-sm">Name</label>
@@ -390,17 +390,17 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div>
                                 <label class="font-semibold text-gray-700 text-sm">Start Date</label>
                                 {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
                                 {% else %}
-                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
                                 {% endif %}
                             </div>
                             <div>
                                 <label class="font-semibold text-gray-700 text-sm">End Date</label>
                                 {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
                                 {% else %}
-                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
                                 {% endif %}
                             </div>
                         </div>
@@ -1102,33 +1102,6 @@ function showToast(message) {
     }
 }
 
-async function ensureAutoPrn() {
-    try {
-        if (!projectForm) return;
-        const mode = projectForm.getAttribute('data-mode') || 'add';
-        if (mode !== 'add') return; // keep existing PRN on edit
-        const prnInput = projectForm.elements ? projectForm.elements['prn'] : null;
-        if (!prnInput) return;
-        prnInput.readOnly = true;
-        // Always generate a fresh PRN when opening "Add Project"
-        prnInput.value = 'Generating...';
-        const res = await fetch('/dashboard/api/prn/generate/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const data = await res.json();
-        if (data && data.success && data.prn) {
-            prnInput.value = data.prn;
-        } else {
-            prnInput.value = '';
-            console.error('Failed to generate PRN:', data);
-        }
-    } catch (e) {
-        console.error('Failed to generate PRN:', e);
-        try {
-            const prnInput = projectForm && projectForm.elements ? projectForm.elements['prn'] : null;
-            if (prnInput) prnInput.value = '';
-        } catch (_) {}
-    }
-}
-
 function showModal() {
     if (projectModal) {
         projectModal.classList.remove('opacity-0', 'pointer-events-none');
@@ -1136,7 +1109,7 @@ function showModal() {
     }
     initSourceOfFundsUX();
     initProjectTypeUX();
-    ensureAutoPrn();
+    updateDateRequirementsByStatus();
     updateCoordinateDisplays();
 }
 function hideModal() {
@@ -1169,6 +1142,26 @@ function hideModal() {
     updateCoordinateDisplays();
 }
 window.closeProjectModal = hideModal;
+
+function updateDateRequirementsByStatus() {
+    if (!projectForm || !projectForm.elements) return;
+    const statusEl = projectForm.elements['status'];
+    const startEl = projectForm.elements['start_date'];
+    const endEl = projectForm.elements['end_date'];
+    if (!statusEl || !startEl || !endEl) return;
+
+    const status = (statusEl.value || '').toLowerCase();
+    if (status === 'planned' || status === '') {
+        startEl.required = false;
+        endEl.required = false;
+    } else if (status === 'in_progress' || status === 'ongoing') {
+        startEl.required = true;
+        endEl.required = false;
+    } else {
+        startEl.required = true;
+        endEl.required = true;
+    }
+}
 
 function populateEngineers() {
     return fetch('/projeng/api/engineers/')
@@ -1221,6 +1214,9 @@ if (addProjectBtn) {
 }
 if (closeModal) closeModal.addEventListener('click', hideModal);
 if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+if (projectForm && projectForm.elements && projectForm.elements['status']) {
+    projectForm.elements['status'].addEventListener('change', updateDateRequirementsByStatus);
+}
 
 // --- View Details Modal ---
 function formatDate(dateStr) {

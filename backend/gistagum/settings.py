@@ -391,6 +391,8 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # Password reset settings
 PASSWORD_RESET_TIMEOUT = 604800  # 7 days in seconds (longer timeout for better UX)
+PASSWORD_RESET_DOMAIN = os.environ.get('PASSWORD_RESET_DOMAIN', '').strip()
+PASSWORD_RESET_USE_HTTPS = get_env_bool('PASSWORD_RESET_USE_HTTPS', not DEBUG)
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
@@ -434,6 +436,7 @@ EMAIL_USE_TLS = get_env_bool('EMAIL_USE_TLS', True)
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@onetagumvision.com')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
 EMAIL_CREDENTIALS_CONFIGURED = all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD])
 

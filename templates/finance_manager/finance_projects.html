@@ -1,160 +1,120 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Projects</h1>
-        <p class="text-gray-600">View and manage project financial information</p>
-    </div>
+<div class="mb-6">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Projects Management</h1>
+    <p class="text-sm text-gray-600 mt-1">View and manage all engineering projects</p>
+</div>
 
-    <!-- Filters -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
-        <form method="get" class="flex flex-col md:flex-row gap-4 items-end">
-            <div class="flex-1">
-                <label for="barangay" class="block text-sm font-medium text-gray-700 mb-2">
-                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    Barangay
-                </label>
-                <select name="barangay" id="barangay" class="w-full rounded-lg border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" onchange="this.form.submit()">
-                    <option value="">All Barangays</option>
-                    {% for b in all_barangays %}
-                    <option value="{{ b }}" {% if selected_barangay == b %}selected{% endif %}>{{ b }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="flex-1">
-                <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
-                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                    Status
-                </label>
-                <select name="status" id="status" class="w-full rounded-lg border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" onchange="this.form.submit()">
-                    <option value="">All Statuses</option>
-                    {% for s in all_statuses %}
-                    <option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ s|title }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </form>
+<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <select name="category" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+            <option value="">All Categories</option>
+            {% for c in categories %}
+                <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+        <select name="status" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+            <option value="">All Status</option>
+            <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
+            <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="delayed" {% if selected_status == 'delayed' %}selected{% endif %}>Delayed</option>
+            <option value="planned" {% if selected_status == 'planned' %}selected{% endif %}>Planned</option>
+        </select>
+        <div class="relative">
+            <input name="prn" value="{{ selected_prn }}" placeholder="Filter by PRN..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm font-medium" />
+            <svg class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
+            </svg>
+        </div>
+        <div class="relative">
+            <input name="q" value="{{ q }}" placeholder="Search project name..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm font-medium" />
+            <svg class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
+            </svg>
+        </div>
     </div>
+    <div class="mt-3 flex items-center justify-end gap-2">
+        <a href="{% url 'finance_projects' %}" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition">Reset</a>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">Apply</button>
+    </div>
+</form>
 
-    <!-- Project Financials Table -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700">
-            <h2 class="text-xl font-semibold text-white flex items-center">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                Project Financials
-            </h2>
-        </div>
-        <div class="overflow-visible">
-            <table class="w-full divide-y divide-gray-200 table-auto">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 35%;">Project</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 12%;">Barangay</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 13%;">Budget</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 13%;">Spent</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="width: 13%;">Remaining</th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 14%;">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for proj in project_financials %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-3 py-3">
-                            <div class="text-sm font-medium text-gray-900 break-words" style="max-width: 400px;">{{ proj.name }}</div>
-                        </td>
-                        <td class="px-3 py-3 whitespace-nowrap">
-                            <div class="text-sm text-gray-600">{{ proj.barangay|default:"N/A" }}</div>
-                        </td>
-                        <td class="px-3 py-3 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-blue-700">₱{{ proj.budget|floatformat:2|intcomma }}</div>
-                        </td>
-                        <td class="px-3 py-3 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-green-700">₱{{ proj.spent|floatformat:2|intcomma }}</div>
-                        </td>
-                        <td class="px-3 py-3 whitespace-nowrap">
-                            <div class="text-sm font-semibold {% if proj.remaining < 0 %}text-red-700{% elif proj.remaining < proj.threshold %}text-yellow-600{% else %}text-green-700{% endif %}">
-                                ₱{{ proj.remaining|floatformat:2|intcomma }}
-                            </div>
-                        </td>
-                        <td class="px-3 py-3 whitespace-nowrap">
-                            <span class="px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full 
-                                {% if proj.status == 'completed' %}bg-green-100 text-green-800
-                                {% elif proj.status == 'in_progress' or proj.status == 'ongoing' %}bg-blue-100 text-blue-800
-                                {% elif proj.status == 'planned' %}bg-gray-100 text-gray-800
-                                {% elif proj.status == 'delayed' %}bg-red-100 text-red-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ proj.status|title }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <h3 class="mt-2 text-sm font-medium text-gray-900">No projects found</h3>
-                            <p class="mt-1 text-sm text-gray-500">Try adjusting your filters.</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Pagination Controls -->
-        {% if page_obj.has_other_pages %}
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-end gap-2">
-            <div class="text-sm text-gray-700 mr-4">
-                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} projects
-            </div>
-            <div class="flex gap-1">
-                {% if page_obj.has_previous %}
-                <a href="?{% if selected_barangay %}barangay={{ selected_barangay }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.previous_page_number }}" 
-                   class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    Previous
-                </a>
-                {% else %}
-                <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
-                    Previous
-                </span>
-                {% endif %}
-                
-                {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                    <span class="px-3 py-2 bg-blue-600 border border-blue-600 rounded-md text-sm font-medium text-white">
-                        {{ num }}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {% for p in project_cards %}
+    <a href="{% url 'finance_project_detail' p.id %}" class="block bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-semibold text-gray-500">{{ p.prn|default:"—" }}</span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-bold
+                        {% if p.status == 'delayed' %}bg-red-100 text-red-700
+                        {% elif p.status == 'completed' %}bg-green-100 text-green-700
+                        {% elif p.status == 'in_progress' or p.status == 'ongoing' %}bg-blue-100 text-blue-700
+                        {% else %}bg-gray-100 text-gray-700{% endif %}">
+                        {% if p.status == 'in_progress' or p.status == 'ongoing' %}In Progress{% else %}{{ p.status|title }}{% endif %}
                     </span>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <a href="?{% if selected_barangay %}barangay={{ selected_barangay }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ num }}" 
-                       class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                        {{ num }}
-                    </a>
-                    {% endif %}
-                {% endfor %}
-                
-                {% if page_obj.has_next %}
-                <a href="?{% if selected_barangay %}barangay={{ selected_barangay }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.next_page_number }}" 
-                   class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    Next
-                </a>
-                {% else %}
-                <span class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
-                    Next
-                </span>
-                {% endif %}
+                </div>
+                <div class="mt-2 text-base font-extrabold text-gray-900 truncate">{{ p.name }}</div>
+            </div>
+            <div class="text-gray-400">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
             </div>
         </div>
-        {% endif %}
+
+        <div class="mt-3 space-y-2 text-sm text-gray-600">
+            <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="truncate">{{ p.barangay|default:"—" }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+                </svg>
+                <span class="truncate">{{ p.category|default:"—" }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10m2 10H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z" />
+                </svg>
+                <span class="truncate">{{ p.date_range|default:"—" }}</span>
+            </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <div class="text-xs text-gray-500">Budget</div>
+                <div class="font-semibold text-gray-900">₱{{ p.budget|floatformat:0|intcomma }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500">Spent</div>
+                <div class="font-semibold text-gray-900">₱{{ p.spent|floatformat:0|intcomma }}</div>
+            </div>
+            <div class="col-span-2">
+                <div class="text-xs text-gray-500 mb-1">Progress</div>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-2.5 bg-gray-900" style="width: {{ p.progress_pct }}%"></div>
+                    </div>
+                    <div class="text-xs font-bold text-gray-700">{{ p.progress_pct|floatformat:0 }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-xs text-gray-500">
+            <div class="truncate">Engineer: <span class="text-gray-700 font-semibold">{{ p.engineer_name|default:"—" }}</span></div>
+            <div class="truncate">Contractor: <span class="text-gray-700 font-semibold">{{ p.contractor|default:"—" }}</span></div>
+        </div>
+    </a>
+    {% empty %}
+    <div class="col-span-full bg-white border border-gray-200 rounded-xl p-10 text-center text-sm text-gray-500">
+        No projects found.
     </div>
+    {% endfor %}
 </div>
 {% endblock %}

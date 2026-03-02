@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Reports</h1>
+    <p class="text-sm text-gray-600 mt-1">Generate and download budget monitoring reports</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: Generator + Templates -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Generate Report -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5">
+            <div class="flex items-center gap-2 text-gray-900 font-bold">
+                <svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-8 0h8" />
+                </svg>
+                Generate Report
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Report Period</label>
+                    <select id="fm-report-period" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+                        <option value="monthly" selected>Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Year</label>
+                    <select id="fm-report-year" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+                        {% for y in years %}
+                            <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Month</label>
+                    <select id="fm-report-month" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+                        {% for m in months %}
+                            <option value="{{ m.value }}" {% if m.value == default_month %}selected{% endif %}>{{ m.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-4">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">Category Filter</label>
+                    <select id="fm-report-category" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+                        <option value="">All Categories</option>
+                        {% for c in categories %}
+                            <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Note: category is used for tagging on this page; exports use existing report filters.</p>
+                </div>
+            </div>
+
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button" id="fm-open-budget-report" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">
+                    Open Budget Report
+                </button>
+                <button type="button" id="fm-download-pdf" class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition">
+                    Download PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Report Templates -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5">
+            <div class="flex items-center gap-2 text-gray-900 font-bold">
+                <svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Report Templates
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border border-gray-200 rounded-xl p-4">
+                    <div class="font-semibold text-gray-900">Monthly Budget Summary</div>
+                    <div class="text-xs text-gray-500 mt-1">Comprehensive overview of budget utilization per month</div>
+                    <button type="button" class="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-semibold transition fm-template-btn"
+                            data-kind="budget" data-chart-period="month">
+                        Generate
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4">
+                    <div class="font-semibold text-gray-900">Project Status Report</div>
+                    <div class="text-xs text-gray-500 mt-1">Current status of all ongoing projects</div>
+                    <button type="button" class="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-semibold transition fm-template-btn"
+                            data-kind="projects">
+                        Generate
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4">
+                    <div class="font-semibold text-gray-900">Quarterly Performance</div>
+                    <div class="text-xs text-gray-500 mt-1">Quarterly analysis of project spending and budget</div>
+                    <button type="button" class="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-semibold transition fm-template-btn"
+                            data-kind="budget" data-chart-period="month">
+                        Generate
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4">
+                    <div class="font-semibold text-gray-900">Barangay Budget Allocation</div>
+                    <div class="text-xs text-gray-500 mt-1">Budget distribution across all barangays</div>
+                    <button type="button" class="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-semibold transition fm-template-btn"
+                            data-kind="budget">
+                        Generate
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4">
+                    <div class="font-semibold text-gray-900">Over Budget Alert Report</div>
+                    <div class="text-xs text-gray-500 mt-1">List of projects exceeding approved budget</div>
+                    <button type="button" class="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-semibold transition fm-template-btn"
+                            data-kind="budget" data-budget-status="over">
+                        Generate
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4">
+                    <div class="font-semibold text-gray-900">Annual Summary Report</div>
+                    <div class="text-xs text-gray-500 mt-1">Year-end comprehensive summary of all projects</div>
+                    <button type="button" class="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-semibold transition fm-template-btn"
+                            data-kind="budget" data-chart-period="year">
+                        Generate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Recent Reports -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex items-center gap-2 text-gray-900 font-bold">
+            <svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Recent Reports
+        </div>
+        <div id="fm-recent-reports" class="mt-4 space-y-3"></div>
+        <div id="fm-recent-empty" class="mt-6 text-sm text-gray-500">No generated reports yet.</div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const periodEl = document.getElementById('fm-report-period');
+    const yearEl = document.getElementById('fm-report-year');
+    const monthEl = document.getElementById('fm-report-month');
+    const categoryEl = document.getElementById('fm-report-category');
+    const openBtn = document.getElementById('fm-open-budget-report');
+    const pdfBtn = document.getElementById('fm-download-pdf');
+    const recentWrap = document.getElementById('fm-recent-reports');
+    const recentEmpty = document.getElementById('fm-recent-empty');
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function lastDayOfMonth(y, m) { return new Date(y, m, 0).getDate(); } // m: 1..12
+
+    function buildBudgetQuery(opts) {
+        const y = Number(opts.year);
+        const m = Number(opts.month);
+        const period = String(opts.period || 'monthly');
+        const params = new URLSearchParams();
+
+        if (opts.chart_period) params.set('chart_period', opts.chart_period);
+        if (opts.budget_status) params.set('budget_status', opts.budget_status);
+
+        if (period === 'monthly') {
+            const start = `${y}-${pad2(m)}-01`;
+            const end = `${y}-${pad2(m)}-${pad2(lastDayOfMonth(y, m))}`;
+            params.set('start_date', start);
+            params.set('end_date', end);
+        } else if (period === 'yearly') {
+            params.set('start_date', `${y}-01-01`);
+            params.set('end_date', `${y}-12-31`);
+            params.set('chart_period', 'year');
+        } else if (period === 'quarterly') {
+            // Approx quarter based on selected month (1..12)
+            const q = Math.floor((m - 1) / 3) + 1;
+            const qStartMonth = (q - 1) * 3 + 1;
+            const qEndMonth = qStartMonth + 2;
+            params.set('start_date', `${y}-${pad2(qStartMonth)}-01`);
+            params.set('end_date', `${y}-${pad2(qEndMonth)}-${pad2(lastDayOfMonth(y, qEndMonth))}`);
+        }
+        return params.toString();
+    }
+
+    function addRecent(title, url, type) {
+        try {
+            const key = 'fm_recent_reports_v1';
+            const raw = localStorage.getItem(key);
+            const list = raw ? JSON.parse(raw) : [];
+            list.unshift({
+                title: title,
+                url: url,
+                type: type || 'PDF',
+                at: new Date().toISOString(),
+            });
+            localStorage.setItem(key, JSON.stringify(list.slice(0, 8)));
+        } catch (e) {}
+        renderRecent();
+    }
+
+    function renderRecent() {
+        if (!recentWrap || !recentEmpty) return;
+        recentWrap.innerHTML = '';
+        let list = [];
+        try {
+            list = JSON.parse(localStorage.getItem('fm_recent_reports_v1') || '[]');
+        } catch (e) { list = []; }
+        if (!list.length) {
+            recentEmpty.style.display = 'block';
+            return;
+        }
+        recentEmpty.style.display = 'none';
+        list.forEach(function (item) {
+            const d = new Date(item.at);
+            const when = isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const row = document.createElement('div');
+            row.className = 'border border-gray-200 rounded-xl p-4 flex items-start justify-between gap-3';
+            row.innerHTML = `
+                <div class="min-w-0">
+                    <div class="text-sm font-semibold text-gray-900 truncate">${item.title || 'Report'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${when} • ${item.type || 'PDF'}</div>
+                </div>
+                <a class="flex-shrink-0 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800"
+                   href="${item.url}" target="_blank" rel="noopener">
+                    Download
+                </a>
+            `;
+            recentWrap.appendChild(row);
+        });
+    }
+
+    function getCurrentOptions() {
+        return {
+            period: periodEl ? periodEl.value : 'monthly',
+            year: yearEl ? yearEl.value : '',
+            month: monthEl ? monthEl.value : '',
+            category: categoryEl ? categoryEl.value : '',
+        };
+    }
+
+    function syncMonthEnabled() {
+        if (!periodEl || !monthEl) return;
+        const p = periodEl.value;
+        monthEl.disabled = (p === 'yearly');
+        monthEl.classList.toggle('opacity-50', monthEl.disabled);
+    }
+
+    if (periodEl) periodEl.addEventListener('change', syncMonthEnabled);
+    syncMonthEnabled();
+    renderRecent();
+
+    function openBudgetReport(extra) {
+        const opts = Object.assign({}, getCurrentOptions(), extra || {});
+        const qs = buildBudgetQuery(opts);
+        const url = `{% url 'budget_reports' %}` + (qs ? `?${qs}` : '');
+        window.location.href = url;
+    }
+
+    function downloadBudgetPdf(extra, title) {
+        const opts = Object.assign({}, getCurrentOptions(), extra || {});
+        const qs = buildBudgetQuery(opts);
+        const url = `{% url 'export_budget_reports_pdf' %}` + (qs ? `?${qs}` : '');
+        addRecent(title || 'Budget Report', url, 'PDF');
+        window.open(url, '_blank', 'noopener');
+    }
+
+    function downloadProjectsPdf(title) {
+        const url = `{% url 'export_reports_pdf' %}`;
+        addRecent(title || 'Project Reports', url, 'PDF');
+        window.open(url, '_blank', 'noopener');
+    }
+
+    if (openBtn) openBtn.addEventListener('click', function () {
+        openBudgetReport({});
+    });
+    if (pdfBtn) pdfBtn.addEventListener('click', function () {
+        downloadBudgetPdf({}, 'Budget Summary');
+    });
+
+    document.querySelectorAll('.fm-template-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const kind = btn.getAttribute('data-kind');
+            if (kind === 'projects') {
+                downloadProjectsPdf('Project Status Report');
+                return;
+            }
+            const chartPeriod = btn.getAttribute('data-chart-period') || '';
+            const budgetStatus = btn.getAttribute('data-budget-status') || '';
+            downloadBudgetPdf({
+                chart_period: chartPeriod || undefined,
+                budget_status: budgetStatus || undefined,
+            }, btn.parentElement ? (btn.parentElement.querySelector('.font-semibold') || {}).textContent : 'Budget Report');
+        });
+    });
+})();
+</script>
+{% endblock %}
+

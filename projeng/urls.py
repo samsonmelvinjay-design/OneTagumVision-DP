@@ -1,8 +1,12 @@
 from django.urls import path
+from django.views.generic import TemplateView
 from . import views
 from . import realtime
 
 urlpatterns = [
+    path('sw.js', TemplateView.as_view(template_name='projeng/sw.js', content_type='application/javascript'), name='projeng_sw'),
+    path('manifest.webmanifest', TemplateView.as_view(template_name='projeng/manifest.webmanifest', content_type='application/manifest+json'), name='projeng_manifest'),
+    path('offline/', TemplateView.as_view(template_name='projeng/offline.html'), name='projeng_offline'),
     path('dashboard/', views.dashboard, name='projeng_dashboard'),
     path('my-projects/', views.my_projects_view, name='projeng_my_projects'),
     path('map/', views.projeng_map_view, name='projeng_map'),

@@ -98,6 +98,27 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    function getUnreadCountElement() {
+        return document.getElementById('unreadCount');
+    }
+
+    function parseUnreadCount() {
+        const unreadCount = getUnreadCountElement();
+        if (!unreadCount) return 0;
+        const raw = (unreadCount.textContent || '').trim();
+        const firstToken = raw.split(/\s+/)[0];
+        const parsed = parseInt(firstToken, 10);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function setUnreadCount(value) {
+        const unreadCount = getUnreadCountElement();
+        if (!unreadCount) return;
+        const nextValue = Math.max(0, Number(value) || 0);
+        unreadCount.textContent = `${nextValue} unread`;
+        unreadCount.style.display = nextValue === 0 ? 'none' : 'inline-block';
+    }
+
     // Mark all as read
     document.getElementById('markAllReadBtn').addEventListener('click', function() {
         const formData = new FormData();
@@ -219,13 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.remove();
                     
                     // Update unread count
-                    const unreadCount = document.getElementById('unreadCount');
-                    const currentCount = parseInt(unreadCount.textContent);
-                    unreadCount.textContent = `${currentCount - 1} unread`;
-                    
-                    if (currentCount - 1 === 0) {
-                        unreadCount.style.display = 'none';
-                    }
+                    setUnreadCount(parseUnreadCount() - 1);
                 }
             });
         });
@@ -264,15 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     // Update unread count if it was unread
                                     if (notificationDiv.classList.contains('bg-blue-50')) {
-                                        const unreadCount = document.getElementById('unreadCount');
-                                        if (unreadCount) {
-                                            const currentCount = parseInt(unreadCount.textContent) || 0;
-                                            unreadCount.textContent = `${currentCount - 1} unread`;
-                                            
-                                            if (currentCount - 1 === 0) {
-                                                unreadCount.style.display = 'none';
-                                            }
-                                        }
+                                        setUnreadCount(parseUnreadCount() - 1);
                                     }
                                     
                                     // Show message if no notifications left
@@ -307,13 +314,17 @@ document.addEventListener('DOMContentLoaded', function() {
             emptyState.style.display = 'none';
         }
         
-        // Extract project ID from notification message
-        // Don't make "New project created" notifications clickable
-        const isProjectCreated = notificationData.message && notificationData.message.startsWith('New project created');
-        const hasProjectLink = !isProjectCreated && notificationData.message && (
-            notificationData.message.includes('assigned to project') ||
-            notificationData.message.includes('Cost entry') || 
-            notificationData.message.includes('Progress for project')
+        // Extract project-linkable notifications from message text.
+        const messageText = notificationData.message || '';
+        const messageLower = messageText.toLowerCase();
+        const isProjectCreated = messageLower.startsWith('new project created');
+        const hasProjectLink = !isProjectCreated && (
+            messageLower.includes('assigned to project') ||
+            messageLower.includes('cost entry') ||
+            messageLower.includes('progress for project') ||
+            messageLower.includes('budget review request') ||
+            messageLower.includes('budget increase') ||
+            messageLower.includes('budget concern')
         );
         
         // Format date
@@ -334,9 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return div.innerHTML;
         }
         
-        const clickableClass = hasProjectLink ? 'cursor-pointer' : '';
-        const hoverClass = hasProjectLink ? 'hover:text-blue-600' : '';
-        const onClick = hasProjectLink ? `onclick="fetchProjectIdAndRedirect('${escapeHtml(notificationData.message)}', ${notificationData.id})"` : '';
         const isRead = false; // New notifications are always unread
         // Don't show "Mark Read" button if it has a project link (will be auto-read when clicked)
         const markReadButton = (isRead || hasProjectLink) ? '' : `
@@ -404,13 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         markReadBtn.remove();
                         
                         // Update unread count
-                        const unreadCount = document.getElementById('unreadCount');
-                        const currentCount = parseInt(unreadCount.textContent) || 0;
-                        unreadCount.textContent = `${currentCount - 1} unread`;
-                        
-                        if (currentCount - 1 === 0) {
-                            unreadCount.style.display = 'none';
-                        }
+                        setUnreadCount(parseUnreadCount() - 1);
                     }
                 });
             });
@@ -445,15 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     // Update unread count if it was unread
                                     if (notificationDiv.classList.contains('bg-blue-50')) {
-                                        const unreadCount = document.getElementById('unreadCount');
-                                        if (unreadCount) {
-                                            const currentCount = parseInt(unreadCount.textContent) || 0;
-                                            unreadCount.textContent = `${currentCount - 1} unread`;
-                                            
-                                            if (currentCount - 1 === 0) {
-                                                unreadCount.style.display = 'none';
-                                            }
-                                        }
+                                        setUnreadCount(parseUnreadCount() - 1);
                                     }
                                     
                                     // Show empty state if no notifications left
@@ -490,15 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.type === 'notification') {
                 // Update unread count
                 if (data.unread_count !== undefined) {
-                    const unreadCount = document.getElementById('unreadCount');
-                    if (unreadCount) {
-                        unreadCount.textContent = `${data.unread_count} unread`;
-                        if (data.unread_count === 0) {
-                            unreadCount.style.display = 'none';
-                        } else {
-                            unreadCount.style.display = 'inline-block';
-                        }
-                    }
+                    setUnreadCount(data.unread_count);
                 }
                 
                 // Add notification to list if it's a new notification
