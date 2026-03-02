@@ -15,7 +15,7 @@ from .models import (
 )
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
-from django.db.models import Sum, Avg, Count, Max
+from django.db.models import Sum, Avg, Count, Max, OuterRef, Subquery
 from django.template.loader import render_to_string, get_template
 import csv
 from datetime import datetime, timedelta
@@ -194,6 +194,19 @@ def _get_configured_target_for_display(project, today=None):
 
 def is_staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+def _with_latest_progress(queryset):
+    """
+    Annotate a Project queryset with latest_progress_value using one SQL query.
+    """
+    latest_progress_subquery = (
+        ProjectProgress.objects
+        .filter(project_id=OuterRef('pk'))
+        .order_by('-date', '-created_at')
+        .values('percentage_complete')[:1]
+    )
+    return queryset.annotate(latest_progress_value=Subquery(latest_progress_subquery))
 
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def dashboard(request):
@@ -624,23 +637,26 @@ def my_projects_view(request):
 def projeng_map_view(request):
     if is_head_engineer(request.user):
         layers = Layer.objects.all()
-        all_projects = Project.objects.filter(latitude__isnull=False, longitude__isnull=False)
+        all_projects = _with_latest_progress(
+            Project.objects.filter(latitude__isnull=False, longitude__isnull=False)
+        )
     else:
         layers = Layer.objects.filter(created_by=request.user)
-        all_projects = Project.objects.filter(
-            assigned_engineers=request.user,
-            latitude__isnull=False,
-            longitude__isnull=False
+        all_projects = _with_latest_progress(
+            Project.objects.filter(
+                assigned_engineers=request.user,
+                latitude__isnull=False,
+                longitude__isnull=False
+            )
         )
     delayed_count = all_projects.filter(status='delayed').count()
     projects_with_coords = []
     for project in all_projects:
-        if project.latitude != '' and project.longitude != '':
+        if project.latitude not in (None, '') and project.longitude not in (None, ''):
             projects_with_coords.append(project)
     projects_data = []
     for p in projects_with_coords:
-        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
-        progress = float(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(getattr(p, 'latest_progress_value', 0) or 0)
         projects_data.append({
             'id': p.id,
             'name': p.name,
@@ -668,14 +684,13 @@ def projeng_map_view(request):
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def upload_docs_view(request):
     if is_head_engineer(request.user):
-        assigned_projects = Project.objects.all()
+        assigned_projects = _with_latest_progress(Project.objects.all())
     else:
-        assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+        assigned_projects = _with_latest_progress(Project.objects.filter(assigned_engineers=request.user))
     delayed_count = assigned_projects.filter(status='delayed').count()
     projects_data = []
     for project in assigned_projects:
-        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = float(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(getattr(project, 'latest_progress_value', 0) or 0)
         projects_data.append({
             'id': project.id,
             'name': project.name,
@@ -2677,49 +2692,31 @@ def export_reports_pdf(request):
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 @require_GET
 def map_projects_api(request):
-    from django.db.models import Max
     from django.utils import timezone
     
     # Role-based queryset
     if is_head_engineer(request.user):
-        all_projects = Project.objects.filter(
-            latitude__isnull=False,
-            longitude__isnull=False
+        all_projects = _with_latest_progress(
+            Project.objects.filter(
+                latitude__isnull=False,
+                longitude__isnull=False
+            )
         )
     else:
-        all_projects = Project.objects.filter(
-            assigned_engineers=request.user,
-            latitude__isnull=False,
-            longitude__isnull=False
+        all_projects = _with_latest_progress(
+            Project.objects.filter(
+                assigned_engineers=request.user,
+                latitude__isnull=False,
+                longitude__isnull=False
+            )
         )
-    projects_with_coords = [p for p in all_projects if p.latitude != '' and p.longitude != '']
-    
-    # Get project IDs for batch progress queries
-    project_ids = [p.id for p in projects_with_coords]
-    latest_progress_percent = {}
-    
-    if project_ids:
-        # Get latest progress for delay calculation
-        latest_progress_qs = ProjectProgress.objects.filter(
-            project_id__in=project_ids
-        ).values('project_id').annotate(
-            max_date=Max('date'),
-            max_created=Max('created_at')
-        )
-        for item in latest_progress_qs:
-            latest = ProjectProgress.objects.filter(
-                project_id=item['project_id'],
-                date=item['max_date'],
-                created_at=item['max_created']
-            ).order_by('-created_at').first()
-            if latest and latest.percentage_complete is not None:
-                latest_progress_percent[item['project_id']] = float(latest.percentage_complete)
+    projects_with_coords = [p for p in all_projects if p.latitude not in (None, '') and p.longitude not in (None, '')]
     
     # Calculate status dynamically (including delayed)
     today = timezone.now().date()
     projects_data = []
     for p in projects_with_coords:
-        progress = latest_progress_percent.get(p.id, 0)
+        progress = float(getattr(p, 'latest_progress_value', 0) or 0)
         stored_status = p.status or ''
         
         # Calculate actual status dynamically (same logic as my_projects_view)
@@ -2760,13 +2757,13 @@ def map_projects_api(request):
 @user_passes_test(is_project_engineer, login_url='/accounts/login/')
 @require_GET
 def dashboard_card_data_api(request):
-    from .models import Project, ProjectProgress
-    all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    from .models import Project
+    all_assigned_projects = _with_latest_progress(Project.objects.filter(assigned_engineers=request.user))
+    projects = list(all_assigned_projects)
     today = timezone.now().date()
     status_counts = {'planned': 0, 'in_progress': 0, 'completed': 0, 'delayed': 0}
-    for project in all_assigned_projects:
-        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = float(latest_progress.percentage_complete) if latest_progress else 0
+    for project in projects:
+        progress = float(getattr(project, 'latest_progress_value', 0) or 0)
         status = project.status
         # Completed when progress >= 99
         if progress >= 99:
@@ -2786,7 +2783,7 @@ def dashboard_card_data_api(request):
             status_counts['delayed'] += 1
         elif status == 'planned':
             status_counts['planned'] += 1
-    total_projects = all_assigned_projects.count()
+    total_projects = len(projects)
     delayed_count = status_counts['delayed']
     return JsonResponse({
         'total_projects': total_projects,

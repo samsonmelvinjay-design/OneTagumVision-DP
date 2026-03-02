@@ -416,7 +416,7 @@ SESSION_COOKIE_SECURE = not DEBUG  # True in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 1800  # 30 minutes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Allow sessions to persist across browser restarts for better UX
-SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request to prevent expiration issues
+SESSION_SAVE_EVERY_REQUEST = get_env_bool('SESSION_SAVE_EVERY_REQUEST', False)
 
 # CSRF Cookie Settings - Critical for multi-user access
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to access CSRF token (needed for AJAX)

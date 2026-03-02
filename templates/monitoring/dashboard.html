@@ -440,11 +440,22 @@
                 if (sel && sel.value !== period) sel.value = period;
             });
         }
+        const collabAnalyticsCache = {};
+        function getCollabAnalytics(period) {
+            if (!collabAnalyticsCache[period]) {
+                collabAnalyticsCache[period] = fetch(`{% url "dashboard_collab_analytics_data" %}?period=${encodeURIComponent(period)}`)
+                    .then(r => r.json())
+                    .catch(err => {
+                        delete collabAnalyticsCache[period];
+                        throw err;
+                    });
+            }
+            return collabAnalyticsCache[period];
+        }
         function loadOneChart(chartId) {
             const period = getPeriod(chartId);
             if (chartId === 'projectStatus') {
-                fetch(`{% url "dashboard_collab_analytics_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
+                getCollabAnalytics(period)
                     .then(data => {
                         try {
                             const statusData = data.status || {};
@@ -496,13 +507,11 @@
                         } catch (e) { console.error('Error rendering budget utilization chart:', e); }
                     }).catch(e => console.error('Error fetching budget utilization data:', e));
             } else if (chartId === 'collabBarangay') {
-                fetch(`{% url "dashboard_collab_analytics_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
+                getCollabAnalytics(period)
                     .then(data => { try { drawCollabBarangayOnly(data.barangay || {}); } catch (e) { console.error('Error drawing collab barangay chart:', e); } })
                     .catch(e => console.error('Error fetching collab analytics:', e));
             } else if (chartId === 'collabStatus') {
-                fetch(`{% url "dashboard_collab_analytics_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
+                getCollabAnalytics(period)
                     .then(data => { try { drawCollabStatusOnly(data.status || {}); } catch (e) { console.error('Error drawing collab status chart:', e); } })
                     .catch(e => console.error('Error fetching collab analytics:', e));
             } else if (chartId === 'costBreakdown') {

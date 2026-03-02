@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import cache_page
 from django.db import DatabaseError
 from .finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications
 from .engineer_management import (
@@ -1231,27 +1232,9 @@ def map_view(request):
                 if cleaned and not SourceOfFunds.objects.filter(name__iexact=cleaned).exists():
                     SourceOfFunds.objects.create(name=cleaned)
         
-        # Get latest progress for all projects
-        from django.db.models import Max
+        # Get latest progress for all projects in one query.
         from django.utils import timezone
-        project_ids = [p.id for p in projects_with_coords]
-        latest_progress = {}
-        if project_ids:
-            from projeng.models import ProjectProgress
-            latest_progress_qs = ProjectProgress.objects.filter(
-                project_id__in=project_ids
-            ).values('project_id').annotate(
-                latest_date=Max('date'),
-                latest_created=Max('created_at')
-            )
-            for item in latest_progress_qs:
-                latest = ProjectProgress.objects.filter(
-                    project_id=item['project_id'],
-                    date=item['latest_date'],
-                    created_at=item['latest_created']
-                ).order_by('-created_at').first()
-                if latest and latest.percentage_complete is not None:
-                    latest_progress[item['project_id']] = float(latest.percentage_complete)
+        latest_progress, _ = _compute_project_progress_map(projects_with_coords)
         
         today = timezone.now().date()
         projects_data = []
@@ -1308,7 +1291,8 @@ def map_view(request):
                 zone_type = p.zone_type or ''
                 if not zone_type and (p.barangay or p.name or p.description):
                     try:
-                        detected_zone, confidence = p.detect_and_set_zone(save=True)
+                        # Read-only on page load: avoid database writes in hot path.
+                        detected_zone, confidence = p.detect_and_set_zone(save=False)
                         if detected_zone:
                             zone_type = detected_zone
                             import logging
@@ -1375,9 +1359,7 @@ def map_view(request):
 def overall_project_metrics_api(request):
     """API endpoint to fetch overall project metrics - accessible to all authenticated users"""
     try:
-        from projeng.models import Project, ProjectProgress
-        from django.db.models import Max
-        from django.utils import timezone
+        from projeng.models import Project
         import logging
         
         logger = logging.getLogger(__name__)
@@ -1398,27 +1380,14 @@ def overall_project_metrics_api(request):
         project_count = len(projects_list)
         logger.info(f'Found {project_count} projects for user {request.user.username}')
         
-        # Get latest progress for all projects
+        # Get latest progress for all projects in one query.
         project_ids = [p.id for p in projects_list]
         latest_progress = {}
+        today = timezone.now().date()
         if project_ids:
-            latest_progress_qs = ProjectProgress.objects.filter(
-                project_id__in=project_ids
-            ).values('project_id').annotate(
-                latest_date=Max('date'),
-                latest_created=Max('created_at')
-            )
-            for item in latest_progress_qs:
-                latest = ProjectProgress.objects.filter(
-                    project_id=item['project_id'],
-                    date=item['latest_date'],
-                    created_at=item['latest_created']
-                ).order_by('-created_at').first()
-                if latest and latest.percentage_complete is not None:
-                    latest_progress[item['project_id']] = float(latest.percentage_complete)
+            latest_progress, today = _compute_project_progress_map(Project.objects.filter(id__in=project_ids))
         
         # Calculate status counts using same logic as map markers (_get_display_status)
-        today = timezone.now().date()
         total_projects = len(projects_list)
         completed_count = 0
         in_progress_count = 0
@@ -1489,29 +1458,28 @@ def _compute_project_progress_map(project_qs):
     latest_progress_dict maps project_id -> float(progress_percentage).
     """
     from projeng.models import ProjectProgress
-    from django.db.models import Max
+    from django.db.models import OuterRef, Subquery
     from django.utils import timezone
 
-    project_ids = list(project_qs.values_list('id', flat=True))
     latest_progress = {}
-    if project_ids:
-        latest_progress_qs = ProjectProgress.objects.filter(
-            project_id__in=project_ids
-        ).values('project_id').annotate(
-            latest_date=Max('date'),
-            latest_created=Max('created_at')
-        )
-        for item in latest_progress_qs:
-            latest = ProjectProgress.objects.filter(
-                project_id=item['project_id'],
-                date=item['latest_date'],
-                created_at=item['latest_created']
-            ).order_by('-created_at').first()
-            if latest and latest.percentage_complete is not None:
-                try:
-                    latest_progress[item['project_id']] = float(latest.percentage_complete)
-                except (TypeError, ValueError):
-                    continue
+    latest_progress_subquery = (
+        ProjectProgress.objects
+        .filter(project_id=OuterRef('pk'))
+        .order_by('-date', '-created_at')
+        .values('percentage_complete')[:1]
+    )
+
+    project_rows = project_qs.annotate(
+        latest_progress_value=Subquery(latest_progress_subquery)
+    ).values_list('id', 'latest_progress_value')
+
+    for project_id, progress_value in project_rows:
+        if progress_value is None:
+            continue
+        try:
+            latest_progress[project_id] = float(progress_value)
+        except (TypeError, ValueError):
+            continue
 
     today = timezone.now().date()
     return latest_progress, today
@@ -3532,34 +3500,16 @@ def head_engineer_project_detail(request, pk):
 @login_required
 @head_engineer_required
 def head_dashboard_card_data_api(request):
-    from django.db.models import Max
     from projeng.models import Notification
 
-    projects = Project.objects.all()
-    project_count = projects.count()
+    projects = list(Project.objects.all())
+    project_count = len(projects)
 
     today = timezone.now().date()
-    project_ids = list(projects.values_list('id', flat=True))
+    project_ids = [p.id for p in projects]
     latest_progress_map = {}
     if project_ids:
-        latest_progress_qs = (
-            ProjectProgress.objects
-            .filter(project_id__in=project_ids)
-            .values('project_id')
-            .annotate(latest_date=Max('date'), latest_created=Max('created_at'))
-        )
-        for item in latest_progress_qs:
-            latest = (
-                ProjectProgress.objects
-                .filter(
-                    project_id=item['project_id'],
-                    date=item['latest_date'],
-                    created_at=item['latest_created'],
-                )
-                .order_by('-created_at')
-                .first()
-            )
-            latest_progress_map[item['project_id']] = float(latest.percentage_complete or 0) if latest else 0.0
+        latest_progress_map, today = _compute_project_progress_map(Project.objects.filter(id__in=project_ids))
 
     completed_count = 0
     in_progress_count = 0
@@ -3607,6 +3557,7 @@ def head_dashboard_card_data_api(request):
         'unread_notifications': unread_notifications,
     })
 
+@cache_page(60 * 60)
 def barangay_geojson_view(request):
     static_dir = getattr(settings, 'STATIC_SOURCE_DIR', None) or (getattr(settings, 'PROJECT_ROOT', settings.BASE_DIR) / 'static')
     geojson_path = os.path.join(str(static_dir), 'data', 'tagum_barangays.geojson')
@@ -3615,6 +3566,7 @@ def barangay_geojson_view(request):
     return JsonResponse(geojson_data, safe=False)
 
 
+@cache_page(60 * 60)
 def tagum_city_boundary_geojson_view(request):
     """Serve whole Tagum City boundary (OSM admin boundary) - single outline, no barangays."""
     project_root = getattr(settings, 'PROJECT_ROOT', settings.BASE_DIR)
