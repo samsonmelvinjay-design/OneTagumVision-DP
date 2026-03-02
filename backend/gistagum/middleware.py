@@ -45,7 +45,18 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         # Skip health check endpoint - don't process requests to it
         if request.path == '/health/' or request.path == '/health':
             return None
-        
+
+        # Allow PWA assets and offline page without authentication so browsers
+        # can fetch manifest/service worker in standards-compliant mode.
+        public_pwa_paths = {
+            '/projeng/manifest.webmanifest',
+            '/projeng/sw.js',
+            '/projeng/offline',
+            '/projeng/offline/',
+        }
+        if request.path in public_pwa_paths:
+            return None
+         
         # Keep anonymous sessions intact on public pages (e.g. login/password reset).
         # Force-redirect only when an anonymous user hits protected areas.
         if not request.user.is_authenticated:

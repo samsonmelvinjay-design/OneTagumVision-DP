@@ -201,6 +201,29 @@ def dashboard(request):
         from .models import Project, ProjectProgress, ProjectCost, ProjectDocument
         from django.db.models import Max, Case, When, Q, F
         from django.utils import timezone as django_timezone
+        from datetime import datetime as dt_datetime
+
+        def _safe_media_url(file_field):
+            """Return file URL without crashing the page when storage is misconfigured."""
+            if not file_field:
+                return ""
+            try:
+                return file_field.url
+            except Exception as exc:
+                logger.warning("Could not resolve media URL in dashboard: %s", exc)
+                return ""
+
+        def _normalize_dt(value):
+            if not value:
+                return None
+            if not isinstance(value, dt_datetime):
+                return None
+            if django_timezone.is_naive(value):
+                try:
+                    return django_timezone.make_aware(value, django_timezone.get_current_timezone())
+                except Exception:
+                    return value
+            return value
         
         # Base queryset for all assigned projects
         if is_head_engineer(request.user):
@@ -218,12 +241,20 @@ def dashboard(request):
         # - Project's updated_at
         # Then order by this calculated value (most recent first) and limit to 6
         
-        # Annotate with latest activity times from related models
-        projects_with_activity = base_queryset.annotate(
-            latest_progress_time=Max('progress_updates__created_at'),
-            latest_cost_time=Max('costs__created_at'),
-            latest_document_time=Max('documents__uploaded_at'),
-        )
+        # Annotate with latest activity times from related models.
+        # Fallback avoids full-page crash if production schema is behind current code.
+        try:
+            projects_with_activity = base_queryset.annotate(
+                latest_progress_time=Max('progress_updates__created_at'),
+                latest_cost_time=Max('costs__created_at'),
+                latest_document_time=Max('documents__uploaded_at'),
+            )
+        except Exception as exc:
+            logger.exception("Dashboard activity annotation failed, using fallback annotations: %s", exc)
+            projects_with_activity = base_queryset.annotate(
+                latest_progress_time=Max('progress_updates__created_at'),
+                latest_cost_time=Max('costs__created_at'),
+            )
         
         # Convert to list and calculate most_recent_activity for sorting
         projects_list = []
@@ -231,16 +262,17 @@ def dashboard(request):
             # Find the most recent activity time from all sources
             activity_times = []
             if project.latest_progress_time:
-                activity_times.append(project.latest_progress_time)
+                activity_times.append(_normalize_dt(project.latest_progress_time))
             if project.latest_cost_time:
-                activity_times.append(project.latest_cost_time)
-            if project.latest_document_time:
-                activity_times.append(project.latest_document_time)
+                activity_times.append(_normalize_dt(project.latest_cost_time))
+            if getattr(project, 'latest_document_time', None):
+                activity_times.append(_normalize_dt(project.latest_document_time))
             if project.updated_at:
-                activity_times.append(project.updated_at)
-            
+                activity_times.append(_normalize_dt(project.updated_at))
+             
             # Set most_recent_activity to the latest time, or created_at if no activity
-            project.most_recent_activity = max(activity_times) if activity_times else (project.created_at or django_timezone.now())
+            cleaned_times = [dt for dt in activity_times if dt is not None]
+            project.most_recent_activity = max(cleaned_times) if cleaned_times else (_normalize_dt(project.created_at) or django_timezone.now())
             projects_list.append(project)
         
         # Sort by most_recent_activity (descending - most recent first) and take top 6
@@ -307,11 +339,15 @@ def dashboard(request):
             ).values_list('project_id', 'max_time')
             
             # Get latest document times
-            latest_documents = ProjectDocument.objects.filter(
-                project_id__in=project_ids
-            ).values('project_id').annotate(
-                max_time=Max('uploaded_at')
-            ).values_list('project_id', 'max_time')
+            try:
+                latest_documents = ProjectDocument.objects.filter(
+                    project_id__in=project_ids
+                ).values('project_id').annotate(
+                    max_time=Max('uploaded_at')
+                ).values_list('project_id', 'max_time')
+            except Exception as exc:
+                logger.warning("Dashboard document-time query failed; continuing without document timestamps: %s", exc)
+                latest_documents = []
             
             progress_times = dict(latest_progress)
             cost_times = dict(latest_costs)
@@ -380,7 +416,7 @@ def dashboard(request):
                 'prn': project.prn,
                 'start_date': str(project.start_date) if project.start_date else "",
                 'end_date': str(project.end_date) if project.end_date else "",
-                'image': project.image.url if project.image else "",
+                'image': _safe_media_url(project.image),
             })
         context = {
             'assigned_projects': assigned_projects_with_updates,
