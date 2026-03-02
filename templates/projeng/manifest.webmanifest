@@ -1,7 +1,7 @@
 {% load static %}
 {
-    "name": "OneTagumVision Project Engineer",
-    "short_name": "ProjEng",
+    "name": "OneTagumVision",
+    "short_name": "OneTagumVision",
     "description": "Project Engineer dashboard for OneTagumVision.",
     "start_url": "{% url 'projeng:projeng_dashboard' %}",
     "scope": "/projeng/",
