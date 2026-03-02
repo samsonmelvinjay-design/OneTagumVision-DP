@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneTagumVision - Project Engineer</title>
     <link rel="icon" type="image/png" href="{% static 'img/logo-onetagumvision.png' %}">
-    <link rel="manifest" href="{% url 'projeng:projeng_manifest' %}">
+    <link rel="manifest" href="/projeng/manifest.webmanifest">
     <meta name="theme-color" content="#111827">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -237,7 +237,7 @@
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register("{% url 'projeng:projeng_sw' %}", { scope: '/projeng/' })
+            navigator.serviceWorker.register('/projeng/sw.js', { scope: '/projeng/' })
                 .catch(function(error) {
                     console.error('Project Engineer service worker registration failed:', error);
                 });
