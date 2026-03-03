@@ -8,7 +8,7 @@
     <title>OneTagumVision - Project Engineer</title>
     <link rel="icon" type="image/png" href="{% static 'img/logo-onetagumvision.png' %}">
     <link rel="manifest" href="/projeng/manifest.webmanifest">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#228B22">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="OneTagumVision">
@@ -29,6 +29,39 @@
             position: relative;
             height: 300px;
             width: 100%;
+        }
+        .sidebar-theme {
+            background: linear-gradient(180deg, #228B22 0%, #1E7A1E 45%, #166534 100%);
+        }
+        .sidebar-theme nav a,
+        .sidebar-theme .sidebar-action {
+            color: #ecfdf5 !important;
+        }
+        .sidebar-theme nav a svg,
+        .sidebar-theme .sidebar-action svg {
+            color: #d1fae5 !important;
+        }
+        .sidebar-theme nav a:hover,
+        .sidebar-theme .sidebar-action:hover,
+        .sidebar-theme button:hover {
+            background-color: rgba(20, 83, 45, 0.72) !important;
+            color: #ffffff !important;
+        }
+        .sidebar-theme nav a:hover svg,
+        .sidebar-theme .sidebar-action:hover svg,
+        .sidebar-theme button:hover svg {
+            color: #ffffff !important;
+        }
+        .sidebar-theme nav a.bg-gray-800 {
+            background-color: rgba(6, 78, 59, 0.9) !important;
+            color: #ffffff !important;
+        }
+        .sidebar-theme nav a.bg-gray-800 svg {
+            color: #ffffff !important;
+        }
+        .sidebar-theme #engineers-dropdown-content {
+            background-color: rgba(6, 78, 59, 0.95) !important;
+            border: 1px solid rgba(236, 253, 245, 0.15);
         }
     </style>
 </head>
@@ -57,14 +90,13 @@
     {% endif %}
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-gray-100 flex flex-col items-center py-8 h-full">
+        <aside class="sidebar-theme w-64 bg-gray-900 text-gray-100 flex flex-col items-center py-8 h-full" style="background-color: forestgreen;">
             <!-- Logo/Icon -->
             <div class="mb-8">
-                <a href="{% url 'projeng:projeng_dashboard' %}" class="flex flex-col items-center group">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto group-hover:scale-110 transition-transform text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-2a2 2 0 012-2h2a2 2 0 012 2v2m4 0v-4a2 2 0 012-2h2a2 2 0 012 2v4m-6 0V5a2 2 0 012-2h2a2 2 0 012 2v16" />
-                    </svg>
-                    <span class="block mt-2 text-xl font-bold tracking-wide text-green-100 text-center">Project Engineer Dashboard</span>
+                <a href="{% url 'projeng:projeng_dashboard' %}" class="flex flex-col items-center group text-center">
+                    <img src="{% static 'img/logo-onetagumvision.png' %}" alt="OneTagumVision logo" class="h-14 w-14 object-cover rounded-full ring-2 ring-green-100 bg-white p-1 shadow-md">
+                    <span class="block mt-2 text-lg font-extrabold tracking-wide text-gray-100 text-center">OneTagumVision</span>
+                    <span class="block text-xs text-green-100 text-center">Project Engineer Dashboard</span>
                 </a>
             </div>
             <!-- Navigation -->
@@ -119,20 +151,20 @@
             </nav>
             <!-- Profile and Logout at Bottom, aligned horizontally -->
             <div class="w-full px-4 mt-auto mb-2 flex items-center justify-between gap-2">
-                <a href="{% url 'logout' %}" class="flex items-center gap-1 py-2 px-3 rounded hover:bg-gray-800 text-red-400 hover:text-red-300 text-sm">
+                <a href="{% url 'logout' %}" class="sidebar-action flex items-center gap-1 py-2 px-3 rounded hover:bg-gray-800 text-red-400 hover:text-red-300 text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                     Logout
                 </a>
                 <div class="flex items-center gap-1">
-                    <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A9 9 0 1112 21a9 9 0 01-6.879-3.196z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </div>
-                    <span class="text-xs text-blue-100 font-medium truncate max-w-[80px]">{{ request.user.get_full_name|default:request.user.username }}</span>
+                    <span class="text-xs text-green-50 font-medium truncate max-w-[80px]">{{ request.user.get_full_name|default:request.user.username }}</span>
                 </div>
             </div>
         </aside>

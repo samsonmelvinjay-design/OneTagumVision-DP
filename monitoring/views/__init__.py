@@ -1948,6 +1948,8 @@ def budget_reports(request):
     selected_cost_min = request.GET.get('cost_min', '').strip()
     selected_cost_max = request.GET.get('cost_max', '').strip()
     selected_budget_status = request.GET.get('budget_status', '').strip()
+    selected_prn = request.GET.get('prn', '').strip()
+    selected_year = request.GET.get('year', '').strip()
     selected_chart_period = request.GET.get('chart_period', 'month').strip().lower()
     if selected_chart_period not in ('week', 'month', 'year'):
         selected_chart_period = 'month'
@@ -1960,6 +1962,16 @@ def budget_reports(request):
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
         else:
             projects = projects.filter(status=selected_status)
+
+    if selected_prn:
+        projects = projects.filter(prn__icontains=selected_prn)
+
+    if selected_year:
+        try:
+            year_int = int(selected_year)
+            projects = projects.filter(start_date__year=year_int)
+        except (TypeError, ValueError):
+            pass
     
     if selected_start_date:
         projects = projects.filter(start_date__gte=selected_start_date)
@@ -2235,6 +2247,8 @@ def budget_reports_chart_data_api(request):
     selected_cost_min = request.GET.get('cost_min', '').strip()
     selected_cost_max = request.GET.get('cost_max', '').strip()
     selected_budget_status = request.GET.get('budget_status', '').strip()
+    selected_prn = request.GET.get('prn', '').strip()
+    selected_year = request.GET.get('year', '').strip()
 
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -2243,6 +2257,16 @@ def budget_reports_chart_data_api(request):
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
         else:
             projects = projects.filter(status=selected_status)
+
+    if selected_prn:
+        projects = projects.filter(prn__icontains=selected_prn)
+
+    if selected_year:
+        try:
+            year_int = int(selected_year)
+            projects = projects.filter(start_date__year=year_int)
+        except (TypeError, ValueError):
+            pass
     if selected_start_date:
         projects = projects.filter(start_date__gte=selected_start_date)
     if selected_end_date:
@@ -4316,6 +4340,8 @@ def export_budget_reports_csv(request):
     selected_cost_min = request.GET.get('cost_min', '').strip()
     selected_cost_max = request.GET.get('cost_max', '').strip()
     selected_budget_status = request.GET.get('budget_status', '').strip()
+    selected_prn = request.GET.get('prn', '').strip()
+    selected_year = request.GET.get('year', '').strip()
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -4325,6 +4351,16 @@ def export_budget_reports_csv(request):
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
         else:
             projects = projects.filter(status=selected_status)
+
+    if selected_prn:
+        projects = projects.filter(prn__icontains=selected_prn)
+
+    if selected_year:
+        try:
+            year_int = int(selected_year)
+            projects = projects.filter(start_date__year=year_int)
+        except (TypeError, ValueError):
+            pass
     
     if selected_start_date:
         projects = projects.filter(start_date__gte=selected_start_date)
@@ -4410,6 +4446,8 @@ def export_budget_reports_excel(request):
     selected_cost_min = request.GET.get('cost_min', '').strip()
     selected_cost_max = request.GET.get('cost_max', '').strip()
     selected_budget_status = request.GET.get('budget_status', '').strip()
+    selected_prn = request.GET.get('prn', '').strip()
+    selected_year = request.GET.get('year', '').strip()
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -4419,6 +4457,16 @@ def export_budget_reports_excel(request):
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
         else:
             projects = projects.filter(status=selected_status)
+
+    if selected_prn:
+        projects = projects.filter(prn__icontains=selected_prn)
+
+    if selected_year:
+        try:
+            year_int = int(selected_year)
+            projects = projects.filter(start_date__year=year_int)
+        except (TypeError, ValueError):
+            pass
     
     if selected_start_date:
         projects = projects.filter(start_date__gte=selected_start_date)
@@ -4515,6 +4563,8 @@ def export_budget_reports_pdf(request):
     selected_cost_min = request.GET.get('cost_min', '').strip()
     selected_cost_max = request.GET.get('cost_max', '').strip()
     selected_budget_status = request.GET.get('budget_status', '').strip()
+    selected_prn = request.GET.get('prn', '').strip()
+    selected_year = request.GET.get('year', '').strip()
     
     if selected_barangay:
         projects = projects.filter(barangay=selected_barangay)
@@ -4524,6 +4574,16 @@ def export_budget_reports_pdf(request):
             projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
         else:
             projects = projects.filter(status=selected_status)
+
+    if selected_prn:
+        projects = projects.filter(prn__icontains=selected_prn)
+
+    if selected_year:
+        try:
+            year_int = int(selected_year)
+            projects = projects.filter(start_date__year=year_int)
+        except (TypeError, ValueError):
+            pass
     
     if selected_start_date:
         projects = projects.filter(start_date__gte=selected_start_date)

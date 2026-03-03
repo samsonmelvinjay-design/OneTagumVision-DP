@@ -348,7 +348,21 @@ class ProjectCost(models.Model):
         ('material', 'Material'),
         ('labor', 'Labor'),
         ('equipment', 'Equipment'),
+        ('ocm', 'OCM'),
+        ('contingency', 'Contingency'),
+        ('supply and install', 'Supply and Install'),
+        ('permit&licenses', 'Permit&Licenses'),
         ('other', 'Other'),
+    ]
+    MATERIAL_SUBTYPES = [
+        ('pr', 'PR - Purchase Request'),
+        ('po', 'PO - Purchase Order'),
+    ]
+    LABOR_SUBTYPES = [
+        ('payroll', 'Payroll'),
+        ('specific_period', 'Specific Period of Employment'),
+        ('job_order', 'Job Order'),
+        ('authority', 'Authority'),
     ]
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='costs')
@@ -365,6 +379,44 @@ class ProjectCost(models.Model):
 
     def __str__(self):
         return f"{self.project.name} - {self.get_cost_type_display()} ({self.amount})"
+
+    def get_cost_subtype_display(self):
+        desc = (self.description or '').strip()
+        if not desc.startswith('['):
+            return ''
+        closing_idx = desc.find(']')
+        if closing_idx <= 1:
+            return ''
+        candidate = desc[1:closing_idx].strip()
+        valid_labels = set(dict(self.MATERIAL_SUBTYPES).values()) | set(dict(self.LABOR_SUBTYPES).values())
+        return candidate if candidate in valid_labels else ''
+
+    def get_clean_description(self):
+        desc = (self.description or '').strip()
+        subtype_label = self.get_cost_subtype_display()
+        if subtype_label and desc.startswith(f'[{subtype_label}]'):
+            return desc[len(subtype_label) + 2:].strip()
+        return desc
+
+
+class ProjectCostAllocation(models.Model):
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='cost_allocation')
+    material = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    labor = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    equipment = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    supply_and_install = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    ocm = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    permit_and_licenses = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    contingency = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    set_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='project_cost_allocations_set')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Allocation - {self.project.name}"
 
 
 class BudgetRequest(models.Model):

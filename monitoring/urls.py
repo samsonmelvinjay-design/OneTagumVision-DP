@@ -1,6 +1,15 @@
 from django.urls import path
 from . import views
-from monitoring.views.finance_manager import finance_dashboard, finance_projects, finance_cost_management, finance_notifications, finance_project_detail, finance_reports
+from monitoring.views.finance_manager import (
+    finance_dashboard,
+    finance_projects,
+    finance_cost_management,
+    finance_notifications,
+    finance_project_detail,
+    finance_reports,
+    finance_project_export_csv,
+    finance_project_export_excel,
+)
 from monitoring.views.budget_approval import approve_budget_request, reject_budget_request
 
 urlpatterns = [
@@ -55,6 +64,8 @@ urlpatterns = [
     path('finance/reports/', finance_reports, name='finance_reports'),
     path('finance/notifications/', finance_notifications, name='finance_notifications'),
     path('finance/project/<int:project_id>/', finance_project_detail, name='finance_project_detail'),
+    path('finance/project/<int:project_id>/export/csv/', finance_project_export_csv, name='finance_project_export_csv'),
+    path('finance/project/<int:project_id>/export/excel/', finance_project_export_excel, name='finance_project_export_excel'),
     path('finance/project/<int:project_id>/approve-budget/', approve_budget_request, name='approve_budget_request'),
     path('finance/project/<int:project_id>/reject-budget/', reject_budget_request, name='reject_budget_request'),
     

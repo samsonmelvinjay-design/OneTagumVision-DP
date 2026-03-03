@@ -1,15 +1,19 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.contrib import messages
-from projeng.models import Project, ProjectCost
+from projeng.models import Project, ProjectCost, ProjectCostAllocation
 from django.db.models import Sum
+from django.db import connection
 from collections import defaultdict
 from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from django.urls import reverse
+import csv
+import io
+import openpyxl
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -423,6 +427,7 @@ def finance_projects(request):
 def finance_cost_management(request):
     import logging
     logger = logging.getLogger(__name__)
+    allocation_table_exists = 'projeng_projectcostallocation' in connection.introspection.table_names()
     
     try:
         if request.method == 'POST' and request.POST.get('action') == 'add_cost_entry':
@@ -435,6 +440,20 @@ def finance_cost_management(request):
                 valid_cost_types = {k for k, _ in ProjectCost.COST_TYPES}
                 if cost_type not in valid_cost_types:
                     raise ValueError('Please select a valid cost type.')
+                cost_subtype = (request.POST.get('cost_subtype') or '').strip()
+                required_subtypes = {
+                    'material': dict(ProjectCost.MATERIAL_SUBTYPES),
+                    'labor': dict(ProjectCost.LABOR_SUBTYPES),
+                }
+                subtype_label = ''
+                if cost_type in required_subtypes:
+                    if cost_subtype not in required_subtypes[cost_type]:
+                        if cost_type == 'material':
+                            raise ValueError('Please select a valid material type (PR or PO).')
+                        raise ValueError('Please select a valid labor type.')
+                    subtype_label = required_subtypes[cost_type][cost_subtype]
+                else:
+                    cost_subtype = ''
 
                 amount_raw = (request.POST.get('amount') or '').replace(',', '').strip()
                 amount = Decimal(amount_raw)
@@ -448,7 +467,8 @@ def finance_cost_management(request):
                     from django.utils import timezone
                     entry_date = timezone.now().date()
 
-                description = (request.POST.get('description') or '').strip() or 'No remarks provided.'
+                description_raw = (request.POST.get('description') or '').strip() or 'No remarks provided.'
+                description = f'[{subtype_label}] {description_raw}' if subtype_label else description_raw
                 receipt = request.FILES.get('receipt')
 
                 ProjectCost.objects.create(
@@ -466,6 +486,50 @@ def finance_cost_management(request):
             except Exception as e:
                 logger.error(f"Error adding cost entry: {str(e)}", exc_info=True)
                 messages.error(request, 'Unable to save cost entry. Please try again.')
+            return redirect(next_url)
+        elif request.method == 'POST' and request.POST.get('action') == 'save_cost_allocation':
+            next_url = (request.POST.get('next') or '').strip() or reverse('finance_cost_management')
+            if not next_url.startswith('/'):
+                next_url = reverse('finance_cost_management')
+            if not allocation_table_exists:
+                messages.error(request, 'Allocation table is not ready yet. Please run database migrations.')
+                return redirect(next_url)
+            try:
+                project = get_object_or_404(Project, id=int(request.POST.get('project_id') or 0))
+
+                def _parse_alloc(field_name):
+                    raw_value = (request.POST.get(field_name) or '0').replace(',', '').strip()
+                    value = Decimal(raw_value or '0')
+                    if value < 0:
+                        raise ValueError(f'{field_name.replace("_", " ").title()} cannot be negative.')
+                    return value
+
+                allocation_data = {
+                    'material': _parse_alloc('alloc_material'),
+                    'labor': _parse_alloc('alloc_labor'),
+                    # Keep schema stable: store "Direct" and "Indirect" in existing columns.
+                    'equipment': _parse_alloc('alloc_direct'),
+                    'supply_and_install': Decimal('0'),
+                    'ocm': _parse_alloc('alloc_indirect'),
+                    'permit_and_licenses': Decimal('0'),
+                    'contingency': _parse_alloc('alloc_contingency'),
+                }
+
+                allocation, _ = ProjectCostAllocation.objects.get_or_create(
+                    project=project,
+                    defaults={**allocation_data, 'set_by': request.user},
+                )
+                for field_name, value in allocation_data.items():
+                    setattr(allocation, field_name, value)
+                allocation.set_by = request.user
+                allocation.save()
+
+                messages.success(request, f'Allocation saved for {project.name}.')
+            except (ValueError, InvalidOperation) as e:
+                messages.error(request, str(e) or 'Invalid allocation values.')
+            except Exception as e:
+                logger.error(f"Error saving allocation: {str(e)}", exc_info=True)
+                messages.error(request, 'Unable to save allocation. Please try again.')
             return redirect(next_url)
 
         # Filters
@@ -573,10 +637,19 @@ def finance_cost_management(request):
         page_projects = list(page_obj.object_list)
         page_project_ids = [p.get('id') for p in page_projects if p.get('id')]
         costs_map = defaultdict(list)
+        allocation_map = {}
+        if page_project_ids and allocation_table_exists:
+            allocation_map = {
+                a.project_id: a for a in ProjectCostAllocation.objects.filter(project_id__in=page_project_ids)
+            }
         breakdown_map = defaultdict(lambda: {
             'material': 0.0,
             'labor': 0.0,
             'equipment': 0.0,
+            'supply and install': 0.0,
+            'ocm': 0.0,
+            'permit&licenses': 0.0,
+            'contingency': 0.0,
             'other': 0.0,
         })
         if page_project_ids:
@@ -586,8 +659,9 @@ def finance_cost_management(request):
                 breakdown_map[c.project_id][ctype] += amt
                 costs_map[c.project_id].append({
                     'cost_type': c.get_cost_type_display(),
+                    'cost_subtype': c.get_cost_subtype_display() if hasattr(c, 'get_cost_subtype_display') else '',
                     'date': f"{c.date.strftime('%b')} {c.date.day}, {c.date.year}" if c.date else '',
-                    'description': c.description or '',
+                    'description': c.get_clean_description() if hasattr(c, 'get_clean_description') else (c.description or ''),
                     'amount': amt,
                 })
 
@@ -596,25 +670,56 @@ def finance_cost_management(request):
             pid = p.get('id')
             if not pid:
                 continue
-            b = breakdown_map[pid]
-            total_direct = b['material'] + b['labor'] + b['equipment']
-            total_indirect = b['other']
+            spent_breakdown = breakdown_map[pid]
+            alloc = allocation_map.get(pid)
+            material_alloc = float(getattr(alloc, 'material', 0) or 0)
+            labor_alloc = float(getattr(alloc, 'labor', 0) or 0)
+            direct_alloc = float(getattr(alloc, 'equipment', 0) or 0)
+            indirect_alloc = float(getattr(alloc, 'ocm', 0) or 0)
+            contingency_alloc = float(getattr(alloc, 'contingency', 0) or 0)
+
+            # Remaining allocation per summary card after encoded entries
+            # Material/Labor use their exact cost types, while other cost types
+            # roll into Direct or Indirect based on finance workflow.
+            material_remaining = material_alloc - spent_breakdown['material']
+            labor_remaining = labor_alloc - spent_breakdown['labor']
+            direct_spent = spent_breakdown['equipment'] + spent_breakdown['supply and install']
+            indirect_spent = spent_breakdown['ocm'] + spent_breakdown['permit&licenses'] + spent_breakdown['other']
+            contingency_remaining = contingency_alloc - spent_breakdown['contingency']
+            total_direct_alloc = direct_alloc - direct_spent
+            total_indirect_alloc = indirect_alloc - indirect_spent
+
+            drawer_spent = (
+                spent_breakdown['material'] + spent_breakdown['labor'] + spent_breakdown['equipment'] +
+                spent_breakdown['supply and install'] + spent_breakdown['ocm'] + spent_breakdown['permit&licenses'] +
+                spent_breakdown['contingency'] + spent_breakdown['other']
+            )
+            budget_value = float(p.get('budget') or 0)
+            drawer_remaining = budget_value - drawer_spent
+            drawer_percent_used = (drawer_spent / budget_value * 100.0) if budget_value > 0 else 0.0
             project_drawer_data[str(pid)] = {
                 'id': pid,
                 'prn': p.get('prn') or '',
                 'name': p.get('name') or '',
                 'barangay': p.get('barangay') or '',
-                'budget': float(p.get('budget') or 0),
-                'spent': float(p.get('spent') or 0),
-                'remaining': float(p.get('remaining') or 0),
-                'percent_used': float(p.get('percent_used') or 0),
+                'budget': budget_value,
+                'spent': drawer_spent,
+                'remaining': drawer_remaining,
+                'percent_used': drawer_percent_used,
                 'breakdown': {
-                    'material': b['material'],
-                    'labor': b['labor'],
-                    'direct': total_direct,
-                    'indirect': total_indirect,
-                    'contingency': max(float(p.get('remaining') or 0), 0.0),
-                    'total_project_cost': float(p.get('budget') or 0),
+                    'material': material_remaining,
+                    'labor': labor_remaining,
+                    'direct': total_direct_alloc,
+                    'indirect': total_indirect_alloc,
+                    'contingency': contingency_remaining,
+                    'total_project_cost': budget_value,
+                },
+                'allocation': {
+                    'material': material_alloc,
+                    'labor': labor_alloc,
+                    'direct': direct_alloc,
+                    'indirect': indirect_alloc,
+                    'contingency': contingency_alloc,
                 },
                 'history': costs_map[pid],
             }
@@ -824,3 +929,90 @@ def finance_project_detail(request, project_id):
         messages.error(request, f"Error loading project details: {str(e)}")
         # Redirect to finance cost management page instead of finance_projects
         return redirect('finance_cost_management') 
+
+
+@login_required
+@finance_manager_required
+def finance_project_export_csv(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    costs = ProjectCost.objects.filter(project=project).order_by('-date', '-id')
+    total_spent = float(costs.aggregate(total=Sum('amount'))['total'] or 0)
+    budget = float(project.project_cost or 0)
+    remaining = budget - total_spent
+    utilization = (total_spent / budget * 100.0) if budget > 0 else 0.0
+
+    response = HttpResponse(content_type='text/csv')
+    filename = f'finance_project_report_{project.prn or project.id}_{datetime.now().strftime("%Y%m%d")}.csv'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Finance Project Report'])
+    writer.writerow(['Project Name', project.name or ''])
+    writer.writerow(['PRN', project.prn or ''])
+    writer.writerow(['Barangay', project.barangay or ''])
+    writer.writerow(['Approved Budget', f'{budget:.2f}'])
+    writer.writerow(['Total Spent', f'{total_spent:.2f}'])
+    writer.writerow(['Remaining Budget', f'{remaining:.2f}'])
+    writer.writerow(['Budget Utilization', f'{utilization:.2f}%'])
+    writer.writerow([])
+    writer.writerow(['Date', 'Cost Type', 'Description', 'Amount', 'Receipt'])
+    for cost in costs:
+        writer.writerow([
+            cost.date.strftime('%Y-%m-%d') if cost.date else '',
+            cost.get_cost_type_display(),
+            cost.description or '',
+            f'{float(cost.amount or 0):.2f}',
+            cost.receipt.url if cost.receipt else '',
+        ])
+    return response
+
+
+@login_required
+@finance_manager_required
+def finance_project_export_excel(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    costs = ProjectCost.objects.filter(project=project).order_by('-date', '-id')
+    total_spent = float(costs.aggregate(total=Sum('amount'))['total'] or 0)
+    budget = float(project.project_cost or 0)
+    remaining = budget - total_spent
+    utilization = (total_spent / budget * 100.0) if budget > 0 else 0.0
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = 'Project Report'
+
+    summary_rows = [
+        ['Finance Project Report', ''],
+        ['Project Name', project.name or ''],
+        ['PRN', project.prn or ''],
+        ['Barangay', project.barangay or ''],
+        ['Approved Budget', budget],
+        ['Total Spent', total_spent],
+        ['Remaining Budget', remaining],
+        ['Budget Utilization (%)', utilization],
+        ['', ''],
+    ]
+    for row in summary_rows:
+        sheet.append(row)
+
+    sheet.append(['Date', 'Cost Type', 'Description', 'Amount', 'Receipt'])
+    for cost in costs:
+        sheet.append([
+            cost.date.strftime('%Y-%m-%d') if cost.date else '',
+            cost.get_cost_type_display(),
+            cost.description or '',
+            float(cost.amount or 0),
+            cost.receipt.url if cost.receipt else '',
+        ])
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f'finance_project_report_{project.prn or project.id}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

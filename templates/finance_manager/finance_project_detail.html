@@ -28,6 +28,21 @@
     </div>
 </div>
 
+<div class="mb-4 flex justify-end">
+    <div class="relative" id="project-export-dropdown">
+        <button type="button" id="project-export-trigger" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Export Report
+        </button>
+        <div id="project-export-menu" class="hidden absolute right-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white shadow-lg z-40 py-1">
+            <a href="{% url 'finance_project_export_csv' project_id=project.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as CSV</a>
+            <a href="{% url 'finance_project_export_excel' project_id=project.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as Excel</a>
+        </div>
+    </div>
+</div>
+
         <!-- Financial Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <!-- Approved Budget Card -->
@@ -462,6 +477,9 @@ window.hideRejectBudgetModal = function() {
 document.addEventListener('DOMContentLoaded', function() {
     const approveModal = document.getElementById('approveBudgetModal');
     const rejectModal = document.getElementById('rejectBudgetModal');
+    const exportDropdown = document.getElementById('project-export-dropdown');
+    const exportTrigger = document.getElementById('project-export-trigger');
+    const exportMenu = document.getElementById('project-export-menu');
     
     if (approveModal) {
         approveModal.addEventListener('click', function(e) {
@@ -478,6 +496,32 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    if (exportTrigger && exportMenu) {
+        exportTrigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            exportMenu.classList.toggle('hidden');
+        });
+    }
+
+    if (exportDropdown) {
+        exportDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    document.addEventListener('click', function() {
+        if (exportMenu) {
+            exportMenu.classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && exportMenu) {
+            exportMenu.classList.add('hidden');
+        }
+    });
 });
 </script>
 {% endblock %}
