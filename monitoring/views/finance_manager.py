@@ -447,11 +447,14 @@ def finance_cost_management(request):
                 }
                 subtype_label = ''
                 if cost_type in required_subtypes:
-                    if cost_subtype not in required_subtypes[cost_type]:
-                        if cost_type == 'material':
-                            raise ValueError('Please select a valid material type (PR or PO).')
-                        raise ValueError('Please select a valid labor type.')
-                    subtype_label = required_subtypes[cost_type][cost_subtype]
+                    # Backward compatible: subtype is optional for legacy clients/tests.
+                    # Validate only when a subtype value is provided.
+                    if cost_subtype:
+                        if cost_subtype not in required_subtypes[cost_type]:
+                            if cost_type == 'material':
+                                raise ValueError('Please select a valid material type (PR or PO).')
+                            raise ValueError('Please select a valid labor type.')
+                        subtype_label = required_subtypes[cost_type][cost_subtype]
                 else:
                     cost_subtype = ''
 

@@ -59,7 +59,7 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
                     'name': instance.name,
                     'description': (instance.description or ''),
                     'barangay': instance.barangay,
-                    'project_cost': str(instance.project_cost) if instance.project_cost is not None else '',
+                    'project_cost': str(instance.project_cost) if instance.project_cost is not None else None,
                     'source_of_funds': instance.source_of_funds,
                     'status': mapped_status,
                     'latitude': instance.latitude or 0,
@@ -73,7 +73,7 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
                 monitoring_project.name = instance.name
                 monitoring_project.description = (instance.description or '')
                 monitoring_project.barangay = instance.barangay
-                monitoring_project.project_cost = str(instance.project_cost) if instance.project_cost is not None else ''
+                monitoring_project.project_cost = str(instance.project_cost) if instance.project_cost is not None else None
                 monitoring_project.source_of_funds = instance.source_of_funds
                 monitoring_project.status = mapped_status
                 monitoring_project.latitude = instance.latitude or 0
