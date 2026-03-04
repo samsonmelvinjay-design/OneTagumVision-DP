@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneTagumVision - Project Engineer</title>
     <link rel="icon" type="image/png" href="{% static 'img/logo-onetagumvision.png' %}">
-    <link rel="manifest" href="/projeng/manifest.webmanifest">
     <meta name="theme-color" content="#228B22">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -267,11 +266,27 @@
     });
     </script>
     <script>
+    // Hard-disable projeng PWA runtime to prevent stale manifest/SW cache issues.
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/projeng/sw.js', { scope: '/projeng/' })
+            navigator.serviceWorker.getRegistrations()
+                .then(function(registrations) {
+                    const projengRegs = registrations.filter(function(reg) {
+                        return reg.scope.indexOf('/projeng/') !== -1;
+                    });
+                    return Promise.all(projengRegs.map(function(reg) { return reg.unregister(); }));
+                })
+                .then(function() {
+                    if (!('caches' in window)) return;
+                    return caches.keys().then(function(keys) {
+                        const projengKeys = keys.filter(function(key) {
+                            return key.indexOf('projeng-pwa-') === 0;
+                        });
+                        return Promise.all(projengKeys.map(function(key) { return caches.delete(key); }));
+                    });
+                })
                 .catch(function(error) {
-                    console.error('Project Engineer service worker registration failed:', error);
+                    console.warn('Projeng SW/cache cleanup warning:', error);
                 });
         });
     }

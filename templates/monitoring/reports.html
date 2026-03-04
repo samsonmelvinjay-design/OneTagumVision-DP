@@ -89,7 +89,6 @@
                             <option value="{{ y }}" {% if selected_in_progress_for_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
                         {% endfor %}
                     </select>
-                    <p class="text-xs text-gray-500 mt-1">Projects still in progress during the selected year</p>
                 </div>
                 <div>
                     <label for="completed-for-year-filter" class="block text-sm font-semibold text-gray-700 mb-2">Completed for year</label>
@@ -99,7 +98,6 @@
                             <option value="{{ y }}" {% if selected_completed_in_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
                         {% endfor %}
                     </select>
-                    <p class="text-xs text-gray-500 mt-1">Projects with status Completed or progress ≥99% and end date (date ended) in the selected year</p>
                 </div>
                 <div>
                     <label for="start-date-filter" class="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
@@ -400,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // PDF export via PDFMake – uses filteredProjects (whatever is in the table)
-    function exportToPdfMake() {
+    function exportToPdfMake(previewWindow) {
         const list = filteredProjects;
 
         const now = new Date();
@@ -513,8 +511,33 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         if (typeof pdfMake !== 'undefined') {
-            pdfMake.createPdf(docDef).download('list_of_infrastructure_projects_' + now.toISOString().slice(0, 10) + '.pdf');
+            const pdfDoc = pdfMake.createPdf(docDef);
+            const fileName = 'list_of_infrastructure_projects_' + now.toISOString().slice(0, 10) + '.pdf';
+            if (previewWindow && !previewWindow.closed) {
+                previewWindow.document.title = 'Generating report...';
+                previewWindow.document.body.innerHTML = '<p style="font-family: Arial, sans-serif; padding: 16px;">Preparing PDF report...</p>';
+                pdfDoc.getBlob(function(blob) {
+                    try {
+                        const blobUrl = URL.createObjectURL(blob);
+                        if (previewWindow && !previewWindow.closed) {
+                            previewWindow.location.replace(blobUrl);
+                        } else {
+                            pdfDoc.download(fileName);
+                        }
+                        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 60000);
+                    } catch (blobErr) {
+                        console.error('PDF blob preview failed:', blobErr);
+                        pdfDoc.download(fileName);
+                    }
+                });
+            } else {
+                // Popup blocked: fallback to direct download.
+                pdfDoc.download(fileName);
+            }
         } else {
+            if (previewWindow && !previewWindow.closed) {
+                previewWindow.close();
+            }
             alert('PDF library not loaded. Please refresh the page and try again.');
         }
     }
@@ -537,7 +560,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (exportPdfBtn) {
         exportPdfBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            exportToPdfMake();
+            const previewWindow = window.open('', '_blank');
+            exportToPdfMake(previewWindow);
             if (exportDropdownMenu) exportDropdownMenu.classList.add('hidden');
         });
     }

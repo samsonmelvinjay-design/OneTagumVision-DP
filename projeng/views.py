@@ -1177,6 +1177,21 @@ def project_detail_view(request, pk):
             extension_count = 0
             revised_target_date = None
 
+        image_extensions = ('.png', '.jpg', '.jpeg', '.jfif', '.gif', '.webp', '.bmp')
+        uploaded_report_images = []
+        for doc in documents:
+            doc_name = (doc.name or '').strip()
+            if not doc_name.lower().endswith(image_extensions):
+                continue
+            try:
+                doc_url = doc.file.url
+            except Exception:
+                continue
+            uploaded_report_images.append({
+                'name': doc_name,
+                'url': doc_url,
+            })
+
         report_data = {
             'project': {
                 'name': project.name or '',
@@ -1216,7 +1231,7 @@ def project_detail_view(request, pk):
                 }
                 for u in progress_updates_for_report
             ],
-            'uploaded_images': [],  # Project engineer report without embedded images
+            'uploaded_images': uploaded_report_images,
         }
 
         return render(request, 'projeng/project_detail.html', {
