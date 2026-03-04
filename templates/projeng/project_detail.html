@@ -158,7 +158,7 @@
                         {% if configured_target_date %}
                             <span class="text-xs text-gray-500 block mt-0.5">
                                 Target: {% if configured_target_progress is not None %}{{ configured_target_progress|floatformat:2 }}%{% else %}Not set{% endif %}
-                                • {{ configured_target_date|date:"F j, Y" }}
+                                &bull; {{ configured_target_date|date:"F j, Y" }}
                             </span>
                         {% endif %}
                     </div>
@@ -372,7 +372,7 @@
                                                 <div>
                                                     <p class="text-sm font-semibold text-red-900">Budget is critical</p>
                                                     <p class="text-xs text-red-800 mt-1">
-                                                        Utilization: {{ budget_utilization|floatformat:1 }}%{% if remaining_budget is not None %} • Remaining: ₱{{ remaining_budget|floatformat:2|intcomma }}{% endif %}
+                                                        Utilization: {{ budget_utilization|floatformat:1 }}%{% if remaining_budget is not None %} &bull; Remaining: &#8369;{{ remaining_budget|floatformat:2|intcomma }}{% endif %}
                                                     </p>
                                                 </div>
                                             </div>
@@ -400,7 +400,7 @@
                                                 <div>
                                                     <p class="text-sm font-semibold text-amber-900">Budget is nearing limit</p>
                                                     <p class="text-xs text-amber-800 mt-1">
-                                                        Utilization: {{ budget_utilization|floatformat:1 }}%{% if remaining_budget is not None %} • Remaining: ₱{{ remaining_budget|floatformat:2|intcomma }}{% endif %}
+                                                        Utilization: {{ budget_utilization|floatformat:1 }}%{% if remaining_budget is not None %} &bull; Remaining: &#8369;{{ remaining_budget|floatformat:2|intcomma }}{% endif %}
                                                     </p>
                                                 </div>
                                             </div>
@@ -679,7 +679,7 @@
                                             <div class="mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-xs text-indigo-800">
                                                 <strong>Edit reason:</strong> {{ activity.edit_reason|truncatewords:18 }}
                                                 {% if activity.from_percentage != None and activity.to_percentage != None %}
-                                                    <span class="text-indigo-700">({{ activity.from_percentage|floatformat:1 }}% → {{ activity.to_percentage|floatformat:1 }}%)</span>
+                                                    <span class="text-indigo-700">({{ activity.from_percentage|floatformat:1 }}% -> {{ activity.to_percentage|floatformat:1 }}%)</span>
                                                 {% endif %}
                                             </div>
                                         {% endif %}
@@ -794,7 +794,7 @@
                     </span>
                 </label>
                 <p class="text-sm text-gray-600 mb-4">
-                    Spent: ₱{{ total_cost|floatformat:2|intcomma }} | Budget: ₱{{ project.project_cost|floatformat:2|intcomma }} | Remaining: ₱{{ remaining_budget|floatformat:2|intcomma }}
+                    Spent: &#8369;{{ total_cost|floatformat:2|intcomma }} | Budget: &#8369;{{ project.project_cost|floatformat:2|intcomma }} | Remaining: &#8369;{{ remaining_budget|floatformat:2|intcomma }}
                 </p>
             </div>
             <div class="mb-4">
@@ -804,7 +804,7 @@
                 <textarea id="alert-message" 
                           name="message" 
                           rows="4" 
-                          placeholder="e.g., Upcoming milestone will require additional materials. Anticipated cost: ₱30,000..."
+                          placeholder="e.g., Upcoming milestone will require additional materials. Anticipated cost: &#8369;30,000..."
                           class="w-full border rounded-md p-2 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"></textarea>
             </div>
             <div class="flex gap-2">
@@ -827,155 +827,227 @@
 {{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Progress Trends Chart
-    {% if progress_timeline_data|length > 0 %}
-    const progressTrendsCtx = document.getElementById('progressTrendsChart');
-    if (progressTrendsCtx) {
-        const progressTrendsChart = new Chart(progressTrendsCtx, {
-            type: 'line',
-            data: {
-                labels: {{ progress_dates|safe }},
-                datasets: [{
-                    label: 'Progress (%)',
-                    data: {{ progress_percentages|safe }},
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: 'rgb(34, 197, 94)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return 'Progress: ' + context.parsed.y + '%';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Progress Percentage'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    }
-                }
-            }
-        });
+(function() {
+    function scheduleNonCriticalTask(task) {
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(function() { task(); }, { timeout: 1500 });
+            return;
+        }
+        window.requestAnimationFrame(function() { task(); });
     }
-    {% endif %}
 
-    // Timeline Comparison Chart
-    {% if timeline_comparison %}
-    const timelineComparisonCtx = document.getElementById('timelineComparisonChart');
-    if (timelineComparisonCtx) {
-        const timelineComparisonChart = new Chart(timelineComparisonCtx, {
-            type: 'line',
-            data: {
-                labels: {{ expected_dates_json|safe }},
-                datasets: [
-                    {
-                        label: 'Expected Progress',
-                        data: {{ expected_progress_data_json|safe }},
-                        borderColor: 'rgb(156, 163, 175)',
-                        backgroundColor: 'rgba(156, 163, 175, 0.1)',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        fill: false,
-                        tension: 0.4,
-                        pointRadius: 3,
-                        pointHoverRadius: 5
-                    },
-                    {
-                        label: 'Actual Progress',
-                        data: {{ actual_progress_aligned_json|safe }},
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    function downsampleSeries(labels, seriesList, maxPoints) {
+        var safeLabels = Array.isArray(labels) ? labels : [];
+        var safeSeries = (seriesList || []).map(function(series) {
+            return Array.isArray(series) ? series : [];
+        });
+        if (safeLabels.length <= maxPoints || maxPoints < 2) {
+            return { labels: safeLabels, series: safeSeries };
+        }
+
+        var step = Math.ceil(safeLabels.length / maxPoints);
+        var sampledLabels = [];
+        var sampledSeries = safeSeries.map(function() { return []; });
+
+        for (var i = 0; i < safeLabels.length; i += step) {
+            sampledLabels.push(safeLabels[i]);
+            for (var s = 0; s < safeSeries.length; s++) {
+                sampledSeries[s].push(safeSeries[s][i]);
+            }
+        }
+
+        var lastIndex = safeLabels.length - 1;
+        if (sampledLabels[sampledLabels.length - 1] !== safeLabels[lastIndex]) {
+            sampledLabels.push(safeLabels[lastIndex]);
+            for (var t = 0; t < safeSeries.length; t++) {
+                sampledSeries[t].push(safeSeries[t][lastIndex]);
+            }
+        }
+
+        return { labels: sampledLabels, series: sampledSeries };
+    }
+
+    function initProgressTrendsChart() {
+        {% if progress_timeline_data|length > 0 %}
+        const progressTrendsCtx = document.getElementById('progressTrendsChart');
+        if (progressTrendsCtx) {
+            const rawLabels = {{ progress_dates|safe }};
+            const rawProgress = {{ progress_percentages|safe }};
+            const sampled = downsampleSeries(rawLabels, [rawProgress], 140);
+            const progressData = sampled.series[0] || [];
+            const pointRadius = sampled.labels.length > 90 ? 0 : 4;
+
+            new Chart(progressTrendsCtx, {
+                type: 'line',
+                data: {
+                    labels: sampled.labels,
+                    datasets: [{
+                        label: 'Progress (%)',
+                        data: progressData,
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
                         borderWidth: 3,
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointRadius: pointRadius,
+                        pointHoverRadius: pointRadius ? pointRadius + 2 : 0,
+                        pointBackgroundColor: 'rgb(34, 197, 94)',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                    }]
+                },
+                options: {
+                    animation: false,
+                    parsing: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Progress: ' + context.parsed.y + '%';
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Progress Percentage'
                             }
                         },
-                        title: {
-                            display: true,
-                            text: 'Progress Percentage'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
                         }
                     }
                 }
-            }
+            });
+        }
+        {% endif %}
+    }
+
+    function initTimelineComparisonChart() {
+        {% if timeline_comparison %}
+        const timelineComparisonCtx = document.getElementById('timelineComparisonChart');
+        if (timelineComparisonCtx) {
+            const rawLabels = {{ expected_dates_json|safe }};
+            const rawExpected = {{ expected_progress_data_json|safe }};
+            const rawActual = {{ actual_progress_aligned_json|safe }};
+            const sampled = downsampleSeries(rawLabels, [rawExpected, rawActual], 160);
+            const expectedData = sampled.series[0] || [];
+            const actualData = sampled.series[1] || [];
+            const pointRadius = sampled.labels.length > 90 ? 0 : 3;
+
+            new Chart(timelineComparisonCtx, {
+                type: 'line',
+                data: {
+                    labels: sampled.labels,
+                    datasets: [
+                        {
+                            label: 'Expected Progress',
+                            data: expectedData,
+                            borderColor: 'rgb(156, 163, 175)',
+                            backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: pointRadius,
+                            pointHoverRadius: pointRadius ? pointRadius + 2 : 0
+                        },
+                        {
+                            label: 'Actual Progress',
+                            data: actualData,
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: pointRadius,
+                            pointHoverRadius: pointRadius ? pointRadius + 2 : 0,
+                            pointBackgroundColor: 'rgb(59, 130, 246)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    parsing: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Progress Percentage'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        {% endif %}
+    }
+
+    function initChartsDeferred() {
+        scheduleNonCriticalTask(function() {
+            initProgressTrendsChart();
+            scheduleNonCriticalTask(initTimelineComparisonChart);
         });
     }
-    {% endif %}
-});
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initChartsDeferred, { once: true });
+    } else {
+        initChartsDeferred();
+    }
+})();
 </script>
 
 <!-- Upload Document Modal -->
@@ -1074,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% endwith %}
                             <div class="p-3">
                                 <p class="text-sm font-semibold text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
-                                <p class="text-xs text-gray-500 mt-1">{{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }} • {{ doc.uploaded_at|date:"M j, Y" }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }} &bull; {{ doc.uploaded_at|date:"M j, Y" }}</p>
                                 <div class="mt-3 flex items-center justify-between">
                                     <a href="{{ doc.file.url }}" target="_blank" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Open</a>
                                     <a href="{{ doc.file.url }}" download class="text-xs text-green-600 hover:text-green-800 font-medium">Download</a>
@@ -1716,9 +1788,6 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to generate PDF: ' + (err.message || 'Unknown error'));
         }
     }
-
-    // Warm up logo loading so first click is faster and less likely to hit popup blocking.
-    loadLogoDataUrl().catch(function() {});
 
     window.printReportPdf = function() {
         var previewWindow = window.open('', '_blank');
