@@ -1423,15 +1423,16 @@ document.addEventListener('DOMContentLoaded', function() {
             var data = JSON.parse(reportDataEl.textContent);
             var p = data.project || {};
             var logoDataUrl = await loadLogoDataUrl();
-            var scheduledValue = data.expected_progress != null ? Number(data.expected_progress) : null;
+            var scheduledValue = data.scheduled_progress != null ? Number(data.scheduled_progress) : null;
             var actualValue = data.latest_progress_pct != null ? Number(data.latest_progress_pct) : null;
-            var varianceValue = null;
-            if (scheduledValue != null && actualValue != null &&
+            var varianceValue = (data.progress_variance != null && !Number.isNaN(Number(data.progress_variance)))
+                ? Number(data.progress_variance)
+                : null;
+            if ((varianceValue == null || Number.isNaN(varianceValue)) &&
+                scheduledValue != null && actualValue != null &&
                 !Number.isNaN(scheduledValue) && !Number.isNaN(actualValue)) {
-                // Keep report math internally consistent: slippage = actual - scheduled.
+                // Fallback when backend variance is unavailable.
                 varianceValue = actualValue - scheduledValue;
-            } else if (data.progress_variance != null && !Number.isNaN(Number(data.progress_variance))) {
-                varianceValue = Number(data.progress_variance);
             }
             var scheduled = scheduledValue != null && !Number.isNaN(scheduledValue) ? scheduledValue.toFixed(2) + '%' : 'N/A';
             var actual = actualValue != null && !Number.isNaN(actualValue) ? actualValue.toFixed(2) + '%' : 'N/A';

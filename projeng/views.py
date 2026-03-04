@@ -1156,9 +1156,16 @@ def project_detail_view(request, pk):
             days_remaining = timeline_comparison.get('remaining_days', 0)
             expected_progress = timeline_comparison.get('expected_progress')
             progress_variance = timeline_comparison.get('progress_variance')
+            configured_target_progress = timeline_comparison.get('configured_target_progress')
+            scheduled_progress_for_print = (
+                configured_target_progress
+                if configured_target_progress is not None
+                else expected_progress
+            )
         else:
             days_elapsed = total_days = days_remaining = 0
             expected_progress = progress_variance = None
+            scheduled_progress_for_print = None
 
         try:
             extension_count = ProjectExtensionHistory.objects.filter(project=project).count()
@@ -1215,6 +1222,7 @@ def project_detail_view(request, pk):
             'days_elapsed': days_elapsed,
             'total_days': total_days,
             'days_remaining': days_remaining,
+            'scheduled_progress': scheduled_progress_for_print,
             'expected_progress': expected_progress,
             'progress_variance': progress_variance,
             'extension_count': extension_count,
