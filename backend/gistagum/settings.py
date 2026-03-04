@@ -782,3 +782,16 @@ if os.name == 'nt':  # Check if the operating system is Windows
     GDAL_LIBRARY_PATH = r'C:\OSGeo4W\bin\gdal310.dll'
     GEOS_LIBRARY_PATH = r'C:\OSGeo4W\bin\geos_c.dll'
     os.environ['PATH'] = r'C:\OSGeo4W\bin;' + os.environ['PATH']
+
+# Resend HTTP API override (added for production)
+try:
+    import anymail  # noqa: F401
+    if 'anymail' not in INSTALLED_APPS:
+        INSTALLED_APPS.append('anymail')
+except Exception:
+    pass
+
+_RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+if _RESEND_API_KEY:
+    EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'anymail.backends.resend.EmailBackend')
+    ANYMAIL = {'RESEND_API_KEY': _RESEND_API_KEY}
