@@ -380,6 +380,15 @@
         const calcPercent = (value, total) => total > 0 ? ((value / total) * 100) : 0;
         const fmtMoney = (value) => '₱' + Number(value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+        const getTooltipValue = (ctx) => {
+            if (typeof ctx?.parsed === 'number') return ctx.parsed;
+            if (ctx?.parsed && typeof ctx.parsed.r === 'number') return ctx.parsed.r;
+            if (typeof ctx?.raw === 'number') return ctx.raw;
+            if (ctx?.raw && typeof ctx.raw.r === 'number') return ctx.raw.r;
+            const fallback = Number(ctx?.parsed);
+            return Number.isFinite(fallback) ? fallback : 0;
+        };
+
         // Card color palette (matches dashboard metric cards: Completed=green, In Progress=orange, Planned=purple, Delayed=red, Total=blue)
         const CARD = {
             green: 'rgba(46, 204, 113, 0.85)',   // #2ECC71 - Completed
@@ -707,7 +716,7 @@
                             borderWidth: 1
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + c.parsed } } } }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + getTooltipValue(c) } } } }
                 });
                 return;
             }
@@ -732,9 +741,10 @@
                         legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } },
                         tooltip: { enabled: true, callbacks: {
                             label: function(c) {
-                                const t = c.dataset.data.reduce((a,b)=>a+b,0);
-                                const pct = t ? ((c.parsed / t) * 100).toFixed(1) : 0;
-                                return c.label + ': ' + c.parsed + ' (' + pct + '%)';
+                                const value = getTooltipValue(c);
+                                const t = c.dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
+                                const pct = t ? ((value / t) * 100).toFixed(1) : 0;
+                                return c.label + ': ' + value + ' (' + pct + '%)';
                             }
                         } }
                     }
