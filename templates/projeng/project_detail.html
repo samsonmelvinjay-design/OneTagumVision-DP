@@ -433,12 +433,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Project Documents
-                    {% if documents|length > 5 %}
+                    {% if documents %}
                         <span class="text-sm font-normal text-gray-500">({{ documents|length }})</span>
                     {% endif %}
                 </h3>
                 <div class="flex items-center gap-2">
-                    {% if documents|length > 5 %}
+                    {% if documents %}
                         <button onclick="openDocumentsModal()"
                                 class="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -459,43 +459,32 @@
             </div>
 
             {% if documents %}
-                <div class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2 documents-scroll" style="scrollbar-width: thin; scrollbar-color: #cbd5e0 #f7fafc;">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {% for doc in documents|slice:":5" %}
-                        <div class="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <svg class="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                    <p class="text-sm font-medium text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
+                        <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+                            <button type="button"
+                                    onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                    class="block w-full">
+                                <div class="h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                    <img src="{{ doc.file.url }}" alt="{{ doc.name }}" class="w-full h-full object-cover" loading="lazy"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="hidden w-full h-full items-center justify-center text-xs text-gray-500 px-2 text-center">
+                                        Preview not available
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-3 text-xs text-gray-500 ml-7">
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                        </svg>
-                                        {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                        </svg>
-                                        {{ doc.uploaded_at|date:"M j, Y" }}
-                                    </span>
+                            </button>
+                            <div class="p-2">
+                                <p class="text-xs font-medium text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
+                                <div class="mt-2 flex items-center justify-between text-xs">
+                                    <button type="button"
+                                            onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                            class="text-blue-600 hover:text-blue-800 font-medium">
+                                        Open
+                                    </button>
+                                    <a href="{{ doc.file.url }}" download class="text-green-600 hover:text-green-800 font-medium">
+                                        Download
+                                    </a>
                                 </div>
-                            </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <a href="{{ doc.file.url }}" target="_blank" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View Document">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                    </svg>
-                                </a>
-                                <a href="{{ doc.file.url }}" download class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Download Document">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                    </svg>
-                                </a>
                             </div>
                         </div>
                     {% endfor %}
@@ -1057,8 +1046,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Documents Modal for Project Engineer -->
-<div id="documentsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+<div id="documentsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
         <!-- Modal Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -1076,59 +1065,35 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         
         <!-- Modal Body - Scrollable -->
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex-1 overflow-y-auto p-6" style="max-height: min(62vh, 660px);">
             {% if documents %}
-                <div class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     {% for doc in documents %}
-                        <div class="flex items-start justify-between gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <svg class="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                    <p class="text-sm font-medium text-gray-900" title="{{ doc.name }}">
-                                        {{ doc.name }}
-                                    </p>
+                        <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+                            <button type="button"
+                                    onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                    class="block w-full">
+                                <div class="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                    <img src="{{ doc.file.url }}" alt="{{ doc.name }}" class="w-full h-full object-cover" loading="lazy"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="hidden w-full h-full items-center justify-center text-xs text-gray-500 px-2 text-center">
+                                        Preview not available
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-4 text-xs text-gray-500 ml-7">
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                        </svg>
-                                        {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                        </svg>
-                                        {{ doc.uploaded_at|date:"M j, Y" }}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                        {{ doc.uploaded_at|date:"g:i A" }}
-                                    </span>
+                            </button>
+                            <div class="p-3">
+                                <p class="text-sm font-medium text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
+                                <p class="mt-1 text-xs text-gray-500 truncate">{{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }} • {{ doc.uploaded_at|date:"M j, Y" }}</p>
+                                <div class="mt-2 flex items-center justify-between text-xs">
+                                    <button type="button"
+                                            onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                            class="text-blue-600 hover:text-blue-800 font-medium">
+                                        Open
+                                    </button>
+                                    <a href="{{ doc.file.url }}" download class="text-green-600 hover:text-green-800 font-medium">
+                                        Download
+                                    </a>
                                 </div>
-                            </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <a href="{{ doc.file.url }}" 
-                                   target="_blank"
-                                   class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                   title="View Document">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                    </svg>
-                                </a>
-                                <a href="{{ doc.file.url }}" 
-                                   download
-                                   class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                   title="Download Document">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                    </svg>
-                                </a>
                             </div>
                         </div>
                     {% endfor %}
@@ -1152,24 +1117,52 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
+<!-- Document Preview Modal -->
+<div id="documentPreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-[90] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full flex flex-col overflow-hidden"
+         style="width: min(96vw, 1080px); height: min(88vh, 760px);">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 id="documentPreviewTitle" class="text-base font-semibold text-gray-900 truncate pr-4">Document Preview</h3>
+            <button type="button" onclick="closeDocumentPreview()"
+                    class="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 flex items-center justify-center p-3 sm:p-4 bg-gray-50 overflow-hidden">
+            <img id="documentPreviewImage" src="" alt="Document preview" class="w-full h-full object-contain rounded-lg">
+        </div>
+    </div>
+</div>
+
 {% if report_data %}
 {{ report_data|json_script:"report-data" }}
 {% endif %}
 
 <script>
+function syncProjectDetailModalScrollLock() {
+    const modalIds = ['documentsModal', 'uploadDocumentModal', 'documentPreviewModal'];
+    const hasOpenModal = modalIds.some((id) => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains('hidden');
+    });
+    document.body.style.overflow = hasOpenModal ? 'hidden' : '';
+}
+
 function openDocumentsModal() {
     document.getElementById('documentsModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    syncProjectDetailModalScrollLock();
 }
 
 function closeDocumentsModal() {
     document.getElementById('documentsModal').classList.add('hidden');
-    document.body.style.overflow = '';
+    syncProjectDetailModalScrollLock();
 }
 
 function openUploadDocumentModal() {
     document.getElementById('uploadDocumentModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    syncProjectDetailModalScrollLock();
     document.getElementById('upload-document-files').value = '';
     document.getElementById('upload-file-names').classList.add('hidden');
     document.getElementById('upload-document-submit').disabled = true;
@@ -1178,7 +1171,29 @@ function openUploadDocumentModal() {
 
 function closeUploadDocumentModal() {
     document.getElementById('uploadDocumentModal').classList.add('hidden');
-    document.body.style.overflow = '';
+    syncProjectDetailModalScrollLock();
+}
+
+function openDocumentPreview(fileUrl, fileName) {
+    const modal = document.getElementById('documentPreviewModal');
+    const image = document.getElementById('documentPreviewImage');
+    const title = document.getElementById('documentPreviewTitle');
+    if (!modal || !image) return;
+
+    image.src = fileUrl || '';
+    image.alt = fileName || 'Document preview';
+    if (title) title.textContent = fileName || 'Document Preview';
+
+    modal.classList.remove('hidden');
+    syncProjectDetailModalScrollLock();
+}
+
+function closeDocumentPreview() {
+    const modal = document.getElementById('documentPreviewModal');
+    const image = document.getElementById('documentPreviewImage');
+    if (modal) modal.classList.add('hidden');
+    if (image) image.src = '';
+    syncProjectDetailModalScrollLock();
 }
 
 // Close modal when clicking outside
@@ -1195,9 +1210,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Close modal with Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
+            const previewModal = document.getElementById('documentPreviewModal');
             const docsModal = document.getElementById('documentsModal');
             const uploadModal = document.getElementById('uploadDocumentModal');
-            if (uploadModal && !uploadModal.classList.contains('hidden')) {
+            if (previewModal && !previewModal.classList.contains('hidden')) {
+                closeDocumentPreview();
+            } else if (uploadModal && !uploadModal.classList.contains('hidden')) {
                 closeUploadDocumentModal();
             } else if (docsModal && !docsModal.classList.contains('hidden')) {
                 closeDocumentsModal();
@@ -1210,6 +1228,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (uploadDocumentModal) {
         uploadDocumentModal.addEventListener('click', function(e) {
             if (e.target === this) closeUploadDocumentModal();
+        });
+    }
+
+    const documentPreviewModal = document.getElementById('documentPreviewModal');
+    if (documentPreviewModal) {
+        documentPreviewModal.addEventListener('click', function(e) {
+            if (e.target === this) closeDocumentPreview();
         });
     }
 
@@ -1371,6 +1396,28 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
+    async function loadUploadedImageDataUrls(uploadedImages) {
+        var imageDataUrls = [];
+        if (!Array.isArray(uploadedImages) || uploadedImages.length === 0) return imageDataUrls;
+
+        for (var i = 0; i < uploadedImages.length; i++) {
+            var img = uploadedImages[i] || {};
+            var imgUrl = (img.url || '').trim();
+            if (!imgUrl) continue;
+            try {
+                var res = await fetch(imgUrl, { credentials: 'same-origin' });
+                if (!res.ok) continue;
+                var blob = await res.blob();
+                if (blob.type && blob.type.indexOf('image/') !== 0) continue;
+                var dataUrl = await blobToDataUrl(blob);
+                if (dataUrl) imageDataUrls.push(dataUrl);
+            } catch (err) {
+                // Keep report generation resilient even when individual images fail to load.
+            }
+        }
+        return imageDataUrls;
+    }
+
     async function buildPdfAndOpen(previewWindow) {
         try {
             var data = JSON.parse(reportDataEl.textContent);
@@ -1392,15 +1439,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             function linedRow(label, value) {
                 return [
-                    { text: label, bold: true, margin: [0, 2, 0, 2] },
-                    { text: ': ' + (value || 'N/A'), margin: [0, 2, 0, 2] }
+                    { text: label, bold: true, margin: [0, 3, 0, 3] },
+                    { text: ': ' + (value || 'N/A'), margin: [0, 3, 0, 3] }
                 ];
             }
 
             var durationText = data.total_days ? data.total_days + ' WORKING DAYS' : 'N/A';
             var elapsedText = data.days_elapsed != null ? String(data.days_elapsed) : 'N/A';
             var remainingText = data.days_remaining != null ? String(data.days_remaining) : 'N/A';
-            var extensionCount = data.extension_count != null ? String(data.extension_count) : 'N/A';
+            var extensionCountNum = Number(data.extension_count || 0);
+            var extensionCount = extensionCountNum > 0 ? String(extensionCountNum) : 'N/A';
             var revisedTargetDate = data.revised_target_date || 'N/A';
             var statusText = (p.status || '').toLowerCase();
             var remarksProjectText = 'PROJECT ON GOING';
@@ -1412,25 +1460,49 @@ document.addEventListener('DOMContentLoaded', function() {
             var preparedName = (data.assigned_engineers && data.assigned_engineers[0])
                 ? data.assigned_engineers[0]
                 : (data.generated_by || 'N/A');
-            var concurredName = data.generated_by || 'N/A';
+            var preparedNameDisplay = String(preparedName || 'N/A').toUpperCase();
+            var uploadedImageDataUrls = await loadUploadedImageDataUrls(data.uploaded_images || []);
+
+            function buildImageRows(imageDataUrls) {
+                var rows = [];
+                for (var i = 0; i < imageDataUrls.length; i += 3) {
+                    var row = [];
+                    for (var j = 0; j < 3; j++) {
+                        var idx = i + j;
+                        if (idx < imageDataUrls.length) {
+                            row.push({
+                                image: imageDataUrls[idx],
+                                fit: [158, 104],
+                                alignment: 'center',
+                                margin: [0, 2, 0, 2],
+                                border: [false, false, false, false]
+                            });
+                        } else {
+                            row.push({ text: '', border: [false, false, false, false] });
+                        }
+                    }
+                    rows.push(row);
+                }
+                return rows;
+            }
 
             var content = [
                 {
                     table: {
                         widths: [24, 74, '*'],
-                        heights: [52, 14],
+                        heights: [40, 12],
                         body: [
-                            [image.pngb
+                            [
                                 { text: '' },
                                 logoDataUrl
-                                    ? { image: logoDataUrl, width: 66, rowSpan: 2, margin: [0, -2, 0, 0], alignment: 'center' }
+                                    ? { image: logoDataUrl, width: 66, rowSpan: 2, margin: [0, 0, 0, 0], alignment: 'center' }
                                     : { text: '', rowSpan: 2 },
                                 { text: 'CITY OF TAGUM', color: '#6f8566', bold: true, fontSize: 21, margin: [8, 11, 0, 0], characterSpacing: 0.2 }
                             ],
                             [
                                 { text: ' ', fillColor: '#69a95b' },
                                 '',
-                                { text: 'CEO - CONSTRUCTION DIVISION', color: 'white', bold: true, fillColor: '#69a95b', margin: [8, 0, 0, 0], fontSize: 12, lineHeight: 1 }
+                                { text: 'CEO - CONSTRUCTION DIVISION', color: 'white', bold: true, fillColor: '#69a95b', margin: [8, 4, 0, 0], fontSize: 12, lineHeight: 1 }
                             ]
                         ]
                     },
@@ -1458,16 +1530,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     table: {
                         widths: [170, '*'],
                         body: [
-                            [{ text: 'PROJECT NAME:', bold: true }, { text: p.name || 'N/A' }],
-                            [{ text: 'LOCATION:', bold: true }, { text: p.barangay || 'N/A' }],
-                            [{ text: 'REFERENCE NUMBER:', bold: true }, { text: p.prn || 'N/A' }]
+                            [{ text: 'PROJECT NAME:', bold: true, margin: [4, 3, 4, 3] }, { text: p.name || 'N/A', margin: [4, 3, 4, 3] }],
+                            [{ text: 'LOCATION:', bold: true, margin: [4, 3, 4, 3] }, { text: p.barangay || 'N/A', margin: [4, 3, 4, 3] }],
+                            [{ text: 'REFERENCE NUMBER:', bold: true, margin: [4, 3, 4, 3] }, { text: p.prn || 'N/A', margin: [4, 3, 4, 3] }]
                         ]
                     },
                     layout: {
                         hLineColor: function() { return '#666666'; },
                         vLineColor: function() { return '#666666'; },
                         hLineWidth: function() { return 0.8; },
-                        vLineWidth: function() { return 0.8; }
+                        vLineWidth: function() { return 0.8; },
+                        paddingLeft: function() { return 3; },
+                        paddingRight: function() { return 3; },
+                        paddingTop: function() { return 2; },
+                        paddingBottom: function() { return 2; }
                     },
                     margin: [0, 4, 0, 10]
                 },
@@ -1491,13 +1567,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     layout: {
                         hLineColor: function() { return '#8d8d8d'; },
                         vLineWidth: function() { return 0; },
-                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; }
+                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; },
+                        paddingLeft: function() { return 2; },
+                        paddingRight: function() { return 2; },
+                        paddingTop: function() { return 1; },
+                        paddingBottom: function() { return 1; }
                     },
                     margin: [0, 0, 0, 8]
                 },
                 {
                     table: {
-                        widths: [240, '*'],
+                        widths: [200, '*'],
                         body: [
                             linedRow('Scheduled Project Accomplishment', scheduled),
                             linedRow('Actual Project Accomplishment', actual),
@@ -1507,9 +1587,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     layout: {
                         hLineColor: function() { return '#8d8d8d'; },
                         vLineWidth: function() { return 0; },
-                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; }
+                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; },
+                        paddingLeft: function() { return 2; },
+                        paddingRight: function() { return 2; },
+                        paddingTop: function() { return 1; },
+                        paddingBottom: function() { return 1; }
                     },
-                    margin: [0, 2, 0, 10]
+                    margin: [0, 2, 0, 8]
                 },
                 {
                     table: {
@@ -1520,30 +1604,46 @@ document.addEventListener('DOMContentLoaded', function() {
                         ]]
                     },
                     layout: 'noBorders',
-                    margin: [0, 8, 0, 26]
+                    margin: [0, 8, 0, 8]
                 },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 0.8, lineColor: '#666666' }], margin: [0, 0, 0, 8] },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 0.8, lineColor: '#666666' }], margin: [0, 0, 0, 8] },
+                uploadedImageDataUrls.length ? {
+                    table: {
+                        widths: ['*', '*', '*'],
+                        body: buildImageRows(uploadedImageDataUrls)
+                    },
+                    layout: {
+                        hLineWidth: function() { return 0; },
+                        vLineWidth: function() { return 0; },
+                        paddingLeft: function() { return 3; },
+                        paddingRight: function() { return 3; },
+                        paddingTop: function() { return 2; },
+                        paddingBottom: function() { return 2; }
+                    },
+                    margin: [0, 0, 0, 10]
+                } : { text: '', margin: [0, 0, 0, 6] },
                 {
                     columns: [
                         {
                             width: '*',
                             stack: [
-                                { text: 'Prepared by:', margin: [0, 0, 0, 14] },
-                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
-                                { text: preparedName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
+                                { text: 'Prepared by:', margin: [0, 0, 0, 10] },
+                                { text: preparedNameDisplay, bold: true, alignment: 'center', margin: [0, 0, 0, 1] },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 250, y2: 0 }], margin: [0, 0, 0, 3] },
                                 { text: 'Project In-Charge', alignment: 'center' }
                             ]
                         },
                         {
                             width: '*',
                             stack: [
-                                { text: 'Concurred by:', margin: [0, 0, 0, 14] },
-                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
-                                { text: concurredName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
-                                { text: 'Head Engineer', alignment: 'center' }
+                                { text: 'Concurred by:', margin: [0, 0, 0, 11] },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 250, y2: 0 }], margin: [0, 12, 0, 3] },
+                                { text: 'Division Head', alignment: 'center' }
                             ]
                         }
                     ]
-                }
+                },
             ];
 
             var doc = {

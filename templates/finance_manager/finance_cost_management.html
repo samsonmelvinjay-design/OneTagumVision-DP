@@ -443,6 +443,31 @@
     const currency = (v) => `₱${Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
 
+    function bindAutoSelectInput(input) {
+        if (!input || input.dataset.autoSelectBound === '1') return;
+        input.dataset.autoSelectBound = '1';
+
+        const highlightAll = () => {
+            if (input.disabled || input.readOnly) return;
+            window.requestAnimationFrame(() => {
+                if (document.activeElement === input) input.select();
+            });
+        };
+
+        input.addEventListener('focus', highlightAll);
+        input.addEventListener('click', highlightAll);
+    }
+
+    function initAutoSelectInputs() {
+        const selectors = [
+            '#finance-allocation-modal input[type="number"]',
+            'section[data-tab-content="encode"] input[type="number"]'
+        ];
+        selectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach(bindAutoSelectInput);
+        });
+    }
+
     function buildBudgetExportUrl(baseUrl) {
         const params = new URLSearchParams(window.location.search || '');
         const allowed = ['year', 'budget_status', 'barangay', 'prn'];
@@ -564,6 +589,10 @@
         if (allocIndirect) allocIndirect.value = Number(allocation.indirect || 0).toFixed(2);
         if (allocContingency) allocContingency.value = Number(allocation.contingency || 0).toFixed(2);
         allocationModal.classList.remove('hidden');
+        if (allocMaterial) {
+            allocMaterial.focus();
+            allocMaterial.select();
+        }
     }
 
     function closeAllocationModal() {
@@ -638,6 +667,7 @@
             setTimeout(updateSubtypeField, 0);
         });
     }
+    initAutoSelectInputs();
     applyExportLinks();
     if (exportTrigger && exportMenu) {
         exportTrigger.addEventListener('click', (ev) => {
