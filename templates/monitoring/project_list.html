@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <!-- Add/Edit Project Modal (compact for laptop) -->
     <div id="project-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto transition-opacity duration-300 opacity-0 pointer-events-none p-2">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-0 relative max-h-[90vh] overflow-y-auto animate-modal-scale">
-            <button id="close-modal" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-2 border-white shadow hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200">&times;</button>
+            <button id="close-modal" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-green-700 text-white text-2xl rounded-full border-2 border-white shadow hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 transition-all duration-200">&times;</button>
             <form id="project-form" method="post" enctype="multipart/form-data" action="{% url 'project_list' %}" class="w-full p-4 md:p-5">
                 {% csrf_token %}
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </div>
                             </div>
                             <button type="button" id="map-fullscreen-btn"
-                                    class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-sm"
+                                    class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-sm"
                                     title="Click to open map and select location">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out;">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative mx-4 my-4 max-h-[90vh] overflow-hidden flex flex-col">
             <!-- Header with Gradient -->
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
+            <div class="bg-green-700 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
                 <button id="close-details-modal" class="absolute top-3 right-3 text-white hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
                 <div class="pr-10">
                     <div class="min-w-0">
@@ -633,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <!-- Popup Map Modal -->
     <div id="map-popup-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 overflow-y-auto hidden">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 relative mx-4 my-4">
-            <button type="button" id="close-map-popup" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
+            <button type="button" id="close-map-popup" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-green-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-200">&times;</button>
             
             <div class="mb-4">
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">📍 Select Project Location</h2>

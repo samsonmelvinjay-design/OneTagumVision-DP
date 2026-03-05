@@ -442,7 +442,6 @@
 
     const currency = (v) => `₱${Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
-
     function bindAutoSelectInput(input) {
         if (!input || input.dataset.autoSelectBound === '1') return;
         input.dataset.autoSelectBound = '1';

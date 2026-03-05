@@ -664,7 +664,7 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
 <!-- Add cache busting with timestamp to ensure latest version loads -->
-<script src="{% static 'js/simple_choropleth.js' %}?v=2.1"></script>
+<script src="{% static 'js/simple_choropleth.js' %}?v=2.2"></script>
 <script>
     // Verify SimpleChoropleth class is loaded with all methods
     document.addEventListener('DOMContentLoaded', function() {
@@ -687,131 +687,131 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 
 <!-- View Details Modal (Initially hidden) -->
 <div id="details-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-40" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out; position: fixed; z-index: 20010;">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl relative mx-4 my-4 max-h-[85vh] overflow-hidden flex flex-col" style="position: relative; z-index: 10000; pointer-events: auto;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative mx-4 my-4 max-h-[90vh] overflow-hidden flex flex-col" style="position: relative; z-index: 10000; pointer-events: auto;">
         <!-- Header with Gradient -->
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-6 py-4 relative flex-shrink-0">
+        <div class="bg-green-700 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
             <button id="close-details-modal" class="absolute top-3 right-3 text-white hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
             <div class="pr-10">
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 mb-1 flex-wrap">
-                        <h2 class="text-xl font-bold text-white" id="details-title">Project Details</h2>
+                        <h2 class="text-lg font-bold text-white" id="details-title">Project Details</h2>
                         <span id="details-status"></span>
                     </div>
-                    <div class="text-base font-semibold text-white mb-1" id="details-name"></div>
-                    <div class="text-sm text-blue-100 font-mono" id="details-prn"></div>
+                    <div class="text-sm font-semibold text-white mb-0.5" id="details-name"></div>
+                    <div class="text-xs text-blue-100 font-mono" id="details-prn"></div>
                 </div>
             </div>
         </div>
         
         <!-- Content - Scrollable so all project details are visible -->
-        <div class="p-5 overflow-y-auto flex-1 min-h-0">
+        <div class="p-3 overflow-y-auto flex-1 min-h-0">
             <!-- View Report - opens report in nested modal (stays on page) -->
-            <button type="button" id="view-report-button" class="mb-4 inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all text-sm shadow-md">
+            <button type="button" id="view-report-button" class="mb-3 inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white font-semibold py-2 px-3 rounded-lg transition-all text-xs shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 View Report
             </button>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <!-- Project Info Card -->
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border-l-4 border-blue-500">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">ℹ️</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Project Info</h3>
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-2 border-l-4 border-blue-500">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">ℹ️</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Project Info</h3>
                     </div>
-                    <div class="space-y-2">
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Description</div>
-                            <div class="text-sm font-medium text-gray-800" id="details-description">No description</div>
+                    <div class="space-y-1.5">
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Description</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-description">No description</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Date Started</div>
-                            <div class="text-sm font-medium text-gray-800" id="details-start-date">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Date Started</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-start-date">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Date Ended</div>
-                            <div class="text-sm font-medium text-gray-800" id="details-end-date">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Date Ended</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-end-date">—</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Financial Card -->
-                <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 border-l-4 border-yellow-500">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">💰</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Financial</h3>
+                <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-2 border-l-4 border-yellow-500">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">💰</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Financial</h3>
                     </div>
-                    <div class="space-y-2">
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Project Cost</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-cost">—</div>
+                    <div class="space-y-1.5">
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Project Cost</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-cost">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Total Spent</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-spent">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Total Spent</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-spent">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Remaining Funds</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-remaining">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Remaining Funds</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-remaining">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Source of Funds</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-funds">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Source of Funds</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-funds">—</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Progress Card (Conditional) -->
-                <div id="details-progress-section" class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 border-l-4 border-purple-500 hidden">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">📈</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Progress</h3>
+                <div id="details-progress-section" class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-2 border-l-4 border-purple-500 hidden">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📈</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Progress</h3>
                     </div>
-                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                    <div class="bg-white rounded-lg p-1.5 shadow-sm">
                         <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                             <div id="details-progress-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
-                        <div id="details-progress-text" class="text-sm font-semibold text-gray-700 text-center">0% Complete</div>
+                        <div id="details-progress-text" class="text-xs font-semibold text-gray-700 text-center">0% Complete</div>
                     </div>
                 </div>
                 
                 <!-- Assigned Engineers Card -->
-                <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-3 border-l-4 border-gray-400">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">👷</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Assigned Engineer(s)</h3>
+                <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-2 border-l-4 border-gray-400">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-xs">👷</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Assigned Engineer(s)</h3>
                     </div>
-                    <div class="bg-white rounded-lg p-2 shadow-sm">
-                        <div id="details-assigned-engineers" class="text-sm text-gray-700">None assigned</div>
+                    <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                        <div id="details-assigned-engineers" class="text-xs text-gray-700">None assigned</div>
                     </div>
                 </div>
                 
                 <!-- Location Card - Full Width -->
-                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border-l-4 border-green-500 lg:col-span-2">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-7 h-7 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📍</div>
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-2 border-l-4 border-green-500 lg:col-span-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📍</div>
                         <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Location</h3>
                     </div>
                     <!-- Side-by-side Layout: Details Left, Map Right -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <!-- Left Side: Location Details -->
-                        <div class="space-y-2">
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="space-y-1.5">
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Barangay</div>
-                                <div class="text-sm font-semibold text-gray-800" id="details-barangay">—</div>
+                                <div class="text-xs font-semibold text-gray-800" id="details-barangay">—</div>
                             </div>
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Latitude</div>
                                 <div class="text-xs font-mono text-gray-700" id="details-latitude">—</div>
                             </div>
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Longitude</div>
                                 <div class="text-xs font-mono text-gray-700" id="details-longitude">—</div>
                             </div>
                         </div>
                         <!-- Right Side: Map -->
                         <div class="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200">
-                            <div id="details-map" class="w-full rounded-lg" style="height: 240px; min-height: 240px; background-color: #f3f4f6;"></div>
+                            <div id="details-map" class="w-full rounded-lg" style="height: 200px; min-height: 200px; background-color: #f3f4f6;"></div>
                         </div>
                     </div>
                 </div>
@@ -1470,12 +1470,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="font-semibold text-gray-900">${progressLabel}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${displayProgress}%"></div>
+                                <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-300" style="width: ${displayProgress}%"></div>
                             </div>
                         </div>
                         ` : ''}
                         <button onclick="window.openDetailsModal(${project.id})" 
-                                class="w-full mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-sm">
+                                class="w-full mt-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-sm">
                             View Details →
                         </button>
                     </div>
@@ -1561,7 +1561,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         map.options.maxBoundsViscosity = 1.0; // Keep view strictly inside bounds
                         try {
                             const zoomForBounds = map.getBoundsZoom(paddedBounds);
-                            if (typeof zoomForBounds === 'number' && zoomForBounds >= 0) map.setMinZoom(zoomForBounds);
+                            // Allow a little extra zoom-out beyond the strict bounds-fit zoom.
+                            const extraZoomOutLevels = 1;
+                            if (typeof zoomForBounds === 'number' && zoomForBounds >= 0) {
+                                map.setMinZoom(Math.max(3, zoomForBounds - extraZoomOutLevels));
+                            }
                         } catch (e) { console.warn('Could not set minZoom from bounds:', e); }
                     }
                     // Default: markers only (no city outline, no choropleth). User can enable "City outline only" or a view type from Zoning Control.
@@ -2709,9 +2713,9 @@ function formatDate(dateStr) {
 <!-- Barangay Projects Modal -->
 <div id="barangay-projects-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden overflow-y-auto" style="z-index: 20003;">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 my-8 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 id="barangay-projects-modal-title" class="text-lg font-bold text-gray-800">Projects in <span id="barangay-projects-barangay-name"></span></h3>
-            <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">&times;</button>
+        <div class="flex items-center justify-between p-4 border-b border-green-800 bg-green-700">
+            <h3 id="barangay-projects-modal-title" class="text-lg font-bold text-white">Projects in <span id="barangay-projects-barangay-name"></span></h3>
+            <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-white/90 hover:text-white hover:bg-green-800 transition">&times;</button>
         </div>
         <div class="flex-1 overflow-auto p-4">
             <table class="w-full divide-y divide-gray-200 text-sm">
@@ -4266,3 +4270,4 @@ function setupMapPopupModal() {
 // This ensures it's set up every time the modal opens
 </script>
 {% endblock %} 
+

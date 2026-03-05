@@ -114,4 +114,130 @@
         </div>
     </div>
 </div>
+
+<!-- Dashboard charts -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
+    <div class="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900">Recent Spending Trend</h2>
+            <div class="text-xs text-gray-500">Line Chart</div>
+        </div>
+        <div class="h-80">
+            <canvas id="fm-dashboard-trend-chart"></canvas>
+        </div>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900">Barangay Spending Share</h2>
+            <div class="text-xs text-gray-500">Doughnut Chart</div>
+        </div>
+        <div class="h-80">
+            <canvas id="fm-dashboard-share-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    if (typeof Chart === 'undefined') return;
+
+    const trendCanvas = document.getElementById('fm-dashboard-trend-chart');
+    const shareCanvas = document.getElementById('fm-dashboard-share-chart');
+
+    const recentSpending = [
+        {% for a in recent_activity %}
+        {
+            label: "{{ a.date|date:'M j'|escapejs }}",
+            amount: "{{ a.amount|default:0|floatformat:2|escapejs }}"
+        },
+        {% endfor %}
+    ];
+
+    const barangaySpending = [
+        {% for b in budget_by_barangay %}
+        {
+            label: "{{ b.barangay|escapejs }}",
+            value: "{{ b.spent|default:0|floatformat:2|escapejs }}"
+        },
+        {% endfor %}
+    ];
+    const toNumber = (raw) => Number(String(raw || '0').replace(/,/g, ''));
+
+    if (trendCanvas && recentSpending.length) {
+        const trendRows = [...recentSpending].reverse();
+        const ctx = trendCanvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+
+        new Chart(trendCanvas, {
+            type: 'line',
+            data: {
+                labels: trendRows.map((r) => r.label),
+                datasets: [{
+                    label: 'Spent',
+                    data: trendRows.map((r) => toNumber(r.amount)),
+                    borderColor: '#10b981',
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#059669',
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#6b7280' },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#6b7280',
+                            callback: (value) => Number(value).toLocaleString('en-PH'),
+                        },
+                        grid: { color: 'rgba(229, 231, 235, 0.85)' },
+                    },
+                },
+            },
+        });
+    }
+
+    if (shareCanvas && barangaySpending.length) {
+        const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#84cc16'];
+        new Chart(shareCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: barangaySpending.map((r) => r.label),
+                datasets: [{
+                    data: barangaySpending.map((r) => toNumber(r.value)),
+                    backgroundColor: barangaySpending.map((_, i) => colors[i % colors.length]),
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 6,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, color: '#4b5563' },
+                    },
+                },
+            },
+        });
+    }
+})();
+</script>
 {% endblock %}
