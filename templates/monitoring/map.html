@@ -424,6 +424,81 @@
 <script>
 // Barangay Projects Modal - show projects when "View Projects" is clicked in barangay popup
 function _normalizeBarangayForMatch(s) { return (s || '').toString().toLowerCase().trim(); }
+const _barangayStatusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'In Progress', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
+const _barangayStatusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-yellow-100 text-yellow-800', ongoing: 'bg-yellow-100 text-yellow-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
+const _barangayModalFilterButtonStyle = {
+    completed: { active: 'bg-green-600 text-white border-green-600', inactive: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
+    in_progress: { active: 'bg-yellow-500 text-white border-yellow-500', inactive: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
+    planned: { active: 'bg-purple-600 text-white border-purple-600', inactive: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
+    delayed: { active: 'bg-red-600 text-white border-red-600', inactive: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' }
+};
+const _barangayModalFilterButtonBaseClass = 'px-3 py-1 rounded-md text-xs font-semibold border transition whitespace-nowrap';
+let _barangayModalProjects = [];
+let _barangayModalActiveStatusFilter = '';
+
+function _normalizeBarangayProjectStatus(status) {
+    const normalized = (status || '').toString().toLowerCase().trim();
+    if (normalized === 'ongoing') return 'in_progress';
+    if (normalized === 'pending') return 'planned';
+    return normalized;
+}
+
+function _escapeHtml(value) {
+    return (value || '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _updateBarangayModalFilterButtons() {
+    const buttons = document.querySelectorAll('[data-barangay-status-filter]');
+    buttons.forEach(function(btn) {
+        const status = btn.getAttribute('data-barangay-status-filter');
+        const style = _barangayModalFilterButtonStyle[status];
+        if (!style) return;
+        const isActive = _barangayModalActiveStatusFilter === status;
+        btn.className = _barangayModalFilterButtonBaseClass + ' ' + (isActive ? style.active : style.inactive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+}
+
+function _renderBarangayProjectsRows() {
+    const tbody = document.getElementById('barangay-projects-table-body');
+    const emptyEl = document.getElementById('barangay-projects-empty');
+    if (!tbody || !emptyEl) return;
+
+    tbody.innerHTML = '';
+    const projectsToRender = _barangayModalActiveStatusFilter
+        ? _barangayModalProjects.filter(function(p) { return _normalizeBarangayProjectStatus(p.status) === _barangayModalActiveStatusFilter; })
+        : _barangayModalProjects;
+
+    if (projectsToRender.length === 0) {
+        const filterLabel = _barangayStatusMap[_barangayModalActiveStatusFilter] || 'selected';
+        emptyEl.textContent = _barangayModalActiveStatusFilter
+            ? 'No ' + filterLabel + ' projects found for this barangay.'
+            : 'No projects found for this barangay.';
+        emptyEl.classList.remove('hidden');
+        return;
+    }
+
+    emptyEl.classList.add('hidden');
+    emptyEl.textContent = 'No projects found for this barangay.';
+    projectsToRender.forEach(function(p, i) {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        const rawStatus = (p.status || '').toLowerCase();
+        const status = _barangayStatusMap[rawStatus] || (p.status || '').replace(/_/g, ' ');
+        const statusClass = _barangayStatusClassMap[rawStatus] || 'bg-gray-100 text-gray-800';
+        const cost = (p.project_cost && parseFloat(p.project_cost) >= 0) ? '₱' + parseFloat(p.project_cost).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
+        const projId = _escapeHtml((p.id || '').toString());
+        const prn = _escapeHtml(p.prn || '—');
+        const projectName = _escapeHtml(p.name || '—');
+        tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + prn + '</td><td class="px-4 py-2 font-medium text-gray-900">' + projectName + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + statusClass + '">' + status + '</span></td><td class="px-4 py-2"><button type="button" class="barangay-project-view-detail text-blue-600 hover:text-blue-800 font-medium" data-project-id="' + projId + '">View</button></td>';
+        tbody.appendChild(tr);
+    });
+}
 window.showBarangayProjectsModal = function(barangayName) {
     const el = document.getElementById('projects-data');
     let projects = [];
@@ -431,35 +506,17 @@ window.showBarangayProjectsModal = function(barangayName) {
         try { projects = JSON.parse(el.textContent.trim()); } catch (e) { projects = []; }
     }
     const normalized = _normalizeBarangayForMatch(barangayName);
-    const filtered = projects.filter(function(p) {
+    _barangayModalProjects = projects.filter(function(p) {
         const pb = _normalizeBarangayForMatch(p.barangay);
         return pb === normalized || pb.replace(/\s+/g,'') === normalized.replace(/\s+/g,'');
     });
     const modal = document.getElementById('barangay-projects-modal');
     const titleEl = document.getElementById('barangay-projects-barangay-name');
-    const tbody = document.getElementById('barangay-projects-table-body');
-    const emptyEl = document.getElementById('barangay-projects-empty');
-    if (!modal || !tbody) return;
+    if (!modal) return;
     if (titleEl) titleEl.textContent = barangayName || 'Barangay';
-    tbody.innerHTML = '';
-    if (filtered.length === 0) {
-        emptyEl.classList.remove('hidden');
-    } else {
-        emptyEl.classList.add('hidden');
-        const statusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'Ongoing', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
-        const statusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-yellow-100 text-yellow-800', ongoing: 'bg-yellow-100 text-yellow-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
-        filtered.forEach(function(p, i) {
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            const rawStatus = (p.status || '').toLowerCase();
-            const status = statusMap[rawStatus] || (p.status || '').replace(/_/g, ' ');
-            const statusClass = statusClassMap[rawStatus] || 'bg-gray-100 text-gray-800';
-            const cost = (p.project_cost && parseFloat(p.project_cost) >= 0) ? '₱' + parseFloat(p.project_cost).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
-            const projId = (p.id || '').toString().replace(/"/g, '&quot;');
-            tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + (p.prn || '—') + '</td><td class="px-4 py-2 font-medium text-gray-900">' + (p.name || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + statusClass + '">' + status + '</span></td><td class="px-4 py-2"><button type="button" class="barangay-project-view-detail text-blue-600 hover:text-blue-800 font-medium" data-project-id="' + projId + '">View</button></td>';
-            tbody.appendChild(tr);
-        });
-    }
+    _barangayModalActiveStatusFilter = '';
+    _updateBarangayModalFilterButtons();
+    _renderBarangayProjectsRows();
     modal.classList.remove('hidden');
 };
 document.addEventListener('click', function(e) {
@@ -475,6 +532,16 @@ document.addEventListener('click', function(e) {
     if (btn && btn.getAttribute('data-barangay')) {
         e.preventDefault();
         if (window.showBarangayProjectsModal) window.showBarangayProjectsModal(btn.getAttribute('data-barangay'));
+        return;
+    }
+    const statusFilterBtn = e.target.closest && e.target.closest('[data-barangay-status-filter]');
+    if (statusFilterBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const status = _normalizeBarangayProjectStatus(statusFilterBtn.getAttribute('data-barangay-status-filter'));
+        _barangayModalActiveStatusFilter = (_barangayModalActiveStatusFilter === status) ? '' : status;
+        _updateBarangayModalFilterButtons();
+        _renderBarangayProjectsRows();
         return;
     }
     const viewBtn = e.target.closest && e.target.closest('.barangay-project-view-detail');
@@ -2713,9 +2780,15 @@ function formatDate(dateStr) {
 <!-- Barangay Projects Modal -->
 <div id="barangay-projects-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden overflow-y-auto" style="z-index: 20003;">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 my-8 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-green-800 bg-green-700">
+        <div class="flex flex-col gap-3 p-4 border-b border-green-800 bg-green-700 sm:flex-row sm:items-center">
             <h3 id="barangay-projects-modal-title" class="text-lg font-bold text-white">Projects in <span id="barangay-projects-barangay-name"></span></h3>
-            <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-white/90 hover:text-white hover:bg-green-800 transition">&times;</button>
+            <div class="flex items-center gap-2 ml-auto flex-wrap justify-end">
+                <button type="button" data-barangay-status-filter="completed" class="px-3 py-1 rounded-md text-xs font-semibold border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition whitespace-nowrap">Completed</button>
+                <button type="button" data-barangay-status-filter="in_progress" class="px-3 py-1 rounded-md text-xs font-semibold border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition whitespace-nowrap">In Progress</button>
+                <button type="button" data-barangay-status-filter="planned" class="px-3 py-1 rounded-md text-xs font-semibold border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition whitespace-nowrap">Planned</button>
+                <button type="button" data-barangay-status-filter="delayed" class="px-3 py-1 rounded-md text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition whitespace-nowrap">Delayed</button>
+                <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-white/90 hover:text-white hover:bg-green-800 transition">&times;</button>
+            </div>
         </div>
         <div class="flex-1 overflow-auto p-4">
             <table class="w-full divide-y divide-gray-200 text-sm">
