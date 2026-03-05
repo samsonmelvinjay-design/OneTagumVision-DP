@@ -207,7 +207,7 @@
                         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
                         <p class="text-gray-900 mt-1">{{ project.description|default:"No description provided" }}</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Start Date</label>
                             <p class="text-gray-900 mt-1">
@@ -235,6 +235,18 @@
                                     </span>
                                 {% else %}
                                     <span class="text-gray-400">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Day Count Type</label>
+                            <p class="text-gray-900 mt-1">
+                                {% if project.status == 'planned' or project.status == 'pending' or not project.start_date or not project.end_date %}
+                                    <span class="text-gray-400">Not set</span>
+                                {% elif project.day_count_type == 'calendar_days' %}
+                                    Calendar Days
+                                {% else %}
+                                    Working Days
                                 {% endif %}
                             </p>
                         </div>
@@ -578,7 +590,9 @@
                         <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.remaining_days }} days</p>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-500 mb-1">Total Working Days</p>
+                        <p class="text-xs text-gray-500 mb-1">
+                            {% if project.day_count_type == 'calendar_days' %}Total Calendar Days{% else %}Total Working Days{% endif %}
+                        </p>
                         <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.total_days }} days</p>
                     </div>
                     <div>
@@ -1445,7 +1459,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 ];
             }
 
-            var durationText = data.total_days ? data.total_days + ' WORKING DAYS' : 'N/A';
+            var dayCountType = (p.day_count_type || 'working_days').toLowerCase();
+            var statusValue = (p.status || '').toLowerCase();
+            var isPlanned = statusValue === 'planned' || statusValue === 'pending';
+            var hasTimelineDates = Boolean(p.start_date && p.end_date);
+            var dayCountTypeLabel = (isPlanned || !hasTimelineDates)
+                ? 'N/A'
+                : (dayCountType === 'calendar_days' ? 'Calendar Days' : 'Working Days');
+            var durationSuffix = dayCountType === 'calendar_days' ? 'CALENDAR DAYS' : 'WORKING DAYS';
+            var durationText = (!isPlanned && hasTimelineDates && data.total_days) ? data.total_days + ' ' + durationSuffix : 'N/A';
             var elapsedText = data.days_elapsed != null ? String(data.days_elapsed) : 'N/A';
             var remainingText = data.days_remaining != null ? String(data.days_remaining) : 'N/A';
             var extensionCountNum = Number(data.extension_count || 0);
@@ -1556,6 +1578,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             linedRow('Source of fund', p.source_of_funds || 'N/A'),
                             linedRow('Date Started', p.start_date || 'N/A'),
                             linedRow('Target Date of Completion', p.end_date || 'N/A'),
+                            linedRow('Day Count Type', dayCountTypeLabel),
                             linedRow('Project Duration', durationText),
                             linedRow('No. of Time Extension (if any)', extensionCount),
                             linedRow('Revised target date of completion', revisedTargetDate),

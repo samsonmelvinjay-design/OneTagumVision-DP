@@ -47,6 +47,7 @@ from django.db.models import ProtectedError
 from django.contrib.auth.views import redirect_to_login
 from django.conf import settings
 from datetime import date as dt_date
+from .working_days import working_days_between
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,15 @@ from gistagum.access_control import (
     head_engineer_required,
     get_user_dashboard_url
 )
+
+def _days_between_for_project(project, start_date, end_date):
+    """Count days using project's selected day count type (working vs calendar)."""
+    if not start_date or not end_date or end_date < start_date:
+        return 0
+    day_count_type = (getattr(project, 'day_count_type', None) or 'working_days').strip().lower()
+    if day_count_type == 'calendar_days':
+        return (end_date - start_date).days + 1
+    return working_days_between(start_date, end_date)
 
 
 def _configured_expected_timeline(project, progress_dates, progress_percentages, actual_progress, today, elapsed_days, total_days, remaining_days):
@@ -429,6 +439,7 @@ def dashboard(request):
                 'prn': project.prn,
                 'start_date': str(project.start_date) if project.start_date else "",
                 'end_date': str(project.end_date) if project.end_date else "",
+                'day_count_type': project.day_count_type or 'working_days',
                 'image': _safe_media_url(project.image),
             })
         context = {
@@ -670,6 +681,7 @@ def projeng_map_view(request):
             'prn': p.prn,
             'start_date': str(p.start_date) if p.start_date else "",
             'end_date': str(p.end_date) if p.end_date else "",
+            'day_count_type': p.day_count_type or 'working_days',
             'image': p.image.url if p.image else "",
             'progress': progress,
             'zone_type': p.zone_type or '',
@@ -703,6 +715,7 @@ def upload_docs_view(request):
             'prn': project.prn,
             'start_date': str(project.start_date) if project.start_date else "",
             'end_date': str(project.end_date) if project.end_date else "",
+            'day_count_type': project.day_count_type or 'working_days',
             'image': project.image.url if project.image else "",
         })
     context = {
@@ -830,6 +843,7 @@ def my_reports_view(request):
             'project_type_name': project.project_type.name if project.project_type else '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
+            'day_count_type': project.day_count_type or 'working_days',
             'status': project.status or '',
             'status_display': project.get_status_display() or '',
             'progress': progress,
@@ -1021,15 +1035,14 @@ def project_detail_view(request, pk):
         today = timezone.now().date()
         configured_target_date, configured_target_progress = _get_configured_target_for_display(project, today=today)
         
-        # Timeline Comparison: Expected vs Actual Progress (working days only: exclude weekends + PH holidays)
+        # Timeline Comparison: Expected vs Actual Progress (project-selected day count type)
         timeline_comparison = None
         if project.start_date and project.end_date:
             from datetime import date, timedelta
             import json
-            from projeng.working_days import working_days_between
-            total_days = working_days_between(project.start_date, project.end_date)
-            elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
-            remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
+            total_days = _days_between_for_project(project, project.start_date, project.end_date)
+            elapsed_days = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            remaining_days = _days_between_for_project(project, today, project.end_date) if today <= project.end_date else 0
 
             if total_days > 0 and elapsed_days >= 0:
                 actual_progress = progress_percentages[-1] if progress_percentages else 0
@@ -1063,8 +1076,8 @@ def project_detail_view(request, pk):
                     for date_str in all_dates_sorted:
                         year, month, day = map(int, date_str.split('-'))
                         date_obj = date(year, month, day)
-                        working_elapsed = working_days_between(project.start_date, date_obj) if date_obj >= project.start_date else 0
-                        expected_pct = min(100, (working_elapsed / total_days) * 100) if total_days > 0 else 0
+                        elapsed_for_date = _days_between_for_project(project, project.start_date, date_obj) if date_obj >= project.start_date else 0
+                        expected_pct = min(100, (elapsed_for_date / total_days) * 100) if total_days > 0 else 0
                         expected_progress_data.append(expected_pct)
                         actual_pct = 0
                         for i, prog_date in enumerate(progress_dates):
@@ -1207,6 +1220,7 @@ def project_detail_view(request, pk):
                 'status': project.get_status_display() if hasattr(project, 'get_status_display') else (project.status or ''),
                 'start_date': project.start_date.strftime('%B %d, %Y') if project.start_date else '',
                 'end_date': project.end_date.strftime('%B %d, %Y') if project.end_date else '',
+                'day_count_type': project.day_count_type or 'working_days',
                 'project_cost': project_cost,
                 'source_of_funds': getattr(project, 'source_of_funds', '') or '',
                 'description': (project.description or '')[:200],
@@ -1485,14 +1499,13 @@ def project_analytics(request, pk):
             progress_percentages.append(progress.percentage_complete)
             progress_dates.append(progress.date.isoformat())
         
-        # Timeline comparison (working days only: exclude weekends + PH holidays)
+        # Timeline comparison (project-selected day count type)
         timeline_comparison = None
         if project.start_date and project.end_date:
-            from projeng.working_days import working_days_between
             today = timezone.now().date()
-            total_days = working_days_between(project.start_date, project.end_date)
-            elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
-            remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
+            total_days = _days_between_for_project(project, project.start_date, project.end_date)
+            elapsed_days = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            remaining_days = _days_between_for_project(project, today, project.end_date) if today <= project.end_date else 0
 
             timeline_comparison = _configured_expected_timeline(
                 project=project,
@@ -2698,6 +2711,7 @@ def export_reports_json(request):
             'project_type_name': project.project_type.name if project.project_type else '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
+            'day_count_type': project.day_count_type or 'working_days',
             'status': project.status or '',
             'status_display': status_display,
             'progress': project.progress or 0,
@@ -2771,6 +2785,7 @@ def map_projects_api(request):
             'prn': p.prn,
             'start_date': str(p.start_date) if p.start_date else "",
             'end_date': str(p.end_date) if p.end_date else "",
+            'day_count_type': p.day_count_type or 'working_days',
             'image': p.image.url if p.image else "",
             'progress': progress,
             'zone_type': p.zone_type or '',

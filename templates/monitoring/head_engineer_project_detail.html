@@ -108,6 +108,18 @@
                     <span class="text-base font-medium text-gray-900">{{ timeline_data.end_date|default:'—' }}</span>
                 </div>
                 <div class="flex flex-col">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Day Count Type</span>
+                    <span class="text-base font-medium text-gray-900">
+                        {% if project.status == 'planned' or project.status == 'pending' or not project.start_date or not project.end_date %}
+                            —
+                        {% elif project.day_count_type == 'calendar_days' %}
+                            Calendar Days
+                        {% else %}
+                            Working Days
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="flex flex-col">
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Project Cost</span>
                     <span class="text-base font-medium text-gray-900">₱{{ project.project_cost|default:"0"|floatformat:2|intcomma }}</span>
                 </div>
@@ -1219,6 +1231,14 @@ document.addEventListener('keydown', function(e) {
             var scheduled = data.expected_progress != null ? Number(data.expected_progress).toFixed(2) + '%' : 'N/A';
             var actual = data.latest_progress_pct != null ? Number(data.latest_progress_pct).toFixed(2) + '%' : 'N/A';
             var slippage = data.progress_variance != null ? Number(data.progress_variance).toFixed(2) + '%' : 'N/A';
+            var dayCountType = (p.day_count_type || 'working_days').toLowerCase();
+            var statusValue = (p.status || '').toLowerCase();
+            var isPlanned = statusValue === 'planned' || statusValue === 'pending';
+            var hasTimelineDates = Boolean(p.start_date && p.end_date);
+            var dayCountTypeLabel = (isPlanned || !hasTimelineDates)
+                ? 'N/A'
+                : (dayCountType === 'calendar_days' ? 'Calendar Days' : 'Working Days');
+            var durationSuffix = dayCountType === 'calendar_days' ? 'CALENDAR DAYS' : 'WORKING DAYS';
 
             var body = [
                 { text: 'Project Name', style: 'label', margin: [0, 4, 0, 0] }, { text: p.name || 'N/A' },
@@ -1228,7 +1248,8 @@ document.addEventListener('keydown', function(e) {
                 { text: 'Source of Fund', style: 'label', margin: [0, 4, 0, 0] }, { text: p.source_of_funds || 'N/A' },
                 { text: 'Date Started', style: 'label', margin: [0, 4, 0, 0] }, { text: p.start_date || 'N/A' },
                 { text: 'Target Date of Completion', style: 'label', margin: [0, 4, 0, 0] }, { text: p.end_date || 'N/A' },
-                { text: 'Project Duration', style: 'label', margin: [0, 4, 0, 0] }, { text: (data.total_days ? data.total_days + ' DAYS' : 'N/A') },
+                { text: 'Day Count Type', style: 'label', margin: [0, 4, 0, 0] }, { text: dayCountTypeLabel },
+                { text: 'Project Duration', style: 'label', margin: [0, 4, 0, 0] }, { text: (!isPlanned && hasTimelineDates && data.total_days ? data.total_days + ' ' + durationSuffix : 'N/A') },
                 { text: 'No. of Time Extension (if any)', style: 'label', margin: [0, 4, 0, 0] }, { text: 'N/A' },
                 { text: 'Revised target date of completion', style: 'label', margin: [0, 4, 0, 0] }, { text: 'N/A' },
                 { text: 'No. of Days Elapsed to date', style: 'label', margin: [0, 4, 0, 0] }, { text: String(data.days_elapsed ?? 'N/A') },

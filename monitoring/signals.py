@@ -33,6 +33,7 @@ def sync_monitoring_to_projeng(sender, instance, **kwargs):
             'status': instance.status,
             'start_date': instance.start_date,
             'end_date': instance.end_date,
+            'day_count_type': instance.day_count_type,
         }
     )
     if not created:
@@ -44,5 +45,5 @@ def sync_monitoring_to_projeng(sender, instance, **kwargs):
         projeng_project.status = instance.status
         projeng_project.start_date = instance.start_date
         projeng_project.end_date = instance.end_date
+        projeng_project.day_count_type = instance.day_count_type
         projeng_project.save() 
-

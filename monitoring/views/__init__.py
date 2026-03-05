@@ -57,6 +57,15 @@ from gistagum.access_control import (
     get_user_dashboard_url
 )
 
+def _days_between_for_project(project, start_date, end_date):
+    """Count days using project's selected day count type (working vs calendar)."""
+    if not start_date or not end_date or end_date < start_date:
+        return 0
+    day_count_type = (getattr(project, 'day_count_type', None) or 'working_days').strip().lower()
+    if day_count_type == 'calendar_days':
+        return (end_date - start_date).days + 1
+    return working_days_between(start_date, end_date)
+
 def _get_or_create_project_type_by_name(name: str):
     """
     Create (or return existing) ProjectType by name.
@@ -1109,6 +1118,7 @@ def project_list(request):
                 'source_of_funds': p.source_of_funds or '',
                 'start_date': str(p.start_date) if p.start_date else '',
                 'end_date': str(p.end_date) if p.end_date else '',
+                'day_count_type': p.day_count_type or 'working_days',
                 'status': calculated_status,  # Use calculated_status instead of stored status
                 'image': image_url,
                 'progress': progress,
@@ -1326,6 +1336,7 @@ def map_view(request):
                     'prn': p.prn or '',
                     'start_date': str(p.start_date) if p.start_date else "",
                     'end_date': str(p.end_date) if p.end_date else "",
+                    'day_count_type': p.day_count_type or 'working_days',
                     'created_at': p.created_at.isoformat() if getattr(p, 'created_at', None) else "",
                     'image': image_url,
                     'progress': progress_value,
@@ -2406,6 +2417,7 @@ def project_get_api(request, pk):
             'source_of_funds': project.source_of_funds or '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
+            'day_count_type': project.day_count_type or 'working_days',
             'status': project.status or '',
             'image': image_url,
             'progress': getattr(project, 'progress', 0) or 0,
@@ -3365,14 +3377,14 @@ def head_engineer_project_detail(request, pk):
             logger.warning(f"Error calculating budget utilization: {e}")
             budget_utilization = 0
         
-        # Timeline: working days only (exclude weekends + PH holidays)
+        # Timeline: project-selected day count type (working days or calendar days)
         from django.utils import timezone as tz
         from collections import defaultdict
         today = tz.now().date()
-        total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
+        total_days = _days_between_for_project(project, project.start_date, project.end_date) if project.start_date and project.end_date else 0
         if project.start_date and project.end_date:
-            days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
-            days_remaining = working_days_between(today, project.end_date) if today <= project.end_date else 0
+            days_elapsed = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            days_remaining = _days_between_for_project(project, today, project.end_date) if today <= project.end_date else 0
         else:
             days_elapsed = 0
             days_remaining = 0
@@ -3449,6 +3461,7 @@ def head_engineer_project_detail(request, pk):
                 'status': project.get_status_display() if hasattr(project, 'get_status_display') else (project.status or ''),
                 'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else '',
                 'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else '',
+                'day_count_type': project.day_count_type or 'working_days',
                 'project_cost': budget,
                 'source_of_funds': project.source_of_funds or '',
                 'description': (project.description or '')[:200],
@@ -3645,9 +3658,9 @@ def export_project_timeline_pdf(request, pk):
     total_progress = latest_progress.percentage_complete if latest_progress else 0
 
     today = timezone.now().date()
-    total_days = working_days_between(project.start_date, project.end_date) if getattr(project, 'start_date', None) and getattr(project, 'end_date', None) else 0
-    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if getattr(project, 'start_date', None) and today >= project.start_date else 0
-    days_remaining = working_days_between(today, project.end_date) if getattr(project, 'end_date', None) and today <= project.end_date else 0
+    total_days = _days_between_for_project(project, project.start_date, project.end_date) if getattr(project, 'start_date', None) and getattr(project, 'end_date', None) else 0
+    days_elapsed = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if getattr(project, 'start_date', None) and today >= project.start_date else 0
+    days_remaining = _days_between_for_project(project, today, project.end_date) if getattr(project, 'end_date', None) and today <= project.end_date else 0
 
     expected_progress = None
     progress_variance = None
@@ -4842,11 +4855,11 @@ def export_project_comprehensive_pdf(request, pk):
     efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
     project_budget_ratio = (float(total_cost) / float(budget)) if budget > 0 else None
     
-    # Calculate timeline (working days only: exclude weekends + PH holidays)
+    # Calculate timeline using project-selected day count type
     today = timezone.now().date()
-    total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
-    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
-    days_remaining = working_days_between(today, project.end_date) if project.end_date and today <= project.end_date else 0
+    total_days = _days_between_for_project(project, project.start_date, project.end_date) if project.start_date and project.end_date else 0
+    days_elapsed = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
+    days_remaining = _days_between_for_project(project, today, project.end_date) if project.end_date and today <= project.end_date else 0
 
     expected_progress = None
     progress_variance = None
@@ -5047,8 +5060,8 @@ def export_project_comprehensive_excel(request, pk):
     efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
 
     today = timezone.now().date()
-    total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
-    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
+    total_days = _days_between_for_project(project, project.start_date, project.end_date) if project.start_date and project.end_date else 0
+    days_elapsed = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
     expected_progress = None
     progress_variance = None
     performance_ratio = None
@@ -5256,8 +5269,8 @@ def export_project_comprehensive_csv(request, pk):
     efficiency_ratio = (float(total_progress) / budget_used_pct) if budget_used_pct > 0 else None
 
     today = timezone.now().date()
-    total_days = working_days_between(project.start_date, project.end_date) if project.start_date and project.end_date else 0
-    days_elapsed = working_days_between(project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
+    total_days = _days_between_for_project(project, project.start_date, project.end_date) if project.start_date and project.end_date else 0
+    days_elapsed = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if project.start_date and today >= project.start_date else 0
     expected_progress = None
     progress_variance = None
     performance_ratio = None

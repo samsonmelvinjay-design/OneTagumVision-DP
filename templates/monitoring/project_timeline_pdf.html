@@ -98,7 +98,8 @@
         <tr><td class="label">Source of fund</td><td>: {{ project.source_of_funds|default:"N/A" }}</td></tr>
         <tr><td class="label">Date Started</td><td>: {{ project.start_date|date:"F d, Y"|default:"N/A" }}</td></tr>
         <tr><td class="label">Target Date of Completion</td><td>: {{ project.end_date|date:"F d, Y"|default:"N/A" }}</td></tr>
-        <tr><td class="label">Project Duration</td><td>: {% if total_days %}{{ total_days }} WORKING DAYS{% else %}N/A{% endif %}</td></tr>
+        <tr><td class="label">Day Count Type</td><td>: {% if project.status == 'planned' or project.status == 'pending' or not project.start_date or not project.end_date %}N/A{% elif project.day_count_type == 'calendar_days' %}Calendar Days{% else %}Working Days{% endif %}</td></tr>
+        <tr><td class="label">Project Duration</td><td>: {% if project.status == 'planned' or project.status == 'pending' or not project.start_date or not project.end_date %}N/A{% elif total_days %}{{ total_days }} {% if project.day_count_type == 'calendar_days' %}CALENDAR DAYS{% else %}WORKING DAYS{% endif %}{% else %}N/A{% endif %}</td></tr>
         <tr><td class="label">No. of Time Extension (if any)</td><td>: N/A</td></tr>
         <tr><td class="label">Revised target date of completion</td><td>: N/A</td></tr>
         <tr><td class="label">No. of Days Elapsed to date</td><td>: {{ days_elapsed|default:"N/A" }}</td></tr>

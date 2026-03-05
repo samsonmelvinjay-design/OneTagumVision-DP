@@ -66,6 +66,7 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
                     'longitude': instance.longitude or 0,
                     'start_date': instance.start_date,
                     'end_date': instance.end_date,
+                    'day_count_type': instance.day_count_type or 'working_days',
                     'image': instance.image,
                 }
             )
@@ -80,12 +81,13 @@ def sync_projeng_to_monitoring(sender, instance, created, **kwargs):
                 monitoring_project.longitude = instance.longitude or 0
                 monitoring_project.start_date = instance.start_date
                 monitoring_project.end_date = instance.end_date
+                monitoring_project.day_count_type = instance.day_count_type or 'working_days'
                 if instance.image:
                     monitoring_project.image = instance.image
                 # Use update_fields to prevent triggering signals that might cause recursion
                 monitoring_project.save(update_fields=[
                     'name', 'description', 'barangay', 'project_cost', 'source_of_funds',
-                    'status', 'latitude', 'longitude', 'start_date', 'end_date', 'image', 'updated_at'
+                    'status', 'latitude', 'longitude', 'start_date', 'end_date', 'day_count_type', 'image', 'updated_at'
                 ])
             # Sync assigned engineers
             if hasattr(monitoring_project, 'assigned_engineers'):

@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </span>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="font-semibold text-gray-700 text-sm">Start Date</label>
                                 {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
@@ -402,6 +402,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                 {% else %}
                                 <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
                                 {% endif %}
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Day Count Type</label>
+                                <select name="day_count_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                                    <option value="working_days" selected>Working days</option>
+                                    <option value="calendar_days">Calendar days</option>
+                                </select>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -529,6 +536,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">End Date</div>
                                 <div class="text-xs font-semibold text-gray-800" id="details-end-date">—</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                                <div class="text-xs text-gray-500 uppercase mb-1">Day Count Type</div>
+                                <div class="text-xs font-semibold text-gray-800" id="details-day-count-type">—</div>
                             </div>
                         </div>
                     </div>
@@ -1226,6 +1237,13 @@ function formatDate(dateStr) {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function formatDayCountType(value, status, startDate, endDate) {
+    const normalizedStatus = (status || '').toLowerCase();
+    const isPlanned = normalizedStatus === 'planned' || normalizedStatus === 'pending';
+    if (isPlanned || !startDate || !endDate) return '—';
+    return value === 'calendar_days' ? 'Calendar Days' : 'Working Days';
+}
+
 window.openDetailsModal = function(id) {
     if (!detailsModal) {
         console.error('Details modal not found');
@@ -1250,6 +1268,7 @@ window.openDetailsModal = function(id) {
     document.getElementById('details-longitude').textContent = '—';
     document.getElementById('details-start-date').textContent = '—';
     document.getElementById('details-end-date').textContent = '—';
+    document.getElementById('details-day-count-type').textContent = '—';
     document.getElementById('details-assigned-engineers').textContent = 'Loading...';
     document.getElementById('details-map').innerHTML = '<div class="text-gray-400 text-center py-8">Loading...</div>';
     document.getElementById('details-progress-section').classList.add('hidden');
@@ -1296,6 +1315,12 @@ window.openDetailsModal = function(id) {
             document.getElementById('details-longitude').textContent = project.longitude || '—';
             document.getElementById('details-start-date').textContent = formatDate(project.start_date) || '—';
             document.getElementById('details-end-date').textContent = formatDate(project.end_date) || '—';
+            document.getElementById('details-day-count-type').textContent = formatDayCountType(
+                project.day_count_type,
+                project.status,
+                project.start_date,
+                project.end_date
+            );
             
             // Initialize map
             setTimeout(() => {
@@ -2048,6 +2073,9 @@ window.openEditModal = function(id) {
             projectForm.elements['longitude'].value = project.longitude || '';
             projectForm.elements['start_date'].value = project.start_date || '';
             projectForm.elements['end_date'].value = project.end_date || '';
+            if (projectForm.elements['day_count_type']) {
+                projectForm.elements['day_count_type'].value = project.day_count_type || 'working_days';
+            }
             
             // Update location status
             updateLocationStatus();

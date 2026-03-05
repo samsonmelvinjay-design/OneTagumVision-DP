@@ -9,7 +9,8 @@ class ProjectForm(forms.ModelForm):
         model = Project
         fields = [
             'prn', 'name', 'description', 'barangay', 'project_cost', 'source_of_funds',
-            'status', 'project_type', 'zone_type', 'latitude', 'longitude', 'start_date', 'end_date', 'image', 'assigned_engineers'
+            'status', 'project_type', 'zone_type', 'latitude', 'longitude', 'start_date', 'end_date',
+            'day_count_type', 'image', 'assigned_engineers'
         ]
 
     def __init__(self, *args, **kwargs):

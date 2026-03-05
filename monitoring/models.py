@@ -25,6 +25,10 @@ class Project(models.Model):
         ('completed', 'Completed'),
         ('delayed', 'Delayed'),
     ]
+    DAY_COUNT_TYPE_CHOICES = [
+        ('working_days', 'Working days'),
+        ('calendar_days', 'Calendar days'),
+    ]
 
     prn = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True)
     barangay = models.CharField(max_length=100, blank=True, null=True)
@@ -32,6 +36,7 @@ class Project(models.Model):
     source_of_funds = models.CharField(max_length=100, blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
+    day_count_type = models.CharField(max_length=20, choices=DAY_COUNT_TYPE_CHOICES, default='working_days')
     name = models.CharField(max_length=200)
     description = models.TextField()
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')

@@ -799,6 +799,10 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
                             <div class="text-xs text-gray-500 uppercase mb-1">Date Ended</div>
                             <div class="text-xs font-medium text-gray-800" id="details-end-date">—</div>
                         </div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Day Count Type</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-day-count-type">—</div>
+                        </div>
                     </div>
                 </div>
                 
@@ -2420,6 +2424,7 @@ window.openDetailsModal = function(id) {
     const detailsLongitude = document.getElementById('details-longitude');
     const detailsStartDate = document.getElementById('details-start-date');
     const detailsEndDate = document.getElementById('details-end-date');
+    const detailsDayCountType = document.getElementById('details-day-count-type');
     const detailsMapDiv = document.getElementById('details-map');
     const assignedEngineersElement = document.getElementById('details-assigned-engineers');
     const progressSection = document.getElementById('details-progress-section');
@@ -2477,6 +2482,13 @@ window.openDetailsModal = function(id) {
             } else {
                 detailsEndDate.textContent = '—';
             }
+        }
+        if (detailsDayCountType) {
+            const statusValue = (project.calculated_status || project.status || '').toLowerCase();
+            const isPlanned = statusValue === 'planned' || statusValue === 'pending';
+            detailsDayCountType.textContent = (isPlanned || !project.start_date || !project.end_date)
+                ? '—'
+                : (project.day_count_type === 'calendar_days' ? 'Calendar Days' : 'Working Days');
         }
 
         // Display assigned engineers
@@ -2687,7 +2699,7 @@ function formatDate(dateStr) {
                             </span>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="font-semibold text-gray-700 text-sm">Start Date</label>
                                 {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
@@ -2703,6 +2715,13 @@ function formatDate(dateStr) {
                                 {% else %}
                                 <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
                                 {% endif %}
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Day Count Type</label>
+                                <select name="day_count_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                                    <option value="working_days" selected>Working days</option>
+                                    <option value="calendar_days">Calendar days</option>
+                                </select>
                             </div>
                         </div>
 

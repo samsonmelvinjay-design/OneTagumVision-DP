@@ -51,6 +51,10 @@ class Project(models.Model):
         ('cancelled', 'Cancelled'),
         ('delayed', 'Delayed'),
     ]
+    DAY_COUNT_TYPE_CHOICES = [
+        ('working_days', 'Working days'),
+        ('calendar_days', 'Calendar days'),
+    ]
 
     prn = models.CharField(max_length=255, blank=True, null=True, unique=True, db_index=True)
     name = models.CharField(max_length=255)
@@ -63,6 +67,7 @@ class Project(models.Model):
     longitude = models.FloatField(blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
+    day_count_type = models.CharField(max_length=20, choices=DAY_COUNT_TYPE_CHOICES, default='working_days')
     image = models.ImageField(upload_to='project_images/', blank=True, null=True, storage=MEDIA_STORAGE)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_projects')
     assigned_engineers = models.ManyToManyField(User, related_name='assigned_projects', blank=True)
