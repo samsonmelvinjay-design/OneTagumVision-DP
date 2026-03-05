@@ -1,16 +1,30 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.contrib import messages
-from projeng.models import Project, ProjectCost, ProjectCostAllocation
+from projeng.models import Project, ProjectCost, ProjectCostAllocation, ExpenseReceipt
 from django.db.models import Sum
 from django.db import connection
 from collections import defaultdict
 from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator
+from django.core import signing
+from django.core.cache import cache
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.utils.text import get_valid_filename
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.conf import settings
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
+from pathlib import Path
+from uuid import uuid4
+from PIL import Image, UnidentifiedImageError
+import logging
+import base64
 import csv
 import io
 import openpyxl
@@ -23,6 +37,162 @@ from gistagum.access_control import (
     finance_manager_required,
     get_user_dashboard_url
 )
+
+logger = logging.getLogger(__name__)
+
+MOBILE_RECEIPT_TOKEN_SALT = "finance-mobile-receipt-upload"
+MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS = getattr(settings, "MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS", 600)
+MOBILE_RECEIPT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+MOBILE_RECEIPT_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+MOBILE_RECEIPT_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png"}
+
+
+def _safe_reverse(name: str, fallback: str) -> str:
+    try:
+        return reverse(name)
+    except NoReverseMatch:
+        return fallback
+
+
+def _mobile_receipt_cache_key(nonce: str) -> str:
+    return f"finance_mobile_receipt_upload:{nonce}"
+
+
+def _decode_mobile_receipt_token(token: str):
+    if not token:
+        return None, "Missing token."
+    try:
+        payload = signing.loads(
+            token,
+            salt=MOBILE_RECEIPT_TOKEN_SALT,
+            max_age=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS,
+        )
+    except signing.SignatureExpired:
+        return None, "Token expired. Please generate a new QR code."
+    except signing.BadSignature:
+        return None, "Invalid token."
+    if not isinstance(payload, dict):
+        return None, "Invalid token payload."
+    required_keys = {"project_id", "user_id", "nonce"}
+    if not required_keys.issubset(payload.keys()):
+        return None, "Invalid token data."
+    return payload, None
+
+
+def _issue_mobile_receipt_token(project_id: int, user_id: int):
+    payload = {
+        "project_id": int(project_id),
+        "user_id": int(user_id),
+        "nonce": uuid4().hex,
+    }
+    token = signing.dumps(payload, salt=MOBILE_RECEIPT_TOKEN_SALT, compress=True)
+    cache.set(
+        _mobile_receipt_cache_key(payload["nonce"]),
+        {
+            "project_id": payload["project_id"],
+            "user_id": payload["user_id"],
+            "uploaded": False,
+            "consumed": False,
+            "temp_path": "",
+            "filename": "",
+            "uploaded_at": "",
+            "created_ts": timezone.now().timestamp(),
+        },
+        timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS,
+    )
+    return token
+
+
+def _validate_mobile_receipt_file(uploaded_file):
+    if not uploaded_file:
+        raise ValueError("Please capture or choose an image first.")
+    ext = Path(uploaded_file.name or "").suffix.lower()
+    if ext not in MOBILE_RECEIPT_ALLOWED_EXTENSIONS:
+        raise ValueError("Only JPG and PNG images are allowed.")
+    content_type = (uploaded_file.content_type or "").lower().strip()
+    if content_type and content_type not in MOBILE_RECEIPT_ALLOWED_CONTENT_TYPES:
+        raise ValueError("Invalid image type. Please upload JPG or PNG.")
+    if uploaded_file.size > MOBILE_RECEIPT_MAX_FILE_SIZE_BYTES:
+        raise ValueError("Image exceeds 5MB size limit.")
+
+    uploaded_file.seek(0)
+    try:
+        with Image.open(uploaded_file) as img:
+            img.verify()
+    except (UnidentifiedImageError, OSError):
+        raise ValueError("Uploaded file is not a valid image.")
+    finally:
+        uploaded_file.seek(0)
+
+
+def _build_safe_receipt_name(original_name: str, prefix: str = "receipt") -> str:
+    suffix = Path(original_name or "").suffix.lower()
+    if suffix not in MOBILE_RECEIPT_ALLOWED_EXTENSIONS:
+        suffix = ".jpg"
+    stem = get_valid_filename(Path(original_name or "receipt").stem)[:40] or "receipt"
+    return f"{prefix}_{stem}_{uuid4().hex[:10]}{suffix}"
+
+
+def _build_qr_data_uri(target_url: str) -> str:
+    try:
+        import qrcode
+    except Exception as exc:
+        raise RuntimeError("Missing 'qrcode' package. Install qrcode[pil] to enable QR generation.") from exc
+
+    qr = qrcode.QRCode(version=1, box_size=8, border=2)
+    qr.add_data(target_url)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _attach_mobile_receipt_to_cost(cost, token: str, expected_project_id: int, expected_user_id: int):
+    payload, token_error = _decode_mobile_receipt_token(token)
+    if token_error:
+        return False, token_error
+    if int(payload["project_id"]) != int(expected_project_id) or int(payload["user_id"]) != int(expected_user_id):
+        return False, "Token does not match this expense entry."
+
+    cache_key = _mobile_receipt_cache_key(payload["nonce"])
+    session_data = cache.get(cache_key)
+    if not session_data:
+        return False, "Upload session expired."
+    if session_data.get("consumed"):
+        return False, "This mobile receipt token has already been used."
+    if not session_data.get("uploaded") or not session_data.get("temp_path"):
+        return False, "No mobile receipt was uploaded yet."
+
+    temp_path = session_data.get("temp_path")
+    if not default_storage.exists(temp_path):
+        return False, "Uploaded receipt file was not found."
+
+    try:
+        with default_storage.open(temp_path, "rb") as temp_file:
+            image_bytes = temp_file.read()
+    except Exception:
+        return False, "Unable to read uploaded receipt."
+
+    safe_name = _build_safe_receipt_name(session_data.get("filename") or "receipt.jpg", prefix="mobile")
+
+    # Keep compatibility with existing ProjectCost.receipt field
+    cost.receipt.save(safe_name, ContentFile(image_bytes), save=False)
+    cost.save(update_fields=["receipt"])
+
+    # Additional attachment record for scanned uploads
+    receipt_row = ExpenseReceipt(expense=cost)
+    receipt_row.image.save(safe_name, ContentFile(image_bytes), save=True)
+
+    try:
+        default_storage.delete(temp_path)
+    except Exception:
+        logger.warning("Could not delete temporary receipt file: %s", temp_path)
+
+    session_data["consumed"] = True
+    session_data["temp_path"] = ""
+    cache.set(cache_key, session_data, timeout=60)
+    return True, ""
 
 @login_required
 @finance_manager_required
@@ -473,8 +643,9 @@ def finance_cost_management(request):
                 description_raw = (request.POST.get('description') or '').strip() or 'No remarks provided.'
                 description = f'[{subtype_label}] {description_raw}' if subtype_label else description_raw
                 receipt = request.FILES.get('receipt')
+                mobile_receipt_token = (request.POST.get('mobile_receipt_token') or '').strip()
 
-                ProjectCost.objects.create(
+                cost_entry = ProjectCost.objects.create(
                     project=project,
                     date=entry_date,
                     cost_type=cost_type,
@@ -483,6 +654,20 @@ def finance_cost_management(request):
                     receipt=receipt,
                     created_by=request.user,
                 )
+
+                # If no desktop file was selected, attach scanned mobile receipt (if available).
+                if not receipt and mobile_receipt_token:
+                    attached, attach_error = _attach_mobile_receipt_to_cost(
+                        cost=cost_entry,
+                        token=mobile_receipt_token,
+                        expected_project_id=project.id,
+                        expected_user_id=request.user.id,
+                    )
+                    if not attached and attach_error:
+                        messages.warning(
+                            request,
+                            f'Cost entry saved, but mobile receipt was not attached: {attach_error}'
+                        )
                 messages.success(request, f'Cost entry saved for {project.name}.')
             except (ValueError, InvalidOperation) as e:
                 messages.error(request, str(e) or 'Invalid amount.')
@@ -765,6 +950,14 @@ def finance_cost_management(request):
                 {d.year for d in Project.objects.exclude(start_date__isnull=True).values_list('start_date', flat=True) if d},
                 reverse=True
             ),
+            'receipt_qr_generate_url': _safe_reverse(
+                'finance_generate_receipt_upload_qr',
+                '/dashboard/finance/receipts/qr/',
+            ),
+            'receipt_status_url': _safe_reverse(
+                'finance_receipt_upload_status_api',
+                '/dashboard/finance/receipts/mobile-upload/status/',
+            ),
         }
         return render(request, 'finance_manager/finance_cost_management.html', context)
     except Exception as e:
@@ -773,6 +966,166 @@ def finance_cost_management(request):
         logger.error(traceback.format_exc())
         # Re-raise the exception so Django's error handling can show the actual error
         raise
+
+
+@login_required
+@finance_manager_required
+@require_POST
+def finance_generate_receipt_upload_qr(request):
+    try:
+        project_id = int(request.POST.get("project_id") or 0)
+        project = get_object_or_404(Project, id=project_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"success": False, "error": "Invalid project selection."}, status=400)
+    except Http404:
+        return JsonResponse({"success": False, "error": "Project not found."}, status=404)
+
+    try:
+        token = _issue_mobile_receipt_token(project_id=project.id, user_id=request.user.id)
+        upload_path = f"{reverse('finance_mobile_receipt_capture')}?token={token}"
+        public_base_url = (getattr(settings, "MOBILE_RECEIPT_PUBLIC_BASE_URL", "") or "").strip()
+        if public_base_url:
+            upload_url = f"{public_base_url.rstrip('/')}{upload_path}"
+        else:
+            upload_url = request.build_absolute_uri(upload_path)
+        qr_data_uri = _build_qr_data_uri(upload_url)
+        return JsonResponse(
+            {
+                "success": True,
+                "token": token,
+                "upload_url": upload_url,
+                "qr_image": qr_data_uri,
+                "expires_in": MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS,
+            }
+        )
+    except Exception as exc:
+        logger.error("Error generating receipt upload QR: %s", exc, exc_info=True)
+        return JsonResponse({"success": False, "error": str(exc)}, status=500)
+
+
+@ensure_csrf_cookie
+def finance_mobile_receipt_capture(request):
+    token = (request.GET.get("token") or "").strip()
+    payload, token_error = _decode_mobile_receipt_token(token)
+    if token_error:
+        return render(
+            request,
+            "finance_manager/mobile_receipt_capture.html",
+            {"is_valid": False, "error_message": token_error, "token": token},
+            status=400,
+        )
+
+    session_data = cache.get(_mobile_receipt_cache_key(payload["nonce"]))
+    if not session_data:
+        return render(
+            request,
+            "finance_manager/mobile_receipt_capture.html",
+            {"is_valid": False, "error_message": "Upload session expired.", "token": token},
+            status=410,
+        )
+
+    project = Project.objects.filter(id=payload["project_id"]).first()
+    if not project:
+        return render(
+            request,
+            "finance_manager/mobile_receipt_capture.html",
+            {"is_valid": False, "error_message": "Project not found for this token.", "token": token},
+            status=404,
+        )
+
+    return render(
+        request,
+        "finance_manager/mobile_receipt_capture.html",
+        {
+            "is_valid": True,
+            "token": token,
+            "project": project,
+            "upload_api_url": reverse("finance_mobile_receipt_upload_api"),
+            "status_api_url": reverse("finance_receipt_upload_status_api"),
+            "max_size_mb": MOBILE_RECEIPT_MAX_FILE_SIZE_BYTES // (1024 * 1024),
+        },
+    )
+
+
+@require_POST
+def finance_mobile_receipt_upload_api(request):
+    token = (request.POST.get("token") or "").strip()
+    payload, token_error = _decode_mobile_receipt_token(token)
+    if token_error:
+        return JsonResponse({"success": False, "error": token_error}, status=400)
+
+    cache_key = _mobile_receipt_cache_key(payload["nonce"])
+    session_data = cache.get(cache_key)
+    if not session_data:
+        return JsonResponse({"success": False, "error": "Upload session expired."}, status=410)
+    if session_data.get("consumed"):
+        return JsonResponse({"success": False, "error": "Token already used."}, status=409)
+    if session_data.get("uploaded"):
+        return JsonResponse({"success": False, "error": "A receipt was already uploaded for this token."}, status=409)
+
+    uploaded_file = request.FILES.get("image") or request.FILES.get("receipt")
+    try:
+        _validate_mobile_receipt_file(uploaded_file)
+    except ValueError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+
+    safe_name = _build_safe_receipt_name(uploaded_file.name, prefix="tmp")
+    temp_path = f"receipts/tmp/{payload['nonce']}_{safe_name}"
+    try:
+        saved_path = default_storage.save(temp_path, uploaded_file)
+    except Exception:
+        logger.error("Failed saving mobile receipt upload", exc_info=True)
+        return JsonResponse({"success": False, "error": "Unable to save receipt. Please try again."}, status=500)
+
+    # Keep only one temporary file per token.
+    old_temp_path = (session_data.get("temp_path") or "").strip()
+    if old_temp_path and old_temp_path != saved_path and default_storage.exists(old_temp_path):
+        try:
+            default_storage.delete(old_temp_path)
+        except Exception:
+            logger.warning("Could not delete old temp receipt path: %s", old_temp_path)
+
+    session_data.update(
+        {
+            "uploaded": True,
+            "temp_path": saved_path,
+            "filename": safe_name,
+            "uploaded_at": timezone.now().isoformat(),
+        }
+    )
+    cache.set(cache_key, session_data, timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS)
+    return JsonResponse({"success": True, "filename": safe_name})
+
+
+@login_required
+@finance_manager_required
+def finance_receipt_upload_status_api(request):
+    token = (request.GET.get("token") or "").strip()
+    payload, token_error = _decode_mobile_receipt_token(token)
+    if token_error:
+        return JsonResponse({"success": False, "error": token_error}, status=400)
+
+    cache_key = _mobile_receipt_cache_key(payload["nonce"])
+    session_data = cache.get(cache_key)
+    if not session_data:
+        return JsonResponse({"success": False, "error": "Upload session expired."}, status=410)
+
+    if int(session_data.get("user_id") or 0) != int(request.user.id):
+        return JsonResponse({"success": False, "error": "This token belongs to another user session."}, status=403)
+
+    created_ts = float(session_data.get("created_ts") or 0)
+    remaining = max(0, int(MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS - (timezone.now().timestamp() - created_ts)))
+    return JsonResponse(
+        {
+            "success": True,
+            "uploaded": bool(session_data.get("uploaded")),
+            "consumed": bool(session_data.get("consumed")),
+            "filename": session_data.get("filename") or "",
+            "uploaded_at": session_data.get("uploaded_at") or "",
+            "expires_in": remaining,
+        }
+    )
+
 
 @login_required
 @finance_manager_required
