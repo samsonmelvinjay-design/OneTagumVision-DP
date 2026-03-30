@@ -4,6 +4,11 @@ from monitoring.views.finance_manager import (
     finance_dashboard,
     finance_projects,
     finance_cost_management,
+    finance_generate_receipt_upload_qr,
+    finance_mobile_receipt_capture,
+    finance_mobile_receipt_upload_api,
+    finance_mobile_receipt_event_api,
+    finance_receipt_upload_status_api,
     finance_notifications,
     finance_project_detail,
     finance_reports,
@@ -14,6 +19,7 @@ from monitoring.views.budget_approval import approve_budget_request, reject_budg
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),  # Changed: /dashboard/ now goes directly to dashboard
+    path('head-engineer-preview/', views.head_engineer_dashboard_preview, name='head_engineer_dashboard_preview'),
     path('home/', views.home, name='home'),  # Moved home to /dashboard/home/
     path('projects/', views.project_list, name='project_list'),
     path('map/', views.map_view, name='map_view'),
@@ -26,6 +32,7 @@ urlpatterns = [
     path('reports/budget/export/csv/', views.export_budget_reports_csv, name='export_budget_reports_csv'),
     path('reports/budget/export/excel/', views.export_budget_reports_excel, name='export_budget_reports_excel'),
     path('reports/budget/export/pdf/', views.export_budget_reports_pdf, name='export_budget_reports_pdf'),
+    path('projects/api/create/', views.project_create_api, name='project_create_api'),
     path('projects/<int:pk>/api/get/', views.project_get_api, name='project_get_api'),
     path('projects/<int:pk>/api/update/', views.project_update_api, name='project_update_api'),
     
@@ -61,6 +68,11 @@ urlpatterns = [
     path('finance/dashboard/', finance_dashboard, name='finance_dashboard'),
     path('finance/projects/', finance_projects, name='finance_projects'),
     path('finance/cost-management/', finance_cost_management, name='finance_cost_management'),
+    path('finance/receipts/qr/', finance_generate_receipt_upload_qr, name='finance_generate_receipt_upload_qr'),
+    path('finance/receipts/mobile-upload/', finance_mobile_receipt_capture, name='finance_mobile_receipt_capture'),
+    path('finance/receipts/mobile-upload/api/', finance_mobile_receipt_upload_api, name='finance_mobile_receipt_upload_api'),
+    path('finance/receipts/mobile-upload/event/', finance_mobile_receipt_event_api, name='finance_mobile_receipt_event_api'),
+    path('finance/receipts/mobile-upload/status/', finance_receipt_upload_status_api, name='finance_receipt_upload_status_api'),
     path('finance/reports/', finance_reports, name='finance_reports'),
     path('finance/notifications/', finance_notifications, name='finance_notifications'),
     path('finance/project/<int:project_id>/', finance_project_detail, name='finance_project_detail'),

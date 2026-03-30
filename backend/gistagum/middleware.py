@@ -56,6 +56,14 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         }
         if request.path in public_pwa_paths:
             return None
+
+        # Public mobile receipt upload endpoints are accessed by phones without
+        # a logged-in browser session. Token validation happens in the view.
+        public_mobile_receipt_prefixes = (
+            '/dashboard/finance/receipts/mobile-upload/',
+        )
+        if any(request.path.startswith(path) for path in public_mobile_receipt_prefixes):
+            return None
          
         # Keep anonymous sessions intact on public pages (e.g. login/password reset).
         # Force-redirect only when an anonymous user hits protected areas.

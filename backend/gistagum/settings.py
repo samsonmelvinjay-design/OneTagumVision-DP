@@ -404,6 +404,10 @@ PASSWORD_RESET_USE_HTTPS = get_env_bool('PASSWORD_RESET_USE_HTTPS', not DEBUG)
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+# Browsers ignore COOP on untrusted HTTP origins such as local LAN IPs
+# (e.g. http://192.168.x.x). Disable it in development to avoid console noise,
+# but keep Django's default protection in production.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None if DEBUG else 'same-origin'
 # Allow pages from this site to be embedded in iframes on the same origin.
 # This is required so the Project Report view can be shown inside the
 # modal iframe on the dashboard map page.

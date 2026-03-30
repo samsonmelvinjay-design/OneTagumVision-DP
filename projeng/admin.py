@@ -3,7 +3,7 @@ from django.contrib.admin.exceptions import AlreadyRegistered
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from .models import (
-    Layer, Project, ProjectProgress, ProjectProgressEditHistory, ProjectCost, ProgressPhoto, 
+    Layer, Project, ProjectProgress, ProjectProgressEditHistory, ProjectCost, ExpenseReceipt, ProgressPhoto, 
     BarangayMetadata, ZoningZone, ProjectMilestone,
     ProjectType, ZoneAllowedUse, ZoneRecommendation,
     UserSpatialAssignment,
@@ -109,6 +109,13 @@ class ProjectCostAdmin(admin.ModelAdmin):
             'fields': ('created_by', 'created_at')
         }),
     )
+
+@admin.register(ExpenseReceipt)
+class ExpenseReceiptAdmin(admin.ModelAdmin):
+    list_display = ('expense', 'uploaded_at')
+    list_filter = ('uploaded_at',)
+    search_fields = ('expense__project__name', 'expense__project__prn')
+    readonly_fields = ('uploaded_at',)
 
 
 @admin.register(BudgetRequest)

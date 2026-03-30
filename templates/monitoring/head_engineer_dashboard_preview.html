@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Head Engineer One-Page Preview{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-b from-slate-50 via-stone-50 to-amber-50">
+    <div class="mx-auto max-w-screen-2xl px-4 py-6 lg:px-8">
+        <section class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 lg:text-3xl">Head Engineer Dashboard Preview</h1>
+                    <p class="text-sm text-slate-600">One-page mockup focused on decision-critical information only.</p>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                    Preview Mode
+                </span>
+            </div>
+        </section>
+
+        <section class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {% for item in kpis %}
+            <article class="rounded-xl border bg-white p-4 shadow-sm {% if item.tone == 'danger' %}border-rose-200{% elif item.tone == 'warning' %}border-orange-200{% elif item.tone == 'good' %}border-emerald-200{% else %}border-cyan-200{% endif %}">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ item.label }}</p>
+                <p class="mt-2 text-3xl font-bold {% if item.tone == 'danger' %}text-rose-700{% elif item.tone == 'warning' %}text-orange-700{% elif item.tone == 'good' %}text-emerald-700{% else %}text-cyan-700{% endif %}">{{ item.value }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ item.hint }}</p>
+            </article>
+            {% endfor %}
+        </section>
+
+        <section class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <article class="xl:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <header class="border-b border-slate-200 px-4 py-3 md:px-5">
+                    <h2 class="text-lg font-bold text-slate-900">Critical Projects (Top Risk)</h2>
+                    <p class="text-xs text-slate-500">Prioritize these first during standup.</p>
+                </header>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Project</th>
+                                <th class="px-4 py-3 text-left">Engineer</th>
+                                <th class="px-4 py-3 text-right">Delay (d)</th>
+                                <th class="px-4 py-3 text-right">Budget %</th>
+                                <th class="px-4 py-3 text-right">Last Update</th>
+                                <th class="px-4 py-3 text-left">Next Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in critical_projects %}
+                            <tr class="border-t border-slate-100">
+                                <td class="px-4 py-3">
+                                    <div class="font-semibold text-slate-800">{{ row.project }}</div>
+                                    <div class="mt-1 text-xs {% if row.risk == 'critical' %}text-rose-600{% elif row.risk == 'at_risk' %}text-orange-600{% else %}text-cyan-700{% endif %}">
+                                        {{ row.risk|title }}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-slate-700">{{ row.engineer }}</td>
+                                <td class="px-4 py-3 text-right font-semibold {% if row.delay_days >= 10 %}text-rose-700{% else %}text-slate-700{% endif %}">{{ row.delay_days }}</td>
+                                <td class="px-4 py-3 text-right font-semibold {% if row.budget_util > 100 %}text-rose-700{% elif row.budget_util > 80 %}text-orange-700{% else %}text-cyan-700{% endif %}">{{ row.budget_util }}%</td>
+                                <td class="px-4 py-3 text-right text-slate-700">{{ row.last_update_days }}d ago</td>
+                                <td class="px-4 py-3 text-slate-700">{{ row.next_action }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900">Action Queue</h2>
+                <p class="mb-4 text-xs text-slate-500">Items requiring your immediate decision.</p>
+                <div class="space-y-3">
+                    {% for action in action_queue %}
+                    <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <span class="text-sm text-slate-700">{{ action.label }}</span>
+                        <span class="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">{{ action.value }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
+                    Open Queue
+                </button>
+            </article>
+        </section>
+
+        <section class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900">Delay Trend (Last 6 Months)</h2>
+                <p class="mb-4 text-xs text-slate-500">Track whether delayed projects are growing or shrinking.</p>
+                <div class="space-y-3">
+                    {% for point in delay_trend %}
+                    <div>
+                        <div class="mb-1 flex items-center justify-between text-xs">
+                            <span class="font-medium text-slate-600">{{ point.label }}</span>
+                            <span class="font-semibold text-slate-800">{{ point.value }}</span>
+                        </div>
+                        <div class="h-2 rounded-full bg-slate-100">
+                            <div class="h-2 rounded-full bg-gradient-to-r from-orange-500 to-rose-500" style="width:{% widthratio point.value max_delay 100 %}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900">Budget vs Actual Spending</h2>
+                <p class="mb-4 text-xs text-slate-500">Quick monthly signal if spending is outrunning plan.</p>
+                <div class="space-y-3">
+                    {% for row in spend_vs_budget %}
+                    <div>
+                        <div class="mb-1 flex items-center justify-between text-xs">
+                            <span class="font-medium text-slate-600">{{ row.label }}</span>
+                            <span class="font-semibold text-slate-800">Spent {{ row.spent }} / Budget {{ row.budget }}</span>
+                        </div>
+                        <div class="flex h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-2 bg-cyan-500" style="width:{% widthratio row.spent max_spend_value 100 %}%"></div>
+                            <div class="h-2 bg-slate-300" style="width:{% widthratio row.budget max_spend_value 100 %}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-lg font-bold text-slate-900">Project Health Distribution</h2>
+            <p class="mb-4 text-xs text-slate-500">A single at-a-glance risk composition for leadership updates.</p>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {% for item in health_distribution %}
+                <div>
+                    <div class="mb-1 flex items-center justify-between text-xs">
+                        <span class="font-medium text-slate-600">{{ item.label }}</span>
+                        <span class="font-semibold text-slate-800">{{ item.value }}%</span>
+                    </div>
+                    <div class="h-2 rounded-full bg-slate-100">
+                        <div class="h-2 rounded-full {% if item.tone == 'good' %}bg-emerald-500{% elif item.tone == 'warning' %}bg-orange-500{% else %}bg-rose-500{% endif %}" style="width:{% widthratio item.value health_total 100 %}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

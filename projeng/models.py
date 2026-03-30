@@ -404,6 +404,18 @@ class ProjectCost(models.Model):
         return desc
 
 
+class ExpenseReceipt(models.Model):
+    expense = models.ForeignKey(ProjectCost, on_delete=models.CASCADE, related_name='mobile_receipts')
+    image = models.ImageField(upload_to='receipts/', storage=MEDIA_STORAGE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"Receipt for {self.expense_id} ({self.uploaded_at:%Y-%m-%d %H:%M})"
+
+
 class ProjectCostAllocation(models.Model):
     project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='cost_allocation')
     material = models.DecimalField(max_digits=15, decimal_places=2, default=0)

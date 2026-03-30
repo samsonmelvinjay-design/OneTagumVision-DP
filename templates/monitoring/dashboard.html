@@ -1,772 +1,574 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load humanize %}
+
+{% block title %}Head Engineer Dashboard{% endblock %}
+
 {% block content %}
-<div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-6 lg:px-8">
-        <!-- Header Section with Welcome -->
-        <div class="mb-8">
-            <div class="mb-6">
-                <!-- Welcome Section -->
+<div class="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-teal-50">
+    <div class="mx-auto max-w-screen-2xl px-4 py-6 lg:px-6">
+        <header class="mb-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                        Welcome back, <span class="text-blue-600">{{ user.get_full_name|default:user.username }}</span>!
-                    </h1>
-                    <p class="text-gray-600 text-sm lg:text-base">Here's an overview of your projects and city development progress</p>
+                    <h1 class="text-2xl font-bold tracking-tight text-emerald-950 lg:text-3xl">OneTagumVision Command Center</h1>
+                    <p class="text-sm text-emerald-700">Head Engineer Executive Dashboard for fast infrastructure decisions.</p>
+                </div>
+                <div class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                    Last refreshed: {{ last_refreshed|date:"M d, Y h:i A" }}
                 </div>
             </div>
-        </div>
+        </header>
 
-        <!-- Key Metrics Cards - Modern Grid Layout -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-8">
-            <!-- Total Projects Card -->
-            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
+        <section class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {% for card in kpi_cards %}
+            <article class="rounded-xl border p-4 text-white shadow-lg"
+                style="border-color: rgba(255,255,255,0.35);
+                    {% if forloop.counter == 1 %}
+                        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+                    {% elif forloop.counter == 2 %}
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 10px 24px rgba(5, 150, 105, 0.28);
+                    {% elif forloop.counter == 3 %}
+                        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); box-shadow: 0 10px 24px rgba(217, 119, 6, 0.28);
+                    {% elif forloop.counter == 4 %}
+                        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); box-shadow: 0 10px 24px rgba(124, 58, 237, 0.28);
+                    {% elif forloop.counter == 5 %}
+                        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 10px 24px rgba(220, 38, 38, 0.28);
+                    {% else %}
+                        background: linear-gradient(135deg, #334155 0%, #1f2937 100%); box-shadow: 0 10px 24px rgba(31, 41, 55, 0.28);
+                    {% endif %}">
+                <p class="text-xs font-semibold uppercase tracking-wide text-white" style="opacity:0.9;">{{ card.label }}</p>
+                <p class="mt-2 text-4xl font-extrabold text-white">{{ card.value }}</p>
+                <div class="mt-2 inline-flex items-center gap-2 rounded-full bg-white bg-opacity-20 px-2.5 py-1 text-xs text-white">
+                    <span class="h-2 w-2 rounded-full bg-white"></span>
+                    <span class="whitespace-nowrap">{{ card.trend }}</span>
+                </div>
+            </article>
+            {% endfor %}
+        </section>
+
+        <section class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <article class="xl:col-span-2 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-emerald-950">Project GIS Map</h2>
+                        <p class="text-xs text-emerald-700">Green = Completed, Orange = In Progress, Purple = Planned, Red = Delayed</p>
+                    </div>
+                    <div class="flex items-center gap-4 text-xs text-emerald-800">
+                        <label for="cluster-toggle" class="inline-flex items-center gap-2">
+                            <input id="cluster-toggle" type="checkbox" checked class="h-4 w-4 rounded border-emerald-300 text-emerald-700 focus:ring-emerald-500">
+                            <span>Cluster markers</span>
+                        </label>
+                        <div class="inline-flex items-center gap-2">
+                            <span class="h-2.5 w-2.5 rounded-full" style="background:#10b981;"></span><span>Completed</span>
+                            <span class="h-2.5 w-2.5 rounded-full" style="background:#f59e0b;"></span><span>In Progress</span>
+                            <span class="h-2.5 w-2.5 rounded-full" style="background:#8b5cf6;"></span><span>Planned</span>
+                            <span class="h-2.5 w-2.5 rounded-full" style="background:#ef4444;"></span><span>Delayed</span>
+                        </div>
                     </div>
                 </div>
-                <div class="text-3xl font-bold mb-1" id="card-total-projects">{{ project_count }}</div>
-                <div class="text-blue-100 text-sm font-medium">Total Projects</div>
-            </div>
+                <div id="exec-map" class="w-full rounded-xl border border-emerald-200 bg-emerald-50" style="height: 430px; min-height: 430px;"></div>
+                <p id="exec-map-empty" class="mt-2 hidden text-xs text-emerald-700">No project coordinates available yet.</p>
+                <p id="exec-map-status" class="mt-2 hidden text-xs text-amber-700"></p>
+            </article>
 
-            <!-- Completed Projects Card -->
-            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+            <div class="space-y-6">
+                <article class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                    <h2 class="text-lg font-bold text-emerald-950">Action Queue</h2>
+                    <p class="mb-4 text-xs text-emerald-700">Immediate decision items.</p>
+                    <div id="action-queue-list" class="space-y-3">
+                        {% for item in action_queue_items %}
+                        <div class="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                            <span class="text-sm text-emerald-900">{{ item.label }}</span>
+                            <span class="rounded-full bg-emerald-800 px-2.5 py-1 text-xs font-semibold text-white">{{ item.value }}</span>
+                        </div>
+                        {% endfor %}
                     </div>
-                </div>
-                <div class="text-3xl font-bold mb-1" id="card-completed">{{ completed_count }}</div>
-                <div class="text-green-100 text-sm font-medium">Completed</div>
-            </div>
+                </article>
 
-            <!-- In Progress Card -->
-            <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-3xl font-bold mb-1" id="card-in-progress">{{ in_progress_count }}</div>
-                <div class="text-yellow-100 text-sm font-medium">In Progress</div>
+                <article class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                    <h2 class="text-lg font-bold text-emerald-950">Today's Focus</h2>
+                    <p class="mb-4 text-xs text-emerald-700">Auto-generated insights for quick action.</p>
+                    <ul id="today-focus-list" class="space-y-2 text-sm text-emerald-900">
+                        {% for insight in key_insights %}
+                        <li class="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">{{ insight }}</li>
+                        {% endfor %}
+                    </ul>
+                </article>
             </div>
+        </section>
 
-            <!-- Planned Projects Card -->
-            <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
+        <section class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <article class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-bold text-emerald-950">Delay Trend</h2>
+                <p class="mb-3 text-xs text-emerald-700">Last 6 months</p>
+                <div class="h-72">
+                    <canvas id="delayTrendChart"></canvas>
                 </div>
-                <div class="text-3xl font-bold mb-1" id="card-planned">{{ planned_count }}</div>
-                <div class="text-purple-100 text-sm font-medium">Planned</div>
+            </article>
+
+            <article class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-bold text-emerald-950">Budget vs Actual</h2>
+                <p class="mb-3 text-xs text-emerald-700">Monthly project budgets and spending</p>
+                <div class="h-72">
+                    <canvas id="budgetActualChart"></canvas>
+                </div>
+            </article>
+
+            <article class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                <h2 class="text-lg font-bold text-emerald-950">Project Health</h2>
+                <p class="mb-3 text-xs text-emerald-700">On Track, At Risk, Critical</p>
+                <div class="h-72">
+                    <canvas id="projectHealthChart"></canvas>
+                </div>
+            </article>
+        </section>
+
+        <section class="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-emerald-950">Top Risk Projects</h2>
+                    <p class="text-xs text-emerald-700">Top 5 projects requiring immediate management attention.</p>
+                </div>
             </div>
-
-            <!-- Delayed Projects Card -->
-            <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-3xl font-bold mb-1" id="card-delayed">{{ delayed_count }}</div>
-                <div class="text-red-100 text-sm font-medium">Delayed</div>
-            </div>
-        </div>
-
-        <!-- Recent Projects and Quick Stats Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Recent Projects Section -->
-            <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Recent Projects
-                    </h2>
-                    <a href="{% url 'project_list' %}" class="text-sm text-blue-600 hover:text-blue-700 font-medium">View All →</a>
-                </div>
-                <div class="space-y-3">
-                    {% for project in recent_projects %}
-                    <a href="{% url 'monitoring_project_detail' project.id %}" class="block bg-gradient-to-r from-gray-50 to-white rounded-lg p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group">
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1">{{ project.name }}</h3>
-                                <div class="flex items-center gap-3 text-sm text-gray-600">
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        </svg>
-                                        {{ project.barangay|default:"N/A" }}
-                                    </span>
-                                    <span class="text-gray-400">•</span>
-                                    <span>{{ project.created_at|date:"M d, Y" }}</span>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="border-b border-emerald-200 bg-emerald-50 text-xs uppercase tracking-wide text-emerald-800">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Project</th>
+                            <th class="px-4 py-3 text-left">Owner</th>
+                            <th class="px-4 py-3 text-right">Delay (days)</th>
+                            <th class="px-4 py-3 text-right">Budget Overrun</th>
+                            <th class="px-4 py-3 text-left">Next Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in top_risk_projects %}
+                        <tr class="border-b border-emerald-100">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-emerald-950">{{ row.name }}</div>
+                                <div class="mt-1 text-xs
+                                    {% if row.status == 'delayed' %}text-rose-700
+                                    {% elif row.status == 'in_progress' %}text-amber-700
+                                    {% elif row.status == 'planned' %}text-purple-700
+                                    {% elif row.status == 'completed' %}text-emerald-700
+                                    {% else %}text-emerald-700{% endif %}">
+                                    {% if row.status == 'in_progress' %}In Progress{% elif row.status == 'completed' %}Completed{% elif row.status == 'delayed' %}Delayed{% elif row.status == 'planned' %}Planned{% else %}{{ row.status|title }}{% endif %}
                                 </div>
-                            </div>
-                            <div class="ml-4">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {% if project.status_normalized == 'completed' %}bg-green-100 text-green-700{% elif project.status_normalized == 'in_progress' %}bg-yellow-100 text-yellow-700{% elif project.status_normalized == 'planned' %}bg-purple-100 text-purple-700{% elif project.status_normalized == 'delayed' %}bg-red-100 text-red-700{% else %}bg-gray-100 text-gray-700{% endif %}">
-                                    {{ project.status_display }}
-                                </span>
-                            </div>
-                        </div>
-                    </a>
-                    {% empty %}
-                    <div class="text-center py-8 text-gray-500">
-                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <p>No recent projects</p>
-                    </div>
-                    {% endfor %}
-                </div>
+                            </td>
+                            <td class="px-4 py-3 text-emerald-900">{{ row.owner }}</td>
+                            <td class="px-4 py-3 text-right font-semibold {% if row.delay_days > 0 %}text-rose-700{% else %}text-emerald-800{% endif %}">
+                                {{ row.delay_days }}
+                            </td>
+                            <td class="px-4 py-3 text-right font-semibold {% if row.budget_overrun_pct > 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
+                                {% if row.budget_overrun_pct > 0 %}
+                                {{ row.budget_overrun_pct }}%
+                                {% else %}
+                                On budget
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-emerald-900">{{ row.next_action }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-sm text-emerald-700">No high-risk projects detected.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-
-            <!-- Quick Stats Card -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                    Quick Stats
-                </h2>
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg flex-wrap gap-2">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-gray-700 font-medium">Completion Rate</span>
-                            {% if completion_rate_year %}<span class="text-gray-500 text-sm">({{ completion_rate_year }})</span>{% endif %}
-                            {% if available_years %}
-                            <form method="get" class="inline" id="quick-stats-year-form">
-                                <select name="year" onchange="this.form.submit()" class="text-sm rounded border border-gray-300 bg-white px-2 py-1 text-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">All years</option>
-                                    {% for y in available_years %}
-                                    <option value="{{ y }}" {% if completion_rate_year == y %}selected{% endif %}>{{ y }}</option>
-                                    {% endfor %}
-                                </select>
-                            </form>
-                            {% endif %}
-                        </div>
-                        <span class="text-lg font-bold text-blue-600">{{ completion_rate }}%</span>
-                    </div>
-                    <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                        <span class="text-gray-700 font-medium">Active Projects</span>
-                        <span class="text-lg font-bold text-green-600">{{ in_progress_count }}</span>
-                    </div>
-                    <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                        <span class="text-gray-700 font-medium">Pending</span>
-                        <span class="text-lg font-bold text-yellow-600">{{ planned_count }}</span>
-                    </div>
-                    {% if delayed_count > 0 %}
-                    <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
-                        <span class="text-gray-700 font-medium">Needs Attention</span>
-                        <span class="text-lg font-bold text-red-600">{{ delayed_count }}</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Analytics Section Header -->
-        <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Analytics & Insights</h2>
-            <p class="text-gray-600 text-sm">Comprehensive data visualization for strategic decision-making</p>
-        </div>
-
-        <!-- Charts Section: 6 Charts in 2 Columns -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Chart 1: Project Status Distribution -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-blue-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Project Status Distribution</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="projectStatus">
-                        <label for="period-projectStatus" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-projectStatus" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="projectStatusChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 2: Collaborative Projects per Barangay -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-green-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Projects per Barangay</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="collabBarangay">
-                        <label for="period-collab" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-collab" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="collabBarangayChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 3: Collaborative Projects per Status -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-purple-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Projects per Status</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="collabStatus">
-                        <label for="period-collab-status" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-collab-status" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="collabStatusChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 4: Budget Utilization by Project -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-yellow-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Budget Utilization</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="budgetUtilization">
-                        <label for="period-budgetUtilization" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-budgetUtilization" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="budgetUtilizationChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 5: Cost Breakdown by Type -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-indigo-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Cost Breakdown by Type</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="costBreakdown">
-                        <label for="period-costBreakdown" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-costBreakdown" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="costBreakdownChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 6: Spending Trend -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-pink-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Spending Trend</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="monthlySpending">
-                        <label for="period-monthlySpending" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-monthlySpending" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="monthlySpendingChart"></canvas>
-                </div>
-                <p class="text-sm text-gray-600 mt-2 font-medium" id="monthlySpendingSummary" aria-live="polite"></p>
-            </div>
-
-            <!-- Chart 7: Projects Created per Month -->
-            <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-slate-100 rounded-lg p-2">
-                            <svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">Projects Created per Month</h3>
-                    </div>
-                    <div class="chart-period-wrap flex items-center gap-2 flex-shrink-0" data-chart-id="projectsPerMonth">
-                        <label for="period-projectsPerMonth" class="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Chart period</label>
-                        <select id="period-projectsPerMonth" class="chart-period-select px-3 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                            <option value="week">Weekly</option>
-                            <option value="month" selected>Monthly</option>
-                            <option value="year">Yearly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container" style="position: relative; height:300px; width:100%">
-                    <canvas id="projectsPerMonthChart"></canvas>
-                </div>
-                <p class="text-sm text-gray-600 mt-2 font-medium" id="projectsPerMonthSummary" aria-live="polite"></p>
-            </div>
-        </div>
-
+        </section>
     </div>
 </div>
+{% endblock %}
 
-{{ collab_by_barangay|default:'{}'|json_script:"collab-barangay-data" }}
-{{ collab_by_status|default:'{}'|json_script:"collab-status-data" }}
-{{ projects_created_labels|default:"[]"|json_script:"projects-created-labels" }}
-{{ projects_created_counts|default:"[]"|json_script:"projects-created-counts" }}
-{{ status_counts|json_script:"status-counts-data" }}
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block extra_js %}
+{{ block.super }}
+{{ map_projects|json_script:"exec-map-projects" }}
+{{ delay_trend|json_script:"exec-delay-trend" }}
+{{ budget_vs_actual|json_script:"exec-budget-vs-actual" }}
+{{ health_breakdown|json_script:"exec-health-breakdown" }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const calcPercent = (value, total) => total > 0 ? ((value / total) * 100) : 0;
-        const fmtMoney = (value) => '₱' + Number(value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
-        const getTooltipValue = (ctx) => {
-            if (typeof ctx?.parsed === 'number') return ctx.parsed;
-            if (ctx?.parsed && typeof ctx.parsed.r === 'number') return ctx.parsed.r;
-            if (typeof ctx?.raw === 'number') return ctx.raw;
-            if (ctx?.raw && typeof ctx.raw.r === 'number') return ctx.raw.r;
-            const fallback = Number(ctx?.parsed);
-            return Number.isFinite(fallback) ? fallback : 0;
-        };
-
-        // Card color palette (matches dashboard metric cards: Completed=green, In Progress=orange, Planned=purple, Delayed=red, Total=blue)
-        const CARD = {
-            green: 'rgba(46, 204, 113, 0.85)',   // #2ECC71 - Completed
-            greenB: 'rgba(46, 204, 113, 1)',
-            orange: 'rgba(243, 156, 18, 0.85)',  // #F39C12 - In Progress
-            orangeB: 'rgba(243, 156, 18, 1)',
-            purple: 'rgba(155, 89, 182, 0.85)',  // #9B59B6 - Planned
-            purpleB: 'rgba(155, 89, 182, 1)',
-            red: 'rgba(231, 76, 60, 0.85)',      // #E74C3C - Delayed
-            redB: 'rgba(231, 76, 60, 1)',
-            blue: 'rgba(59, 130, 246, 0.85)',    // Total / other
-            blueB: 'rgba(59, 130, 246, 1)'
-        };
-        const STATUS_PALETTE_BG = [CARD.green, CARD.orange, CARD.purple, CARD.red];
-        const STATUS_PALETTE_BD = [CARD.greenB, CARD.orangeB, CARD.purpleB, CARD.redB];
-        const CHART_PALETTE_BG = [CARD.green, CARD.orange, CARD.purple, CARD.red, CARD.blue];
-        const CHART_PALETTE_BD = [CARD.greenB, CARD.orangeB, CARD.purpleB, CARD.redB, CARD.blueB];
-        function statusColorsByLabels(labels) {
-            const map = { 'Completed': 0, 'In Progress': 1, 'Ongoing': 1, 'Planned': 2, 'Delayed': 3 };
-            return labels.map(l => {
-                const i = map[l] !== undefined ? map[l] : (labels.indexOf(l) % CHART_PALETTE_BG.length);
-                return { bg: CHART_PALETTE_BG[i], bd: CHART_PALETTE_BD[i] };
-            });
+(function () {
+    function parseJsonScript(id, fallback) {
+        const element = document.getElementById(id);
+        if (!element) return fallback;
+        try {
+            return JSON.parse(element.textContent);
+        } catch (error) {
+            return fallback;
         }
-        // Legend with inline data: "Label: value (pct%)" - pass useMoney and suffix via closure
-        function createLegendWithData(useMoney, suffix, showPct) {
-            if (showPct === undefined) showPct = true;
-            return function(chart) {
-                const ds = chart.data.datasets?.[0];
-                const labels = chart.data.labels || [];
-                const data = ds?.data || [];
-                const total = data.reduce((a,b)=>a+b,0);
-                const fmt = useMoney ? fmtMoney : (v => String(v));
-                const bg = Array.isArray(ds?.backgroundColor) ? ds.backgroundColor : ds?.backgroundColor;
-                const bc = Array.isArray(ds?.borderColor) ? ds.borderColor : ds?.borderColor;
-                return labels.map((label, i) => {
-                    const val = data[i] ?? 0;
-                    const pct = showPct && total > 0 ? ' (' + calcPercent(val, total).toFixed(1) + '%)' : '';
-                    return { text: label + ': ' + fmt(val) + (suffix || '') + pct, fillStyle: Array.isArray(bg) ? (bg[i] || 'rgba(0,0,0,0.1)') : (bg || 'rgba(0,0,0,0.1)'), strokeStyle: Array.isArray(bc) ? (bc[i] || '#666') : (bc || '#666'), lineWidth: 1, hidden: false, index: i };
-                });
-            };
-        }
+    }
 
-        // Chart period: each chart has its own period (no shared control)
-        const chartPeriods = {
-            projectStatus: 'month',
-            collabBarangay: 'month',
-            collabStatus: 'month',
-            budgetUtilization: 'month',
-            costBreakdown: 'month',
-            monthlySpending: 'month',
-            projectsPerMonth: 'month'
-        };
-        function getPeriod(chartId) { return chartPeriods[chartId] || 'month'; }
-        function setSelectsForChart(chartId, period) {
-            document.querySelectorAll('.chart-period-wrap[data-chart-id="' + chartId + '"]').forEach(wrap => {
-                const sel = wrap.querySelector('.chart-period-select');
-                if (sel && sel.value !== period) sel.value = period;
-            });
+    function normalizeStatus(status) {
+        const value = String(status || '').toLowerCase();
+        if (value === 'completed') return 'completed';
+        if (value === 'delayed') return 'delayed';
+        if (value === 'in_progress' || value === 'ongoing') return 'ongoing';
+        return 'planned';
+    }
+
+    function statusLabel(status) {
+        const normalized = normalizeStatus(status);
+        if (normalized === 'completed') return 'Completed';
+        if (normalized === 'delayed') return 'Delayed';
+        if (normalized === 'ongoing') return 'In Progress';
+        return 'Planned';
+    }
+
+    function markerColor(status) {
+        const normalized = normalizeStatus(status);
+        if (normalized === 'completed') return '#10b981'; // green
+        if (normalized === 'ongoing') return '#f59e0b';   // orange
+        if (normalized === 'planned') return '#8b5cf6';   // purple
+        if (normalized === 'delayed') return '#ef4444';   // red
+        return '#3b82f6';                                 // blue fallback
+    }
+
+    function safeText(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function money(value) {
+        return 'PHP ' + Number(value || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+    }
+
+    const mapProjects = parseJsonScript('exec-map-projects', []);
+    const delayTrend = parseJsonScript('exec-delay-trend', []);
+    const budgetVsActual = parseJsonScript('exec-budget-vs-actual', []);
+    const healthBreakdown = parseJsonScript('exec-health-breakdown', []);
+
+    const mapElement = document.getElementById('exec-map');
+    const mapEmptyHint = document.getElementById('exec-map-empty');
+    const mapStatusHint = document.getElementById('exec-map-status');
+    function setMapStatus(message, tone) {
+        if (!mapStatusHint) return;
+        mapStatusHint.textContent = message || '';
+        mapStatusHint.classList.remove('hidden', 'text-amber-700', 'text-rose-700', 'text-emerald-700');
+        if (!message) {
+            mapStatusHint.classList.add('hidden');
+            return;
         }
-        const collabAnalyticsCache = {};
-        function getCollabAnalytics(period) {
-            if (!collabAnalyticsCache[period]) {
-                collabAnalyticsCache[period] = fetch(`{% url "dashboard_collab_analytics_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
-                    .catch(err => {
-                        delete collabAnalyticsCache[period];
-                        throw err;
-                    });
+        if (tone === 'error') {
+            mapStatusHint.classList.add('text-rose-700');
+        } else if (tone === 'ok') {
+            mapStatusHint.classList.add('text-emerald-700');
+        } else {
+            mapStatusHint.classList.add('text-amber-700');
+        }
+    }
+
+    if (mapElement) {
+        mapElement.style.height = mapElement.style.height || '430px';
+        mapElement.style.minHeight = mapElement.style.minHeight || '430px';
+
+        if (!window.L || typeof window.L.map !== 'function') {
+            if (mapEmptyHint) {
+                mapEmptyHint.textContent = 'Map library failed to load. Please refresh the page.';
+                mapEmptyHint.classList.remove('hidden');
             }
-            return collabAnalyticsCache[period];
+            setMapStatus('Leaflet failed to initialize.', 'error');
+            return;
         }
-        function loadOneChart(chartId) {
-            const period = getPeriod(chartId);
-            if (chartId === 'projectStatus') {
-                getCollabAnalytics(period)
-                    .then(data => {
-                        try {
-                            const statusData = data.status || {};
-                            const order = ['Completed', 'In Progress', 'Ongoing', 'Planned', 'Delayed'];
-                            const labels = [];
-                            const values = [];
-                            order.forEach(l => { if (statusData[l] !== undefined) { labels.push(l === 'Ongoing' ? 'In Progress' : l); values.push(statusData[l]); } });
-                            Object.keys(statusData).filter(k => !order.includes(k)).forEach(k => { labels.push(k); values.push(statusData[k]); });
-                            if (!labels.length) { labels.push('No Data'); values.push(0); }
-                            const ctx = document.getElementById('projectStatusChart');
-                            if (!ctx) return;
-                            if (projectStatusChart) projectStatusChart.destroy();
-                            const statusColors = statusColorsByLabels(labels);
-                            projectStatusChart = new Chart(ctx.getContext('2d'), {
-                                type: 'doughnut',
-                                data: {
-                                    labels,
-                                    datasets: [{
-                                        label: 'Projects',
-                                        data: values,
-                                        backgroundColor: statusColors.map(c => c.bg),
-                                        borderColor: statusColors.map(c => c.bd),
-                                        borderWidth: 2
-                                    }]
-                                },
-                                options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => { const t = c.dataset.data.reduce((a,b)=>a+b,0); return c.label + ': ' + c.parsed + ' projects (' + (t ? ((c.parsed/t)*100).toFixed(1) : 0) + '%)'; } } } } }
-                            });
-                        } catch (e) { console.error('Error rendering project status chart:', e); }
-                    }).catch(e => console.error('Error fetching project status data:', e));
-            } else if (chartId === 'budgetUtilization') {
-                fetch(`{% url "dashboard_budget_utilization_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        try {
-                            const ctx = document.getElementById('budgetUtilizationChart').getContext('2d');
-                            if (budgetUtilChart) budgetUtilChart.destroy();
-                            const ds = (data.datasets || [])[0];
-                            if (ds && ds.data) {
-                                ds.backgroundColor = ds.data.map(d => d > 100 ? CARD.red : d > 80 ? CARD.orange : CARD.green);
-                                ds.borderColor = ds.data.map(d => d > 100 ? CARD.redB : d > 80 ? CARD.orangeB : CARD.greenB);
-                            }
-                            budgetUtilChart = new Chart(ctx, {
-                                type: 'bar', data: data,
-                                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', layout: { padding: { right: 30 } },
-                                    scales: { x: { beginAtZero: true, title: { display: true, text: 'Budget Utilization (%)' }, ticks: { callback: v => v + '%' } } },
-                                    plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '%', false) } }, tooltip: { enabled: true, callbacks: { title: c => (c[0] && c[0].label) ? c[0].label : '', label: c => 'Utilization: ' + c.parsed.x.toFixed(1) + '%' } } }
-                                }
-                            });
-                        } catch (e) { console.error('Error rendering budget utilization chart:', e); }
-                    }).catch(e => console.error('Error fetching budget utilization data:', e));
-            } else if (chartId === 'collabBarangay') {
-                getCollabAnalytics(period)
-                    .then(data => { try { drawCollabBarangayOnly(data.barangay || {}); } catch (e) { console.error('Error drawing collab barangay chart:', e); } })
-                    .catch(e => console.error('Error fetching collab analytics:', e));
-            } else if (chartId === 'collabStatus') {
-                getCollabAnalytics(period)
-                    .then(data => { try { drawCollabStatusOnly(data.status || {}); } catch (e) { console.error('Error drawing collab status chart:', e); } })
-                    .catch(e => console.error('Error fetching collab analytics:', e));
-            } else if (chartId === 'costBreakdown') {
-                fetch(`{% url "dashboard_cost_breakdown_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        try {
-                            const ctx = document.getElementById('costBreakdownChart').getContext('2d');
-                            if (costBreakdownChart) costBreakdownChart.destroy();
-                            const labels = data.labels || [];
-                            const ds = (data.datasets || [])[0];
-                            if (ds) {
-                                ds.backgroundColor = labels.map((_, i) => CHART_PALETTE_BG[i % CHART_PALETTE_BG.length]);
-                                ds.borderColor = labels.map((_, i) => CHART_PALETTE_BD[i % CHART_PALETTE_BD.length]);
-                            }
-                            costBreakdownChart = new Chart(ctx, {
-                                type: 'pie', data: data,
-                                options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, plugins: {
-                                    legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(true, '', true) } },
-                                    tooltip: { enabled: true, callbacks: { label: c => { const t = c.dataset.data.reduce((a,b)=>a+b,0); return c.label + ': ' + fmtMoney(c.parsed) + ' (' + calcPercent(c.parsed, t).toFixed(1) + '%)'; } } }
-                                } }
-                            });
-                        } catch (e) { console.error('Error rendering cost breakdown chart:', e); }
-                    }).catch(e => console.error('Error fetching cost breakdown data:', e));
-            } else if (chartId === 'monthlySpending') {
-                fetch(`{% url "dashboard_monthly_spending_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        try {
-                            const ctx = document.getElementById('monthlySpendingChart').getContext('2d');
-                            if (spendingChart) spendingChart.destroy();
-                            const ds = (data.datasets || []).map(d => ({ ...d, fill: true, tension: 0.4, pointRadius: 4 }));
-                            spendingChart = new Chart(ctx, {
-                                type: 'line', data: { ...data, datasets: ds.length ? ds : data.datasets },
-                                options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } },
-                                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Spending (₱)' }, ticks: { callback: v => '₱' + Number(v).toLocaleString('en-US') } } },
-                                    plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12 } }, tooltip: { enabled: true, callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.parsed.y) } } }
-                                }
-                            });
-                        } catch (e) { console.error('Error rendering spending chart:', e); }
-                    }).catch(e => console.error('Error fetching spending data:', e));
-            } else if (chartId === 'projectsPerMonth') {
-                fetch(`{% url "dashboard_projects_created_data" %}?period=${encodeURIComponent(period)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        try {
-                            const ctx = document.getElementById('projectsPerMonthChart').getContext('2d');
-                            if (projectsPerMonthChart) projectsPerMonthChart.destroy();
-                            const pmDatasets = (data.datasets || [{ label: 'Projects Created', data: [] }]).map((d,i) => ({
-                                ...d, backgroundColor: CARD.blue, borderColor: CARD.blueB, borderWidth: 1, borderRadius: 6
-                            }));
-                            projectsPerMonthChart = new Chart(ctx, {
-                                type: 'bar',
-                                data: { labels: data.labels || [], datasets: pmDatasets },
-                                options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } },
-                                    plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12 } }, tooltip: { enabled: true, callbacks: { label: c => (c.dataset.label || 'Projects') + ': ' + c.parsed.y } } },
-                                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                                }
-                            });
-                        } catch (e) { console.error('Error rendering projects per month chart:', e); }
-                    }).catch(e => console.error('Error fetching projects created data:', e));
-            }
-        }
-        document.querySelectorAll('.chart-period-wrap').forEach(wrap => {
-            const chartId = wrap.getAttribute('data-chart-id');
-            if (!chartId) return;
-            const sel = wrap.querySelector('.chart-period-select');
-            if (!sel) return;
-            sel.value = getPeriod(chartId);
-            sel.addEventListener('change', function() {
-                const period = this.value || 'month';
-                chartPeriods[chartId] = period;
-                setSelectsForChart(chartId, period);
-                loadOneChart(chartId);
+        // Keep executive map focused on Tagum City vicinity.
+        const tagumCityBounds = L.latLngBounds(
+            [7.24, 125.62],  // South-West
+            [7.66, 125.96]   // North-East
+        );
+        const tagumCityCenter = [7.4478, 125.809];
+
+        let map;
+        try {
+            map = L.map(mapElement, {
+                zoomControl: true,
+                maxBounds: tagumCityBounds,
+                maxBoundsViscosity: 1.0
             });
+            // Prevent zooming out beyond Tagum City vicinity.
+            const minCityZoom = map.getBoundsZoom(tagumCityBounds, true);
+            map.setMinZoom(minCityZoom);
+        } catch (error) {
+            if (mapEmptyHint) {
+                mapEmptyHint.textContent = 'Unable to initialize map view. Please refresh.';
+                mapEmptyHint.classList.remove('hidden');
+            }
+            setMapStatus('Map initialization error.', 'error');
+            return;
+        }
+
+        const baseTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        });
+        baseTileLayer.on('tileerror', function () {
+            setMapStatus('Map tiles are currently unavailable. Check internet or browser shields.', 'warn');
+        });
+        baseTileLayer.on('load', function () {
+            setMapStatus('', 'ok');
+        });
+        baseTileLayer.addTo(map);
+
+        const canCluster = typeof L.markerClusterGroup === 'function';
+        if (!canCluster) {
+            setMapStatus('Marker clustering unavailable. Showing plain markers only.', 'warn');
+        }
+
+        const clusterLayer = canCluster ? L.markerClusterGroup() : null;
+        const plainLayer = L.layerGroup();
+        const bounds = [];
+
+        mapProjects.forEach((project) => {
+            const lat = Number(project.latitude);
+            const lng = Number(project.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+            const color = markerColor(project.status);
+            const icon = L.divIcon({
+                className: '',
+                html: '<span style="display:block;width:14px;height:14px;border-radius:9999px;background:' + color + ';border:2px solid #fff;box-shadow:0 0 0 2px rgba(15,23,42,0.25);"></span>',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            const detailUrl = project.detail_url ? safeText(project.detail_url) : '#';
+            const popup = [
+                '<div style="min-width:220px;">',
+                '<div style="font-weight:700;color:#0f172a;margin-bottom:4px;">' + safeText(project.name) + '</div>',
+                '<div style="font-size:12px;color:#475569;margin-bottom:2px;">Barangay: ' + safeText(project.barangay) + '</div>',
+                '<div style="font-size:12px;color:#475569;">Status: <strong>' + safeText(statusLabel(project.status)) + '</strong></div>',
+                '<div style="font-size:12px;color:#475569;">Progress: ' + Number(project.progress || 0).toFixed(1) + '%</div>',
+                '<div style="font-size:12px;color:#475569;">Budget utilization: ' + Number(project.budget_utilization || 0).toFixed(1) + '%</div>',
+                '<a href="' + detailUrl + '" style="display:inline-block;margin-top:8px;color:#047857;font-size:12px;font-weight:600;">Open project</a>',
+                '</div>'
+            ].join('');
+
+            const plainMarker = L.marker([lat, lng], { icon: icon });
+            plainMarker.bindPopup(popup);
+            plainLayer.addLayer(plainMarker);
+
+            if (clusterLayer) {
+                const clusterMarker = L.marker([lat, lng], { icon: icon });
+                clusterMarker.bindPopup(popup);
+                clusterLayer.addLayer(clusterMarker);
+            }
+            bounds.push([lat, lng]);
         });
 
-        // Chart instances to avoid overlap on refresh
-        let projectStatusChart = null;
-        let budgetUtilChart = null;
-        let costBreakdownChart = null;
-        let spendingChart = null;
-        let projectsPerMonthChart = null;
-        let collabBarangayChart = null;
-        let collabStatusChart = null;
+        const clusterToggle = document.getElementById('cluster-toggle');
+        const applyMapLayerMode = () => {
+            if (clusterLayer && map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer);
+            if (map.hasLayer(plainLayer)) map.removeLayer(plainLayer);
+            const useCluster = !!(clusterLayer && (!clusterToggle || clusterToggle.checked));
+            if (useCluster) {
+                map.addLayer(clusterLayer);
+            } else {
+                map.addLayer(plainLayer);
+            }
+        };
 
-        // Chart 1: Overall Status Distribution (doughnut)
-        const statusCtx = document.getElementById('projectStatusChart').getContext('2d');
-        const statusLabels = ['Completed', 'In Progress', 'Planned', 'Delayed'];
-        const statusCounts = JSON.parse(document.getElementById('status-counts-data').textContent);
-        const statusTotal = statusCounts.reduce((a, b) => a + b, 0);
-        if (projectStatusChart) projectStatusChart.destroy();
-        projectStatusChart = new Chart(statusCtx, {
-            type: 'doughnut',
+        if (clusterToggle && !clusterLayer) {
+            clusterToggle.checked = false;
+            clusterToggle.disabled = true;
+        }
+        applyMapLayerMode();
+        if (clusterToggle) clusterToggle.addEventListener('change', applyMapLayerMode);
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [24, 24] });
+            if (mapEmptyHint) mapEmptyHint.classList.add('hidden');
+        } else {
+            map.fitBounds(tagumCityBounds);
+            map.setView(tagumCityCenter, Math.max(map.getZoom(), map.getMinZoom()));
+            if (mapEmptyHint) mapEmptyHint.classList.remove('hidden');
+        }
+        const invalidateMapSize = () => {
+            try {
+                map.invalidateSize({ pan: false });
+            } catch (e) {}
+        };
+        setTimeout(invalidateMapSize, 0);
+        setTimeout(invalidateMapSize, 250);
+        setTimeout(invalidateMapSize, 1000);
+        window.addEventListener('resize', invalidateMapSize);
+        window.addEventListener('load', invalidateMapSize);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) {
+                setTimeout(invalidateMapSize, 60);
+            }
+        });
+    }
+
+    const delayChartCanvas = document.getElementById('delayTrendChart');
+    if (delayChartCanvas && Array.isArray(delayTrend)) {
+        new Chart(delayChartCanvas.getContext('2d'), {
+            type: 'line',
             data: {
-                labels: statusLabels,
+                labels: delayTrend.map((point) => point.label),
                 datasets: [{
-                    label: 'Projects',
-                    data: statusCounts,
-                    backgroundColor: STATUS_PALETTE_BG,
-                    borderColor: STATUS_PALETTE_BD,
-                    borderWidth: 2
+                    label: 'Delayed Projects',
+                    data: delayTrend.map((point) => Number(point.value || 0)),
+                    borderColor: 'rgba(190, 24, 93, 1)',
+                    backgroundColor: 'rgba(190, 24, 93, 0.15)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: { right: 30 } },
                 plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } },
-                    tooltip: { enabled: true, callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const pct = calcPercent(value, statusTotal).toFixed(1);
-                            return `${label}: ${value} projects (${pct}%)`;
-                        }
-                    } }
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
                 }
             }
         });
+    }
 
-        // Helpers so each chart-period control only affects its own chart
-        function drawCollabBarangayOnly(barangayData) {
-            const barCtx = document.getElementById('collabBarangayChart');
-            if (!barCtx) return;
-            if (collabBarangayChart) { collabBarangayChart.destroy(); collabBarangayChart = null; }
-            const barKeys = Object.keys(barangayData || {});
-            const barVals = Object.values(barangayData || {});
-            if (!barKeys.length) {
-                collabBarangayChart = new Chart(barCtx.getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['No Data'],
-                        datasets: [{
-                            label: 'Projects',
-                            data: [0],
-                            backgroundColor: CARD.blue,
-                            borderColor: CARD.blueB,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + c.parsed.x } } },
-                        scales: { x: { beginAtZero: true, stepSize: 1 } }
-                    }
-                });
-                return;
-            }
-            collabBarangayChart = new Chart(barCtx.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: barKeys,
-                    datasets: [{
-                        label: 'Projects',
-                        data: barVals,
-                        backgroundColor: barKeys.map((_, i) => CHART_PALETTE_BG[i % CHART_PALETTE_BG.length]),
-                        borderColor: barKeys.map((_, i) => CHART_PALETTE_BD[i % CHART_PALETTE_BD.length]),
+    const budgetChartCanvas = document.getElementById('budgetActualChart');
+    if (budgetChartCanvas && Array.isArray(budgetVsActual)) {
+        new Chart(budgetChartCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: budgetVsActual.map((point) => point.label),
+                datasets: [
+                    {
+                        label: 'Budget',
+                        data: budgetVsActual.map((point) => Number(point.budget || 0)),
+                        backgroundColor: 'rgba(4, 120, 87, 0.75)',
+                        borderColor: 'rgba(4, 120, 87, 1)',
                         borderWidth: 1,
-                        borderRadius: 4
-                    }]
-                },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        layout: { padding: { right: 30 } },
-                        plugins: { legend: { display: true, position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => c.label + ': ' + c.parsed.x + ' projects' } } },
-                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
-            });
-        }
-
-        function drawCollabStatusOnly(statusData) {
-            const statusCtx2 = document.getElementById('collabStatusChart');
-            if (!statusCtx2) return;
-            if (collabStatusChart) { collabStatusChart.destroy(); collabStatusChart = null; }
-            const statusKeys = Object.keys(statusData || {});
-            const statusVals = Object.values(statusData || {});
-            if (!statusKeys.length) {
-                collabStatusChart = new Chart(statusCtx2.getContext('2d'), {
-                    type: 'polarArea',
-                    data: {
-                        labels: ['No Data'],
-                        datasets: [{
-                            label: 'Projects',
-                            data: [0],
-                            backgroundColor: [CARD.blue],
-                            borderColor: [CARD.blueB],
-                            borderWidth: 1
-                        }]
+                        borderRadius: 6
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 12, generateLabels: createLegendWithData(false, '', true) } }, tooltip: { enabled: true, callbacks: { label: c => 'Projects: ' + getTooltipValue(c) } } } }
-                });
-                return;
-            }
-            const statusColorMap = statusColorsByLabels(statusKeys);
-            collabStatusChart = new Chart(statusCtx2.getContext('2d'), {
-                type: 'polarArea',
-                data: {
-                    labels: statusKeys,
-                    datasets: [{
-                        label: 'Projects',
-                        data: statusVals,
-                        backgroundColor: statusColorMap.map(c => c.bg),
-                        borderColor: statusColorMap.map(c => c.bd),
-                        borderWidth: 1
-                    }]
+                    {
+                        label: 'Actual',
+                        data: budgetVsActual.map((point) => Number(point.actual || 0)),
+                        backgroundColor: 'rgba(13, 148, 136, 0.75)',
+                        borderColor: 'rgba(13, 148, 136, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: { padding: { right: 30 } },
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, padding: 16, generateLabels: createLegendWithData(false, '', true) } },
-                        tooltip: { enabled: true, callbacks: {
-                            label: function(c) {
-                                const value = getTooltipValue(c);
-                                const t = c.dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
-                                const pct = t ? ((value / t) * 100).toFixed(1) : 0;
-                                return c.label + ': ' + value + ' (' + pct + '%)';
-                            }
-                        } }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => money(value)
+                        }
                     }
                 }
+            }
+        });
+    }
+
+    const healthChartCanvas = document.getElementById('projectHealthChart');
+    if (healthChartCanvas && Array.isArray(healthBreakdown)) {
+        new Chart(healthChartCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: healthBreakdown.map((item) => item.label),
+                datasets: [{
+                    data: healthBreakdown.map((item) => Number(item.value || 0)),
+                    backgroundColor: [
+                        'rgba(22, 163, 74, 0.85)',
+                        'rgba(245, 158, 11, 0.85)',
+                        'rgba(220, 38, 38, 0.85)'
+                    ],
+                    borderColor: [
+                        'rgba(22, 163, 74, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(220, 38, 38, 1)'
+                    ],
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // Backend-driven refresh for Action Queue and Today's Focus
+    const dashboardCardsApiUrl = "{% url 'head_dashboard_card_data_api' %}";
+
+    function renderActionQueue(items) {
+        const container = document.getElementById('action-queue-list');
+        if (!container) return;
+        if (!Array.isArray(items) || items.length === 0) {
+            container.innerHTML = '<div class="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">No immediate action items.</div>';
+            return;
+        }
+        container.innerHTML = items.map((item) => {
+            const label = safeText(item && item.label ? item.label : 'Item');
+            const value = Number(item && item.value ? item.value : 0);
+            return [
+                '<div class="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">',
+                '<span class="text-sm text-emerald-900">' + label + '</span>',
+                '<span class="rounded-full bg-emerald-800 px-2.5 py-1 text-xs font-semibold text-white">' + value + '</span>',
+                '</div>'
+            ].join('');
+        }).join('');
+    }
+
+    function renderTodayFocus(insights) {
+        const list = document.getElementById('today-focus-list');
+        if (!list) return;
+        if (!Array.isArray(insights) || insights.length === 0) {
+            list.innerHTML = '<li class="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">No immediate operational issues detected.</li>';
+            return;
+        }
+        list.innerHTML = insights.slice(0, 5).map((insight) => (
+            '<li class="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">' + safeText(insight) + '</li>'
+        )).join('');
+    }
+
+    function refreshOperationalPanels() {
+        fetch(dashboardCardsApiUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Failed to refresh operational panels');
+                }
+                return response.json();
+            })
+            .then((data) => {
+                renderActionQueue(data.action_queue_items || []);
+                renderTodayFocus(data.key_insights || []);
+            })
+            .catch(() => {
+                // Keep current UI if refresh fails; avoid noisy console logs.
             });
-        }
+    }
 
-        // Initial load: load each period-driven chart with its own period (default 'month')
-        function loadPeriodCharts() {
-            [
-                'projectStatus',
-                'collabBarangay',
-                'collabStatus',
-                'budgetUtilization',
-                'costBreakdown',
-                'monthlySpending',
-                'projectsPerMonth'
-            ].forEach(loadOneChart);
-        }
-
-        loadPeriodCharts();
-    });
-
+    refreshOperationalPanels();
+    setInterval(refreshOperationalPanels, 60000);
+})();
 </script>
-{% endblock %} 
+{% endblock %}

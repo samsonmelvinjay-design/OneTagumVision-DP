@@ -8,6 +8,17 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
+from pathlib import Path
+
+# Load the repo-root .env file for local development before Django settings.
+env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+if env_path.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(env_path, override=True)
+    except ImportError:
+        pass
+
 from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gistagum.settings')
