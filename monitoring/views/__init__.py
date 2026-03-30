@@ -116,222 +116,525 @@ def home(request):
 
 @login_required
 @prevent_project_engineer_access
+def head_engineer_dashboard_preview(request):
+    """
+    One-page executive preview for Head Engineer dashboard.
+    This is a mockup route so we can iterate quickly without replacing
+    the current production dashboard yet.
+    """
+    kpis = [
+        {'label': 'Total Projects', 'value': 93, 'tone': 'info', 'hint': 'Overall portfolio count'},
+        {'label': 'Completed', 'value': 24, 'tone': 'good', 'hint': 'Projects finished'},
+        {'label': 'Ongoing', 'value': 38, 'tone': 'warning', 'hint': 'Active projects in progress'},
+        {'label': 'Planned', 'value': 19, 'tone': 'info', 'hint': 'Queued for implementation'},
+        {'label': 'Delayed', 'value': 12, 'tone': 'danger', 'hint': 'Need immediate intervention'},
+    ]
+
+    action_queue = [
+        {'label': 'Pending Approvals', 'value': 4},
+        {'label': 'Budget Requests', 'value': 3},
+        {'label': 'Critical Alerts', 'value': 5},
+        {'label': 'Unread Notifications', 'value': 8},
+    ]
+
+    critical_projects = [
+        {
+            'project': 'Drainage Upgrade - Apokon',
+            'engineer': 'Engr. Ramos',
+            'delay_days': 22,
+            'budget_util': 118.4,
+            'last_update_days': 10,
+            'next_action': 'Escalate budget review',
+            'risk': 'critical',
+        },
+        {
+            'project': 'Road Rehab - Magugpo East',
+            'engineer': 'Engr. Santos',
+            'delay_days': 14,
+            'budget_util': 102.1,
+            'last_update_days': 7,
+            'next_action': 'Approve scope adjustment',
+            'risk': 'critical',
+        },
+        {
+            'project': 'Flood Control - Bincungan',
+            'engineer': 'Engr. Dela Cruz',
+            'delay_days': 9,
+            'budget_util': 96.8,
+            'last_update_days': 8,
+            'next_action': 'Issue site follow-up',
+            'risk': 'at_risk',
+        },
+        {
+            'project': 'School Access Road - Mankilam',
+            'engineer': 'Engr. Lim',
+            'delay_days': 7,
+            'budget_util': 88.2,
+            'last_update_days': 6,
+            'next_action': 'Confirm contractor timeline',
+            'risk': 'at_risk',
+        },
+        {
+            'project': 'Street Lighting - Visayan Village',
+            'engineer': 'Engr. Garcia',
+            'delay_days': 5,
+            'budget_util': 84.3,
+            'last_update_days': 9,
+            'next_action': 'Send progress reminder',
+            'risk': 'watch',
+        },
+    ]
+
+    delay_trend = [
+        {'label': 'Oct', 'value': 8},
+        {'label': 'Nov', 'value': 10},
+        {'label': 'Dec', 'value': 11},
+        {'label': 'Jan', 'value': 12},
+        {'label': 'Feb', 'value': 10},
+        {'label': 'Mar', 'value': 12},
+    ]
+
+    spend_vs_budget = [
+        {'label': 'Oct', 'spent': 62, 'budget': 80},
+        {'label': 'Nov', 'spent': 69, 'budget': 80},
+        {'label': 'Dec', 'spent': 71, 'budget': 80},
+        {'label': 'Jan', 'spent': 74, 'budget': 80},
+        {'label': 'Feb', 'spent': 79, 'budget': 80},
+        {'label': 'Mar', 'spent': 83, 'budget': 80},
+    ]
+
+    health_distribution = [
+        {'label': 'On Track', 'value': 44, 'tone': 'good'},
+        {'label': 'At Risk', 'value': 29, 'tone': 'warning'},
+        {'label': 'Critical', 'value': 27, 'tone': 'danger'},
+    ]
+
+    context = {
+        'kpis': kpis,
+        'action_queue': action_queue,
+        'critical_projects': critical_projects,
+        'delay_trend': delay_trend,
+        'spend_vs_budget': spend_vs_budget,
+        'health_distribution': health_distribution,
+        'max_delay': max(item['value'] for item in delay_trend) if delay_trend else 1,
+        'max_spend_value': max([item['spent'] for item in spend_vs_budget] + [item['budget'] for item in spend_vs_budget]) if spend_vs_budget else 1,
+        'health_total': sum(item['value'] for item in health_distribution) if health_distribution else 1,
+    }
+    return render(request, 'monitoring/head_engineer_dashboard_preview.html', context)
+
+@login_required
+@prevent_project_engineer_access
 def dashboard(request):
     try:
-        print(f"Dashboard view accessed by user: {request.user.username}, authenticated: {request.user.is_authenticated}")
-        from projeng.models import Project, ProjectProgress
-        from django.utils import timezone
-        from django.db.models import Max
-        from collections import Counter, defaultdict
-        
-        # Role-based queryset
+        from datetime import date, timedelta
+        from django.db.models import Max, Sum
+        from django.urls import reverse
+        from projeng.models import (
+            BudgetRequest,
+            Notification,
+            Project,
+            ProjectCost,
+            ProjectProgress,
+        )
+
         if is_head_engineer(request.user) or is_finance_manager(request.user):
-            print(f"User {request.user.username} is head engineer or finance manager, showing all projects")
-            projects = Project.objects.all()
+            projects_qs = Project.objects.all().prefetch_related('assigned_engineers')
         elif is_project_engineer(request.user):
-            projects = Project.objects.filter(assigned_engineers=request.user)
+            projects_qs = Project.objects.filter(assigned_engineers=request.user).prefetch_related('assigned_engineers')
         else:
-            projects = Project.objects.none()
-        # Recent projects (5 most recent) - will attach computed status after we have latest_progress
-        recent_projects_qs = projects.order_by('-created_at')[:5]
-        
-        # Calculate metrics with dynamic delayed status
-        today = timezone.now().date()
-        project_count = projects.count()
-        
-        # Get latest progress for all projects
+            projects_qs = Project.objects.none()
+
+        projects = list(projects_qs)
         project_ids = [p.id for p in projects]
-        latest_progress = {}
+
         if project_ids:
-            latest_progress_qs = ProjectProgress.objects.filter(
-                project_id__in=project_ids
-            ).values('project_id').annotate(
-                latest_date=Max('date'),
-                latest_created=Max('created_at')
+            latest_progress_map, today = _compute_project_progress_map(Project.objects.filter(id__in=project_ids))
+        else:
+            latest_progress_map, today = {}, timezone.now().date()
+
+        latest_update_map = {}
+        if project_ids:
+            latest_update_rows = (
+                ProjectProgress.objects
+                .filter(project_id__in=project_ids)
+                .values('project_id')
+                .annotate(last_date=Max('date'))
             )
-            for item in latest_progress_qs:
-                latest = ProjectProgress.objects.filter(
-                    project_id=item['project_id'],
-                    date=item['latest_date'],
-                    created_at=item['latest_created']
-                ).order_by('-created_at').first()
-                if latest and latest.percentage_complete is not None:
-                    latest_progress[item['project_id']] = float(latest.percentage_complete)
-        
-        # Helper to standardize status logic across dashboards
-        def _compute_dynamic_status(project, progress_value):
-            """
-            Normalize a project's status.
-            New rule:
-              - Completed: progress >= 99
-              - Delayed: end date has passed AND progress < 99
-            """
-            status = (project.status or '').lower()
-            progress = float(progress_value or 0)
+            latest_update_map = {row['project_id']: row['last_date'] for row in latest_update_rows}
 
-            # Completed when progress >= 99
-            if progress >= 99:
-                return 'completed'
+        # Keep the two latest progress entries per project to detect stalled movement across cycles.
+        progress_pair_map = {}
+        if project_ids:
+            progress_rows = (
+                ProjectProgress.objects
+                .filter(project_id__in=project_ids)
+                .order_by('project_id', '-date', '-id')
+                .values('project_id', 'date', 'percentage_complete')
+            )
+            for row in progress_rows:
+                project_id = row['project_id']
+                pair = progress_pair_map.setdefault(project_id, [])
+                if len(pair) < 2:
+                    pair.append({
+                        'date': row['date'],
+                        'percentage_complete': float(row['percentage_complete'] or 0),
+                    })
 
-            # Delayed when end date has passed and progress is still below 99
-            if project.end_date and project.end_date < today and progress < 99:
-                return 'delayed'
+        stalled_project_flags = {}
+        for project_id, pair in progress_pair_map.items():
+            if len(pair) < 2:
+                stalled_project_flags[project_id] = False
+                continue
+            latest_entry = pair[0]
+            previous_entry = pair[1]
+            day_gap = (latest_entry['date'] - previous_entry['date']).days
+            pct_delta = abs(float(latest_entry['percentage_complete']) - float(previous_entry['percentage_complete']))
+            stalled_project_flags[project_id] = day_gap >= 15 and pct_delta < 0.01
 
-            # Explicit delayed status in DB (covers projects without end_date)
-            if status == 'delayed':
-                return 'delayed'
+        spent_map = {}
+        if project_ids:
+            spent_rows = (
+                ProjectCost.objects
+                .filter(project_id__in=project_ids)
+                .values('project_id')
+                .annotate(total=Sum('amount'))
+            )
+            spent_map = {row['project_id']: float(row['total'] or 0) for row in spent_rows}
 
-            if status in ['in_progress', 'ongoing']:
-                return 'in_progress'
-            if status in ['planned', 'pending']:
-                return 'planned'
+        status_counts = {
+            'completed': 0,
+            'in_progress': 0,
+            'planned': 0,
+            'delayed': 0,
+        }
+        health_counts = {
+            'on_track': 0,
+            'at_risk': 0,
+            'critical': 0,
+        }
+        map_projects = []
+        risk_rows = []
+        stale_15_30_count = 0
+        stale_over_30_count = 0
+        critical_delay_count = 0
+        stalled_projects_count = 0
+        due_soon_risk_count = 0
+        over_budget_110_count = 0
 
-            # Fallback: return raw status (or empty string)
-            return status
+        for project in projects:
+            progress = latest_progress_map.get(project.id)
+            if progress is None:
+                try:
+                    progress = float(getattr(project, 'progress', 0) or 0)
+                except (TypeError, ValueError):
+                    progress = 0.0
 
-        # Calculate status counts dynamically using the normalized status
-        completed_count = 0
-        in_progress_count = 0
-        planned_count = 0
-        delayed_count = 0
-        normalized_status_by_id = {}
+            normalized_status = _get_display_status(progress, project.end_date, project.status, today)
+            if normalized_status not in status_counts:
+                normalized_status = 'planned'
+            status_counts[normalized_status] += 1
 
-        for p in projects:
-            progress = latest_progress.get(p.id, 0)
-            normalized_status = _compute_dynamic_status(p, progress)
-            normalized_status_by_id[p.id] = normalized_status
+            spent = float(spent_map.get(project.id, 0))
+            budget = float(project.project_cost or 0)
+            budget_utilization = round((spent / budget) * 100, 1) if budget > 0 else 0.0
 
-            if normalized_status == 'completed':
-                completed_count += 1
-            elif normalized_status == 'in_progress':
-                in_progress_count += 1
-            elif normalized_status == 'planned':
-                planned_count += 1
-            elif normalized_status == 'delayed':
-                delayed_count += 1
+            if budget_utilization > 110:
+                over_budget_110_count += 1
 
-        # Build recent projects with computed status so template shows Delayed/Ongoing correctly
-        def _display_status(norm):
-            if norm == 'in_progress':
-                return 'Ongoing'
-            if norm == 'planned':
-                return 'Planned'
-            if norm == 'completed':
-                return 'Completed'
-            if norm == 'delayed':
-                return 'Delayed'
-            return (norm or '').title()
+            last_update_date = (
+                latest_update_map.get(project.id)
+                or getattr(project, 'last_update', None)
+                or (project.created_at.date() if getattr(project, 'created_at', None) else today)
+            )
+            stale_days = (today - last_update_date).days if last_update_date else 0
+            active_for_update_cycle = normalized_status in ('in_progress', 'delayed')
+            if active_for_update_cycle:
+                if stale_days > 30:
+                    stale_over_30_count += 1
+                elif stale_days >= 15:
+                    stale_15_30_count += 1
 
-        recent_projects = []
-        for p in recent_projects_qs:
-            norm = normalized_status_by_id.get(p.id, (p.status or '').lower())
-            recent_projects.append({
-                'id': p.id,
-                'name': p.name,
-                'barangay': p.barangay,
-                'created_at': p.created_at,
-                'status_display': _display_status(norm),
-                'status_normalized': norm,
+            stalled_project = bool(stalled_project_flags.get(project.id, False))
+            if stalled_project and active_for_update_cycle:
+                stalled_projects_count += 1
+
+            days_to_deadline = (project.end_date - today).days if project.end_date else None
+            delay_days = 0
+            if project.end_date and normalized_status == 'delayed' and project.end_date < today:
+                delay_days = (today - project.end_date).days
+
+            is_critical_delay = (
+                normalized_status == 'delayed'
+                and (
+                    delay_days >= 15
+                    or stale_days > 30
+                    or stalled_project
+                )
+            )
+            if is_critical_delay:
+                critical_delay_count += 1
+
+            due_soon_risk = (
+                days_to_deadline is not None
+                and 0 <= days_to_deadline <= 14
+                and float(progress or 0) < 90
+                and normalized_status in ('in_progress', 'planned')
+            )
+            if due_soon_risk:
+                due_soon_risk_count += 1
+
+            if normalized_status == 'delayed' or budget_utilization > 110:
+                health_bucket = 'critical'
+            elif budget_utilization >= 90 or stale_days >= 7 or due_soon_risk:
+                health_bucket = 'at_risk'
+            else:
+                health_bucket = 'on_track'
+            health_counts[health_bucket] += 1
+
+            risk_score = 0
+            if normalized_status == 'delayed':
+                risk_score += 60 + min(delay_days, 30)
+            if budget_utilization > 100:
+                risk_score += min(int((budget_utilization - 100) * 2), 40)
+            elif budget_utilization >= 90:
+                risk_score += 10
+            if stale_days > 7:
+                risk_score += min(stale_days - 7, 20)
+            if due_soon_risk:
+                risk_score += 12
+
+            if budget_utilization > 110:
+                next_action = 'Review budget escalation'
+            elif normalized_status == 'delayed' and delay_days > 14:
+                next_action = 'Issue recovery plan'
+            elif due_soon_risk:
+                next_action = 'Rebaseline schedule'
+            elif stale_days >= 7:
+                next_action = 'Request progress update'
+            else:
+                next_action = 'Monitor weekly'
+
+            assigned_engineers = [eng.get_full_name() or eng.username for eng in project.assigned_engineers.all()]
+            owner = assigned_engineers[0] if assigned_engineers else 'Unassigned'
+
+            risk_rows.append({
+                'id': project.id,
+                'name': project.name,
+                'owner': owner,
+                'status': normalized_status,
+                'delay_days': delay_days,
+                'budget_overrun_pct': round(max(0.0, budget_utilization - 100), 1),
+                'next_action': next_action,
+                'risk_score': risk_score,
+                'budget_utilization': budget_utilization,
+                'stale_days': stale_days,
+                'end_date': project.end_date,
             })
 
-        # Projects created per month (last 12 months)
-        from django.db.models import Count
-        from django.db.models.functions import TruncMonth
-        from datetime import timedelta
+            if project.latitude is not None and project.longitude is not None:
+                try:
+                    lat = float(project.latitude)
+                    lng = float(project.longitude)
+                except (TypeError, ValueError):
+                    continue
+                if abs(lat) > 90 or abs(lng) > 180:
+                    continue
+                map_projects.append({
+                    'id': project.id,
+                    'name': project.name,
+                    'barangay': project.barangay or '',
+                    'latitude': lat,
+                    'longitude': lng,
+                    'status': normalized_status,
+                    'progress': round(float(progress or 0), 1),
+                    'budget_utilization': budget_utilization,
+                    'detail_url': reverse('monitoring_project_detail', args=[project.id]),
+                })
 
-        twelve_months_ago = timezone.now() - timedelta(days=365)
-        created_by_month_qs = (
-            projects.filter(created_at__gte=twelve_months_ago)
-            .annotate(month=TruncMonth('created_at'))
-            .values('month')
-            .annotate(total=Count('id'))
-            .order_by('month')
+        total_projects = len(projects)
+        total_budget = sum(float(project.project_cost or 0) for project in projects)
+        total_spent = sum(spent_map.get(project.id, 0.0) for project in projects)
+        overall_budget_utilization = round((total_spent / total_budget) * 100, 1) if total_budget > 0 else 0.0
+
+        week_start = today - timedelta(days=7)
+        prev_week_start = today - timedelta(days=14)
+
+        new_projects_this_week = sum(
+            1 for project in projects
+            if getattr(project, 'created_at', None) and project.created_at.date() >= week_start
         )
-        projects_created_labels = [row['month'].strftime('%b %Y') for row in created_by_month_qs if row.get('month')]
-        projects_created_counts = [int(row['total']) for row in created_by_month_qs]
-        if not projects_created_labels:
-            projects_created_labels = ['No Data']
-            projects_created_counts = [0]
 
-        # Collaborative analytics
-        collab_by_barangay = defaultdict(int)
-        collab_by_status = defaultdict(int)
-        for p in projects:
-            if p.barangay and isinstance(p.barangay, str) and p.barangay.strip():
-                collab_by_barangay[p.barangay.strip()] += 1
+        completed_this_week = 0
+        if project_ids:
+            completed_this_week = (
+                ProjectProgress.objects
+                .filter(project_id__in=project_ids, date__gte=week_start, percentage_complete__gte=99)
+                .values('project_id')
+                .distinct()
+                .count()
+            )
 
-            # Use the same normalized status used for the metric cards so
-            # the "Projects per Status" chart matches the header counts.
-            normalized_status = normalized_status_by_id.get(p.id)
-            if normalized_status:
-                display_status = (
-                    'Ongoing' if normalized_status == 'in_progress' else
-                    'Planned' if normalized_status == 'planned' else
-                    'Completed' if normalized_status == 'completed' else
-                    'Delayed' if normalized_status == 'delayed' else
-                    normalized_status.title()
-                )
-                collab_by_status[display_status] += 1
-        # Sort keys for consistent chart order
-        collab_by_barangay = {k: collab_by_barangay[k] for k in sorted(collab_by_barangay.keys())}
-        collab_by_status = {k: collab_by_status[k] for k in sorted(collab_by_status.keys())}
+        ongoing_project_ids = [row['id'] for row in risk_rows if row['status'] == 'in_progress']
+        ongoing_updated_this_week = 0
+        if ongoing_project_ids:
+            ongoing_updated_this_week = (
+                ProjectProgress.objects
+                .filter(project_id__in=ongoing_project_ids, date__gte=week_start)
+                .values('project_id')
+                .distinct()
+                .count()
+            )
 
-        # Completion rate: default (all projects)
-        completion_rate = 0.0
-        if project_count > 0:
-            completion_rate = (completed_count / project_count) * 100
-        completion_rate_year = None
-        available_years = []
+        newly_delayed_this_week = sum(
+            1 for row in risk_rows
+            if row['status'] == 'delayed' and row['end_date'] and week_start <= row['end_date'] <= today
+        )
 
-        # Year filter for completion rate only (Quick Stats)
-        try:
-            available_years = [
-                d.year for d in
-                projects.dates('created_at', 'year', order='DESC')
-            ]
-        except Exception:
-            pass
-        year_param = (request.GET.get('year') or '').strip()
-        if year_param and year_param.isdigit():
-            y = int(year_param)
-            if y >= 2000 and y <= 2100 and y in available_years:
-                completion_rate_year = y
-                projects_in_year = projects.filter(created_at__year=y)
-                total_in_year = projects_in_year.count()
-                completed_in_year = 0
-                if total_in_year > 0:
-                    for p in projects_in_year:
-                        progress = latest_progress.get(p.id, 0)
-                        if _compute_dynamic_status(p, progress) == 'completed':
-                            completed_in_year += 1
-                    completion_rate = (completed_in_year / total_in_year) * 100
-                else:
-                    completion_rate = 0.0
-        completion_rate = round(completion_rate, 1)
+        kpi_cards = [
+            {
+                'label': 'Total Projects',
+                'value': total_projects,
+                'tone': 'info',
+                'trend': f'+{new_projects_this_week} this week' if new_projects_this_week else 'No new projects this week',
+                'trend_tone': 'neutral',
+            },
+            {
+                'label': 'Completed Projects',
+                'value': status_counts['completed'],
+                'tone': 'good',
+                'trend': f'+{completed_this_week} this week' if completed_this_week else 'No new completions this week',
+                'trend_tone': 'good' if completed_this_week else 'neutral',
+            },
+            {
+                'label': 'In Progress Projects',
+                'value': status_counts['in_progress'],
+                'tone': 'warning',
+                'trend': f'{ongoing_updated_this_week} updated this week',
+                'trend_tone': 'neutral',
+            },
+            {
+                'label': 'Planned Projects',
+                'value': status_counts['planned'],
+                'tone': 'info',
+                'trend': 'Queued for implementation',
+                'trend_tone': 'neutral',
+            },
+            {
+                'label': 'Delayed Projects',
+                'value': status_counts['delayed'],
+                'tone': 'danger',
+                'trend': f'+{newly_delayed_this_week} new this week' if newly_delayed_this_week else 'No new delays this week',
+                'trend_tone': 'danger' if newly_delayed_this_week else 'good',
+            },
+        ]
+
+        action_queue_items = [
+            {'label': 'Critical delays', 'value': critical_delay_count},
+            {'label': 'No update >30 days', 'value': stale_over_30_count},
+            {'label': 'Last update 15-30 days', 'value': stale_15_30_count},
+            {'label': 'Stalled projects', 'value': stalled_projects_count},
+        ]
+
+        def _month_start(day_obj):
+            return day_obj.replace(day=1)
+
+        def _shift_month(day_obj, offset):
+            year = day_obj.year + (day_obj.month - 1 + offset) // 12
+            month = (day_obj.month - 1 + offset) % 12 + 1
+            return date(year, month, 1)
+
+        current_month_start = _month_start(today)
+        month_starts = [_shift_month(current_month_start, offset) for offset in range(-5, 1)]
+        month_keys = [f'{item.year:04d}-{item.month:02d}' for item in month_starts]
+        month_labels = [item.strftime('%b') for item in month_starts]
+
+        delay_trend = []
+        for month_start in month_starts:
+            month_end = _shift_month(month_start, 1) - timedelta(days=1)
+            delayed_in_month = 0
+            for project in projects:
+                progress = latest_progress_map.get(project.id)
+                if progress is None:
+                    try:
+                        progress = float(getattr(project, 'progress', 0) or 0)
+                    except (TypeError, ValueError):
+                        progress = 0.0
+                if project.end_date and month_start <= project.end_date <= month_end and progress < 99:
+                    delayed_in_month += 1
+            delay_trend.append({'label': month_start.strftime('%b'), 'value': delayed_in_month})
+
+        actual_by_month = {key: 0.0 for key in month_keys}
+        budget_by_month = {key: 0.0 for key in month_keys}
+        period_start = month_starts[0]
+        period_end_exclusive = _shift_month(month_starts[-1], 1)
+
+        if project_ids:
+            monthly_cost_rows = (
+                ProjectCost.objects
+                .filter(project_id__in=project_ids, date__gte=period_start, date__lt=period_end_exclusive)
+                .values('date', 'amount')
+            )
+            for row in monthly_cost_rows:
+                d = row['date']
+                key = f'{d.year:04d}-{d.month:02d}'
+                if key in actual_by_month:
+                    actual_by_month[key] += float(row['amount'] or 0)
+
+        for project in projects:
+            budget_val = float(project.project_cost or 0)
+            if budget_val <= 0:
+                continue
+            reference_date = project.start_date or (project.created_at.date() if getattr(project, 'created_at', None) else None)
+            if not reference_date:
+                continue
+            key = f'{reference_date.year:04d}-{reference_date.month:02d}'
+            if key in budget_by_month:
+                budget_by_month[key] += budget_val
+
+        budget_vs_actual = []
+        for idx, month_key in enumerate(month_keys):
+            budget_vs_actual.append({
+                'label': month_labels[idx],
+                'budget': round(budget_by_month.get(month_key, 0.0), 2),
+                'actual': round(actual_by_month.get(month_key, 0.0), 2),
+            })
+
+        health_breakdown = [
+            {'label': 'On Track', 'value': health_counts['on_track']},
+            {'label': 'At Risk', 'value': health_counts['at_risk']},
+            {'label': 'Critical', 'value': health_counts['critical']},
+        ]
+
+        top_risk_projects = sorted(risk_rows, key=lambda row: row['risk_score'], reverse=True)[:5]
+
+        key_insights = []
+        if stale_over_30_count > 0:
+            key_insights.append(f'{stale_over_30_count} projects breached the 30-day update cycle.')
+        if stale_15_30_count > 0:
+            key_insights.append(f'{stale_15_30_count} projects are in the 15-30 day update watch window.')
+        if critical_delay_count > 0:
+            key_insights.append(f'{critical_delay_count} delayed projects need immediate intervention.')
+        if stalled_projects_count > 0:
+            key_insights.append(f'{stalled_projects_count} projects show no progress movement across update cycles.')
+        if not key_insights:
+            key_insights.append('All active projects are within the 30-day update cycle.')
 
         context = {
-            'recent_projects': recent_projects,
-            'project_count': project_count,
-            'completed_count': completed_count,
-            'in_progress_count': in_progress_count,
-            'planned_count': planned_count,
-            'delayed_count': delayed_count,
-            'status_counts': [completed_count, in_progress_count, planned_count, delayed_count],
-            'completion_rate': completion_rate,
-            'completion_rate_year': completion_rate_year,
-            'available_years': available_years,
-            'collab_by_barangay': dict(collab_by_barangay),
-            'collab_by_status': dict(collab_by_status),
-            'projects_created_labels': projects_created_labels,
-            'projects_created_counts': projects_created_counts,
+            'kpi_cards': kpi_cards,
+            'action_queue_items': action_queue_items,
+            'map_projects': map_projects,
+            'delay_trend': delay_trend,
+            'budget_vs_actual': budget_vs_actual,
+            'health_breakdown': health_breakdown,
+            'top_risk_projects': top_risk_projects,
+            'key_insights': key_insights[:5],
+            'last_refreshed': timezone.now(),
         }
         return render(request, 'monitoring/dashboard.html', context)
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f'Error in dashboard view: {str(e)}', exc_info=True)
+        logger.error('Error in dashboard view: %s', str(e), exc_info=True)
         from django.http import HttpResponseServerError
-        return HttpResponseServerError(f'Server Error: {str(e)}')
+        return HttpResponseServerError('Unable to load dashboard data right now.')
 
 @login_required
 @prevent_project_engineer_access
@@ -2365,6 +2668,212 @@ def budget_reports_chart_data_api(request):
 
 @login_required
 @head_engineer_required
+def project_create_api(request):
+    from decimal import Decimal, InvalidOperation
+    from django.contrib.auth import get_user_model
+    from django.db import IntegrityError
+    from projeng.models import ProjectType, SourceOfFunds
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+    try:
+        if request.content_type and 'application/json' in request.content_type:
+            payload = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            payload = request.POST
+    except Exception:
+        payload = request.POST
+
+    def _get_value(key, default=''):
+        value = payload.get(key, default) if hasattr(payload, 'get') else default
+        return '' if value is None else str(value).strip()
+
+    def _get_list_value(key):
+        if hasattr(payload, 'getlist'):
+            return payload.getlist(key)
+        if not hasattr(payload, 'get'):
+            return []
+        value = payload.get(key, [])
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        return [value]
+
+    def _parse_coordinate(raw, field_name, minimum, maximum, errors):
+        if not raw:
+            return None
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            errors[field_name] = f'{field_name.replace("_", " ").title()} must be a valid number.'
+            return None
+        if value < minimum or value > maximum:
+            errors[field_name] = f'{field_name.replace("_", " ").title()} must be between {minimum} and {maximum}.'
+            return None
+        return value
+
+    def _parse_date(raw, field_name, errors):
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, '%Y-%m-%d').date()
+        except ValueError:
+            errors[field_name] = 'Invalid date format. Use YYYY-MM-DD.'
+            return None
+
+    errors = {}
+
+    prn = _get_value('prn')
+    name = _get_value('name')
+    description = _get_value('description')
+    barangay = _get_value('barangay')
+    source_of_funds = _get_value('source_of_funds')
+    status = _get_value('status', 'planned')
+    day_count_type = _get_value('day_count_type', 'working_days')
+    cost_raw = _get_value('project_cost')
+    start_date_raw = _get_value('start_date')
+    end_date_raw = _get_value('end_date')
+    project_type_raw = _get_value('project_type')
+    latitude_raw = _get_value('latitude')
+    longitude_raw = _get_value('longitude')
+    assigned_engineers_provided = ('assigned_engineer_ids' in payload) or ('assigned_engineers' in payload)
+    assigned_engineer_ids_raw = _get_list_value('assigned_engineer_ids')
+    if not assigned_engineer_ids_raw:
+        assigned_engineer_ids_raw = _get_list_value('assigned_engineers')
+
+    if not prn:
+        errors['prn'] = 'PRN is required.'
+    if not name:
+        errors['name'] = 'Project name is required.'
+    if not barangay:
+        errors['barangay'] = 'Barangay is required.'
+
+    allowed_statuses = {'planned', 'in_progress', 'completed', 'delayed', 'cancelled'}
+    if status not in allowed_statuses:
+        errors['status'] = 'Invalid status selected.'
+
+    if day_count_type not in {'working_days', 'calendar_days'}:
+        errors['day_count_type'] = 'Invalid day count type selected.'
+
+    project_cost = None
+    if cost_raw:
+        try:
+            project_cost = Decimal(cost_raw)
+        except (InvalidOperation, ValueError):
+            errors['project_cost'] = 'Project cost must be a valid number.'
+
+    start_date = _parse_date(start_date_raw, 'start_date', errors)
+    end_date = _parse_date(end_date_raw, 'end_date', errors)
+    latitude = _parse_coordinate(latitude_raw, 'latitude', -90, 90, errors)
+    longitude = _parse_coordinate(longitude_raw, 'longitude', -180, 180, errors)
+
+    if bool(latitude_raw) != bool(longitude_raw):
+        errors['location'] = 'Provide both latitude and longitude, or leave both blank.'
+
+    assigned_engineer_ids = []
+    for engineer_id_raw in assigned_engineer_ids_raw:
+        normalized_id = str(engineer_id_raw).strip()
+        if not normalized_id:
+            continue
+        try:
+            assigned_engineer_ids.append(int(normalized_id))
+        except (TypeError, ValueError):
+            errors['assigned_engineers'] = 'One or more selected engineers are invalid.'
+            break
+    assigned_engineer_ids = list(dict.fromkeys(assigned_engineer_ids))
+
+    selected_engineers = None
+    if assigned_engineers_provided:
+        if not assigned_engineer_ids:
+            errors['assigned_engineers'] = 'Please assign at least one engineer.'
+        else:
+            UserModel = get_user_model()
+            selected_engineers = UserModel.objects.filter(id__in=assigned_engineer_ids)
+            project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
+            if project_engineer_group is not None:
+                selected_engineers = selected_engineers.filter(groups=project_engineer_group)
+
+            found_ids = set(selected_engineers.values_list('id', flat=True))
+            missing_ids = [eng_id for eng_id in assigned_engineer_ids if eng_id not in found_ids]
+            if missing_ids:
+                errors['assigned_engineers'] = 'One or more selected engineers are invalid.'
+
+    if status in {'in_progress'} and not start_date:
+        errors['start_date'] = 'Start date is required when status is In Progress.'
+    if status in {'completed', 'delayed'}:
+        if not start_date:
+            errors['start_date'] = 'Start date is required when status is Completed or Delayed.'
+        if not end_date:
+            errors['end_date'] = 'End date is required when status is Completed or Delayed.'
+    if start_date and end_date and end_date < start_date:
+        errors['end_date'] = 'End date cannot be earlier than start date.'
+
+    project_type = None
+    if project_type_raw:
+        try:
+            project_type = ProjectType.objects.filter(pk=int(project_type_raw)).first()
+            if project_type is None:
+                errors['project_type'] = 'Selected project type was not found.'
+        except (TypeError, ValueError):
+            errors['project_type'] = 'Invalid project type selected.'
+
+    if errors:
+        return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+    if source_of_funds:
+        existing_sof = SourceOfFunds.objects.filter(name__iexact=source_of_funds).first()
+        if not existing_sof:
+            SourceOfFunds.objects.create(name=source_of_funds)
+
+    project = Project(
+        prn=prn,
+        name=name,
+        description=description,
+        barangay=barangay,
+        latitude=latitude,
+        longitude=longitude,
+        project_cost=project_cost,
+        source_of_funds=source_of_funds or None,
+        status=status,
+        start_date=start_date,
+        end_date=end_date,
+        day_count_type=day_count_type,
+        project_type=project_type,
+        created_by=request.user,
+    )
+
+    try:
+        project.save()
+        if selected_engineers is not None:
+            project.assigned_engineers.set(selected_engineers)
+    except IntegrityError:
+        return JsonResponse(
+            {'success': False, 'errors': {'prn': 'This PRN is already used by another project.'}},
+            status=400,
+        )
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Project created successfully.',
+        'project': {
+            'id': project.id,
+            'name': project.name,
+            'prn': project.prn,
+            'status': project.status,
+            'barangay': project.barangay,
+            'latitude': project.latitude,
+            'longitude': project.longitude,
+            'assigned_engineer_ids': list(project.assigned_engineers.values_list('id', flat=True)),
+        }
+    })
+
+
+@login_required
+@head_engineer_required
 def project_get_api(request, pk):
     """Get a single project's data as JSON for editing"""
     from django.http import JsonResponse
@@ -2415,6 +2924,7 @@ def project_get_api(request, pk):
             'total_spent': f"{total_spent:.2f}",
             'remaining_funds': f"{remaining_funds:.2f}" if remaining_funds is not None else '',
             'source_of_funds': project.source_of_funds or '',
+            'project_type_id': project.project_type_id if project.project_type_id else '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
             'day_count_type': project.day_count_type or 'working_days',
@@ -2433,8 +2943,212 @@ def project_get_api(request, pk):
         logger.error(f"Error getting project {pk}: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+@login_required
+@head_engineer_required
 def project_update_api(request, pk):
-    return HttpResponse("project_update_api placeholder")
+    from decimal import Decimal, InvalidOperation
+    from django.contrib.auth import get_user_model
+    from django.db import IntegrityError
+    from projeng.models import ProjectType, SourceOfFunds
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+    project = get_object_or_404(Project, pk=pk)
+
+    # Accept JSON payloads from in-page modals, with POST fallback.
+    try:
+        if request.content_type and 'application/json' in request.content_type:
+            payload = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            payload = request.POST
+    except Exception:
+        payload = request.POST
+
+    def _get_value(key, default=''):
+        value = payload.get(key, default) if hasattr(payload, 'get') else default
+        return '' if value is None else str(value).strip()
+
+    def _get_list_value(key):
+        if hasattr(payload, 'getlist'):
+            return payload.getlist(key)
+        if not hasattr(payload, 'get'):
+            return []
+        value = payload.get(key, [])
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        return [value]
+
+    def _parse_coordinate(raw, field_name, minimum, maximum, errors):
+        if not raw:
+            return None
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            errors[field_name] = f'{field_name.replace("_", " ").title()} must be a valid number.'
+            return None
+        if value < minimum or value > maximum:
+            errors[field_name] = f'{field_name.replace("_", " ").title()} must be between {minimum} and {maximum}.'
+            return None
+        return value
+
+    def _parse_date(raw, field_name, errors):
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, '%Y-%m-%d').date()
+        except ValueError:
+            errors[field_name] = 'Invalid date format. Use YYYY-MM-DD.'
+            return None
+
+    errors = {}
+
+    prn = _get_value('prn', project.prn or '')
+    name = _get_value('name', project.name or '')
+    description = _get_value('description', project.description or '')
+    barangay = _get_value('barangay', project.barangay or '')
+    source_of_funds = _get_value('source_of_funds', project.source_of_funds or '')
+    status = _get_value('status', project.status or 'planned')
+    day_count_type = _get_value('day_count_type', project.day_count_type or 'working_days')
+    cost_raw = _get_value('project_cost', project.project_cost if project.project_cost is not None else '')
+    start_date_raw = _get_value('start_date', project.start_date if project.start_date else '')
+    end_date_raw = _get_value('end_date', project.end_date if project.end_date else '')
+    project_type_raw = _get_value('project_type', project.project_type_id if project.project_type_id else '')
+    latitude_raw = _get_value('latitude', project.latitude if project.latitude is not None else '')
+    longitude_raw = _get_value('longitude', project.longitude if project.longitude is not None else '')
+    assigned_engineers_provided = ('assigned_engineer_ids' in payload) or ('assigned_engineers' in payload)
+    assigned_engineer_ids_raw = _get_list_value('assigned_engineer_ids')
+    if not assigned_engineer_ids_raw:
+        assigned_engineer_ids_raw = _get_list_value('assigned_engineers')
+
+    if not prn:
+        errors['prn'] = 'PRN is required.'
+    if not name:
+        errors['name'] = 'Project name is required.'
+    if not barangay:
+        errors['barangay'] = 'Barangay is required.'
+
+    allowed_statuses = {'planned', 'in_progress', 'completed', 'delayed', 'cancelled'}
+    if status not in allowed_statuses:
+        errors['status'] = 'Invalid status selected.'
+
+    if day_count_type not in {'working_days', 'calendar_days'}:
+        errors['day_count_type'] = 'Invalid day count type selected.'
+
+    project_cost = None
+    if cost_raw:
+        try:
+            project_cost = Decimal(cost_raw)
+        except (InvalidOperation, ValueError):
+            errors['project_cost'] = 'Project cost must be a valid number.'
+
+    start_date = _parse_date(start_date_raw, 'start_date', errors)
+    end_date = _parse_date(end_date_raw, 'end_date', errors)
+    latitude = _parse_coordinate(latitude_raw, 'latitude', -90, 90, errors)
+    longitude = _parse_coordinate(longitude_raw, 'longitude', -180, 180, errors)
+
+    if bool(latitude_raw) != bool(longitude_raw):
+        errors['location'] = 'Provide both latitude and longitude, or leave both blank.'
+
+    assigned_engineer_ids = []
+    for engineer_id_raw in assigned_engineer_ids_raw:
+        normalized_id = str(engineer_id_raw).strip()
+        if not normalized_id:
+            continue
+        try:
+            assigned_engineer_ids.append(int(normalized_id))
+        except (TypeError, ValueError):
+            errors['assigned_engineers'] = 'One or more selected engineers are invalid.'
+            break
+    assigned_engineer_ids = list(dict.fromkeys(assigned_engineer_ids))
+
+    selected_engineers = None
+    if assigned_engineers_provided:
+        if not assigned_engineer_ids:
+            errors['assigned_engineers'] = 'Please assign at least one engineer.'
+        else:
+            UserModel = get_user_model()
+            selected_engineers = UserModel.objects.filter(id__in=assigned_engineer_ids)
+            project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
+            if project_engineer_group is not None:
+                selected_engineers = selected_engineers.filter(groups=project_engineer_group)
+
+            found_ids = set(selected_engineers.values_list('id', flat=True))
+            missing_ids = [eng_id for eng_id in assigned_engineer_ids if eng_id not in found_ids]
+            if missing_ids:
+                errors['assigned_engineers'] = 'One or more selected engineers are invalid.'
+
+    # Keep validation behavior aligned with ProjectForm rules.
+    if status in {'in_progress'} and not start_date:
+        errors['start_date'] = 'Start date is required when status is In Progress.'
+    if status in {'completed', 'delayed'}:
+        if not start_date:
+            errors['start_date'] = 'Start date is required when status is Completed or Delayed.'
+        if not end_date:
+            errors['end_date'] = 'End date is required when status is Completed or Delayed.'
+    if start_date and end_date and end_date < start_date:
+        errors['end_date'] = 'End date cannot be earlier than start date.'
+
+    project_type = None
+    if project_type_raw:
+        try:
+            project_type = ProjectType.objects.filter(pk=int(project_type_raw)).first()
+            if project_type is None:
+                errors['project_type'] = 'Selected project type was not found.'
+        except (TypeError, ValueError):
+            errors['project_type'] = 'Invalid project type selected.'
+
+    if errors:
+        return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+    # Persist source of funds in master list for consistent filter dropdown behavior.
+    if source_of_funds:
+        existing_sof = SourceOfFunds.objects.filter(name__iexact=source_of_funds).first()
+        if not existing_sof:
+            SourceOfFunds.objects.create(name=source_of_funds)
+
+    project.prn = prn
+    project.name = name
+    project.description = description
+    project.barangay = barangay
+    project.latitude = latitude
+    project.longitude = longitude
+    project.project_cost = project_cost
+    project.source_of_funds = source_of_funds or None
+    project.status = status
+    project.start_date = start_date
+    project.end_date = end_date
+    project.day_count_type = day_count_type
+    project.project_type = project_type
+
+    try:
+        project.save()
+        if selected_engineers is not None:
+            project.assigned_engineers.set(selected_engineers)
+    except IntegrityError:
+        return JsonResponse(
+            {'success': False, 'errors': {'prn': 'This PRN is already used by another project.'}},
+            status=400,
+        )
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Project updated successfully.',
+        'project': {
+            'id': project.id,
+            'name': project.name,
+            'prn': project.prn,
+            'status': project.status,
+            'barangay': project.barangay,
+            'latitude': project.latitude,
+            'longitude': project.longitude,
+            'assigned_engineer_ids': list(project.assigned_engineers.values_list('id', flat=True)),
+        }
+    })
 
 @login_required
 @head_engineer_required
@@ -3537,6 +4251,7 @@ def head_engineer_project_detail(request, pk):
 @login_required
 @head_engineer_required
 def head_dashboard_card_data_api(request):
+    from django.db.models import Max
     from projeng.models import Notification
 
     projects = list(Project.objects.all())
@@ -3548,28 +4263,57 @@ def head_dashboard_card_data_api(request):
     if project_ids:
         latest_progress_map, today = _compute_project_progress_map(Project.objects.filter(id__in=project_ids))
 
+    latest_update_map = {}
+    if project_ids:
+        latest_update_rows = (
+            ProjectProgress.objects
+            .filter(project_id__in=project_ids)
+            .values('project_id')
+            .annotate(last_date=Max('date'))
+        )
+        latest_update_map = {row['project_id']: row['last_date'] for row in latest_update_rows}
+
+    progress_pair_map = {}
+    if project_ids:
+        progress_rows = (
+            ProjectProgress.objects
+            .filter(project_id__in=project_ids)
+            .order_by('project_id', '-date', '-id')
+            .values('project_id', 'date', 'percentage_complete')
+        )
+        for row in progress_rows:
+            project_id = row['project_id']
+            pair = progress_pair_map.setdefault(project_id, [])
+            if len(pair) < 2:
+                pair.append({
+                    'date': row['date'],
+                    'percentage_complete': float(row['percentage_complete'] or 0),
+                })
+
+    stalled_project_flags = {}
+    for project_id, pair in progress_pair_map.items():
+        if len(pair) < 2:
+            stalled_project_flags[project_id] = False
+            continue
+        latest_entry = pair[0]
+        previous_entry = pair[1]
+        day_gap = (latest_entry['date'] - previous_entry['date']).days
+        pct_delta = abs(float(latest_entry['percentage_complete']) - float(previous_entry['percentage_complete']))
+        stalled_project_flags[project_id] = day_gap >= 15 and pct_delta < 0.01
+
     completed_count = 0
     in_progress_count = 0
     planned_count = 0
     delayed_count = 0
+    stale_15_30_count = 0
+    stale_over_30_count = 0
+    critical_delay_count = 0
+    stalled_projects_count = 0
 
     for p in projects:
         progress_val = latest_progress_map.get(p.id, float(p.progress or 0))
-        status = (p.status or '').lower()
-
-        if progress_val >= 99:
-            normalized = 'completed'
-        elif p.end_date and p.end_date < today and progress_val < 99:
-            normalized = 'delayed'
-        elif status in ['in_progress', 'ongoing']:
-            normalized = 'in_progress'
-        elif status in ['planned', 'pending']:
-            normalized = 'planned'
-        elif status == 'delayed':
-            normalized = 'delayed'
-        elif status == 'completed':
-            normalized = 'completed'
-        else:
+        normalized = _get_display_status(progress_val, p.end_date, p.status, today)
+        if normalized not in ('completed', 'in_progress', 'planned', 'delayed'):
             normalized = 'planned'
 
         if normalized == 'completed':
@@ -3581,8 +4325,56 @@ def head_dashboard_card_data_api(request):
         elif normalized == 'delayed':
             delayed_count += 1
 
+        last_update_date = (
+            latest_update_map.get(p.id)
+            or getattr(p, 'last_update', None)
+            or (p.created_at.date() if getattr(p, 'created_at', None) else today)
+        )
+        stale_days = (today - last_update_date).days if last_update_date else 0
+        active_for_update_cycle = normalized in ('in_progress', 'delayed')
+        if active_for_update_cycle:
+            if stale_days > 30:
+                stale_over_30_count += 1
+            elif stale_days >= 15:
+                stale_15_30_count += 1
+
+        stalled_project = bool(stalled_project_flags.get(p.id, False))
+        if stalled_project and active_for_update_cycle:
+            stalled_projects_count += 1
+
+        delay_days = 0
+        if p.end_date and normalized == 'delayed' and p.end_date < today:
+            delay_days = (today - p.end_date).days
+        is_critical_delay = (
+            normalized == 'delayed'
+            and (
+                delay_days >= 15
+                or stale_days > 30
+                or stalled_project
+            )
+        )
+        if is_critical_delay:
+            critical_delay_count += 1
+
     completion_rate = round((completed_count / project_count) * 100, 1) if project_count else 0.0
     unread_notifications = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    action_queue_items = [
+        {'label': 'Critical delays', 'value': critical_delay_count},
+        {'label': 'No update >30 days', 'value': stale_over_30_count},
+        {'label': 'Last update 15-30 days', 'value': stale_15_30_count},
+        {'label': 'Stalled projects', 'value': stalled_projects_count},
+    ]
+    key_insights = []
+    if stale_over_30_count > 0:
+        key_insights.append(f'{stale_over_30_count} projects breached the 30-day update cycle.')
+    if stale_15_30_count > 0:
+        key_insights.append(f'{stale_15_30_count} projects are in the 15-30 day update watch window.')
+    if critical_delay_count > 0:
+        key_insights.append(f'{critical_delay_count} delayed projects need immediate intervention.')
+    if stalled_projects_count > 0:
+        key_insights.append(f'{stalled_projects_count} projects show no progress movement across update cycles.')
+    if not key_insights:
+        key_insights.append('All active projects are within the 30-day update cycle.')
 
     return JsonResponse({
         'project_count': project_count,
@@ -3592,6 +4384,9 @@ def head_dashboard_card_data_api(request):
         'delayed_count': delayed_count,
         'completion_rate': completion_rate,
         'unread_notifications': unread_notifications,
+        'action_queue_items': action_queue_items,
+        'key_insights': key_insights[:5],
+        'last_refreshed': timezone.now().isoformat(),
     })
 
 @cache_page(60 * 60)

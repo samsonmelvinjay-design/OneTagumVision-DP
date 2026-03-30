@@ -15,97 +15,52 @@
     <div class="mx-auto max-w-screen-2xl px-4 py-6 lg:px-6">
         <!-- Page Header -->
         <div class="mb-6">
-            <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                {% if user_role == 'project_engineer' %}
-                    My Projects Analytics
-                {% else %}
-                    All Projects Analytics
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                        {% if user_role == 'project_engineer' %}
+                            My Projects Analytics
+                        {% else %}
+                            All Projects Analytics
+                        {% endif %}
+                    </h1>
+                    <p class="text-gray-600 text-sm lg:text-base">
+                        {% if user_role == 'project_engineer' %}
+                            Track and manage your assigned projects
+                        {% else %}
+                            Monitor and analyze all projects across the system
+                        {% endif %}
+                    </p>
+                </div>
+                {% if user_role == 'head_engineer' %}
+                <button type="button" onclick="openAddProjectModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg shadow-sm transition-all duration-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Project
+                </button>
                 {% endif %}
-            </h1>
-            <p class="text-gray-600 text-sm lg:text-base">
-                {% if user_role == 'project_engineer' %}
-                    Track and manage your assigned projects
-                {% else %}
-                    Monitor and analyze all projects across the system
-                {% endif %}
-            </p>
-        </div>
-
-        <!-- Stats Cards - Modern Gradient Design -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6">
-            <div id="card-all" class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if not status_filter %}active{% endif %}" onclick="filterByStatus('all', this)">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-2xl font-bold mb-1">{{ total_projects }}</div>
-                <div class="text-blue-100 text-xs font-medium">Total Projects</div>
-            </div>
-            
-            <div id="card-completed" class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if status_filter == 'completed' %}active{% endif %}" onclick="filterByStatus('completed', this)">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-2xl font-bold mb-1">{{ completed_projects }}</div>
-                <div class="text-green-100 text-xs font-medium">Completed</div>
-            </div>
-            
-            <div id="card-inprogress" class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if status_filter == 'in_progress' %}active{% endif %}" onclick="filterByStatus('in_progress', this)">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-2xl font-bold mb-1">{{ ongoing_projects }}</div>
-                <div class="text-yellow-100 text-xs font-medium">In Progress</div>
-            </div>
-            
-            <div id="card-planned" class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if status_filter == 'planned' %}active{% endif %}" onclick="filterByStatus('planned', this)">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-2xl font-bold mb-1">{{ planned_projects }}</div>
-                <div class="text-purple-100 text-xs font-medium">Planned</div>
-            </div>
-            
-            <div id="card-delayed" class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md p-4 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer {% if status_filter == 'delayed' %}active{% endif %}" onclick="filterByStatus('delayed', this)">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="bg-white bg-opacity-20 rounded-lg p-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div class="text-2xl font-bold mb-1">{{ delayed_projects }}</div>
-                <div class="text-red-100 text-xs font-medium">Delayed</div>
             </div>
         </div>
 
         <!-- Projects Table Card -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+                <div class="space-y-3">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                         </svg>
                         Projects List
                     </h2>
-                    <form id="filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 w-full">
-                        <div class="lg:col-span-2">
+                    <form id="filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3 w-full">
+                        <div>
+                            <label for="filter-search-prn" class="block text-xs font-semibold text-gray-600 mb-1">PRN</label>
+                            <input id="filter-search-prn" name="search" type="text" value="{{ search_query }}" placeholder="Search PRN"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all" />
+                        </div>
+
+                        <div>
                             <label for="filter-barangay" class="block text-xs font-semibold text-gray-600 mb-1">Barangay</label>
                             <select id="filter-barangay" name="barangay" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not barangay_filter %}selected{% endif %}>All Barangays</option>
@@ -135,7 +90,7 @@
                             </select>
                         </div>
 
-                        <div class="lg:col-span-2">
+                        <div>
                             <label for="filter-status" class="block text-xs font-semibold text-gray-600 mb-1">Status</label>
                             <select id="filter-status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
@@ -146,7 +101,7 @@
                             </select>
                         </div>
 
-                        <div class="lg:col-span-2">
+                        <div>
                             <label for="filter-duration" class="block text-xs font-semibold text-gray-600 mb-1">Duration</label>
                             <select id="filter-duration" name="duration" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not duration_filter %}selected{% endif %}>All Durations</option>
@@ -156,7 +111,7 @@
                             </select>
                         </div>
 
-                        <div class="lg:col-span-2">
+                        <div>
                             <label for="filter-source-of-funds" class="block text-xs font-semibold text-gray-600 mb-1">Source of Funds</label>
                             <select id="filter-source-of-funds" name="source_of_funds" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not source_of_funds_filter %}selected{% endif %}>All Sources</option>
@@ -166,7 +121,7 @@
                             </select>
                         </div>
 
-                        <div class="lg:col-span-2">
+                        <div>
                             <label for="filter-project-type" class="block text-xs font-semibold text-gray-600 mb-1">Project Type</label>
                             <select id="filter-project-type" name="project_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all">
                                 <option value="" {% if not project_type_filter %}selected{% endif %}>All Types</option>
@@ -176,13 +131,13 @@
                             </select>
                         </div>
 
-                        <div class="lg:col-span-1">
+                        <div>
                             <label for="filter-cost-min" class="block text-xs font-semibold text-gray-600 mb-1">Cost Min</label>
                             <input id="filter-cost-min" name="cost_min" type="number" step="0.01" inputmode="decimal" value="{{ cost_min }}" placeholder="₱ min"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all" />
                         </div>
 
-                        <div class="lg:col-span-1">
+                        <div>
                             <label for="filter-cost-max" class="block text-xs font-semibold text-gray-600 mb-1">Cost Max</label>
                             <input id="filter-cost-max" name="cost_max" type="number" step="0.01" inputmode="decimal" value="{{ cost_max }}" placeholder="₱ max"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white transition-all" />
@@ -192,7 +147,7 @@
             </div>
             
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[1100px] divide-y divide-gray-200">
+                <table class="w-full min-w-[1040px] divide-y divide-gray-200">
                     <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                         <tr>
                             <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Project Name</th>
@@ -206,12 +161,12 @@
                             {% if user_role == 'head_engineer' %}
                             <th class="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Assigned To</th>
                             {% endif %}
-                            <th class="px-4 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
+                            <th class="w-28 px-3 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200" id="projects-table-body">
                         {% for project in projects %}
-                        <tr class="hover:bg-blue-50 transition-colors duration-150">
+                        <tr data-project-id="{{ project.id }}" class="hover:bg-blue-50 transition-colors duration-150">
                             <td class="px-4 py-4">
                                 <div class="text-sm font-semibold text-gray-900">{{ project.name }}</div>
                                 <div class="text-xs text-gray-500 font-mono mt-1">{{ project.prn|default:'—' }}</div>
@@ -265,19 +220,37 @@
                                 {% endif %}
                             </td>
                             {% endif %}
-                            <td class="px-4 py-4 text-center">
+                            <td class="px-3 py-3 text-center">
                                 {% if user_role == 'head_engineer' %}
-                                    {% if project.id %}
-                                        <a href="{% url 'monitoring_project_detail' project.id %}"
-                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md shadow-sm transition-all duration-200 hover:shadow-md whitespace-nowrap">
-                                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                           </svg>
-                                           Timeline Report
-                                        </a>
-                                    {% else %}
-                                        <span class="text-gray-400 text-sm">—</span>
-                                    {% endif %}
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        {% if project.id %}
+                                            <a href="{% url 'monitoring_project_detail' project.id %}"
+                                               title="Timeline Report"
+                                               class="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-200">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                            </a>
+                                            <button type="button"
+                                                    title="Edit"
+                                                    onclick="openEditModal({{ project.id }})"
+                                                    class="p-1.5 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-md transition-all duration-200">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                            <button type="button"
+                                                    title="Delete"
+                                                    onclick="openDeleteModal({{ project.id }})"
+                                                    class="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-all duration-200">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        {% else %}
+                                            <span class="text-gray-400 text-sm">—</span>
+                                        {% endif %}
+                                    </div>
                                 {% elif user_role == 'project_engineer' %}
                                     <div class="flex items-center justify-center gap-2">
                                         <a href="javascript:void(0);" onclick="openProjectModal({{ project.id }})" class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
@@ -393,18 +366,227 @@
     </div>
 </div>
 
-<style>
-/* Active status card indicator */
-#card-all.active,
-#card-completed.active,
-#card-inprogress.active,
-#card-planned.active,
-#card-delayed.active {
-    transform: scale(1.05);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    border: 3px solid rgba(255, 255, 255, 0.5);
-}
-</style>
+<!-- Edit Project Modal -->
+<div id="edit-project-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto relative">
+        <button type="button" onclick="closeEditProjectModal()" class="absolute top-3 right-3 z-10 w-10 h-10 flex items-center justify-center bg-green-700 text-white text-2xl rounded-full border-2 border-white shadow hover:bg-green-800">&times;</button>
+        <form id="edit-project-form" class="w-full p-4 md:p-5">
+            <input type="hidden" name="project_id" />
+            <h2 id="edit-project-modal-title" class="text-2xl font-bold text-gray-900 mb-3">Edit Project</h2>
+            <div id="edit-project-error" class="hidden rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 mb-4"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                <div class="lg:col-span-5 space-y-3">
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">PRN</label>
+                        <input type="text" name="prn" required class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Name</label>
+                        <input type="text" name="name" required class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Description</label>
+                        <textarea name="description" rows="2" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none resize-y min-h-[4rem]"></textarea>
+                        <p class="text-[10px] text-gray-500 mt-0.5">Scope, location, key outputs.</p>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Barangay</label>
+                        <select name="barangay" required class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
+                            <option value="">Select barangay</option>
+                            <option value="Apokon">Apokon</option>
+                            <option value="Bincungan">Bincungan</option>
+                            <option value="Busaon">Busaon</option>
+                            <option value="Canocotan">Canocotan</option>
+                            <option value="Cuambogan">Cuambogan</option>
+                            <option value="La Filipina">La Filipina</option>
+                            <option value="Liboganon">Liboganon</option>
+                            <option value="Madaum">Madaum</option>
+                            <option value="Magdum">Magdum</option>
+                            <option value="Magugpo East">Magugpo East</option>
+                            <option value="Magugpo North">Magugpo North</option>
+                            <option value="Magugpo Poblacion">Magugpo Poblacion</option>
+                            <option value="Magugpo South">Magugpo South</option>
+                            <option value="Magugpo West">Magugpo West</option>
+                            <option value="Mankilam">Mankilam</option>
+                            <option value="New Balamban">New Balamban</option>
+                            <option value="Nueva Fuerza">Nueva Fuerza</option>
+                            <option value="Pagsabangan">Pagsabangan</option>
+                            <option value="Pandapan">Pandapan</option>
+                            <option value="San Agustin">San Agustin</option>
+                            <option value="San Isidro">San Isidro</option>
+                            <option value="San Miguel">San Miguel</option>
+                            <option value="Visayan Village">Visayan Village</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Project Cost</label>
+                        <input type="number" step="0.01" min="0" name="project_cost" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
+                    </div>
+                    <div>
+                        <label class="font-semibold text-gray-700 text-sm">Project Type</label>
+                        <select name="project_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
+                            <option value="">Select project type</option>
+                            {% for pt in project_type_options %}
+                                <option value="{{ pt.id }}">{{ pt.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 space-y-3">
+                    <div class="border-2 border-dashed border-blue-300 rounded-lg p-3 bg-blue-50 min-h-[7.5rem] flex flex-col justify-between">
+                        <div>
+                            <label class="font-semibold text-blue-700 text-sm mb-1 block inline-flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                Project Location <span class="text-red-500">*</span>
+                            </label>
+                            <p class="text-[10px] text-gray-600 mb-2">Click the button below to select location on the map</p>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>
+                                    <label class="text-[10px] font-medium text-gray-600">Latitude</label>
+                                    <input type="hidden" name="latitude" id="edit-latitude-input" />
+                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="edit-latitude-display">--</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-medium text-gray-600">Longitude</label>
+                                    <input type="hidden" name="longitude" id="edit-longitude-input" />
+                                    <p class="text-[11px] text-gray-700 mt-1 font-mono" id="edit-longitude-display">--</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="edit-change-location-btn" class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Change Location
+                        </button>
+                        <div id="edit-location-status" class="mt-1 text-[10px] hidden">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                Location selected
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="font-semibold text-gray-700 text-sm">Start Date</label>
+                            <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+                        </div>
+                        <div>
+                            <label class="font-semibold text-gray-700 text-sm">End Date</label>
+                            <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+                        </div>
+                        <div>
+                            <label class="font-semibold text-gray-700 text-sm">Day Count Type</label>
+                            <select name="day_count_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                                <option value="working_days">Working days</option>
+                                <option value="calendar_days">Calendar days</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Status</label>
+                                <select name="status" required class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
+                                    <option value="planned">Planned</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="delayed">Delayed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Source of Funds</label>
+                                <select name="source_of_funds" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer">
+                                    <option value="">Select source of funds</option>
+                                    {% for sof in source_of_funds_options %}
+                                        <option value="{{ sof.name }}">{{ sof.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <label class="font-semibold text-gray-700 text-sm">Assigned Engineers <span class="text-red-500">*</span></label>
+                            <div id="analytics-assigned-engineers-chips" class="mb-1 flex flex-wrap gap-1.5 min-h-[1.5rem]"></div>
+                            <input type="text" id="analytics-assigned-engineers-search" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-400 outline-none mb-1" placeholder="Search by name or username..." autocomplete="off" />
+                            <p class="text-[10px] font-medium text-gray-600 mb-0.5">Engineers - click to add</p>
+                            <div id="analytics-assigned-engineers-list" class="border border-gray-200 rounded-lg bg-gray-50 max-h-28 overflow-y-auto"></div>
+                            <select name="assigned_engineers" id="analytics-assigned-engineers-select" class="sr-only" multiple required aria-hidden="true" tabindex="-1"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
+                <button type="button" onclick="closeEditProjectModal()" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm">Cancel</button>
+                <button id="edit-project-save-btn" type="submit" class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg text-sm shadow-sm flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-green-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    <span id="edit-project-save-label">Save Changes</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Analytics Map Picker Modal -->
+<div id="analytics-map-popup-modal" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-60 overflow-y-auto p-4" style="z-index: 1000;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 relative">
+        <button type="button" id="analytics-close-map-popup" class="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center bg-green-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-200">&times;</button>
+
+        <div class="mb-4 pr-14">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Select Project Location</h2>
+            <p class="text-gray-600 text-sm">
+                Click on the map to pin the exact location, then confirm to apply it to the project.
+            </p>
+        </div>
+
+        <div id="analytics-popup-map" style="min-height:380px; height:62vh; background:#eee;" class="rounded-lg border-2 border-blue-300 w-full mb-4"></div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-blue-50 p-4 rounded-lg mb-4">
+            <div>
+                <p class="text-sm font-medium text-gray-700">Selected Coordinates:</p>
+                <p class="text-lg font-mono text-blue-700">
+                    <span id="analytics-selected-lat-display">--</span>,
+                    <span id="analytics-selected-lng-display">--</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-4">
+            <button type="button" id="analytics-close-map-popup-btn" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg shadow transition">Cancel</button>
+            <button type="button" id="analytics-confirm-location-btn" class="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg shadow transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Confirm Location
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Delete Confirmation Modal -->
+<div id="analytics-delete-modal" class="fixed inset-0 z-[1001] hidden items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 relative">
+        <button type="button" id="analytics-delete-close-btn" class="absolute top-3 right-4 text-3xl leading-none text-gray-300 hover:text-gray-500">&times;</button>
+        <h3 class="text-4xl font-bold text-red-600 mb-4">Delete Project</h3>
+        <p class="text-lg text-gray-700 mb-6">Are you sure you want to delete this project?</p>
+        <div id="analytics-delete-error" class="hidden rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 mb-4"></div>
+        <div class="flex justify-end gap-3">
+            <button type="button" id="analytics-delete-confirm-btn" class="px-7 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow transition">Delete</button>
+            <button type="button" id="analytics-delete-cancel-btn" class="px-7 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl shadow transition">Cancel</button>
+        </div>
+    </div>
+</div>
 
 {% block extra_js %}
 {{ block.super }}
@@ -500,6 +682,689 @@ function toggleUpdateDetails(id) {
     if (el) utils.toggleElement(el);
 }
 
+let currentEditProjectId = null;
+let projectModalMode = 'edit';
+const PROJECT_GET_URL_TEMPLATE = "{% url 'project_get_api' 999999 %}";
+const PROJECT_UPDATE_URL_TEMPLATE = "{% url 'project_update_api' 999999 %}";
+const PROJECT_DELETE_URL_TEMPLATE = "{% url 'project_delete_api' 999999 %}";
+const PROJECT_CREATE_URL = "{% url 'project_create_api' %}";
+let pendingDeleteProjectId = null;
+let deleteRequestInFlight = false;
+
+let analyticsEngineers = [];
+
+function buildProjectUrl(template, id) {
+    return template.replace('/999999/', `/${id}/`);
+}
+
+function extractErrorMessageFromPayload(payload, fallbackMessage) {
+    if (!payload) return fallbackMessage;
+    if (payload.errors && typeof payload.errors === 'object') {
+        const firstError = Object.values(payload.errors)[0];
+        if (Array.isArray(firstError) && firstError.length > 0) return String(firstError[0]);
+        if (firstError) return String(firstError);
+    }
+    if (payload.error) return String(payload.error);
+    return fallbackMessage;
+}
+
+async function parseApiResponse(response) {
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('application/json')) {
+        const jsonPayload = await response.json();
+        return { kind: 'json', payload: jsonPayload };
+    }
+    const textPayload = await response.text();
+    return { kind: 'text', payload: textPayload };
+}
+
+function findProjectInClientCache(id) {
+    if (!Array.isArray(window.projects)) return null;
+    return window.projects.find((p) => String(p.id) === String(id)) || null;
+}
+
+function normalizeText(value) {
+    return (value || '').toString().trim().toLowerCase();
+}
+
+function parseOptionalNumber(value) {
+    const raw = (value || '').toString().trim();
+    if (!raw) return null;
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAnalyticsAssignedElements() {
+    return {
+        select: utils.getElement('analytics-assigned-engineers-select'),
+        search: utils.getElement('analytics-assigned-engineers-search'),
+        chips: utils.getElement('analytics-assigned-engineers-chips'),
+        list: utils.getElement('analytics-assigned-engineers-list'),
+    };
+}
+
+function getLocationElements() {
+    return {
+        latInput: utils.getElement('edit-latitude-input'),
+        lngInput: utils.getElement('edit-longitude-input'),
+        latDisplay: utils.getElement('edit-latitude-display'),
+        lngDisplay: utils.getElement('edit-longitude-display'),
+        status: utils.getElement('edit-location-status'),
+    };
+}
+
+function setSaveButtonLabel(label) {
+    const labelEl = utils.getElement('edit-project-save-label');
+    if (labelEl) labelEl.textContent = label;
+}
+
+function updateEditLocationStatus() {
+    const { latInput, lngInput, latDisplay, lngDisplay, status } = getLocationElements();
+    if (!latInput || !lngInput) return;
+
+    const latRaw = (latInput.value || '').trim();
+    const lngRaw = (lngInput.value || '').trim();
+    const hasLocation = !!latRaw && !!lngRaw;
+    const latNumber = Number(latRaw);
+    const lngNumber = Number(lngRaw);
+    const hasValidLocation = hasLocation && Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+
+    if (latDisplay) latDisplay.textContent = hasValidLocation ? latNumber.toFixed(6) : '--';
+    if (lngDisplay) lngDisplay.textContent = hasValidLocation ? lngNumber.toFixed(6) : '--';
+    if (status) status.classList.toggle('hidden', !hasValidLocation);
+}
+
+function getSelectedAnalyticsEngineerIds() {
+    const { select } = getAnalyticsAssignedElements();
+    if (!select) return [];
+    return Array.from(select.selectedOptions || []).map((opt) => String(opt.value));
+}
+
+function renderAnalyticsAssignedEngineerChips() {
+    const { select, chips } = getAnalyticsAssignedElements();
+    if (!select || !chips) return;
+
+    chips.innerHTML = '';
+    const selected = Array.from(select.selectedOptions || []);
+    if (!selected.length) {
+        const empty = document.createElement('div');
+        empty.className = 'text-xs text-gray-500';
+        empty.textContent = 'No engineers selected yet.';
+        chips.appendChild(empty);
+        return;
+    }
+
+    selected.forEach((opt) => {
+        const chip = document.createElement('span');
+        chip.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-sm';
+        chip.textContent = opt.textContent || opt.value;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'text-blue-700 hover:text-blue-900 font-bold leading-none';
+        removeBtn.textContent = 'x';
+        removeBtn.setAttribute('aria-label', `Remove ${opt.textContent || 'engineer'}`);
+        removeBtn.addEventListener('click', () => {
+            opt.selected = false;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        chip.appendChild(removeBtn);
+        chips.appendChild(chip);
+    });
+}
+
+function buildAnalyticsAssignedEngineersList() {
+    const { select, search, list } = getAnalyticsAssignedElements();
+    if (!select || !list) return;
+
+    const selectedIds = new Set(getSelectedAnalyticsEngineerIds());
+    const query = normalizeText(search ? search.value : '');
+    const available = (analyticsEngineers || []).filter((engineer) => {
+        const engineerId = String(engineer.id);
+        if (selectedIds.has(engineerId)) return false;
+        const label = normalizeText(engineer.full_name || engineer.username || '');
+        return !query || label.includes(query);
+    });
+
+    list.innerHTML = '';
+    if (!available.length) {
+        const empty = document.createElement('div');
+        empty.className = 'px-4 py-3 text-sm text-gray-500';
+        empty.textContent = selectedIds.size && !query ? 'All engineers already selected.' : 'No matching engineers.';
+        list.appendChild(empty);
+        return;
+    }
+
+    available.forEach((engineer) => {
+        const label = engineer.full_name || engineer.username || `#${engineer.id}`;
+        const sub = (engineer.username && engineer.full_name && engineer.username !== engineer.full_name)
+            ? ` @${engineer.username}`
+            : '';
+
+        const rowBtn = document.createElement('button');
+        rowBtn.type = 'button';
+        rowBtn.className = 'w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-100 focus:bg-blue-100 focus:outline-none border-b border-gray-200 last:border-0 transition';
+        rowBtn.textContent = label + sub;
+        rowBtn.addEventListener('click', () => {
+            const matchingOption = Array.from(select.options).find((opt) => String(opt.value) === String(engineer.id));
+            if (matchingOption) {
+                matchingOption.selected = true;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (search) search.value = '';
+            buildAnalyticsAssignedEngineersList();
+            renderAnalyticsAssignedEngineerChips();
+        });
+
+        list.appendChild(rowBtn);
+    });
+}
+
+function initAnalyticsAssignedEngineersSelector() {
+    const { select, search } = getAnalyticsAssignedElements();
+    if (!select || select.dataset.enhanced === '1') return;
+
+    select.dataset.enhanced = '1';
+    if (search) search.addEventListener('input', buildAnalyticsAssignedEngineersList);
+    select.addEventListener('change', () => {
+        renderAnalyticsAssignedEngineerChips();
+        buildAnalyticsAssignedEngineersList();
+    });
+}
+
+async function populateAnalyticsEngineers(selectedIds = []) {
+    const { select, list } = getAnalyticsAssignedElements();
+    if (!select) return;
+
+    try {
+        const response = await fetch('/projeng/api/engineers/', {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        const parsed = await parseApiResponse(response);
+        if (parsed.kind !== 'json' || !Array.isArray(parsed.payload)) {
+            throw new Error('Unable to load engineers list.');
+        }
+
+        analyticsEngineers = parsed.payload;
+    } catch (error) {
+        console.error('Failed to fetch engineers:', error);
+        analyticsEngineers = [];
+        if (list) list.innerHTML = '<div class="px-4 py-3 text-sm text-red-600">Unable to load engineers.</div>';
+    }
+
+    const selectedSet = new Set((selectedIds || []).map((value) => String(value)));
+    select.innerHTML = '';
+    analyticsEngineers.forEach((engineer) => {
+        const option = document.createElement('option');
+        option.value = String(engineer.id);
+        option.textContent = engineer.full_name || engineer.username || `#${engineer.id}`;
+        option.selected = selectedSet.has(option.value);
+        select.appendChild(option);
+    });
+
+    renderAnalyticsAssignedEngineerChips();
+    buildAnalyticsAssignedEngineersList();
+}
+
+async function populateProjectEditForm(form, project) {
+    if (!form || !project) return;
+
+    form.elements['project_id'].value = project.id || '';
+    form.elements['prn'].value = project.prn || '';
+    form.elements['name'].value = project.name || '';
+    form.elements['description'].value = project.description || '';
+    form.elements['barangay'].value = project.barangay || '';
+    form.elements['project_cost'].value = project.project_cost || '';
+    form.elements['status'].value = project.status || 'planned';
+    form.elements['day_count_type'].value = project.day_count_type || 'working_days';
+    form.elements['start_date'].value = project.start_date || '';
+    form.elements['end_date'].value = project.end_date || '';
+
+    const sourceSelect = form.elements['source_of_funds'];
+    const sourceValue = project.source_of_funds || '';
+    if (sourceSelect) {
+        if (sourceValue && !Array.from(sourceSelect.options).some((opt) => opt.value === sourceValue)) {
+            const option = document.createElement('option');
+            option.value = sourceValue;
+            option.textContent = sourceValue;
+            sourceSelect.appendChild(option);
+        }
+        sourceSelect.value = sourceValue;
+    }
+
+    const typeSelect = form.elements['project_type'];
+    const typeValue = (project.project_type_id || '').toString();
+    if (typeSelect) {
+        if (typeValue) {
+            typeSelect.value = typeValue;
+        } else {
+            const projectTypeName = normalizeText(project.project_type || '');
+            const match = Array.from(typeSelect.options).find((opt) => normalizeText(opt.textContent) === projectTypeName);
+            typeSelect.value = match ? match.value : '';
+        }
+    }
+
+    const { latInput, lngInput } = getLocationElements();
+    if (latInput) latInput.value = project.latitude !== null && project.latitude !== undefined ? String(project.latitude) : '';
+    if (lngInput) lngInput.value = project.longitude !== null && project.longitude !== undefined ? String(project.longitude) : '';
+    updateEditLocationStatus();
+
+    const assignedEngineerIds = Array.isArray(project.assigned_engineer_ids) ? project.assigned_engineer_ids : [];
+    await populateAnalyticsEngineers(assignedEngineerIds);
+}
+
+function setEditProjectError(message) {
+    const errorBox = utils.getElement('edit-project-error');
+    if (!errorBox) return;
+    if (!message) {
+        errorBox.classList.add('hidden');
+        errorBox.textContent = '';
+        return;
+    }
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+}
+
+function closeEditProjectModal() {
+    const modal = utils.getElement('edit-project-modal');
+    const form = utils.getElement('edit-project-form');
+    const { search } = getAnalyticsAssignedElements();
+
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    if (form) {
+        form.reset();
+        if (form.elements['project_id']) form.elements['project_id'].value = '';
+    }
+    if (search) search.value = '';
+
+    renderAnalyticsAssignedEngineerChips();
+    buildAnalyticsAssignedEngineersList();
+    updateEditLocationStatus();
+    closeAnalyticsMapPopup();
+
+    currentEditProjectId = null;
+    setEditProjectError('');
+}
+
+function setProjectModalUi(mode) {
+    const titleEl = utils.getElement('edit-project-modal-title');
+    const saveBtn = utils.getElement('edit-project-save-btn');
+    if (titleEl) titleEl.textContent = mode === 'add' ? 'Add Project' : 'Edit Project';
+    if (saveBtn && !saveBtn.disabled) setSaveButtonLabel(mode === 'add' ? 'Add Project' : 'Save Changes');
+}
+
+const analyticsBarangayCoordinates = {
+    'Apokon': [7.4237747, 125.8259557],
+    'Bincungan': [7.3788027, 125.7547817],
+    'Busaon': [7.3599983, 125.7535189],
+    'Canocotan': [7.4001209, 125.7740386],
+    'Cuambogan': [7.4912804, 125.7927462],
+    'La Filipina': [7.4764565, 125.8053029],
+    'Liboganon': [7.3464940, 125.7767654],
+    'Madaum': [7.3826395, 125.8087180],
+    'Magdum': [7.4692173, 125.8347371],
+    'Magugpo East': [7.4493737, 125.8196061],
+    'Magugpo North': [7.4596946, 125.8161767],
+    'Magugpo Poblacion': [7.4472333, 125.8043897],
+    'Magugpo South': [7.4472497, 125.7950305],
+    'Magugpo West': [7.4567492, 125.8031452],
+    'Mankilam': [7.4607703, 125.7848619],
+    'New Balamban': [7.4952507, 125.8452198],
+    'Nueva Fuerza': [7.4993765, 125.8186816],
+    'Pagsabangan': [7.4825329, 125.7518306],
+    'Pandapan': [7.4826495, 125.8758813],
+    'San Agustin': [7.4920504, 125.8259339],
+    'San Isidro': [7.3939060, 125.7854038],
+    'San Miguel': [7.4422203, 125.7761364],
+    'Visayan Village': [7.4318430, 125.8037910],
+};
+
+let analyticsPopupMap = null;
+let analyticsPopupMarker = null;
+let analyticsSelectedLatLng = null;
+
+function updateAnalyticsMapCoordinatePreview(lat, lng) {
+    const latDisplay = utils.getElement('analytics-selected-lat-display');
+    const lngDisplay = utils.getElement('analytics-selected-lng-display');
+    if (latDisplay) latDisplay.textContent = Number.isFinite(lat) ? lat.toFixed(6) : '--';
+    if (lngDisplay) lngDisplay.textContent = Number.isFinite(lng) ? lng.toFixed(6) : '--';
+}
+
+function setAnalyticsMapSelection(lat, lng, options = {}) {
+    const { recenter = true, fromMarker = false } = options;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    analyticsSelectedLatLng = { lat, lng };
+    updateAnalyticsMapCoordinatePreview(lat, lng);
+
+    if (!analyticsPopupMap || typeof L === 'undefined') return;
+
+    if (!analyticsPopupMarker) {
+        analyticsPopupMarker = L.marker([lat, lng], { draggable: true }).addTo(analyticsPopupMap);
+        analyticsPopupMarker.on('dragend', function() {
+            const position = analyticsPopupMarker.getLatLng();
+            setAnalyticsMapSelection(position.lat, position.lng, { recenter: false, fromMarker: true });
+        });
+    }
+
+    if (!fromMarker) {
+        analyticsPopupMarker.setLatLng([lat, lng]);
+    }
+    if (recenter) {
+        analyticsPopupMap.panTo([lat, lng]);
+    }
+}
+
+function getAnalyticsMapStartPosition() {
+    const { latInput, lngInput } = getLocationElements();
+    const form = utils.getElement('edit-project-form');
+
+    const currentLat = parseOptionalNumber(latInput ? latInput.value : '');
+    const currentLng = parseOptionalNumber(lngInput ? lngInput.value : '');
+    if (currentLat !== null && currentLng !== null) {
+        return { lat: currentLat, lng: currentLng, zoom: 15 };
+    }
+
+    const barangay = form && form.elements['barangay'] ? form.elements['barangay'].value : '';
+    if (barangay && analyticsBarangayCoordinates[barangay]) {
+        const [lat, lng] = analyticsBarangayCoordinates[barangay];
+        return { lat, lng, zoom: 14 };
+    }
+
+    return { lat: 7.4475, lng: 125.8078, zoom: 13 };
+}
+
+function closeAnalyticsMapPopup() {
+    const popupModal = utils.getElement('analytics-map-popup-modal');
+    if (!popupModal) return;
+    popupModal.classList.add('hidden');
+    popupModal.classList.remove('flex');
+}
+
+function openAnalyticsMapPopup() {
+    const popupModal = utils.getElement('analytics-map-popup-modal');
+    const popupMapEl = utils.getElement('analytics-popup-map');
+    if (!popupModal || !popupMapEl) return;
+
+    if (typeof L === 'undefined') {
+        promptEditLocationFallback();
+        return;
+    }
+
+    popupModal.classList.remove('hidden');
+    popupModal.classList.add('flex');
+
+    const start = getAnalyticsMapStartPosition();
+    analyticsSelectedLatLng = null;
+    updateAnalyticsMapCoordinatePreview(NaN, NaN);
+
+    setTimeout(() => {
+        if (!analyticsPopupMap) {
+            if (L.DomUtil.get('analytics-popup-map')) {
+                L.DomUtil.get('analytics-popup-map')._leaflet_id = null;
+            }
+            analyticsPopupMap = L.map('analytics-popup-map').setView([start.lat, start.lng], start.zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(analyticsPopupMap);
+            analyticsPopupMap.on('click', function(event) {
+                setAnalyticsMapSelection(event.latlng.lat, event.latlng.lng, { recenter: false });
+            });
+        } else {
+            analyticsPopupMap.invalidateSize();
+            analyticsPopupMap.setView([start.lat, start.lng], start.zoom);
+        }
+
+        const { latInput, lngInput } = getLocationElements();
+        const existingLat = parseOptionalNumber(latInput ? latInput.value : '');
+        const existingLng = parseOptionalNumber(lngInput ? lngInput.value : '');
+        if (existingLat !== null && existingLng !== null) {
+            setAnalyticsMapSelection(existingLat, existingLng);
+        } else {
+            if (analyticsPopupMarker) {
+                analyticsPopupMap.removeLayer(analyticsPopupMarker);
+                analyticsPopupMarker = null;
+            }
+            updateAnalyticsMapCoordinatePreview(NaN, NaN);
+        }
+    }, 120);
+}
+
+function confirmAnalyticsMapSelection() {
+    const { latInput, lngInput } = getLocationElements();
+    if (!latInput || !lngInput) return;
+
+    if (!analyticsSelectedLatLng || !Number.isFinite(analyticsSelectedLatLng.lat) || !Number.isFinite(analyticsSelectedLatLng.lng)) {
+        alert('Please click on the map to choose a location first.');
+        return;
+    }
+
+    latInput.value = analyticsSelectedLatLng.lat.toFixed(6);
+    lngInput.value = analyticsSelectedLatLng.lng.toFixed(6);
+    updateEditLocationStatus();
+    closeAnalyticsMapPopup();
+}
+
+function promptEditLocationFallback() {
+    const { latInput, lngInput } = getLocationElements();
+    if (!latInput || !lngInput) return;
+
+    const latDefault = (latInput.value || '').trim();
+    const lngDefault = (lngInput.value || '').trim();
+
+    const latRaw = window.prompt('Enter latitude (-90 to 90):', latDefault);
+    if (latRaw === null) return;
+    const lngRaw = window.prompt('Enter longitude (-180 to 180):', lngDefault);
+    if (lngRaw === null) return;
+
+    const latValue = latRaw.trim();
+    const lngValue = lngRaw.trim();
+
+    if (!latValue && !lngValue) {
+        latInput.value = '';
+        lngInput.value = '';
+        updateEditLocationStatus();
+        return;
+    }
+    if (!latValue || !lngValue) {
+        alert('Please provide both latitude and longitude, or leave both blank.');
+        return;
+    }
+
+    const lat = Number(latValue);
+    const lng = Number(lngValue);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        alert('Latitude must be a number between -90 and 90.');
+        return;
+    }
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+        alert('Longitude must be a number between -180 and 180.');
+        return;
+    }
+
+    latInput.value = lat.toFixed(6);
+    lngInput.value = lng.toFixed(6);
+    updateEditLocationStatus();
+}
+
+function promptEditLocationSelection() {
+    openAnalyticsMapPopup();
+}
+
+async function openAddProjectModal() {
+    const modal = utils.getElement('edit-project-modal');
+    const form = utils.getElement('edit-project-form');
+    if (!modal || !form) return;
+
+    projectModalMode = 'add';
+    currentEditProjectId = null;
+    setEditProjectError('');
+
+    form.reset();
+    if (form.elements['project_id']) form.elements['project_id'].value = '';
+    if (form.elements['status']) form.elements['status'].value = 'planned';
+    if (form.elements['day_count_type']) form.elements['day_count_type'].value = 'working_days';
+
+    await populateAnalyticsEngineers([]);
+    updateEditLocationStatus();
+    setProjectModalUi('add');
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+async function openEditModal(id) {
+    if (!id) return;
+
+    const modal = utils.getElement('edit-project-modal');
+    const form = utils.getElement('edit-project-form');
+    const saveBtn = utils.getElement('edit-project-save-btn');
+    if (!modal || !form) return;
+
+    projectModalMode = 'edit';
+    currentEditProjectId = id;
+    setEditProjectError('');
+    setProjectModalUi('edit');
+    form.reset();
+    if (form.elements['project_id']) form.elements['project_id'].value = '';
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        setSaveButtonLabel('Loading...');
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    try {
+        const response = await fetch(buildProjectUrl(PROJECT_GET_URL_TEMPLATE, id), {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        const parsed = await parseApiResponse(response);
+        if (parsed.kind === 'json') {
+            const data = parsed.payload || {};
+            if (!response.ok || !data.success || !data.project) {
+                throw new Error(extractErrorMessageFromPayload(data, 'Failed to load project data.'));
+            }
+            await populateProjectEditForm(form, data.project);
+            return;
+        }
+
+        const cachedProject = findProjectInClientCache(id);
+        if (cachedProject) {
+            await populateProjectEditForm(form, cachedProject);
+            setEditProjectError('Live project details could not be loaded. Showing available row data.');
+            return;
+        }
+
+        throw new Error('Unable to load project details for editing.');
+    } catch (error) {
+        console.error('Error loading project for edit:', error);
+        setEditProjectError(error.message || 'Unable to load project data.');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            setSaveButtonLabel(projectModalMode === 'add' ? 'Add Project' : 'Save Changes');
+        }
+    }
+}
+
+async function submitEditProjectForm(event) {
+    event.preventDefault();
+    const form = event.target;
+    if (!form) return;
+
+    const saveBtn = utils.getElement('edit-project-save-btn');
+    setEditProjectError('');
+
+    const assignedEngineerIds = getSelectedAnalyticsEngineerIds();
+    if (!assignedEngineerIds.length) {
+        setEditProjectError('Please assign at least one engineer.');
+        return;
+    }
+
+    const payload = {
+        prn: (form.elements['prn'].value || '').trim(),
+        name: (form.elements['name'].value || '').trim(),
+        description: (form.elements['description'].value || '').trim(),
+        barangay: (form.elements['barangay'].value || '').trim(),
+        project_cost: (form.elements['project_cost'].value || '').trim(),
+        source_of_funds: (form.elements['source_of_funds'].value || '').trim(),
+        project_type: (form.elements['project_type'].value || '').trim(),
+        status: (form.elements['status'].value || '').trim(),
+        day_count_type: (form.elements['day_count_type'].value || '').trim(),
+        start_date: (form.elements['start_date'].value || '').trim(),
+        end_date: (form.elements['end_date'].value || '').trim(),
+        latitude: (form.elements['latitude'].value || '').trim(),
+        longitude: (form.elements['longitude'].value || '').trim(),
+        assigned_engineer_ids: assignedEngineerIds,
+    };
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        setSaveButtonLabel(projectModalMode === 'add' ? 'Adding...' : 'Saving...');
+    }
+
+    try {
+        const endpoint = projectModalMode === 'add'
+            ? PROJECT_CREATE_URL
+            : buildProjectUrl(PROJECT_UPDATE_URL_TEMPLATE, currentEditProjectId);
+
+        if (projectModalMode === 'edit' && !currentEditProjectId) {
+            setEditProjectError('No project selected for editing.');
+            return;
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRFToken': utils.getCookie('csrftoken'),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+        });
+
+        const parsed = await parseApiResponse(response);
+        if (parsed.kind !== 'json') {
+            setEditProjectError('Server returned an unexpected response. Please refresh and try again.');
+            return;
+        }
+
+        const data = parsed.payload || {};
+        if (!response.ok || !data.success) {
+            setEditProjectError(extractErrorMessageFromPayload(data, 'Failed to save project.'));
+            return;
+        }
+
+        closeEditProjectModal();
+        window.location.reload();
+    } catch (error) {
+        console.error('Error saving project:', error);
+        setEditProjectError('An unexpected error occurred while saving the project.');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            setSaveButtonLabel(projectModalMode === 'add' ? 'Add Project' : 'Save Changes');
+        }
+    }
+}
+
 // Filter functions - redirect to backend filter
 function filterByStatus(status, card) {
     // Build URL with current filters
@@ -550,19 +1415,26 @@ document.addEventListener('DOMContentLoaded', function() {
         el.addEventListener('change', autoSubmit);
     });
 
-    // Debounced submit for cost inputs
-    let costTimer;
-    const costIds = ['filter-cost-min', 'filter-cost-max'];
-    costIds.forEach((id) => {
+    // Debounced submit for PRN and numeric filter inputs
+    let filterInputTimer;
+    const debouncedIds = ['filter-search-prn', 'filter-cost-min', 'filter-cost-max'];
+    debouncedIds.forEach((id) => {
         const el = utils.getElement(id);
         if (!el) return;
         el.addEventListener('input', () => {
-            clearTimeout(costTimer);
-            costTimer = setTimeout(autoSubmit, 500);
+            clearTimeout(filterInputTimer);
+            filterInputTimer = setTimeout(autoSubmit, 450);
         });
         el.addEventListener('change', () => {
-            clearTimeout(costTimer);
-            costTimer = setTimeout(autoSubmit, 150);
+            clearTimeout(filterInputTimer);
+            filterInputTimer = setTimeout(autoSubmit, 120);
+        });
+        el.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                clearTimeout(filterInputTimer);
+                autoSubmit();
+            }
         });
     });
     
@@ -598,6 +1470,97 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    const editProjectForm = utils.getElement('edit-project-form');
+    if (editProjectForm) {
+        editProjectForm.addEventListener('submit', submitEditProjectForm);
+    }
+
+    initAnalyticsAssignedEngineersSelector();
+    renderAnalyticsAssignedEngineerChips();
+    buildAnalyticsAssignedEngineersList();
+    updateEditLocationStatus();
+
+    const changeLocationBtn = utils.getElement('edit-change-location-btn');
+    if (changeLocationBtn && changeLocationBtn.dataset.bound !== '1') {
+        changeLocationBtn.dataset.bound = '1';
+        changeLocationBtn.addEventListener('click', promptEditLocationSelection);
+    }
+
+    const mapPopupModal = utils.getElement('analytics-map-popup-modal');
+    const closeMapPopupBtn = utils.getElement('analytics-close-map-popup');
+    const closeMapPopupAltBtn = utils.getElement('analytics-close-map-popup-btn');
+    const confirmLocationBtn = utils.getElement('analytics-confirm-location-btn');
+
+    if (closeMapPopupBtn && closeMapPopupBtn.dataset.bound !== '1') {
+        closeMapPopupBtn.dataset.bound = '1';
+        closeMapPopupBtn.addEventListener('click', closeAnalyticsMapPopup);
+    }
+    if (closeMapPopupAltBtn && closeMapPopupAltBtn.dataset.bound !== '1') {
+        closeMapPopupAltBtn.dataset.bound = '1';
+        closeMapPopupAltBtn.addEventListener('click', closeAnalyticsMapPopup);
+    }
+    if (confirmLocationBtn && confirmLocationBtn.dataset.bound !== '1') {
+        confirmLocationBtn.dataset.bound = '1';
+        confirmLocationBtn.addEventListener('click', confirmAnalyticsMapSelection);
+    }
+    if (mapPopupModal && mapPopupModal.dataset.bound !== '1') {
+        mapPopupModal.dataset.bound = '1';
+        mapPopupModal.addEventListener('mousedown', function(event) {
+            if (event.target === mapPopupModal) {
+                closeAnalyticsMapPopup();
+            }
+        });
+    }
+
+    const deleteModal = utils.getElement('analytics-delete-modal');
+    const deleteCloseBtn = utils.getElement('analytics-delete-close-btn');
+    const deleteCancelBtn = utils.getElement('analytics-delete-cancel-btn');
+    const deleteConfirmBtn = utils.getElement('analytics-delete-confirm-btn');
+
+    if (deleteCloseBtn && deleteCloseBtn.dataset.bound !== '1') {
+        deleteCloseBtn.dataset.bound = '1';
+        deleteCloseBtn.addEventListener('click', closeDeleteModal);
+    }
+    if (deleteCancelBtn && deleteCancelBtn.dataset.bound !== '1') {
+        deleteCancelBtn.dataset.bound = '1';
+        deleteCancelBtn.addEventListener('click', closeDeleteModal);
+    }
+    if (deleteConfirmBtn && deleteConfirmBtn.dataset.bound !== '1') {
+        deleteConfirmBtn.dataset.bound = '1';
+        deleteConfirmBtn.addEventListener('click', confirmDeleteProject);
+    }
+    if (deleteModal && deleteModal.dataset.bound !== '1') {
+        deleteModal.dataset.bound = '1';
+        deleteModal.addEventListener('mousedown', function(event) {
+            if (event.target === deleteModal) {
+                closeDeleteModal();
+            }
+        });
+    }
+
+    const editProjectModal = utils.getElement('edit-project-modal');
+    if (editProjectModal) {
+        editProjectModal.addEventListener('click', function(e) {
+            if (e.target === editProjectModal) {
+                closeEditProjectModal();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const activeMapPopup = utils.getElement('analytics-map-popup-modal');
+            if (activeMapPopup && !activeMapPopup.classList.contains('hidden')) {
+                closeAnalyticsMapPopup();
+                return;
+            }
+            const activeDeleteModal = utils.getElement('analytics-delete-modal');
+            if (activeDeleteModal && !activeDeleteModal.classList.contains('hidden')) {
+                closeDeleteModal();
+            }
+        }
+    });
 });
 
 // Cost modal functions
@@ -631,6 +1594,94 @@ function openViewCostsModal(id) {
 function closeViewCostsModal() {
     const modal = utils.getElement('cost-entry-modal');
     if (modal) utils.hideElement(modal);
+}
+
+function setAnalyticsDeleteError(message) {
+    const errorBox = utils.getElement('analytics-delete-error');
+    if (!errorBox) return;
+    if (!message) {
+        errorBox.classList.add('hidden');
+        errorBox.textContent = '';
+        return;
+    }
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+}
+
+function setDeleteModalBusy(isBusy) {
+    deleteRequestInFlight = !!isBusy;
+    const confirmBtn = utils.getElement('analytics-delete-confirm-btn');
+    const cancelBtn = utils.getElement('analytics-delete-cancel-btn');
+    const closeBtn = utils.getElement('analytics-delete-close-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = deleteRequestInFlight;
+        confirmBtn.textContent = deleteRequestInFlight ? 'Deleting...' : 'Delete';
+    }
+    if (cancelBtn) cancelBtn.disabled = deleteRequestInFlight;
+    if (closeBtn) closeBtn.disabled = deleteRequestInFlight;
+}
+
+function closeDeleteModal() {
+    if (deleteRequestInFlight) return;
+    const modal = utils.getElement('analytics-delete-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    pendingDeleteProjectId = null;
+    setAnalyticsDeleteError('');
+}
+
+function openDeleteModal(id) {
+    if (!id) return;
+    pendingDeleteProjectId = id;
+    setAnalyticsDeleteError('');
+    setDeleteModalBusy(false);
+    const modal = utils.getElement('analytics-delete-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+async function confirmDeleteProject() {
+    if (!pendingDeleteProjectId || deleteRequestInFlight) return;
+
+    setAnalyticsDeleteError('');
+    setDeleteModalBusy(true);
+
+    try {
+        const response = await fetch(buildProjectUrl(PROJECT_DELETE_URL_TEMPLATE, pendingDeleteProjectId), {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': utils.getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            credentials: 'same-origin',
+        });
+        const parsed = await parseApiResponse(response);
+        const data = parsed.kind === 'json'
+            ? (parsed.payload || {})
+            : { success: false, error: 'Server returned an unexpected response.' };
+
+        if (!response.ok || !data.success) {
+            setAnalyticsDeleteError(data.error || 'Failed to delete project.');
+            return;
+        }
+
+        const row = document.querySelector(`tr[data-project-id="${pendingDeleteProjectId}"]`);
+        if (row) row.remove();
+        setDeleteModalBusy(false);
+        closeDeleteModal();
+        window.location.reload();
+        return;
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        setAnalyticsDeleteError('An error occurred while deleting the project.');
+    } finally {
+        if (deleteRequestInFlight) setDeleteModalBusy(false);
+    }
 }
 </script>
 {{ projects|json_script:"projects-data" }}
