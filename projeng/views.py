@@ -15,7 +15,7 @@ from .models import (
 )
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
-from django.db.models import Sum, Avg, Count, Max
+from django.db.models import Sum, Avg, Count, Max, OuterRef, Subquery
 from django.template.loader import render_to_string, get_template
 import csv
 from datetime import datetime, timedelta
@@ -41,12 +41,15 @@ from .utils import (
     forward_budget_alert_to_finance
 )
 from django.views.decorators.http import require_GET, require_http_methods
-from django.db import transaction
+from django.db import transaction, DatabaseError
 import traceback
 from django.db.models import ProtectedError
 from django.contrib.auth.views import redirect_to_login
 from django.conf import settings
 from datetime import date as dt_date
+from .working_days import working_days_between
+
+logger = logging.getLogger(__name__)
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -60,12 +63,31 @@ from gistagum.access_control import (
     get_user_dashboard_url
 )
 
+def _days_between_for_project(project, start_date, end_date):
+    """Count days using project's selected day count type (working vs calendar)."""
+    if not start_date or not end_date or end_date < start_date:
+        return 0
+    day_count_type = (getattr(project, 'day_count_type', None) or 'working_days').strip().lower()
+    if day_count_type == 'calendar_days':
+        return (end_date - start_date).days + 1
+    return working_days_between(start_date, end_date)
+
 
 def _configured_expected_timeline(project, progress_dates, progress_percentages, actual_progress, today, elapsed_days, total_days, remaining_days):
     """Build timeline comparison using Head Engineer configured expected checkpoints."""
-    configured_rows = list(
-        ProjectConfiguredProgress.objects.filter(project=project).order_by('target_date').values('target_date', 'percentage')
-    )
+    try:
+        configured_rows = list(
+            ProjectConfiguredProgress.objects.filter(project=project)
+            .order_by('target_date')
+            .values('target_date', 'percentage')
+        )
+    except DatabaseError as exc:
+        logger.warning(
+            "Configured progress table unavailable for project %s; fallback to computed timeline. Error: %s",
+            getattr(project, 'id', 'unknown'),
+            exc,
+        )
+        return None
     if not configured_rows:
         return None
 
@@ -157,9 +179,25 @@ def _get_configured_target_for_display(project, today=None):
     """Return configured target checkpoint for display: nearest upcoming else latest."""
     if today is None:
         today = timezone.now().date()
-    target = ProjectConfiguredProgress.objects.filter(project=project, target_date__gte=today).order_by('target_date').first()
-    if not target:
-        target = ProjectConfiguredProgress.objects.filter(project=project).order_by('-target_date').first()
+    try:
+        target = (
+            ProjectConfiguredProgress.objects.filter(project=project, target_date__gte=today)
+            .order_by('target_date')
+            .first()
+        )
+        if not target:
+            target = (
+                ProjectConfiguredProgress.objects.filter(project=project)
+                .order_by('-target_date')
+                .first()
+            )
+    except DatabaseError as exc:
+        logger.warning(
+            "Configured target lookup unavailable for project %s; continuing without target. Error: %s",
+            getattr(project, 'id', 'unknown'),
+            exc,
+        )
+        return None, None
     if not target:
         return None, None
     return target.target_date, float(target.percentage)
@@ -167,12 +205,48 @@ def _get_configured_target_for_display(project, today=None):
 def is_staff_or_superuser(user):
     return user.is_authenticated and (user.is_staff or user.is_superuser)
 
+
+def _with_latest_progress(queryset):
+    """
+    Annotate a Project queryset with latest_progress_value using one SQL query.
+    """
+    latest_progress_subquery = (
+        ProjectProgress.objects
+        .filter(project_id=OuterRef('pk'))
+        .order_by('-date', '-created_at')
+        .values('percentage_complete')[:1]
+    )
+    return queryset.annotate(latest_progress_value=Subquery(latest_progress_subquery))
+
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def dashboard(request):
     try:
         from .models import Project, ProjectProgress, ProjectCost, ProjectDocument
         from django.db.models import Max, Case, When, Q, F
         from django.utils import timezone as django_timezone
+        from datetime import datetime as dt_datetime
+
+        def _safe_media_url(file_field):
+            """Return file URL without crashing the page when storage is misconfigured."""
+            if not file_field:
+                return ""
+            try:
+                return file_field.url
+            except Exception as exc:
+                logger.warning("Could not resolve media URL in dashboard: %s", exc)
+                return ""
+
+        def _normalize_dt(value):
+            if not value:
+                return None
+            if not isinstance(value, dt_datetime):
+                return None
+            if django_timezone.is_naive(value):
+                try:
+                    return django_timezone.make_aware(value, django_timezone.get_current_timezone())
+                except Exception:
+                    return value
+            return value
         
         # Base queryset for all assigned projects
         if is_head_engineer(request.user):
@@ -190,12 +264,20 @@ def dashboard(request):
         # - Project's updated_at
         # Then order by this calculated value (most recent first) and limit to 6
         
-        # Annotate with latest activity times from related models
-        projects_with_activity = base_queryset.annotate(
-            latest_progress_time=Max('progress_updates__created_at'),
-            latest_cost_time=Max('costs__created_at'),
-            latest_document_time=Max('documents__uploaded_at'),
-        )
+        # Annotate with latest activity times from related models.
+        # Fallback avoids full-page crash if production schema is behind current code.
+        try:
+            projects_with_activity = base_queryset.annotate(
+                latest_progress_time=Max('progress_updates__created_at'),
+                latest_cost_time=Max('costs__created_at'),
+                latest_document_time=Max('documents__uploaded_at'),
+            )
+        except Exception as exc:
+            logger.exception("Dashboard activity annotation failed, using fallback annotations: %s", exc)
+            projects_with_activity = base_queryset.annotate(
+                latest_progress_time=Max('progress_updates__created_at'),
+                latest_cost_time=Max('costs__created_at'),
+            )
         
         # Convert to list and calculate most_recent_activity for sorting
         projects_list = []
@@ -203,16 +285,17 @@ def dashboard(request):
             # Find the most recent activity time from all sources
             activity_times = []
             if project.latest_progress_time:
-                activity_times.append(project.latest_progress_time)
+                activity_times.append(_normalize_dt(project.latest_progress_time))
             if project.latest_cost_time:
-                activity_times.append(project.latest_cost_time)
-            if project.latest_document_time:
-                activity_times.append(project.latest_document_time)
+                activity_times.append(_normalize_dt(project.latest_cost_time))
+            if getattr(project, 'latest_document_time', None):
+                activity_times.append(_normalize_dt(project.latest_document_time))
             if project.updated_at:
-                activity_times.append(project.updated_at)
-            
+                activity_times.append(_normalize_dt(project.updated_at))
+             
             # Set most_recent_activity to the latest time, or created_at if no activity
-            project.most_recent_activity = max(activity_times) if activity_times else (project.created_at or django_timezone.now())
+            cleaned_times = [dt for dt in activity_times if dt is not None]
+            project.most_recent_activity = max(cleaned_times) if cleaned_times else (_normalize_dt(project.created_at) or django_timezone.now())
             projects_list.append(project)
         
         # Sort by most_recent_activity (descending - most recent first) and take top 6
@@ -279,11 +362,15 @@ def dashboard(request):
             ).values_list('project_id', 'max_time')
             
             # Get latest document times
-            latest_documents = ProjectDocument.objects.filter(
-                project_id__in=project_ids
-            ).values('project_id').annotate(
-                max_time=Max('uploaded_at')
-            ).values_list('project_id', 'max_time')
+            try:
+                latest_documents = ProjectDocument.objects.filter(
+                    project_id__in=project_ids
+                ).values('project_id').annotate(
+                    max_time=Max('uploaded_at')
+                ).values_list('project_id', 'max_time')
+            except Exception as exc:
+                logger.warning("Dashboard document-time query failed; continuing without document timestamps: %s", exc)
+                latest_documents = []
             
             progress_times = dict(latest_progress)
             cost_times = dict(latest_costs)
@@ -352,7 +439,8 @@ def dashboard(request):
                 'prn': project.prn,
                 'start_date': str(project.start_date) if project.start_date else "",
                 'end_date': str(project.end_date) if project.end_date else "",
-                'image': project.image.url if project.image else "",
+                'day_count_type': project.day_count_type or 'working_days',
+                'image': _safe_media_url(project.image),
             })
         context = {
             'assigned_projects': assigned_projects_with_updates,
@@ -560,23 +648,26 @@ def my_projects_view(request):
 def projeng_map_view(request):
     if is_head_engineer(request.user):
         layers = Layer.objects.all()
-        all_projects = Project.objects.filter(latitude__isnull=False, longitude__isnull=False)
+        all_projects = _with_latest_progress(
+            Project.objects.filter(latitude__isnull=False, longitude__isnull=False)
+        )
     else:
         layers = Layer.objects.filter(created_by=request.user)
-        all_projects = Project.objects.filter(
-            assigned_engineers=request.user,
-            latitude__isnull=False,
-            longitude__isnull=False
+        all_projects = _with_latest_progress(
+            Project.objects.filter(
+                assigned_engineers=request.user,
+                latitude__isnull=False,
+                longitude__isnull=False
+            )
         )
     delayed_count = all_projects.filter(status='delayed').count()
     projects_with_coords = []
     for project in all_projects:
-        if project.latitude != '' and project.longitude != '':
+        if project.latitude not in (None, '') and project.longitude not in (None, ''):
             projects_with_coords.append(project)
     projects_data = []
     for p in projects_with_coords:
-        latest_progress = ProjectProgress.objects.filter(project=p).order_by('-date').first()
-        progress = float(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(getattr(p, 'latest_progress_value', 0) or 0)
         projects_data.append({
             'id': p.id,
             'name': p.name,
@@ -590,6 +681,7 @@ def projeng_map_view(request):
             'prn': p.prn,
             'start_date': str(p.start_date) if p.start_date else "",
             'end_date': str(p.end_date) if p.end_date else "",
+            'day_count_type': p.day_count_type or 'working_days',
             'image': p.image.url if p.image else "",
             'progress': progress,
             'zone_type': p.zone_type or '',
@@ -604,14 +696,13 @@ def projeng_map_view(request):
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 def upload_docs_view(request):
     if is_head_engineer(request.user):
-        assigned_projects = Project.objects.all()
+        assigned_projects = _with_latest_progress(Project.objects.all())
     else:
-        assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+        assigned_projects = _with_latest_progress(Project.objects.filter(assigned_engineers=request.user))
     delayed_count = assigned_projects.filter(status='delayed').count()
     projects_data = []
     for project in assigned_projects:
-        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = float(latest_progress.percentage_complete) if latest_progress else 0
+        progress = float(getattr(project, 'latest_progress_value', 0) or 0)
         projects_data.append({
             'id': project.id,
             'name': project.name,
@@ -624,6 +715,7 @@ def upload_docs_view(request):
             'prn': project.prn,
             'start_date': str(project.start_date) if project.start_date else "",
             'end_date': str(project.end_date) if project.end_date else "",
+            'day_count_type': project.day_count_type or 'working_days',
             'image': project.image.url if project.image else "",
         })
     context = {
@@ -751,6 +843,7 @@ def my_reports_view(request):
             'project_type_name': project.project_type.name if project.project_type else '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
+            'day_count_type': project.day_count_type or 'working_days',
             'status': project.status or '',
             'status_display': project.get_status_display() or '',
             'progress': progress,
@@ -828,24 +921,57 @@ def project_detail_view(request, pk):
             'color': 'blue'
         })
         
-        # Add progress updates
-        progress_updates = ProjectProgress.objects.filter(project=project).select_related('created_by', 'milestone').order_by('-created_at')
+        # Add progress updates (include edit explanation + milestone details)
+        from django.db.models import Prefetch
+        from projeng.models import ProjectProgressEditHistory
+        progress_updates = (
+            ProjectProgress.objects
+            .filter(project=project)
+            .select_related('created_by', 'updated_by', 'milestone')
+            .prefetch_related(
+                Prefetch(
+                    'edit_history',
+                    queryset=ProjectProgressEditHistory.objects.select_related('edited_by').order_by('-edited_at'),
+                    to_attr='prefetched_edit_history',
+                )
+            )
+            .order_by('-created_at')
+        )
+
         for progress in progress_updates:
+            latest_edit = None
+            if getattr(progress, 'prefetched_edit_history', None):
+                latest_edit = progress.prefetched_edit_history[0]
+
+            is_edit = bool(progress.is_edited and latest_edit)
             milestone_info = ''
-            if progress.milestone:
-                milestone_info = f' (Milestone: {progress.milestone.name})'
-            
+
+            from_pct = latest_edit.from_percentage if latest_edit else None
+            to_pct = latest_edit.to_percentage if latest_edit else None
+            edit_reason = (latest_edit.edit_reason if latest_edit else progress.last_edit_reason) or None
+
+            if is_edit and from_pct is not None and to_pct is not None:
+                msg = f'Progress edited: {from_pct}% → {to_pct}%{milestone_info}'
+            else:
+                msg = f'Progress updated to {progress.percentage_complete}%{milestone_info}'
+
             activity_log.append({
                 'type': 'progress_update',
+                'is_edit': is_edit,
+                'edit_reason': edit_reason,
+                'from_percentage': from_pct,
+                'to_percentage': to_pct,
                 'progress_id': progress.id,
-                'timestamp': progress.created_at,
-                'user': progress.created_by,
-                'message': f'Progress updated to {progress.percentage_complete}%{milestone_info}',
+                'timestamp': (latest_edit.edited_at if is_edit else progress.created_at),
+                'user': (latest_edit.edited_by if is_edit else progress.created_by),
+                'message': msg,
                 'description': progress.description,
                 'justification': progress.justification,
                 'date': progress.date,
                 'percentage': progress.percentage_complete,
-                'milestone': progress.milestone.name if progress.milestone else None,
+                'milestone': None,
+                'milestone_target_date': None,
+                'milestone_description': None,
                 'icon': 'chart-bar',
                 'color': 'green'
             })
@@ -865,44 +991,6 @@ def project_detail_view(request, pk):
                 'icon': 'currency-dollar',
                 'color': 'yellow'
             })
-
-        # Add budget requests (additional budget) to activity history
-        budget_requests = (
-            BudgetRequest.objects
-            .filter(project=project)
-            .select_related('requested_by', 'reviewed_by')
-            .prefetch_related('attachments', 'history')
-            .order_by('-created_at')
-        )
-        for br in budget_requests:
-            activity_log.append({
-                'type': 'budget_request',
-                'timestamp': br.created_at,
-                'user': br.requested_by,
-                'message': f'Budget request submitted: ₱{float(br.requested_amount):,.2f} ({br.get_status_display()})',
-                'description': br.reason,
-                'requested_amount': br.requested_amount,
-                'status': br.status,
-                'icon': 'clipboard',
-                'color': 'indigo'
-            })
-            if br.reviewed_at and br.reviewed_by and br.status in ['approved', 'rejected', 'cancelled']:
-                activity_log.append({
-                    'type': 'budget_request_decision',
-                    'timestamp': br.reviewed_at,
-                    'user': br.reviewed_by,
-                    'message': (
-                        f'Budget request {br.get_status_display().lower()}'
-                        + (f': ₱{float(br.approved_amount):,.2f} approved' if br.status == 'approved' and br.approved_amount else '')
-                    ),
-                    'description': br.decision_notes,
-                    'status': br.status,
-                    'approved_amount': br.approved_amount,
-                    'decision_notes': br.decision_notes,
-                    'icon': 'check-circle' if br.status == 'approved' else 'x-circle',
-                    'color': 'green' if br.status == 'approved' else 'red'
-                })
-        
         # Add document uploads
         documents = ProjectDocument.objects.filter(project=project).select_related('uploaded_by').order_by('-uploaded_at')
         for doc in documents:
@@ -938,17 +1026,23 @@ def project_detail_view(request, pk):
             })
             progress_dates.append(progress.date.strftime('%Y-%m-%d'))
             progress_percentages.append(progress.percentage_complete)
+
+        # Latest actual progress for header display
+        latest_actual_progress = float(progress_percentages[-1]) if progress_percentages else 0.0
+        latest_actual_progress = max(0.0, min(100.0, latest_actual_progress))
+        show_actual_progress_label_inside = latest_actual_progress >= 15.0
+
+        today = timezone.now().date()
+        configured_target_date, configured_target_progress = _get_configured_target_for_display(project, today=today)
         
-        # Timeline Comparison: Expected vs Actual Progress (working days only: exclude weekends + PH holidays)
+        # Timeline Comparison: Expected vs Actual Progress (project-selected day count type)
         timeline_comparison = None
         if project.start_date and project.end_date:
             from datetime import date, timedelta
             import json
-            from projeng.working_days import working_days_between
-            today = date.today()
-            total_days = working_days_between(project.start_date, project.end_date)
-            elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
-            remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
+            total_days = _days_between_for_project(project, project.start_date, project.end_date)
+            elapsed_days = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            remaining_days = _days_between_for_project(project, today, project.end_date) if today <= project.end_date else 0
 
             if total_days > 0 and elapsed_days >= 0:
                 actual_progress = progress_percentages[-1] if progress_percentages else 0
@@ -982,8 +1076,8 @@ def project_detail_view(request, pk):
                     for date_str in all_dates_sorted:
                         year, month, day = map(int, date_str.split('-'))
                         date_obj = date(year, month, day)
-                        working_elapsed = working_days_between(project.start_date, date_obj) if date_obj >= project.start_date else 0
-                        expected_pct = min(100, (working_elapsed / total_days) * 100) if total_days > 0 else 0
+                        elapsed_for_date = _days_between_for_project(project, project.start_date, date_obj) if date_obj >= project.start_date else 0
+                        expected_pct = min(100, (elapsed_for_date / total_days) * 100) if total_days > 0 else 0
                         expected_progress_data.append(expected_pct)
                         actual_pct = 0
                         for i, prog_date in enumerate(progress_dates):
@@ -1075,13 +1169,48 @@ def project_detail_view(request, pk):
             days_remaining = timeline_comparison.get('remaining_days', 0)
             expected_progress = timeline_comparison.get('expected_progress')
             progress_variance = timeline_comparison.get('progress_variance')
+            configured_target_progress = timeline_comparison.get('configured_target_progress')
+            scheduled_progress_for_print = (
+                configured_target_progress
+                if configured_target_progress is not None
+                else expected_progress
+            )
         else:
             days_elapsed = total_days = days_remaining = 0
             expected_progress = progress_variance = None
+            scheduled_progress_for_print = None
 
-        extension_count = ProjectExtensionHistory.objects.filter(project=project).count()
-        latest_extension = ProjectExtensionHistory.objects.filter(project=project).order_by('-created_at').first()
-        revised_target_date = latest_extension.new_end_date.strftime('%B %d, %Y') if latest_extension else None
+        try:
+            extension_count = ProjectExtensionHistory.objects.filter(project=project).count()
+            latest_extension = (
+                ProjectExtensionHistory.objects.filter(project=project)
+                .order_by('-created_at')
+                .first()
+            )
+            revised_target_date = latest_extension.new_end_date.strftime('%B %d, %Y') if latest_extension else None
+        except DatabaseError as exc:
+            logger.warning(
+                "Project extension history unavailable for project %s; continuing without extension data. Error: %s",
+                getattr(project, 'id', 'unknown'),
+                exc,
+            )
+            extension_count = 0
+            revised_target_date = None
+
+        image_extensions = ('.png', '.jpg', '.jpeg', '.jfif', '.gif', '.webp', '.bmp')
+        uploaded_report_images = []
+        for doc in documents:
+            doc_name = (doc.name or '').strip()
+            if not doc_name.lower().endswith(image_extensions):
+                continue
+            try:
+                doc_url = doc.file.url
+            except Exception:
+                continue
+            uploaded_report_images.append({
+                'name': doc_name,
+                'url': doc_url,
+            })
 
         report_data = {
             'project': {
@@ -1091,6 +1220,7 @@ def project_detail_view(request, pk):
                 'status': project.get_status_display() if hasattr(project, 'get_status_display') else (project.status or ''),
                 'start_date': project.start_date.strftime('%B %d, %Y') if project.start_date else '',
                 'end_date': project.end_date.strftime('%B %d, %Y') if project.end_date else '',
+                'day_count_type': project.day_count_type or 'working_days',
                 'project_cost': project_cost,
                 'source_of_funds': getattr(project, 'source_of_funds', '') or '',
                 'description': (project.description or '')[:200],
@@ -1106,6 +1236,7 @@ def project_detail_view(request, pk):
             'days_elapsed': days_elapsed,
             'total_days': total_days,
             'days_remaining': days_remaining,
+            'scheduled_progress': scheduled_progress_for_print,
             'expected_progress': expected_progress,
             'progress_variance': progress_variance,
             'extension_count': extension_count,
@@ -1122,15 +1253,17 @@ def project_detail_view(request, pk):
                 }
                 for u in progress_updates_for_report
             ],
-            'uploaded_images': [],  # Project engineer report without embedded images
+            'uploaded_images': uploaded_report_images,
         }
 
         return render(request, 'projeng/project_detail.html', {
             'project': project,
-            'status_choices': Project.STATUS_CHOICES,
             'activity_log': activity_log,
             'documents': documents,  # Pass documents for dedicated section
-            'budget_requests': budget_requests,
+            'configured_target_date': configured_target_date,
+            'configured_target_progress': configured_target_progress,
+            'latest_actual_progress': latest_actual_progress,
+            'show_actual_progress_label_inside': show_actual_progress_label_inside,
             'can_edit_any_progress': is_head_engineer(request.user),
             'progress_timeline_data': progress_timeline_data,
             'progress_dates': progress_dates_json,
@@ -1258,20 +1391,24 @@ def get_project_engineers(request):
     if not (request.user.is_authenticated and (
         request.user.is_staff or
         request.user.is_superuser or
-        request.user.groups.filter(name='Head Engineer').exists()
+        request.user.groups.filter(name__iexact='Head Engineer').exists()
     )):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'error': 'Not authorized'}, status=403)
         return redirect_to_login(request.get_full_path())
     try:
-        project_engineer_group = Group.objects.get(name='Project Engineer')
-        head_engineer_group = Group.objects.get(name='Head Engineer')
+        project_engineer_group = Group.objects.filter(name__iexact='Project Engineer').first()
+        if project_engineer_group is None:
+            return JsonResponse([], safe=False)
+
         engineers = User.objects.filter(groups=project_engineer_group)
-        engineers = engineers.exclude(groups=head_engineer_group).exclude(is_superuser=True).order_by('username')
+        head_engineer_group = Group.objects.filter(name__iexact='Head Engineer').first()
+        if head_engineer_group is not None:
+            engineers = engineers.exclude(groups=head_engineer_group)
+
+        engineers = engineers.exclude(is_superuser=True).distinct().order_by('username')
         engineers_data = [{'id': engineer.id, 'username': engineer.username, 'full_name': engineer.get_full_name() or engineer.username} for engineer in engineers]
         return JsonResponse(engineers_data, safe=False)
-    except Group.DoesNotExist:
-        return JsonResponse([], safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -1362,14 +1499,13 @@ def project_analytics(request, pk):
             progress_percentages.append(progress.percentage_complete)
             progress_dates.append(progress.date.isoformat())
         
-        # Timeline comparison (working days only: exclude weekends + PH holidays)
+        # Timeline comparison (project-selected day count type)
         timeline_comparison = None
         if project.start_date and project.end_date:
-            from projeng.working_days import working_days_between
             today = timezone.now().date()
-            total_days = working_days_between(project.start_date, project.end_date)
-            elapsed_days = working_days_between(project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
-            remaining_days = working_days_between(today, project.end_date) if today <= project.end_date else 0
+            total_days = _days_between_for_project(project, project.start_date, project.end_date)
+            elapsed_days = _days_between_for_project(project, project.start_date, min(today, project.end_date)) if today >= project.start_date else 0
+            remaining_days = _days_between_for_project(project, today, project.end_date) if today <= project.end_date else 0
 
             timeline_comparison = _configured_expected_timeline(
                 project=project,
@@ -1558,12 +1694,6 @@ def add_progress_update(request, pk):
                     'error': f'Progress cannot decrease. Current progress is {current_progress}%. If you need to correct this, please contact an administrator.'
                 }, status=400)
             
-            # Validation: Prevent unrealistic jumps (more than 30% increase in one update)
-            if percentage_complete > current_progress + 30:
-                return JsonResponse({
-                    'error': f'Progress increase is too large. Current progress is {current_progress}%. Maximum allowed increase is 30% per update (up to {current_progress + 30}%).'
-                }, status=400)
-            
             # Validation: Require justification for increases >10%
             justification = request.POST.get('justification', '').strip()
             if progress_increase > 10 and not justification:
@@ -1577,6 +1707,17 @@ def add_progress_update(request, pk):
                 return JsonResponse({
                     'error': f'Photos are required for progress increases greater than 10%. Please upload at least one photo showing the work completed.'
                 }, status=400)
+
+            # Allow large jumps when requirements are provided (justification + photos).
+            # If missing, block as "too large".
+            if progress_increase > 30:
+                if not justification or len(uploaded_photos) == 0:
+                    return JsonResponse({
+                        'error': (
+                            f'Progress increase is too large. Current progress is {current_progress}%. '
+                            f'For increases above 30%, please provide justification and at least one photo.'
+                        )
+                    }, status=400)
             
             # Timeline validation disabled: engineers can enter any progress from current up to 100%.
 
@@ -1711,10 +1852,18 @@ def edit_progress_update(request, pk, update_id):
     milestones = ProjectMilestone.objects.filter(project=project).order_by('target_date', 'created_at')
 
     if request.method == 'GET':
+        base_template = 'base.html' if is_head_engineer(request.user) else 'projeng_base.html'
+        current_percentage = float(progress.percentage_complete or 0)
+        max_without_evidence = round(min(100.0, current_percentage + 30.0), 2)
+        has_existing_photos = progress.photos.exists()
         return render(request, 'projeng/edit_progress_update.html', {
+            'base_template': base_template,
             'project': project,
             'progress_update': progress,
             'milestones': milestones,
+            'current_percentage': current_percentage,
+            'max_without_evidence': max_without_evidence,
+            'has_existing_photos': has_existing_photos,
         })
 
     if request.method != 'POST':
@@ -1737,24 +1886,33 @@ def edit_progress_update(request, pk, update_id):
     if not edit_reason:
         return HttpResponseBadRequest("Edit reason is required.")
 
-    milestone_id = (request.POST.get('milestone') or '').strip()
-    milestone = None
-    if milestone_id:
-        try:
-            milestone = ProjectMilestone.objects.get(pk=int(milestone_id), project=project)
-        except Exception:
-            milestone = None
+    # Milestone selection is currently hidden in the UI; keep existing milestone unless explicitly provided.
+    milestone = progress.milestone
+    if 'milestone' in request.POST:
+        milestone_id = (request.POST.get('milestone') or '').strip()
+        milestone = None
+        if milestone_id:
+            try:
+                milestone = ProjectMilestone.objects.get(pk=int(milestone_id), project=project)
+            except Exception:
+                milestone = None
 
     uploaded_photos = request.FILES.getlist('photos')
 
     old_percentage = progress.percentage_complete
     delta = new_percentage - old_percentage
 
-    # Validation: prevent unrealistic jumps (more than 30% change in one edit)
+    # Allow large jumps on edit when requirements are provided (justification + photos).
     if delta > 30:
-        return HttpResponseBadRequest(
-            f"Progress increase is too large. Maximum allowed increase is 30% per edit (up to {old_percentage + 30}%)."
-        )
+        existing_photo_count = progress.photos.count()
+        if not new_justification:
+            return HttpResponseBadRequest(
+                f"Progress increase is too large. For increases above 30%, justification is required (increase: {delta}%)."
+            )
+        if existing_photo_count + len(uploaded_photos) == 0:
+            return HttpResponseBadRequest(
+                "For increases above 30%, at least one photo is required."
+            )
     if delta < -30:
         return HttpResponseBadRequest(
             f"Progress decrease is too large. Maximum allowed decrease is 30% per edit (down to {old_percentage - 30}%)."
@@ -1827,6 +1985,22 @@ def edit_progress_update(request, pk, update_id):
             monitoring_project.save(update_fields=["progress"])
     except MonitoringProject.DoesNotExist:
         pass
+
+    # Notify Head Engineers about the edit
+    try:
+        from projeng.utils import notify_head_engineers, notify_admins, format_project_display
+        editor_name = request.user.get_full_name() or request.user.username
+        project_display = format_project_display(project)
+        notif_message = (
+            f"Progress update edited for project '{project_display}' by {editor_name}: "
+            f"{old_percentage}% → {new_percentage}% (Date: {progress.date}). "
+            f"Reason: {edit_reason}"
+        )
+        notify_head_engineers(notif_message, check_duplicates=True)
+        notify_admins(notif_message, check_duplicates=True)
+    except Exception:
+        # Don't block save on notification failure
+        logging.exception("Failed to notify head engineers about progress edit")
 
     messages.success(request, "Progress update edited successfully.")
     return redirect('projeng:projeng_project_detail', pk=project.pk)
@@ -2537,6 +2711,7 @@ def export_reports_json(request):
             'project_type_name': project.project_type.name if project.project_type else '',
             'start_date': str(project.start_date) if project.start_date else '',
             'end_date': str(project.end_date) if project.end_date else '',
+            'day_count_type': project.day_count_type or 'working_days',
             'status': project.status or '',
             'status_display': status_display,
             'progress': project.progress or 0,
@@ -2554,49 +2729,31 @@ def export_reports_pdf(request):
 @user_passes_test(is_project_or_head_engineer, login_url='/accounts/login/')
 @require_GET
 def map_projects_api(request):
-    from django.db.models import Max
     from django.utils import timezone
     
     # Role-based queryset
     if is_head_engineer(request.user):
-        all_projects = Project.objects.filter(
-            latitude__isnull=False,
-            longitude__isnull=False
+        all_projects = _with_latest_progress(
+            Project.objects.filter(
+                latitude__isnull=False,
+                longitude__isnull=False
+            )
         )
     else:
-        all_projects = Project.objects.filter(
-            assigned_engineers=request.user,
-            latitude__isnull=False,
-            longitude__isnull=False
+        all_projects = _with_latest_progress(
+            Project.objects.filter(
+                assigned_engineers=request.user,
+                latitude__isnull=False,
+                longitude__isnull=False
+            )
         )
-    projects_with_coords = [p for p in all_projects if p.latitude != '' and p.longitude != '']
-    
-    # Get project IDs for batch progress queries
-    project_ids = [p.id for p in projects_with_coords]
-    latest_progress_percent = {}
-    
-    if project_ids:
-        # Get latest progress for delay calculation
-        latest_progress_qs = ProjectProgress.objects.filter(
-            project_id__in=project_ids
-        ).values('project_id').annotate(
-            max_date=Max('date'),
-            max_created=Max('created_at')
-        )
-        for item in latest_progress_qs:
-            latest = ProjectProgress.objects.filter(
-                project_id=item['project_id'],
-                date=item['max_date'],
-                created_at=item['max_created']
-            ).order_by('-created_at').first()
-            if latest and latest.percentage_complete is not None:
-                latest_progress_percent[item['project_id']] = float(latest.percentage_complete)
+    projects_with_coords = [p for p in all_projects if p.latitude not in (None, '') and p.longitude not in (None, '')]
     
     # Calculate status dynamically (including delayed)
     today = timezone.now().date()
     projects_data = []
     for p in projects_with_coords:
-        progress = latest_progress_percent.get(p.id, 0)
+        progress = float(getattr(p, 'latest_progress_value', 0) or 0)
         stored_status = p.status or ''
         
         # Calculate actual status dynamically (same logic as my_projects_view)
@@ -2628,6 +2785,7 @@ def map_projects_api(request):
             'prn': p.prn,
             'start_date': str(p.start_date) if p.start_date else "",
             'end_date': str(p.end_date) if p.end_date else "",
+            'day_count_type': p.day_count_type or 'working_days',
             'image': p.image.url if p.image else "",
             'progress': progress,
             'zone_type': p.zone_type or '',
@@ -2637,13 +2795,13 @@ def map_projects_api(request):
 @user_passes_test(is_project_engineer, login_url='/accounts/login/')
 @require_GET
 def dashboard_card_data_api(request):
-    from .models import Project, ProjectProgress
-    all_assigned_projects = Project.objects.filter(assigned_engineers=request.user)
+    from .models import Project
+    all_assigned_projects = _with_latest_progress(Project.objects.filter(assigned_engineers=request.user))
+    projects = list(all_assigned_projects)
     today = timezone.now().date()
     status_counts = {'planned': 0, 'in_progress': 0, 'completed': 0, 'delayed': 0}
-    for project in all_assigned_projects:
-        latest_progress = ProjectProgress.objects.filter(project=project).order_by('-date').first()
-        progress = float(latest_progress.percentage_complete) if latest_progress else 0
+    for project in projects:
+        progress = float(getattr(project, 'latest_progress_value', 0) or 0)
         status = project.status
         # Completed when progress >= 99
         if progress >= 99:
@@ -2663,7 +2821,7 @@ def dashboard_card_data_api(request):
             status_counts['delayed'] += 1
         elif status == 'planned':
             status_counts['planned'] += 1
-    total_projects = all_assigned_projects.count()
+    total_projects = len(projects)
     delayed_count = status_counts['delayed']
     return JsonResponse({
         'total_projects': total_projects,

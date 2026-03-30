@@ -11,7 +11,7 @@
                     <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Project List</h1>
                     <p class="text-gray-600 text-sm lg:text-base">Manage and view all city development projects</p>
                 </div>
-                <button id="add-project-btn" class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg">
+                <button id="add-project-btn" class="inline-flex items-center gap-2 px-6 py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-300">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -271,23 +271,38 @@ document.addEventListener('DOMContentLoaded', function () {
             t = setTimeout(autoSubmit, 150);
         });
     });
+
+    // Allow deep-link edit opening from other pages (e.g., analytics actions)
+    const urlParams = new URLSearchParams(window.location.search);
+    const editFromQuery = Number.parseInt(urlParams.get('edit_project'), 10);
+    if (Number.isInteger(editFromQuery) && editFromQuery > 0) {
+        setTimeout(() => {
+            if (typeof window.openEditModal === 'function') {
+                window.openEditModal(editFromQuery);
+                urlParams.delete('edit_project');
+                const nextQuery = urlParams.toString();
+                const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+                window.history.replaceState({}, '', nextUrl);
+            }
+        }, 0);
+    }
 });
 </script>
 
     <!-- Add/Edit Project Modal (compact for laptop) -->
     <div id="project-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 overflow-y-auto transition-opacity duration-300 opacity-0 pointer-events-none p-2">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-0 relative max-h-[90vh] overflow-y-auto animate-modal-scale">
-            <button id="close-modal" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-2 border-white shadow hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200">&times;</button>
+            <button id="close-modal" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-green-700 text-white text-2xl rounded-full border-2 border-white shadow hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-300 transition-all duration-200">&times;</button>
             <form id="project-form" method="post" enctype="multipart/form-data" action="{% url 'project_list' %}" class="w-full p-4 md:p-5">
                 {% csrf_token %}
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     <!-- Left column: PRN, Name, Description, Barangay, Project Cost, Project Type -->
                     <div class="lg:col-span-5 space-y-3">
-                        <div class="hidden" aria-hidden="true">
+                        <div>
                             <label class="font-semibold text-gray-700 text-sm">PRN</label>
-                            <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
-                                   class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none" />
-                            <p class="text-[10px] text-gray-500 mt-0.5">Auto-generated (not editable)</p>
+                            <input type="text" name="prn" required
+                                   class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                                   placeholder="Enter PRN manually (e.g., PRN-2026-001)" />
                         </div>
                         <div>
                             <label class="font-semibold text-gray-700 text-sm">Name</label>
@@ -369,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </div>
                             </div>
                             <button type="button" id="map-fullscreen-btn"
-                                    class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-sm"
+                                    class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold px-3 py-2 rounded-lg shadow transition flex items-center justify-center gap-1.5 text-sm"
                                     title="Click to open map and select location">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -386,22 +401,29 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </span>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="font-semibold text-gray-700 text-sm">Start Date</label>
                                 {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
                                 {% else %}
-                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
                                 {% endif %}
                             </div>
                             <div>
                                 <label class="font-semibold text-gray-700 text-sm">End Date</label>
                                 {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
                                 {% else %}
-                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
                                 {% endif %}
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Day Count Type</label>
+                                <select name="day_count_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                                    <option value="working_days" selected>Working days</option>
+                                    <option value="calendar_days">Calendar days</option>
+                                </select>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -447,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
                     <button type="button" onclick="closeProjectModal()" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm">Cancel</button>
-                    <button type="submit" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm shadow-sm flex items-center gap-1.5">
+                    <button type="submit" class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg text-sm shadow-sm flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-green-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                         Save Project
                     </button>
@@ -460,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out;">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative mx-4 my-4 max-h-[90vh] overflow-hidden flex flex-col">
             <!-- Header with Gradient -->
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
+            <div class="bg-green-700 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
                 <button id="close-details-modal" class="absolute top-3 right-3 text-white hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
                 <div class="pr-10">
                     <div class="min-w-0">
@@ -529,6 +551,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">End Date</div>
                                 <div class="text-xs font-semibold text-gray-800" id="details-end-date">—</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                                <div class="text-xs text-gray-500 uppercase mb-1">Day Count Type</div>
+                                <div class="text-xs font-semibold text-gray-800" id="details-day-count-type">—</div>
                             </div>
                         </div>
                     </div>
@@ -633,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <!-- Popup Map Modal -->
     <div id="map-popup-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 overflow-y-auto hidden">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 relative mx-4 my-4">
-            <button type="button" id="close-map-popup" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-blue-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">&times;</button>
+            <button type="button" id="close-map-popup" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center bg-green-700 text-white text-2xl rounded-full border-4 border-white shadow-lg hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-200">&times;</button>
             
             <div class="mb-4">
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">📍 Select Project Location</h2>
@@ -1102,33 +1128,6 @@ function showToast(message) {
     }
 }
 
-async function ensureAutoPrn() {
-    try {
-        if (!projectForm) return;
-        const mode = projectForm.getAttribute('data-mode') || 'add';
-        if (mode !== 'add') return; // keep existing PRN on edit
-        const prnInput = projectForm.elements ? projectForm.elements['prn'] : null;
-        if (!prnInput) return;
-        prnInput.readOnly = true;
-        // Always generate a fresh PRN when opening "Add Project"
-        prnInput.value = 'Generating...';
-        const res = await fetch('/dashboard/api/prn/generate/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const data = await res.json();
-        if (data && data.success && data.prn) {
-            prnInput.value = data.prn;
-        } else {
-            prnInput.value = '';
-            console.error('Failed to generate PRN:', data);
-        }
-    } catch (e) {
-        console.error('Failed to generate PRN:', e);
-        try {
-            const prnInput = projectForm && projectForm.elements ? projectForm.elements['prn'] : null;
-            if (prnInput) prnInput.value = '';
-        } catch (_) {}
-    }
-}
-
 function showModal() {
     if (projectModal) {
         projectModal.classList.remove('opacity-0', 'pointer-events-none');
@@ -1136,7 +1135,7 @@ function showModal() {
     }
     initSourceOfFundsUX();
     initProjectTypeUX();
-    ensureAutoPrn();
+    updateDateRequirementsByStatus();
     updateCoordinateDisplays();
 }
 function hideModal() {
@@ -1169,6 +1168,26 @@ function hideModal() {
     updateCoordinateDisplays();
 }
 window.closeProjectModal = hideModal;
+
+function updateDateRequirementsByStatus() {
+    if (!projectForm || !projectForm.elements) return;
+    const statusEl = projectForm.elements['status'];
+    const startEl = projectForm.elements['start_date'];
+    const endEl = projectForm.elements['end_date'];
+    if (!statusEl || !startEl || !endEl) return;
+
+    const status = (statusEl.value || '').toLowerCase();
+    if (status === 'planned' || status === '') {
+        startEl.required = false;
+        endEl.required = false;
+    } else if (status === 'in_progress' || status === 'ongoing') {
+        startEl.required = true;
+        endEl.required = false;
+    } else {
+        startEl.required = true;
+        endEl.required = true;
+    }
+}
 
 function populateEngineers() {
     return fetch('/projeng/api/engineers/')
@@ -1221,6 +1240,9 @@ if (addProjectBtn) {
 }
 if (closeModal) closeModal.addEventListener('click', hideModal);
 if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+if (projectForm && projectForm.elements && projectForm.elements['status']) {
+    projectForm.elements['status'].addEventListener('change', updateDateRequirementsByStatus);
+}
 
 // --- View Details Modal ---
 function formatDate(dateStr) {
@@ -1228,6 +1250,13 @@ function formatDate(dateStr) {
     const date = new Date(dateStr);
     if (isNaN(date)) return dateStr;
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatDayCountType(value, status, startDate, endDate) {
+    const normalizedStatus = (status || '').toLowerCase();
+    const isPlanned = normalizedStatus === 'planned' || normalizedStatus === 'pending';
+    if (isPlanned || !startDate || !endDate) return '—';
+    return value === 'calendar_days' ? 'Calendar Days' : 'Working Days';
 }
 
 window.openDetailsModal = function(id) {
@@ -1254,6 +1283,7 @@ window.openDetailsModal = function(id) {
     document.getElementById('details-longitude').textContent = '—';
     document.getElementById('details-start-date').textContent = '—';
     document.getElementById('details-end-date').textContent = '—';
+    document.getElementById('details-day-count-type').textContent = '—';
     document.getElementById('details-assigned-engineers').textContent = 'Loading...';
     document.getElementById('details-map').innerHTML = '<div class="text-gray-400 text-center py-8">Loading...</div>';
     document.getElementById('details-progress-section').classList.add('hidden');
@@ -1300,6 +1330,12 @@ window.openDetailsModal = function(id) {
             document.getElementById('details-longitude').textContent = project.longitude || '—';
             document.getElementById('details-start-date').textContent = formatDate(project.start_date) || '—';
             document.getElementById('details-end-date').textContent = formatDate(project.end_date) || '—';
+            document.getElementById('details-day-count-type').textContent = formatDayCountType(
+                project.day_count_type,
+                project.status,
+                project.start_date,
+                project.end_date
+            );
             
             // Initialize map
             setTimeout(() => {
@@ -2052,6 +2088,9 @@ window.openEditModal = function(id) {
             projectForm.elements['longitude'].value = project.longitude || '';
             projectForm.elements['start_date'].value = project.start_date || '';
             projectForm.elements['end_date'].value = project.end_date || '';
+            if (projectForm.elements['day_count_type']) {
+                projectForm.elements['day_count_type'].value = project.day_count_type || 'working_days';
+            }
             
             // Update location status
             updateLocationStatus();

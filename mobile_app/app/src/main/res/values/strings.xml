@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OneTagumVision Receipt Scanner</string>
+    <string name="subtitle">Secure mobile capture for Budget Monitoring receipts and attachments.</string>
+    <string name="scan_qr">Scan Upload QR</string>
+    <string name="capture_receipt">Capture Receipt</string>
+    <string name="add_another_page">Add Another Page</string>
+    <string name="upload_receipt">Upload Receipt Set</string>
+    <string name="preview">Receipt image preview</string>
+    <string name="token_waiting">Waiting for project QR</string>
+    <string name="section_connect">CONNECT DEVICE</string>
+    <string name="section_capture">CAPTURE QUEUE</string>
+    <string name="capture_count_empty">No images captured yet</string>
+    <string name="multi_page_ready">Multi-page ready</string>
+    <string name="logo_mark">OTV</string>
+    <plurals name="capture_count">
+        <item quantity="one">%d image ready</item>
+        <item quantity="other">%d images ready</item>
+    </plurals>
+</resources>

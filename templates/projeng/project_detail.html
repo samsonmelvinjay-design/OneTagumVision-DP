@@ -1,5 +1,5 @@
 {% extends 'projeng_base.html' %}
-{% load humanize %}
+{% load static humanize %}
 {% block content %}
 <style>
     .info-card {
@@ -48,8 +48,55 @@
     .documents-scroll::-webkit-scrollbar-thumb:hover {
         background: #a0aec0;
     }
+
+    /* Equal-height cards (Tailwind CDN build-safe) */
+    .pe-equal-card {
+        height: 26rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Bottom row: taller cards (Timeline should not scroll) */
+    .pe-bottom-card-scroll {
+        height: 40rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .pe-timeline-card {
+        min-height: 40rem;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        overflow: visible; /* prevent bottom clipping */
+    }
+
+    /* Progress fill color (Tailwind v2-safe; no slate palette) */
+    .expected-progress-fill {
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+    }
+
+    /* Wide cards (match sketch rows) */
+    .pe-wide-card {
+        height: 16rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .pe-wide-chart-card {
+        height: 18rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    @media (min-width: 1024px) {
+        .pe-lg-col-span-2 {
+            grid-column: 1 / -1;
+        }
+    }
 </style>
-<div class="container mx-auto px-4 py-6 max-w-7xl">
+<div class="mx-auto w-full max-w-6xl px-4 py-6">
     <!-- Header Section -->
     <div class="mb-6">
         <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
@@ -102,49 +149,65 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm font-medium text-gray-700">Change Status:</label>
-                    <select id="project-status" class="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
-                        {% for value, text in status_choices %}
-                            <option value="{{ value }}" {% if project.status == value %}selected{% endif %}>{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
             </div>
             
-            <!-- Progress Bar (Only for In Progress projects) -->
-            {% if project.status == 'in_progress' and project.progress is not None %}
             <div class="mt-6">
-                <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
-                    <span class="font-medium">Project Progress</span>
-                    <span class="font-semibold text-gray-900">{{ project.progress|floatformat:2 }}%</span>
+                <div class="flex items-start justify-between text-sm text-gray-600 mb-2 gap-4">
+                    <div class="min-w-0">
+                        <span class="font-medium block">Actual Progress</span>
+                        {% if configured_target_date %}
+                            <span class="text-xs text-gray-500 block mt-0.5">
+                                Target: {% if configured_target_progress is not None %}{{ configured_target_progress|floatformat:2 }}%{% else %}Not set{% endif %}
+                                • {{ configured_target_date|date:"F j, Y" }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-shrink-0">
+                        {% if latest_actual_progress is not None %}
+                            <span class="font-semibold text-gray-900">{{ latest_actual_progress|floatformat:2 }}%</span>
+                        {% else %}
+                            <span class="font-semibold text-gray-500">Not set</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300" style="width: {{ project.progress }}%"></div>
+                <div class="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                    <div class="expected-progress-fill h-4 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+                         style="width: {% if latest_actual_progress is not None %}{{ latest_actual_progress|floatformat:2 }}{% else %}0{% endif %}%;">
+                        {% if show_actual_progress_label_inside %}
+                            <span class="text-xs font-semibold text-white leading-none">
+                                {{ latest_actual_progress|floatformat:1 }}%
+                            </span>
+                        {% endif %}
+                    </div>
+                    {% if latest_actual_progress is not None and not show_actual_progress_label_inside %}
+                        <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-semibold text-gray-700 leading-none">
+                            {{ latest_actual_progress|floatformat:1 }}%
+                        </span>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 
+    <div class="mx-auto w-full max-w-5xl">
     <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         <!-- Left Column: Basic Information -->
-        <div class="lg:col-span-2 space-y-6">
+        <div class="space-y-6 h-full">
             <!-- Basic Information Card -->
-            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6 pe-equal-card">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     Basic Information
                 </h3>
-                <div class="space-y-4">
+                <div class="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
                     <div>
                         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
                         <p class="text-gray-900 mt-1">{{ project.description|default:"No description provided" }}</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Start Date</label>
                             <p class="text-gray-900 mt-1">
@@ -172,6 +235,18 @@
                                     </span>
                                 {% else %}
                                     <span class="text-gray-400">Not set</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Day Count Type</label>
+                            <p class="text-gray-900 mt-1">
+                                {% if project.status == 'planned' or project.status == 'pending' or not project.start_date or not project.end_date %}
+                                    <span class="text-gray-400">Not set</span>
+                                {% elif project.day_count_type == 'calendar_days' %}
+                                    Calendar Days
+                                {% else %}
+                                    Working Days
                                 {% endif %}
                             </p>
                         </div>
@@ -213,8 +288,11 @@
                 </div>
             </div>
 
+        </div>
+
+        <div class="space-y-6 h-full">
             <!-- Location & Financials Card -->
-            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6 pe-equal-card">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -222,18 +300,13 @@
                     </svg>
                     Location & Financials
                 </h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Barangay</label>
-                        <p class="text-gray-900 mt-1 flex items-center gap-1">
-                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            {{ project.barangay|default:"Not specified" }}
-                        </p>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Barangay</label>
+                            <p class="text-gray-900 mt-1">{{ project.barangay|default:"Not specified" }}</p>
+                        </div>
                         <div>
                             <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Latitude</label>
                             <p class="text-gray-900 mt-1 font-mono text-sm">{{ project.latitude|default:"N/A" }}</p>
@@ -242,64 +315,60 @@
                             <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Longitude</label>
                             <p class="text-gray-900 mt-1 font-mono text-sm">{{ project.longitude|default:"N/A" }}</p>
                         </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Source of Funds</label>
+                            <p class="text-gray-900 mt-1">{{ project.source_of_funds|default:"Not specified" }}</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project Cost</label>
-                        <p class="text-gray-900 mt-1 text-lg font-semibold">
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project Cost</label>
+                            <p class="text-gray-900 mt-1 text-lg font-semibold">
+                                {% if project.project_cost %}
+                                    &#8369;{{ project.project_cost|floatformat:2|intcomma }}
+                                {% else %}
+                                    <span class="text-gray-400">Not specified</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Spent</label>
+                            <p class="text-gray-900 mt-1 text-lg font-semibold">&#8369;{{ total_cost|floatformat:2|intcomma }}</p>
                             {% if project.project_cost %}
-                                ₱{{ project.project_cost|floatformat:2|intcomma }}
-                            {% else %}
-                                <span class="text-gray-400">Not specified</span>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {% if budget_utilization >= 100 %}
+                                    <span class="text-red-600 font-semibold">Over budget by &#8369;{{ over_budget_amount|floatformat:2|intcomma }}</span>
+                                {% elif budget_utilization >= 80 %}
+                                    <span class="text-amber-600 font-semibold">{{ budget_utilization|floatformat:1 }}% utilized</span>
+                                {% elif budget_utilization > 0 %}
+                                    <span class="text-gray-600">{{ budget_utilization|floatformat:1 }}% utilized</span>
+                                {% else %}
+                                    <span class="text-gray-500">No costs recorded yet</span>
+                                {% endif %}
+                            </p>
                             {% endif %}
-                        </p>
-                    </div>
-                    {% if project.project_cost %}
-                    <div>
-                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Spent</label>
-                        <p class="text-gray-900 mt-1 text-lg font-semibold">
-                            ₱{{ total_cost|floatformat:2|intcomma }}
-                        </p>
-                        <p class="text-xs text-gray-500 mt-1">
-                            {% if budget_utilization >= 100 %}
-                                <span class="text-red-600 font-semibold">Over budget by ₱{{ over_budget_amount|floatformat:2|intcomma }}</span>
-                            {% elif budget_utilization >= 80 %}
-                                <span class="text-amber-600 font-semibold">{{ budget_utilization|floatformat:1 }}% utilized</span>
-                            {% elif budget_utilization > 0 %}
-                                <span class="text-gray-600">{{ budget_utilization|floatformat:1 }}% utilized</span>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Remaining Budget</label>
+                            {% if remaining_budget is not None %}
+                                {% if remaining_budget < 0 %}
+                                    <p class="text-red-600 mt-1 text-lg font-semibold">&#8369;{{ remaining_budget|floatformat:2|intcomma }}</p>
+                                    <p class="text-xs text-red-600 mt-1 font-semibold">Over budget</p>
+                                {% elif budget_utilization >= 80 %}
+                                    <p class="text-amber-600 mt-1 text-lg font-semibold">&#8369;{{ remaining_budget|floatformat:2|intcomma }}</p>
+                                    <p class="text-xs text-amber-600 mt-1">Less than 20% remaining</p>
+                                {% else %}
+                                    <p class="text-green-600 mt-1 text-lg font-semibold">&#8369;{{ remaining_budget|floatformat:2|intcomma }}</p>
+                                {% endif %}
                             {% else %}
-                                <span class="text-gray-500">No costs recorded yet</span>
+                                <p class="text-gray-400 mt-1 text-lg font-semibold">N/A</p>
                             {% endif %}
-                        </p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Remaining Budget</label>
-                        {% if remaining_budget is not None %}
-                            {% if remaining_budget < 0 %}
-                                <p class="text-red-600 mt-1 text-lg font-semibold">
-                                    ₱{{ remaining_budget|floatformat:2|intcomma }}
-                                </p>
-                                <p class="text-xs text-red-600 mt-1 font-semibold">⚠️ Over budget</p>
-                            {% elif budget_utilization >= 80 %}
-                                <p class="text-amber-600 mt-1 text-lg font-semibold">
-                                    ₱{{ remaining_budget|floatformat:2|intcomma }}
-                                </p>
-                                <p class="text-xs text-amber-600 mt-1">⚠️ Less than 20% remaining</p>
-                            {% else %}
-                                <p class="text-green-600 mt-1 text-lg font-semibold">
-                                    ₱{{ remaining_budget|floatformat:2|intcomma }}
-                                </p>
-                            {% endif %}
-                        {% else %}
-                            <p class="text-gray-400 mt-1 text-lg font-semibold">N/A</p>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div>
-                        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Source of Funds</label>
-                        <p class="text-gray-900 mt-1">{{ project.source_of_funds|default:"Not specified" }}</p>
-                    </div>
+                </div>
+
                     
-                    <!-- Budget Alert (more professional + only shows when needed) -->
                     {% for group in user.groups.all %}
                         {% if group.name == 'Project Engineer' and project.project_cost %}
                             {% if budget_utilization >= 95 or remaining_budget < 0 %}
@@ -362,360 +431,230 @@
                         {% endif %}
                     {% endfor %}
                 </div>
+                </div>
             </div>
         </div>
-
-        <!-- Right Column: Project Image & Quick Actions -->
-        <div class="space-y-6">
-            <!-- Project Image Card -->
-            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    </div>
+    <!-- Secondary Content Grid (Sketch layout) -->
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        <!-- Project Documents (Full width) -->
+        <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6 pe-wide-card pe-lg-col-span-2">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    Project Image
+                    Project Documents
+                    {% if documents %}
+                        <span class="text-sm font-normal text-gray-500">({{ documents|length }})</span>
+                    {% endif %}
                 </h3>
-                {% if project.image %}
-                    <img src="{{ project.image.url }}" alt="Project Image" class="w-full h-auto rounded-lg shadow-sm border border-gray-200" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27 viewBox=%270 0 24 24%27 fill=%27%239ca3af%27%3E%3Cpath d=%27M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%27/%3E%3C/svg%3E'; this.alt='Image unavailable';">
-                {% else %}
-                    <div class="w-full h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                        <div class="text-center">
-                            <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                <div class="flex items-center gap-2">
+                    {% if documents %}
+                        <button onclick="openDocumentsModal()"
+                                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                             </svg>
-                            <p class="text-sm text-gray-500">No image uploaded</p>
-                        </div>
-                    </div>
-                {% endif %}
+                            View All
+                        </button>
+                    {% endif %}
+                    <button type="button" onclick="openUploadDocumentModal()"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Upload
+                    </button>
+                </div>
             </div>
 
-            <!-- Project Documents Card -->
-            <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        Project Documents
-                        {% if documents|length > 3 %}
-                            <span class="text-sm font-normal text-gray-500">({{ documents|length }})</span>
-                        {% endif %}
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        {% if documents|length > 3 %}
-                            <button onclick="openDocumentsModal()" 
-                                    class="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                </svg>
-                                View All
-                            </button>
-                        {% endif %}
-                        <button type="button" onclick="openUploadDocumentModal()"
-                                class="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Upload
-                        </button>
-                    </div>
-                </div>
-                
-                {% if documents %}
-                    <div class="space-y-3 max-h-80 overflow-y-auto pr-2 documents-scroll" style="scrollbar-width: thin; scrollbar-color: #cbd5e0 #f7fafc;">
-                        {% for doc in documents|slice:":3" %}
-                            <div class="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <svg class="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                        </svg>
-                                        <p class="text-sm font-medium text-gray-900 truncate" title="{{ doc.name }}">
-                                            {{ doc.name }}
-                                        </p>
-                                    </div>
-                                    <div class="flex items-center gap-3 text-xs text-gray-500 ml-7">
-                                        <span class="flex items-center gap-1">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                            </svg>
-                                            {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
-                                        </span>
-                                        <span class="flex items-center gap-1">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                            </svg>
-                                            {{ doc.uploaded_at|date:"M j, Y" }}
-                                        </span>
+            {% if documents %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {% for doc in documents|slice:":5" %}
+                        <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+                            <button type="button"
+                                    onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                    class="block w-full">
+                                <div class="h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                    <img src="{{ doc.file.url }}" alt="{{ doc.name }}" class="w-full h-full object-cover" loading="lazy"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="hidden w-full h-full items-center justify-center text-xs text-gray-500 px-2 text-center">
+                                        Preview not available
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2 flex-shrink-0">
-                                    <a href="{{ doc.file.url }}" 
-                                       target="_blank"
-                                       class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                       title="View Document">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                        </svg>
-                                    </a>
-                                    <a href="{{ doc.file.url }}" 
-                                       download
-                                       class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                       title="Download Document">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                        </svg>
+                            </button>
+                            <div class="p-2">
+                                <p class="text-xs font-medium text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
+                                <div class="mt-2 flex items-center justify-between text-xs">
+                                    <button type="button"
+                                            onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                            class="text-blue-600 hover:text-blue-800 font-medium">
+                                        Open
+                                    </button>
+                                    <a href="{{ doc.file.url }}" download class="text-green-600 hover:text-green-800 font-medium">
+                                        Download
                                     </a>
                                 </div>
                             </div>
-                        {% endfor %}
-                    </div>
-                    {% if documents|length > 3 %}
-                        <div class="mt-3 pt-3 border-t border-gray-200 text-center">
-                            <button onclick="openDocumentsModal()" 
-                                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center justify-center gap-1 mx-auto">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                                View {{ documents|length|add:"-3" }} more document{{ documents|length|add:"-3"|pluralize }}
-                            </button>
                         </div>
-                    {% endif %}
-                {% else %}
-                    <div class="text-center py-6">
-                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <p class="text-sm text-gray-500 mb-3">No documents uploaded yet</p>
-                        <button type="button" onclick="openUploadDocumentModal()"
-                                class="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    {% endfor %}
+                </div>
+                {% if documents|length > 5 %}
+                    <div class="mt-3 pt-3 border-t border-gray-200 text-center">
+                        <button onclick="openDocumentsModal()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center justify-center gap-1 mx-auto">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
-                            Upload Document
+                            View {{ documents|length|add:"-5" }} more document{{ documents|length|add:"-5"|pluralize }}
                         </button>
                     </div>
                 {% endif %}
-            </div>
+            {% else %}
+                <div class="flex-1 min-h-0 flex flex-col items-center justify-center text-center border border-dashed border-gray-200 rounded-lg bg-gray-50">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p class="text-sm text-gray-600 mb-3">No documents uploaded yet</p>
+                    <button type="button" onclick="openUploadDocumentModal()" class="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Upload Document
+                    </button>
+                </div>
+            {% endif %}
         </div>
-    </div>
 
-    <!-- Budget Requests (History) -->
-    <div id="budget-requests" class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m2 8H7a2 2 0 01-2-2V6a2 2 0 012-2h8l4 4v10a2 2 0 01-2 2z"/>
-                </svg>
-                Budget Requests
-            </h3>
-        </div>
-
-        {% if budget_requests and budget_requests|length > 0 %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Requested</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Approved</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">By</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proof</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for br in budget_requests %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ br.created_at|date:"M d, Y" }}</td>
-                            <td class="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">₱{{ br.requested_amount|floatformat:2|intcomma }}</td>
-                            <td class="px-4 py-3 text-sm whitespace-nowrap">
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold
-                                    {% if br.status == 'approved' %}bg-green-100 text-green-800
-                                    {% elif br.status == 'rejected' %}bg-red-100 text-red-800
-                                    {% elif br.status == 'pending' %}bg-amber-100 text-amber-800
-                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                    {{ br.get_status_display }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                                {% if br.approved_amount %}
-                                    ₱{{ br.approved_amount|floatformat:2|intcomma }}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                                {{ br.requested_by.get_full_name|default:br.requested_by.username }}
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-700">
-                                {% if br.attachments.all %}
-                                    <div class="flex flex-col gap-1">
-                                        {% for att in br.attachments.all %}
-                                            <a href="{{ att.file.url }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 font-medium">
-                                                Attachment {{ forloop.counter }}
-                                            </a>
-                                        {% endfor %}
-                                    </div>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr class="bg-gray-50">
-                            <td colspan="6" class="px-4 py-3 text-sm text-gray-700">
-                                <div class="font-semibold text-gray-800 mb-1">Reason:</div>
-                                <div class="text-gray-700">{{ br.reason }}</div>
-                                {% if br.decision_notes %}
-                                    <div class="font-semibold text-gray-800 mt-3 mb-1">Decision Notes:</div>
-                                    <div class="text-gray-700">{{ br.decision_notes }}</div>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="text-sm text-gray-500">No budget requests yet.</p>
-        {% endif %}
-    </div>
-
-    <!-- Progress Trends Chart (if available) -->
-    {% if progress_timeline_data|length > 0 %}
-    <div class="mt-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        {% if progress_timeline_data|length > 0 %}
+        <!-- Progress Trends (Full width) -->
+        <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6 pe-wide-chart-card pe-lg-col-span-2">
             <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
                 Progress Trends
             </h3>
-            <div class="h-64">
+            <div class="flex-1 min-h-0">
                 <canvas id="progressTrendsChart"></canvas>
             </div>
-            <p class="text-xs text-gray-500 mt-4 text-center">
-                Shows progress percentage over time based on updates
-            </p>
+            <p class="text-xs text-gray-500 mt-4 text-center">Shows progress percentage over time based on updates</p>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <!-- Timeline Comparison & Activity History Side-by-Side -->
-    {% if timeline_comparison or activity_log %}
-    <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Timeline Comparison -->
         {% if timeline_comparison %}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <!-- Timeline Comparison (Left) -->
+        <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6 pe-timeline-card">
             <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 Timeline Comparison
             </h3>
-            <div class="h-64 mb-4">
-                <canvas id="timelineComparisonChart"></canvas>
-            </div>
-            
-            <!-- Timeline Metrics -->
-            <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200">
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">
-                        {% if timeline_comparison.configured_target_date %}
-                            Target ({{ timeline_comparison.configured_target_date }})
-                        {% else %}
-                            Expected Progress
-                        {% endif %}
+
+            <div class="flex-1 min-h-0 pb-6">
+                <div class="h-64 mb-4">
+                    <canvas id="timelineComparisonChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200">
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">
+                            {% if timeline_comparison.configured_target_date %}
+                                Target ({{ timeline_comparison.configured_target_date }})
+                            {% else %}
+                                Expected Progress
+                            {% endif %}
+                        </p>
+                        <p class="text-lg font-semibold text-gray-900">
+                            {% if timeline_comparison.configured_target_progress != None %}
+                                {{ timeline_comparison.configured_target_progress }}%
+                            {% else %}
+                                {{ timeline_comparison.expected_progress }}%
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">Actual Progress</p>
+                        <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.actual_progress }}%</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">Variance</p>
+                        <p class="text-lg font-semibold {% if timeline_comparison.is_ahead %}text-green-600{% elif timeline_comparison.is_behind %}text-red-600{% else %}text-gray-900{% endif %}">
+                            {% if timeline_comparison.progress_variance > 0 %}+{% endif %}{{ timeline_comparison.progress_variance }}%
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">Days Remaining</p>
+                        <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.remaining_days }} days</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">
+                            {% if project.day_count_type == 'calendar_days' %}Total Calendar Days{% else %}Total Working Days{% endif %}
+                        </p>
+                        <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.total_days }} days</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">Performance Ratio</p>
+                        <p class="text-lg font-semibold text-gray-900">
+                            {% if performance_ratio is not None %}
+                                {{ performance_ratio|floatformat:2 }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
+                        <p class="text-[11px] text-gray-500 mt-1">Actual / Expected</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 mb-1">Efficiency Ratio</p>
+                        <p class="text-lg font-semibold text-gray-900">
+                            {% if efficiency_ratio is not None %}
+                                {{ efficiency_ratio|floatformat:2 }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
+                        <p class="text-[11px] text-gray-500 mt-1">Progress / Budget Used %</p>
+                    </div>
+                </div>
+
+                {% if timeline_comparison.is_ahead %}
+                <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-sm text-green-800">
+                        <strong>On Track:</strong> Project is ahead of schedule by {{ timeline_comparison.progress_variance|floatformat:1 }}%
                     </p>
-                    <p class="text-lg font-semibold text-gray-900">
-                        {% if timeline_comparison.configured_target_progress != None %}
-                            {{ timeline_comparison.configured_target_progress }}%
-                        {% else %}
-                            {{ timeline_comparison.expected_progress }}%
-                        {% endif %}
+                </div>
+                {% elif timeline_comparison.is_behind %}
+                <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-800">
+                        <strong>Behind Schedule:</strong> Project is {{ timeline_comparison.progress_variance|floatformat:1|slice:"1:" }}% behind expected progress
                     </p>
                 </div>
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">Actual Progress</p>
-                    <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.actual_progress }}%</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">Variance</p>
-                    <p class="text-lg font-semibold {% if timeline_comparison.is_ahead %}text-green-600{% elif timeline_comparison.is_behind %}text-red-600{% else %}text-gray-900{% endif %}">
-                        {% if timeline_comparison.progress_variance > 0 %}+{% endif %}{{ timeline_comparison.progress_variance }}%
+                {% else %}
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <strong>On Schedule:</strong> Project progress aligns with timeline expectations
                     </p>
                 </div>
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">Days Remaining</p>
-                    <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.remaining_days }} days</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">Total Working Days</p>
-                    <p class="text-lg font-semibold text-gray-900">{{ timeline_comparison.total_days }} days</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">Performance Ratio</p>
-                    <p class="text-lg font-semibold text-gray-900">
-                        {% if performance_ratio is not None %}
-                            {{ performance_ratio|floatformat:2 }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
-                    <p class="text-[11px] text-gray-500 mt-1">Actual ÷ Expected</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 mb-1">Efficiency Ratio</p>
-                    <p class="text-lg font-semibold text-gray-900">
-                        {% if efficiency_ratio is not None %}
-                            {{ efficiency_ratio|floatformat:2 }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
-                    <p class="text-[11px] text-gray-500 mt-1">Progress ÷ Budget Used %</p>
-                </div>
+                {% endif %}
             </div>
-            
-            <!-- Status Badge -->
-            {% if timeline_comparison.is_ahead %}
-            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p class="text-sm text-green-800">
-                    <strong>✓ On Track:</strong> Project is ahead of schedule by {{ timeline_comparison.progress_variance|floatformat:1 }}%
-                </p>
-            </div>
-            {% elif timeline_comparison.is_behind %}
-            <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p class="text-sm text-red-800">
-                    <strong>⚠ Behind Schedule:</strong> Project is {{ timeline_comparison.progress_variance|floatformat:1|slice:"1:" }}% behind expected progress
-                </p>
-            </div>
-            {% else %}
-            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p class="text-sm text-blue-800">
-                    <strong>📊 On Schedule:</strong> Project progress aligns with timeline expectations
-                </p>
-            </div>
-            {% endif %}
         </div>
         {% endif %}
 
-        <!-- Activity History Log -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <!-- Activity History (Right) -->
+        <div class="info-card bg-white rounded-xl shadow-sm border border-gray-200 p-6 pe-bottom-card-scroll {% if not timeline_comparison %}pe-lg-col-span-2{% endif %}">
             <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 Activity History
             </h3>
-            
+
             {% if activity_log %}
-                <div class="space-y-4 max-h-96 overflow-y-auto pr-2 activity-history-scroll" style="scrollbar-width: thin; scrollbar-color: #cbd5e0 #f7fafc;">
+                <div class="space-y-4 flex-1 min-h-0 overflow-y-auto pr-2 activity-history-scroll" style="scrollbar-width: thin; scrollbar-color: #cbd5e0 #f7fafc;">
                     {% for activity in activity_log %}
                         <div class="flex items-start gap-4 pb-4 {% if not forloop.last %}border-b border-gray-200{% endif %}">
-                            <!-- Icon -->
                             <div class="flex-shrink-0 mt-1">
                                 {% if activity.type == 'project_created' %}
                                     <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -735,18 +674,6 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                         </svg>
                                     </div>
-                                {% elif activity.type == 'budget_request' %}
-                                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m2 8H7a2 2 0 01-2-2V6a2 2 0 012-2h8l4 4v10a2 2 0 01-2 2z"/>
-                                        </svg>
-                                    </div>
-                                {% elif activity.type == 'budget_request_decision' %}
-                                    <div class="w-10 h-10 rounded-full {% if activity.status == 'approved' %}bg-green-100{% else %}bg-red-100{% endif %} flex items-center justify-center">
-                                        <svg class="w-5 h-5 {% if activity.status == 'approved' %}text-green-700{% else %}text-red-700{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                    </div>
                                 {% elif activity.type == 'document_upload' %}
                                     <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
                                         <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -761,26 +688,33 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            
-                            <!-- Content -->
+
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-4 flex-wrap">
                                     <div class="flex-1">
                                         <p class="text-gray-900 font-medium">{{ activity.message }}</p>
                                         {% if activity.description %}
-                                            <p class="text-sm text-gray-600 mt-1">{{ activity.description|truncatewords:30 }}</p>
+                                            <p class="text-sm text-gray-600 mt-1">{{ activity.description|truncatewords:20 }}</p>
                                         {% endif %}
                                         {% if activity.justification %}
                                             <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-                                                <strong>Justification:</strong> {{ activity.justification|truncatewords:20 }}
+                                                <strong>Justification:</strong> {{ activity.justification|truncatewords:18 }}
+                                            </div>
+                                        {% endif %}
+                                        {% if activity.type == 'progress_update' and activity.is_edit and activity.edit_reason %}
+                                            <div class="mt-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-xs text-indigo-800">
+                                                <strong>Edit reason:</strong> {{ activity.edit_reason|truncatewords:18 }}
+                                                {% if activity.from_percentage != None and activity.to_percentage != None %}
+                                                    <span class="text-indigo-700">({{ activity.from_percentage|floatformat:1 }}% → {{ activity.to_percentage|floatformat:1 }}%)</span>
+                                                {% endif %}
                                             </div>
                                         {% endif %}
                                         {% if activity.type == 'progress_update' %}
                                             <div class="mt-2 flex items-center gap-2 flex-wrap">
                                                 <span class="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded">{{ activity.percentage }}% Complete</span>
                                                 <span class="text-xs text-gray-500">{{ activity.date|date:"M j, Y" }}</span>
-                                                {% if activity.milestone %}
-                                                    <span class="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">Milestone: {{ activity.milestone }}</span>
+                                                {% if activity.is_edit %}
+                                                    <span class="text-xs font-semibold text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">Edited</span>
                                                 {% endif %}
                                                 {% if activity.progress_id %}
                                                     {% if can_edit_any_progress or activity.user == request.user %}
@@ -806,9 +740,7 @@
                                                 Unknown
                                             {% endif %}
                                         </p>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            {{ activity.timestamp|date:"M j, Y" }} at {{ activity.timestamp|time:"g:i A" }}
-                                        </p>
+                                        <p class="text-xs text-gray-500 mt-1">{{ activity.timestamp|date:"M j, Y" }} at {{ activity.timestamp|time:"g:i A" }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -816,99 +748,20 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="text-center py-8">
+                <div class="flex-1 min-h-0 flex flex-col items-center justify-center text-center border border-dashed border-gray-200 rounded-lg bg-gray-50">
                     <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <p class="text-gray-500">No activity history yet</p>
-                    <p class="text-sm text-gray-400 mt-1">Activity will appear here as engineers update the project</p>
+                    <p class="text-sm text-gray-400 mt-1">Activity appears here as updates are submitted.</p>
                 </div>
             {% endif %}
         </div>
     </div>
-    {% endif %}
+    </div>
 </div>
 
 <script>
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const statusSelect = document.getElementById('project-status');
-        if (statusSelect) {
-            statusSelect.addEventListener('change', function() {
-                const newStatus = this.value;
-                const projectId = {{ project.pk }};
-                const url = `{% url 'projeng:projeng_update_project_status' project.pk %}`;
-
-                // Show loading state
-                const originalValue = this.value;
-                this.disabled = true;
-                this.style.opacity = '0.6';
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    this.disabled = false;
-                    this.style.opacity = '1';
-                    
-                    if (data.success) {
-                        console.log('Status updated successfully:', data.new_status_display);
-                        // Update status badge if needed
-                        const statusBadge = document.querySelector('.status-badge');
-                        if (statusBadge && data.new_status_display) {
-                            statusBadge.textContent = data.new_status_display;
-                            // Update badge color based on new status
-                            statusBadge.className = 'status-badge ';
-                            if (newStatus === 'completed') {
-                                statusBadge.className += 'bg-green-50 text-green-800 border-green-200';
-                            } else if (newStatus === 'in_progress') {
-                                statusBadge.className += 'bg-blue-50 text-blue-800 border-blue-200';
-                            } else if (newStatus === 'planned') {
-                                statusBadge.className += 'bg-amber-50 text-amber-800 border-amber-200';
-                            } else if (newStatus === 'delayed') {
-                                statusBadge.className += 'bg-red-50 text-red-800 border-red-200';
-                            } else {
-                                statusBadge.className += 'bg-gray-50 text-gray-800 border-gray-200';
-                            }
-                        }
-                    } else {
-                        console.error('Error updating status:', data.error);
-                        alert('Failed to update status: ' + (data.error || 'Unknown error'));
-                        this.value = originalValue;
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    alert('An error occurred while updating status.');
-                    this.value = originalValue;
-                    this.disabled = false;
-                    this.style.opacity = '1';
-                });
-            });
-        }
-    });
-    
     // Budget Alert Modal Functions - Make them globally accessible
     window.showBudgetAlertModal = function() {
         const modal = document.getElementById('budgetAlertModal');
@@ -1207,8 +1060,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Documents Modal for Project Engineer -->
-<div id="documentsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+<div id="documentsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
         <!-- Modal Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -1226,59 +1079,35 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         
         <!-- Modal Body - Scrollable -->
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex-1 overflow-y-auto p-6" style="max-height: min(62vh, 660px);">
             {% if documents %}
-                <div class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     {% for doc in documents %}
-                        <div class="flex items-start justify-between gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <svg class="w-5 h-5 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                    <p class="text-sm font-medium text-gray-900" title="{{ doc.name }}">
-                                        {{ doc.name }}
-                                    </p>
+                        <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+                            <button type="button"
+                                    onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                    class="block w-full">
+                                <div class="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                    <img src="{{ doc.file.url }}" alt="{{ doc.name }}" class="w-full h-full object-cover" loading="lazy"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="hidden w-full h-full items-center justify-center text-xs text-gray-500 px-2 text-center">
+                                        Preview not available
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-4 text-xs text-gray-500 ml-7">
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                        </svg>
-                                        {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                        </svg>
-                                        {{ doc.uploaded_at|date:"M j, Y" }}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                        {{ doc.uploaded_at|date:"g:i A" }}
-                                    </span>
+                            </button>
+                            <div class="p-3">
+                                <p class="text-sm font-medium text-gray-900 truncate" title="{{ doc.name }}">{{ doc.name }}</p>
+                                <p class="mt-1 text-xs text-gray-500 truncate">{{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }} • {{ doc.uploaded_at|date:"M j, Y" }}</p>
+                                <div class="mt-2 flex items-center justify-between text-xs">
+                                    <button type="button"
+                                            onclick="openDocumentPreview('{{ doc.file.url|escapejs }}', '{{ doc.name|escapejs }}')"
+                                            class="text-blue-600 hover:text-blue-800 font-medium">
+                                        Open
+                                    </button>
+                                    <a href="{{ doc.file.url }}" download class="text-green-600 hover:text-green-800 font-medium">
+                                        Download
+                                    </a>
                                 </div>
-                            </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <a href="{{ doc.file.url }}" 
-                                   target="_blank"
-                                   class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                   title="View Document">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                    </svg>
-                                </a>
-                                <a href="{{ doc.file.url }}" 
-                                   download
-                                   class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                   title="Download Document">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                    </svg>
-                                </a>
                             </div>
                         </div>
                     {% endfor %}
@@ -1302,24 +1131,52 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
+<!-- Document Preview Modal -->
+<div id="documentPreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-[90] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full flex flex-col overflow-hidden"
+         style="width: min(96vw, 1080px); height: min(88vh, 760px);">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 id="documentPreviewTitle" class="text-base font-semibold text-gray-900 truncate pr-4">Document Preview</h3>
+            <button type="button" onclick="closeDocumentPreview()"
+                    class="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 flex items-center justify-center p-3 sm:p-4 bg-gray-50 overflow-hidden">
+            <img id="documentPreviewImage" src="" alt="Document preview" class="w-full h-full object-contain rounded-lg">
+        </div>
+    </div>
+</div>
+
 {% if report_data %}
 {{ report_data|json_script:"report-data" }}
 {% endif %}
 
 <script>
+function syncProjectDetailModalScrollLock() {
+    const modalIds = ['documentsModal', 'uploadDocumentModal', 'documentPreviewModal'];
+    const hasOpenModal = modalIds.some((id) => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains('hidden');
+    });
+    document.body.style.overflow = hasOpenModal ? 'hidden' : '';
+}
+
 function openDocumentsModal() {
     document.getElementById('documentsModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    syncProjectDetailModalScrollLock();
 }
 
 function closeDocumentsModal() {
     document.getElementById('documentsModal').classList.add('hidden');
-    document.body.style.overflow = '';
+    syncProjectDetailModalScrollLock();
 }
 
 function openUploadDocumentModal() {
     document.getElementById('uploadDocumentModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    syncProjectDetailModalScrollLock();
     document.getElementById('upload-document-files').value = '';
     document.getElementById('upload-file-names').classList.add('hidden');
     document.getElementById('upload-document-submit').disabled = true;
@@ -1328,7 +1185,29 @@ function openUploadDocumentModal() {
 
 function closeUploadDocumentModal() {
     document.getElementById('uploadDocumentModal').classList.add('hidden');
-    document.body.style.overflow = '';
+    syncProjectDetailModalScrollLock();
+}
+
+function openDocumentPreview(fileUrl, fileName) {
+    const modal = document.getElementById('documentPreviewModal');
+    const image = document.getElementById('documentPreviewImage');
+    const title = document.getElementById('documentPreviewTitle');
+    if (!modal || !image) return;
+
+    image.src = fileUrl || '';
+    image.alt = fileName || 'Document preview';
+    if (title) title.textContent = fileName || 'Document Preview';
+
+    modal.classList.remove('hidden');
+    syncProjectDetailModalScrollLock();
+}
+
+function closeDocumentPreview() {
+    const modal = document.getElementById('documentPreviewModal');
+    const image = document.getElementById('documentPreviewImage');
+    if (modal) modal.classList.add('hidden');
+    if (image) image.src = '';
+    syncProjectDetailModalScrollLock();
 }
 
 // Close modal when clicking outside
@@ -1345,9 +1224,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Close modal with Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
+            const previewModal = document.getElementById('documentPreviewModal');
             const docsModal = document.getElementById('documentsModal');
             const uploadModal = document.getElementById('uploadDocumentModal');
-            if (uploadModal && !uploadModal.classList.contains('hidden')) {
+            if (previewModal && !previewModal.classList.contains('hidden')) {
+                closeDocumentPreview();
+            } else if (uploadModal && !uploadModal.classList.contains('hidden')) {
                 closeUploadDocumentModal();
             } else if (docsModal && !docsModal.classList.contains('hidden')) {
                 closeDocumentsModal();
@@ -1360,6 +1242,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (uploadDocumentModal) {
         uploadDocumentModal.addEventListener('click', function(e) {
             if (e.target === this) closeUploadDocumentModal();
+        });
+    }
+
+    const documentPreviewModal = document.getElementById('documentPreviewModal');
+    if (documentPreviewModal) {
+        documentPreviewModal.addEventListener('click', function(e) {
+            if (e.target === this) closeDocumentPreview();
         });
     }
 
@@ -1462,74 +1351,222 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
     function fmtNum(n) { return n != null ? Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'; }
     function fmtPct(n) { return n != null ? Number(n).toFixed(2) + '%' : 'N/A'; }
+    var logoDataUrlCache = null;
+    var logoLoadAttempted = false;
+    var logoWarned = false;
+    var staticLogoUrl = '{% static "img/tagumcitylogo.png" %}';
+    if (staticLogoUrl && staticLogoUrl.charAt(0) !== '/') {
+        staticLogoUrl = '/' + staticLogoUrl;
+    }
+    var logoCandidates = [
+        staticLogoUrl,
+        '/frontend/tagumcitylogo.png'
+    ];
 
     var reportDataEl = document.getElementById('report-data');
     var printBtn = document.getElementById('print-report-btn');
     if (!reportDataEl || !printBtn) return;
 
-    function buildPdfAndOpen() {
+    function getAsOfHalfMonthText() {
+        var now = new Date();
+        var month = now.toLocaleString('en-US', { month: 'long' }).toUpperCase();
+        var year = now.getFullYear();
+        var day = now.getDate();
+        var rangeText = day <= 15 ? '1-15' : '16-31';
+        return 'AS OF: ' + month + ' ' + rangeText + ', ' + year;
+    }
+
+    function blobToDataUrl(blob) {
+        return new Promise(function(resolve, reject) {
+            var reader = new FileReader();
+            reader.onloadend = function() { resolve(reader.result); };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function loadLogoDataUrl() {
+        if (logoDataUrlCache) return logoDataUrlCache;
+        if (logoLoadAttempted) return null;
+        logoLoadAttempted = true;
+
+        for (var i = 0; i < logoCandidates.length; i++) {
+            try {
+                var res = await fetch(logoCandidates[i], { credentials: 'same-origin' });
+                if (!res.ok) continue;
+                var blob = await res.blob();
+                var dataUrl = await blobToDataUrl(blob);
+                if (dataUrl) {
+                    logoDataUrlCache = dataUrl;
+                    return logoDataUrlCache;
+                }
+            } catch (err) {
+                if (!logoWarned) {
+                    console.warn('Failed to load report logo. PDF will continue without logo.', err);
+                    logoWarned = true;
+                }
+            }
+        }
+        return null;
+    }
+
+    async function loadUploadedImageDataUrls(uploadedImages) {
+        var imageDataUrls = [];
+        if (!Array.isArray(uploadedImages) || uploadedImages.length === 0) return imageDataUrls;
+
+        for (var i = 0; i < uploadedImages.length; i++) {
+            var img = uploadedImages[i] || {};
+            var imgUrl = (img.url || '').trim();
+            if (!imgUrl) continue;
+            try {
+                var res = await fetch(imgUrl, { credentials: 'same-origin' });
+                if (!res.ok) continue;
+                var blob = await res.blob();
+                if (blob.type && blob.type.indexOf('image/') !== 0) continue;
+                var dataUrl = await blobToDataUrl(blob);
+                if (dataUrl) imageDataUrls.push(dataUrl);
+            } catch (err) {
+                // Keep report generation resilient even when individual images fail to load.
+            }
+        }
+        return imageDataUrls;
+    }
+
+    async function buildPdfAndOpen(previewWindow) {
         try {
             var data = JSON.parse(reportDataEl.textContent);
             var p = data.project || {};
-            var scheduled = data.expected_progress != null ? Number(data.expected_progress).toFixed(2) + '%' : 'N/A';
-            var actual = data.latest_progress_pct != null ? Number(data.latest_progress_pct).toFixed(2) + '%' : 'N/A';
-            var slippage = data.progress_variance != null ? Number(data.progress_variance).toFixed(2) + '%' : 'N/A';
+            var logoDataUrl = await loadLogoDataUrl();
+            var scheduledValue = data.scheduled_progress != null ? Number(data.scheduled_progress) : null;
+            var actualValue = data.latest_progress_pct != null ? Number(data.latest_progress_pct) : null;
+            var varianceValue = (data.progress_variance != null && !Number.isNaN(Number(data.progress_variance)))
+                ? Number(data.progress_variance)
+                : null;
+            if ((varianceValue == null || Number.isNaN(varianceValue)) &&
+                scheduledValue != null && actualValue != null &&
+                !Number.isNaN(scheduledValue) && !Number.isNaN(actualValue)) {
+                // Fallback when backend variance is unavailable.
+                varianceValue = actualValue - scheduledValue;
+            }
+            var scheduled = scheduledValue != null && !Number.isNaN(scheduledValue) ? scheduledValue.toFixed(2) + '%' : 'N/A';
+            var actual = actualValue != null && !Number.isNaN(actualValue) ? actualValue.toFixed(2) + '%' : 'N/A';
+            var slippage = varianceValue != null && !Number.isNaN(varianceValue) ? varianceValue.toFixed(2) + '%' : 'N/A';
 
             function linedRow(label, value) {
                 return [
-                    { text: label, bold: true, margin: [0, 2, 0, 2] },
-                    { text: ': ' + (value || 'N/A'), margin: [0, 2, 0, 2] }
+                    { text: label, bold: true, margin: [0, 3, 0, 3] },
+                    { text: ': ' + (value || 'N/A'), margin: [0, 3, 0, 3] }
                 ];
             }
 
-            var durationText = data.total_days ? data.total_days + ' WORKING DAYS' : 'N/A';
+            var dayCountType = (p.day_count_type || 'working_days').toLowerCase();
+            var statusValue = (p.status || '').toLowerCase();
+            var isPlanned = statusValue === 'planned' || statusValue === 'pending';
+            var hasTimelineDates = Boolean(p.start_date && p.end_date);
+            var dayCountTypeLabel = (isPlanned || !hasTimelineDates)
+                ? 'N/A'
+                : (dayCountType === 'calendar_days' ? 'Calendar Days' : 'Working Days');
+            var durationSuffix = dayCountType === 'calendar_days' ? 'CALENDAR DAYS' : 'WORKING DAYS';
+            var durationText = (!isPlanned && hasTimelineDates && data.total_days) ? data.total_days + ' ' + durationSuffix : 'N/A';
             var elapsedText = data.days_elapsed != null ? String(data.days_elapsed) : 'N/A';
             var remainingText = data.days_remaining != null ? String(data.days_remaining) : 'N/A';
-            var extensionCount = data.extension_count != null ? String(data.extension_count) : 'N/A';
+            var extensionCountNum = Number(data.extension_count || 0);
+            var extensionCount = extensionCountNum > 0 ? String(extensionCountNum) : 'N/A';
             var revisedTargetDate = data.revised_target_date || 'N/A';
-            var statusText = (p.status || '').toUpperCase();
-            var remarksProjectText = statusText === 'IN PROGRESS' ? 'PROJECT ON GOING' : ('PROJECT ' + (statusText || 'ON GOING'));
-            var asOfText = (p.start_date && p.end_date)
-                ? ('AS OF: ' + p.start_date.toUpperCase() + ' TO ' + p.end_date.toUpperCase())
-                : ('AS OF: ' + (data.generated_at || '').toUpperCase());
+            var statusText = (p.status || '').toLowerCase();
+            var remarksProjectText = 'PROJECT ON GOING';
+            if (statusText === 'completed') remarksProjectText = 'PROJECT COMPLETED';
+            else if (statusText === 'delayed') remarksProjectText = 'PROJECT DELAYED';
+            else if (statusText === 'planned' || statusText === 'pending') remarksProjectText = 'PROJECT PLANNED';
+            var asOfText = getAsOfHalfMonthText();
 
             var preparedName = (data.assigned_engineers && data.assigned_engineers[0])
                 ? data.assigned_engineers[0]
                 : (data.generated_by || 'N/A');
-            var concurredName = data.generated_by || 'N/A';
+            var preparedNameDisplay = String(preparedName || 'N/A').toUpperCase();
+            var uploadedImageDataUrls = await loadUploadedImageDataUrls(data.uploaded_images || []);
+
+            function buildImageRows(imageDataUrls) {
+                var rows = [];
+                for (var i = 0; i < imageDataUrls.length; i += 3) {
+                    var row = [];
+                    for (var j = 0; j < 3; j++) {
+                        var idx = i + j;
+                        if (idx < imageDataUrls.length) {
+                            row.push({
+                                image: imageDataUrls[idx],
+                                fit: [158, 104],
+                                alignment: 'center',
+                                margin: [0, 2, 0, 2],
+                                border: [false, false, false, false]
+                            });
+                        } else {
+                            row.push({ text: '', border: [false, false, false, false] });
+                        }
+                    }
+                    rows.push(row);
+                }
+                return rows;
+            }
 
             var content = [
                 {
                     table: {
-                        widths: ['*'],
-                        body: [[{ text: 'CITY OF TAGUM    |    CEO - CONSTRUCTION DIVISION', alignment: 'center', color: 'white', bold: true, fillColor: '#4f8a3e', margin: [0, 3, 0, 3] }]]
+                        widths: [24, 74, '*'],
+                        heights: [40, 12],
+                        body: [
+                            [
+                                { text: '' },
+                                logoDataUrl
+                                    ? { image: logoDataUrl, width: 66, rowSpan: 2, margin: [0, 0, 0, 0], alignment: 'center' }
+                                    : { text: '', rowSpan: 2 },
+                                { text: 'CITY OF TAGUM', color: '#6f8566', bold: true, fontSize: 21, margin: [8, 11, 0, 0], characterSpacing: 0.2 }
+                            ],
+                            [
+                                { text: ' ', fillColor: '#69a95b' },
+                                '',
+                                { text: 'CEO - CONSTRUCTION DIVISION', color: 'white', bold: true, fillColor: '#69a95b', margin: [8, 4, 0, 0], fontSize: 12, lineHeight: 1 }
+                            ]
+                        ]
                     },
-                    layout: 'noBorders',
-                    margin: [0, 0, 0, 2]
+                    layout: {
+                        hLineWidth: function() { return 0; },
+                        vLineWidth: function() { return 0; },
+                        paddingLeft: function() { return 0; },
+                        paddingRight: function() { return 0; },
+                        paddingTop: function() { return 0; },
+                        paddingBottom: function() { return 0; }
+                    },
+                    margin: [0, 0, 0, 6]
                 },
                 {
                     table: {
                         widths: ['*'],
-                        body: [[{ text: 'INDIVIDUAL PROJECT INFORMATION', alignment: 'center', color: 'white', bold: true, fillColor: '#3f3a37', margin: [0, 4, 0, 4], fontSize: 13 }]]
+                        body: [[{ text: 'INDIVIDUAL PROJECT INFORMATION', alignment: 'center', color: 'white', bold: true, fillColor: '#4a4745', margin: [0, 1, 0, 1], fontSize: 20 }]]
                     },
                     layout: 'noBorders',
-                    margin: [0, 0, 0, 2]
+                    margin: [0, 0, 0, 3]
                 },
-                { text: asOfText, alignment: 'center', fontSize: 10, bold: true, margin: [0, 0, 0, 8] },
+                { text: asOfText, alignment: 'center', fontSize: 12, bold: true, decoration: 'underline', margin: [0, 0, 0, 4] },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 1, lineColor: '#888888' }], margin: [0, 0, 0, 8] },
                 {
                     table: {
                         widths: [170, '*'],
                         body: [
-                            [{ text: 'PROJECT NAME:', bold: true }, { text: p.name || 'N/A' }],
-                            [{ text: 'LOCATION:', bold: true }, { text: p.barangay || 'N/A' }],
-                            [{ text: 'REFERENCE NUMBER:', bold: true }, { text: p.prn || 'N/A' }]
+                            [{ text: 'PROJECT NAME:', bold: true, margin: [4, 3, 4, 3] }, { text: p.name || 'N/A', margin: [4, 3, 4, 3] }],
+                            [{ text: 'LOCATION:', bold: true, margin: [4, 3, 4, 3] }, { text: p.barangay || 'N/A', margin: [4, 3, 4, 3] }],
+                            [{ text: 'REFERENCE NUMBER:', bold: true, margin: [4, 3, 4, 3] }, { text: p.prn || 'N/A', margin: [4, 3, 4, 3] }]
                         ]
                     },
                     layout: {
                         hLineColor: function() { return '#666666'; },
                         vLineColor: function() { return '#666666'; },
                         hLineWidth: function() { return 0.8; },
-                        vLineWidth: function() { return 0.8; }
+                        vLineWidth: function() { return 0.8; },
+                        paddingLeft: function() { return 3; },
+                        paddingRight: function() { return 3; },
+                        paddingTop: function() { return 2; },
+                        paddingBottom: function() { return 2; }
                     },
                     margin: [0, 4, 0, 10]
                 },
@@ -1541,6 +1578,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             linedRow('Source of fund', p.source_of_funds || 'N/A'),
                             linedRow('Date Started', p.start_date || 'N/A'),
                             linedRow('Target Date of Completion', p.end_date || 'N/A'),
+                            linedRow('Day Count Type', dayCountTypeLabel),
                             linedRow('Project Duration', durationText),
                             linedRow('No. of Time Extension (if any)', extensionCount),
                             linedRow('Revised target date of completion', revisedTargetDate),
@@ -1553,13 +1591,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     layout: {
                         hLineColor: function() { return '#8d8d8d'; },
                         vLineWidth: function() { return 0; },
-                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; }
+                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; },
+                        paddingLeft: function() { return 2; },
+                        paddingRight: function() { return 2; },
+                        paddingTop: function() { return 1; },
+                        paddingBottom: function() { return 1; }
                     },
                     margin: [0, 0, 0, 8]
                 },
                 {
                     table: {
-                        widths: [240, '*'],
+                        widths: [200, '*'],
                         body: [
                             linedRow('Scheduled Project Accomplishment', scheduled),
                             linedRow('Actual Project Accomplishment', actual),
@@ -1569,9 +1611,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     layout: {
                         hLineColor: function() { return '#8d8d8d'; },
                         vLineWidth: function() { return 0; },
-                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; }
+                        hLineWidth: function(i, node) { return i === 0 || i === node.table.body.length ? 0 : 0.5; },
+                        paddingLeft: function() { return 2; },
+                        paddingRight: function() { return 2; },
+                        paddingTop: function() { return 1; },
+                        paddingBottom: function() { return 1; }
                     },
-                    margin: [0, 2, 0, 10]
+                    margin: [0, 2, 0, 8]
                 },
                 {
                     table: {
@@ -1582,56 +1628,107 @@ document.addEventListener('DOMContentLoaded', function() {
                         ]]
                     },
                     layout: 'noBorders',
-                    margin: [0, 8, 0, 26]
+                    margin: [0, 8, 0, 8]
                 },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 0.8, lineColor: '#666666' }], margin: [0, 0, 0, 8] },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 0.8, lineColor: '#666666' }], margin: [0, 0, 0, 8] },
+                uploadedImageDataUrls.length ? {
+                    table: {
+                        widths: ['*', '*', '*'],
+                        body: buildImageRows(uploadedImageDataUrls)
+                    },
+                    layout: {
+                        hLineWidth: function() { return 0; },
+                        vLineWidth: function() { return 0; },
+                        paddingLeft: function() { return 3; },
+                        paddingRight: function() { return 3; },
+                        paddingTop: function() { return 2; },
+                        paddingBottom: function() { return 2; }
+                    },
+                    margin: [0, 0, 0, 10]
+                } : { text: '', margin: [0, 0, 0, 6] },
                 {
                     columns: [
                         {
                             width: '*',
                             stack: [
-                                { text: 'Prepared by:', margin: [0, 0, 0, 14] },
-                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
-                                { text: preparedName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
+                                { text: 'Prepared by:', margin: [0, 0, 0, 10] },
+                                { text: preparedNameDisplay, bold: true, alignment: 'center', margin: [0, 0, 0, 1] },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 250, y2: 0 }], margin: [0, 0, 0, 3] },
                                 { text: 'Project In-Charge', alignment: 'center' }
                             ]
                         },
                         {
                             width: '*',
                             stack: [
-                                { text: 'Concurred by:', margin: [0, 0, 0, 14] },
-                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 210, y2: 0 }] },
-                                { text: concurredName, bold: true, alignment: 'center', margin: [0, 4, 0, 0] },
-                                { text: 'Project Engineer', alignment: 'center' }
+                                { text: 'Concurred by:', margin: [0, 0, 0, 11] },
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 250, y2: 0 }], margin: [0, 12, 0, 3] },
+                                { text: 'Division Head', alignment: 'center' }
                             ]
                         }
                     ]
-                }
+                },
             ];
 
             var doc = {
                 pageSize: 'A4',
-                pageMargins: [40, 40, 40, 60],
+                pageMargins: [36, 24, 36, 46],
                 defaultStyle: { fontSize: 10, font: 'Roboto' },
                 styles: { label: { bold: true }, sectionTitle: { bold: true, fontSize: 10 } },
                 footer: function(i, n) { return { text: 'Page ' + i + ' of ' + n, alignment: 'center', fontSize: 8 }; },
                 content: content
             };
             if (typeof pdfMake !== 'undefined') {
-                pdfMake.createPdf(doc).open();
+                var pdfDoc = pdfMake.createPdf(doc);
+                var fileName = 'individual_project_information.pdf';
+                if (previewWindow && !previewWindow.closed) {
+                    previewWindow.document.title = 'Generating report...';
+                    previewWindow.document.body.innerHTML = '<p style="font-family: Arial, sans-serif; padding: 16px;">Preparing PDF report...</p>';
+                    pdfDoc.getBlob(function(blob) {
+                        try {
+                            var blobUrl = URL.createObjectURL(blob);
+                            if (previewWindow && !previewWindow.closed) {
+                                previewWindow.location.replace(blobUrl);
+                            } else {
+                                pdfDoc.download(fileName);
+                            }
+                            setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 60000);
+                        } catch (blobErr) {
+                            console.error('PDF blob preview failed:', blobErr);
+                            pdfDoc.download(fileName);
+                        }
+                    });
+                } else {
+                    // Popup blocked: always download.
+                    pdfDoc.download(fileName);
+                }
             } else {
+                if (previewWindow && !previewWindow.closed) {
+                    previewWindow.close();
+                }
                 alert('PDF library not loaded. Please refresh and try again.');
             }
         } catch (err) {
+            if (previewWindow && !previewWindow.closed) {
+                previewWindow.close();
+            }
             console.error('PDF generation error:', err);
             alert('Failed to generate PDF: ' + (err.message || 'Unknown error'));
         }
     }
 
-    window.printReportPdf = buildPdfAndOpen;
+    // Warm up logo loading so first click is faster and less likely to hit popup blocking.
+    loadLogoDataUrl().catch(function() {});
+
+    window.printReportPdf = function() {
+        var previewWindow = window.open('', '_blank');
+        buildPdfAndOpen(previewWindow);
+    };
     printBtn.addEventListener('click', function(e) {
         e.preventDefault();
-        buildPdfAndOpen();
-    });
+        var previewWindow = window.open('', '_blank');
+        buildPdfAndOpen(previewWindow);
+   });
 })();
 </script>
 {% endif %}

@@ -576,6 +576,14 @@ class SimpleChoropleth {
         const plannedProjects = metrics.planned || 0;
         const delayedProjects = metrics.delayed || 0;
 
+        // City Overview already renders its own metrics panel.
+        // Avoid creating a second Leaflet control (it appears as an empty white tab).
+        const externalSummaryPanelExists = !!document.getElementById('summary-panel-content');
+        if (!this.summaryPanel && externalSummaryPanelExists) {
+            if (DEBUG_CHOROPLETH) console.log('External summary panel detected; skipping SimpleChoropleth summary panel creation.');
+            return;
+        }
+
         // Create or update summary panel
         if (!this.summaryPanel) {
             this.summaryPanel = L.control({ position: 'topleft' });
@@ -1218,9 +1226,9 @@ class SimpleChoropleth {
     createZoningPopup(name, barangay, stats, zoneInfo = null, viewType = 'projects') {
         const escapedName = (name || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         let content = `
-            <div style="min-width: 280px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 12px 14px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap;">
+            <div style="min-width: 280px; background: #15803d; padding: 12px 14px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap;">
                 <h3 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;">${escapedName}</h3>
-                <button type="button" class="barangay-view-projects-btn" data-barangay="${escapedName}" style="flex-shrink: 0; padding: 6px 12px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.95); color: #667eea; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">View Projects</button>
+                <button type="button" class="barangay-view-projects-btn" data-barangay="${escapedName}" style="flex-shrink: 0; padding: 6px 12px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.95); color: #166534; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">View Projects</button>
             </div>
             <div style="background: #ffffff; padding: 12px; border-radius: 0 0 10px 10px; max-height: 400px; overflow-y: auto;">
         `;

@@ -36,15 +36,6 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         # Add Strict-Transport-Security for HTTPS (uncomment in production)
         # response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         
-        # Check if user is accessing a protected page without authentication
-        if not request.user.is_authenticated:
-            # For protected URLs, ensure they redirect to login
-            protected_paths = ['/admin/', '/monitoring/', '/projeng/']
-            if any(request.path.startswith(path) for path in protected_paths):
-                # Clear any existing session data
-                request.session.flush()
-                return redirect('login')
-        
         return response
     
     def process_request(self, request):
@@ -54,10 +45,31 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         # Skip health check endpoint - don't process requests to it
         if request.path == '/health/' or request.path == '/health':
             return None
-        
-        # If user is not authenticated but has session data, clear it
-        if not request.user.is_authenticated and request.session:
-            # Clear session data for unauthenticated users
-            request.session.flush()
-        
+
+        # Allow PWA assets and offline page without authentication so browsers
+        # can fetch manifest/service worker in standards-compliant mode.
+        public_pwa_paths = {
+            '/projeng/manifest.webmanifest',
+            '/projeng/sw.js',
+            '/projeng/offline',
+            '/projeng/offline/',
+        }
+        if request.path in public_pwa_paths:
+            return None
+
+        # Public mobile receipt upload endpoints are accessed by phones without
+        # a logged-in browser session. Token validation happens in the view.
+        public_mobile_receipt_prefixes = (
+            '/dashboard/finance/receipts/mobile-upload/',
+        )
+        if any(request.path.startswith(path) for path in public_mobile_receipt_prefixes):
+            return None
+         
+        # Keep anonymous sessions intact on public pages (e.g. login/password reset).
+        # Force-redirect only when an anonymous user hits protected areas.
+        if not request.user.is_authenticated:
+            protected_paths = ('/admin/', '/monitoring/', '/projeng/', '/dashboard/')
+            if any(request.path.startswith(path) for path in protected_paths):
+                return redirect('login')
+
         return None

@@ -82,14 +82,14 @@ def approve_budget_request(request, project_id):
             # Format amounts for notification
             project_display = format_project_display(project)
             finance_manager_name = request.user.get_full_name() or request.user.username
-            formatted_approved = f"₱{approved_amount_float:,.2f}"
-            formatted_old = f"₱{current_budget:,.2f}"
-            formatted_new = f"₱{new_budget:,.2f}"
+            formatted_approved = f"PHP {approved_amount_float:,.2f}"
+            formatted_old = f"PHP {current_budget:,.2f}"
+            formatted_new = f"PHP {new_budget:,.2f}"
             
             # Build notification message
             if notes:
                 message = (
-                    f"✅ Budget Increase Approved: {project_display} "
+                    f"[APPROVED] Budget Increase Approved: {project_display} "
                     f"Budget increased by {formatted_approved} "
                     f"(from {formatted_old} to {formatted_new}). "
                     f"Approved by {finance_manager_name}. "
@@ -97,7 +97,7 @@ def approve_budget_request(request, project_id):
                 )
             else:
                 message = (
-                    f"✅ Budget Increase Approved: {project_display} "
+                    f"[APPROVED] Budget Increase Approved: {project_display} "
                     f"Budget increased by {formatted_approved} "
                     f"(from {formatted_old} to {formatted_new}). "
                     f"Approved by {finance_manager_name}."
@@ -160,12 +160,12 @@ def reject_budget_request(request, project_id):
             project_display = format_project_display(project)
             finance_manager_name = request.user.get_full_name() or request.user.username
             current_budget = float(project.project_cost) if project.project_cost else 0
-            formatted_budget = f"₱{current_budget:,.2f}"
+            formatted_budget = f"PHP {current_budget:,.2f}"
             
             # Build notification message
             if rejection_reason:
                 message = (
-                    f"❌ Budget Increase Rejected: {project_display} "
+                    f"[REJECTED] Budget Increase Rejected: {project_display} "
                     f"Budget increase request has been rejected. "
                     f"Current budget remains at {formatted_budget}. "
                     f"Rejected by {finance_manager_name}. "
@@ -173,7 +173,7 @@ def reject_budget_request(request, project_id):
                 )
             else:
                 message = (
-                    f"❌ Budget Increase Rejected: {project_display} "
+                    f"[REJECTED] Budget Increase Rejected: {project_display} "
                     f"Budget increase request has been rejected. "
                     f"Current budget remains at {formatted_budget}. "
                     f"Rejected by {finance_manager_name}."

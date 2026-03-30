@@ -9,22 +9,27 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.core.exceptions import PermissionDenied
 
 
+def _has_group(user, group_name):
+    """Case-insensitive group check to avoid role mismatches due to naming/casing."""
+    return user.groups.filter(name__iexact=group_name).exists()
+
+
 def is_head_engineer(user):
     """Check if user is Head Engineer or superuser"""
     return user.is_authenticated and (
         user.is_superuser or 
-        user.groups.filter(name='Head Engineer').exists()
+        _has_group(user, 'Head Engineer')
     )
 
 
 def is_project_engineer(user):
     """Check if user is Project Engineer"""
-    return user.is_authenticated and user.groups.filter(name='Project Engineer').exists()
+    return user.is_authenticated and _has_group(user, 'Project Engineer')
 
 
 def is_finance_manager(user):
     """Check if user is Finance Manager"""
-    return user.is_authenticated and user.groups.filter(name='Finance Manager').exists()
+    return user.is_authenticated and _has_group(user, 'Finance Manager')
 
 
 def is_project_or_head_engineer(user):

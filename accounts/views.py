@@ -5,7 +5,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.views import PasswordResetView
 from django.core.mail import send_mail
+from django.conf import settings
 import logging
+from gistagum.access_control import is_head_engineer, is_finance_manager, is_project_engineer
 
 def dual_login(request):
     print("dual_login view received a request.") # Debug print at the very beginning
@@ -14,18 +16,21 @@ def dual_login(request):
     # If already logged in, redirect to appropriate dashboard
     if request.user.is_authenticated:
         print(f"User {request.user.username} is already authenticated, redirecting...")
-        if request.user.is_superuser or request.user.groups.filter(name='Head Engineer').exists():
+        if is_head_engineer(request.user):
             return redirect('/dashboard/')
-        elif request.user.groups.filter(name='Finance Manager').exists():
+        elif is_finance_manager(request.user):
             return redirect('/dashboard/finance/dashboard/')
-        elif request.user.groups.filter(name='Project Engineer').exists():
+        elif is_project_engineer(request.user):
             return redirect('/projeng/dashboard/')
         else:
             return redirect('/dashboard/')
     
     if request.method == 'POST':
-        username = request.POST['username'].strip()
-        password = request.POST['password']
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        if not username or not password:
+            error = 'Please enter both username and password.'
+            return render(request, 'registration/dual_login.html', {'error': error})
         user = authenticate(request, username=username, password=password)
         if user is not None:
             # Allow superusers to bypass group checks
@@ -38,17 +43,17 @@ def dual_login(request):
             # Debug: show user groups
             user_groups = list(user.groups.values_list('name', flat=True))
             print(f"Authenticated user: {user.username}, groups={user_groups}")
-            if user.groups.filter(name='Finance Manager').exists():
+            if is_finance_manager(user):
                 print(f"Finance Manager detected, redirecting to finance dashboard")
                 login(request, user)
                 request.session['show_login_success'] = True
                 return redirect('/dashboard/finance/dashboard/')
-            elif user.groups.filter(name='Head Engineer').exists():
+            elif is_head_engineer(user):
                 print(f"Head Engineer detected, redirecting to /dashboard/")
                 login(request, user)
                 request.session['show_login_success'] = True
                 return redirect('/dashboard/')
-            elif user.groups.filter(name='Project Engineer').exists():
+            elif is_project_engineer(user):
                 print(f"Project Engineer detected, redirecting to projeng dashboard")
                 login(request, user)
                 request.session['show_login_success'] = True
@@ -95,65 +100,55 @@ def custom_logout(request):
     return response
 
 class CustomPasswordResetView(PasswordResetView):
-    """Custom password reset view with error logging"""
+    """Custom password reset view with production-safe link generation."""
     email_template_name = 'registration/password_reset_email.html'
     subject_template_name = 'registration/password_reset_subject.txt'
     template_name = 'registration/password_reset_form.html'
     success_url = '/accounts/login/'  # Redirect to login page instead of done page
-    
+
     def form_valid(self, form):
         from django.contrib import messages
         from django.shortcuts import redirect
-        
+
         email = form.cleaned_data['email']
-        print(f"📧 Password reset requested for email: {email}")
-        
+        logger = logging.getLogger(__name__)
+        logger.info("Password reset requested for email: %s", email)
+
+        # If PASSWORD_RESET_DOMAIN is set (recommended on Droplet), force reset links
+        # to your public domain instead of the incoming request host.
+        domain_override = (getattr(settings, 'PASSWORD_RESET_DOMAIN', '') or '').strip() or None
+        use_https = self.request.is_secure()
+        if domain_override is not None:
+            use_https = bool(getattr(settings, 'PASSWORD_RESET_USE_HTTPS', True))
+
         try:
-            # Call parent's form_valid which sends the email
-            # We override to add a success message and redirect to login
             opts = {
-                'use_https': self.request.is_secure(),
+                'use_https': use_https,
                 'token_generator': self.token_generator,
-                'from_email': self.from_email,
+                'from_email': self.from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', None),
                 'email_template_name': self.email_template_name,
                 'subject_template_name': self.subject_template_name,
                 'request': self.request,
                 'html_email_template_name': self.html_email_template_name,
                 'extra_email_context': self.extra_email_context,
+                'domain_override': domain_override,
             }
             form.save(**opts)
-            print(f"✅ Password reset email sent successfully to: {email}")
-            # Debug: Print the generated reset URL format
-            from django.contrib.auth.tokens import default_token_generator
-            from django.utils.encoding import force_bytes
-            from django.utils.http import urlsafe_base64_encode
-            try:
-                user = form.get_users(email).__next__()
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = default_token_generator.make_token(user)
-                from django.contrib.sites.shortcuts import get_current_site
-                site = get_current_site(self.request)
-                protocol = 'https' if self.request.is_secure() else 'http'
-                reset_url = f"{protocol}://{site.domain}/accounts/reset/{uid}/{token}/"
-                print(f"🔗 Generated reset URL format: {reset_url}")
-                print(f"   uid length: {len(uid)}, token length: {len(token)}")
-            except Exception as e:
-                print(f"   ⚠️ Could not generate debug URL: {e}")
-            
-            # Add success message and redirect to login
+            logger.info("Password reset email request handled for: %s", email)
+
             messages.success(
                 self.request,
                 'If an account exists with that email, you will receive password reset instructions shortly. Please check your inbox and spam folder.'
             )
             return redirect(self.success_url)
         except Exception as e:
-            # Log the error
-            error_msg = f"❌ ERROR sending password reset email to {email}: {str(e)}"
-            print(error_msg)
-            import traceback
-            print(f"Full traceback:\n{traceback.format_exc()}")
-            logging.error(error_msg, exc_info=True)
-            # Still show success message (for security, don't reveal if email exists)
+            logger.error(
+                "Error sending password reset email to %s: %s",
+                email,
+                str(e),
+                exc_info=True,
+            )
+            # Keep same response for security (do not reveal account existence)
             messages.success(
                 self.request,
                 'If an account exists with that email, you will receive password reset instructions shortly. Please check your inbox and spam folder.'
@@ -173,27 +168,27 @@ def password_reset_confirm(request, uidb64, token):
     validlink = False
     user = None
     
-    print(f"🔐 Password reset confirm - uidb64: {uidb64}, token: {token[:30]}... (full length: {len(token)})")
+    print(f"ðŸ” Password reset confirm - uidb64: {uidb64}, token: {token[:30]}... (full length: {len(token)})")
     
     # Decode the user ID
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
-        print(f"   👤 User found: {user.username}")
+        print(f"   ðŸ‘¤ User found: {user.username}")
     except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
         user = None
-        print(f"   ❌ Invalid uidb64 '{uidb64}': {str(e)}")
+        print(f"   âŒ Invalid uidb64 '{uidb64}': {str(e)}")
     
     # Check if token is valid
     if user is not None:
         if default_token_generator.check_token(user, token):
             validlink = True
-            print(f"   ✅ Token is VALID for user: {user.username}")
+            print(f"   âœ… Token is VALID for user: {user.username}")
         else:
-            print(f"   ❌ Token is INVALID for user: {user.username}")
-            print(f"   🔍 Token check failed - token might be expired or already used")
+            print(f"   âŒ Token is INVALID for user: {user.username}")
+            print(f"   ðŸ” Token check failed - token might be expired or already used")
     else:
-        print(f"   ❌ User not found for uidb64: {uidb64}")
+        print(f"   âŒ User not found for uidb64: {uidb64}")
     
     # Handle POST request (form submission)
     if request.method == 'POST':

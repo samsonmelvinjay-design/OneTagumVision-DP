@@ -156,6 +156,13 @@ except ImportError:
     # Channels not installed - that's okay, it's optional
     pass
 
+try:
+    import anymail
+    INSTALLED_APPS.append('anymail')  # Anymail for provider APIs (e.g., Resend HTTP API)
+except ImportError:
+    # Anymail not installed - that's okay, it's optional
+    pass
+
 # ASGI Application for WebSocket support (Phase 1: Safe addition)
 # This allows Django to handle WebSocket connections via Daphne
 # Gunicorn (WSGI) will still work for HTTP requests
@@ -391,10 +398,16 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # Password reset settings
 PASSWORD_RESET_TIMEOUT = 604800  # 7 days in seconds (longer timeout for better UX)
+PASSWORD_RESET_DOMAIN = os.environ.get('PASSWORD_RESET_DOMAIN', '').strip()
+PASSWORD_RESET_USE_HTTPS = get_env_bool('PASSWORD_RESET_USE_HTTPS', not DEBUG)
 
 # Security Settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+# Browsers ignore COOP on untrusted HTTP origins such as local LAN IPs
+# (e.g. http://192.168.x.x). Disable it in development to avoid console noise,
+# but keep Django's default protection in production.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None if DEBUG else 'same-origin'
 # Allow pages from this site to be embedded in iframes on the same origin.
 # This is required so the Project Report view can be shown inside the
 # modal iframe on the dashboard map page.
@@ -414,7 +427,7 @@ SESSION_COOKIE_SECURE = not DEBUG  # True in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 1800  # 30 minutes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Allow sessions to persist across browser restarts for better UX
-SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request to prevent expiration issues
+SESSION_SAVE_EVERY_REQUEST = get_env_bool('SESSION_SAVE_EVERY_REQUEST', False)
 
 # CSRF Cookie Settings - Critical for multi-user access
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to access CSRF token (needed for AJAX)
@@ -433,9 +446,14 @@ EMAIL_PORT = get_env_int('EMAIL_PORT', 587)
 EMAIL_USE_TLS = get_env_bool('EMAIL_USE_TLS', True)
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@onetagumvision.com')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
 EMAIL_CREDENTIALS_CONFIGURED = all([EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD])
+RESEND_API_CONFIGURED = bool(RESEND_API_KEY)
+RESEND_EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', '').strip()
 
 # Debug email configuration
 print(f"Email Configuration Check:")
@@ -444,12 +462,29 @@ print(f"   EMAIL_HOST_USER: {'Set' if EMAIL_HOST_USER else 'Missing'}")
 print(f"   EMAIL_HOST_PASSWORD: {'Set' if EMAIL_HOST_PASSWORD else 'Missing'}")
 print(f"   EMAIL_PORT: {EMAIL_PORT}")
 print(f"   EMAIL_USE_TLS: {EMAIL_USE_TLS}")
+print(f"   RESEND_API_KEY: {'Set' if RESEND_API_CONFIGURED else 'Missing'}")
 
-if EMAIL_CREDENTIALS_CONFIGURED:
-    EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+if RESEND_API_CONFIGURED:
+    try:
+        import anymail  # noqa: F401
+        if not EMAIL_BACKEND:
+            EMAIL_BACKEND = RESEND_EMAIL_BACKEND
+        if EMAIL_BACKEND == RESEND_EMAIL_BACKEND:
+            ANYMAIL = {
+                'RESEND_API_KEY': RESEND_API_KEY,
+            }
+            print(f"   Using Resend HTTP API backend: {EMAIL_BACKEND}")
+        else:
+            print(f"   RESEND_API_KEY is set, but EMAIL_BACKEND is overridden to: {EMAIL_BACKEND}")
+    except ImportError:
+        print("   WARNING: RESEND_API_KEY is set but django-anymail is not installed.")
+        print("   Falling back to SMTP/console email backend selection.")
+
+if not EMAIL_BACKEND and EMAIL_CREDENTIALS_CONFIGURED:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     print(f"   Using SMTP backend: {EMAIL_BACKEND}")
     print(f"   SMTP Server: {EMAIL_HOST}:{EMAIL_PORT}")
-else:
+elif not EMAIL_BACKEND:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     print(f"   WARNING: Email credentials not fully configured; using console email backend.")
     print(f"   Password reset emails will appear in server logs (not sent via SMTP).")
@@ -458,6 +493,8 @@ else:
         logger = logging.getLogger(__name__)
         logger.warning("Email credentials not fully configured; using console email backend. "
                        "Password reset emails will appear in server logs.")
+else:
+    print(f"   Using explicit EMAIL_BACKEND override: {EMAIL_BACKEND}")
 
 # CEO - Construction Division report footer (Individual Project Information)
 # Used on the printed PDF report from the Project Engineer module.
@@ -749,3 +786,16 @@ if os.name == 'nt':  # Check if the operating system is Windows
     GDAL_LIBRARY_PATH = r'C:\OSGeo4W\bin\gdal310.dll'
     GEOS_LIBRARY_PATH = r'C:\OSGeo4W\bin\geos_c.dll'
     os.environ['PATH'] = r'C:\OSGeo4W\bin;' + os.environ['PATH']
+
+# Resend HTTP API override (added for production)
+try:
+    import anymail  # noqa: F401
+    if 'anymail' not in INSTALLED_APPS:
+        INSTALLED_APPS.append('anymail')
+except Exception:
+    pass
+
+_RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+if _RESEND_API_KEY:
+    EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'anymail.backends.resend.EmailBackend')
+    ANYMAIL = {'RESEND_API_KEY': _RESEND_API_KEY}

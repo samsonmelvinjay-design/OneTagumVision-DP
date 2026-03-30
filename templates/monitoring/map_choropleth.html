@@ -126,6 +126,9 @@
             <div class="mb-4">
                 <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Project Info</div>
                 <div class="mb-2"><span class="font-semibold">Description:</span> <span id="details-description"></span></div>
+                <div class="mb-2"><span class="font-semibold">Date Started:</span> <span id="details-start-date"></span></div>
+                <div class="mb-2"><span class="font-semibold">Date Ended:</span> <span id="details-end-date"></span></div>
+                <div class="mb-2"><span class="font-semibold">Day Count Type:</span> <span id="details-day-count-type"></span></div>
             </div>
             <div class="mb-4">
                 <div class="font-semibold text-blue-700 text-xs uppercase mb-1">Location</div>
@@ -487,6 +490,7 @@ window.openDetailsModal = function(id) {
     const detailsLongitude = document.getElementById('details-longitude');
     const detailsStartDate = document.getElementById('details-start-date');
     const detailsEndDate = document.getElementById('details-end-date');
+    const detailsDayCountType = document.getElementById('details-day-count-type');
     const detailsMapDiv = document.getElementById('details-map');
     const assignedEngineersElement = document.getElementById('details-assigned-engineers');
     const progressSection = document.getElementById('details-progress-section');
@@ -519,6 +523,13 @@ window.openDetailsModal = function(id) {
         if (detailsLongitude) detailsLongitude.textContent = project.longitude || '';
         if (detailsStartDate) detailsStartDate.textContent = project.start_date || '';
         if (detailsEndDate) detailsEndDate.textContent = project.end_date || '';
+        if (detailsDayCountType) {
+            const statusValue = (project.calculated_status || project.status || '').toLowerCase();
+            const isPlanned = statusValue === 'planned' || statusValue === 'pending';
+            detailsDayCountType.textContent = (isPlanned || !project.start_date || !project.end_date)
+                ? '—'
+                : (project.day_count_type === 'calendar_days' ? 'Calendar Days' : 'Working Days');
+        }
 
         // Display assigned engineers
         if (assignedEngineersElement) {

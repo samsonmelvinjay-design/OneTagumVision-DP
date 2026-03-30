@@ -8,8 +8,8 @@
     <title>OneTagumVision</title>
     <link rel="icon" type="image/png" href="{% static 'img/logo-onetagumvision.png' %}">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Leaflet from CDN (includes marker images; local leaflet lacked images/ folder) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+    <!-- Leaflet CSS from local static files for reliable offline/dev rendering -->
+    <link rel="stylesheet" href="{% static 'leaflet/leaflet.css' %}" />
     <link rel="stylesheet" href="{% static 'leaflet-markercluster/MarkerCluster.css' %}" />
     <link rel="stylesheet" href="{% static 'leaflet-markercluster/MarkerCluster.Default.css' %}" />
     <!-- Chart.js -->
@@ -41,47 +41,72 @@
     {% endif %}
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-900 text-gray-100 flex flex-col items-center py-8 h-screen fixed top-0 left-0 overflow-y-auto z-50">
+        <aside class="sidebar-theme w-64 bg-gray-900 text-gray-100 flex flex-col items-center py-8 h-screen fixed top-0 left-0 overflow-y-auto z-50" style="background-color: forestgreen;">
             <!-- Logo/Icon -->
-            <div class="mb-8">
-                <a href="{% url 'home' %}" class="flex flex-col items-center group">
-                    <!-- City development SVG icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto group-hover:scale-110 transition-transform text-blue-500" viewBox="0 0 64 64" fill="none">
-                        <rect x="6" y="32" width="10" height="22" fill="#3B82F6"/>
-                        <rect x="20" y="24" width="12" height="30" fill="#2563EB"/>
-                        <rect x="36" y="16" width="10" height="38" fill="#1E40AF"/>
-                        <rect x="50" y="40" width="8" height="14" fill="#60A5FA"/>
-                        <rect x="0" y="54" width="64" height="4" fill="#1E293B"/>
-                        <rect x="12" y="38" width="2" height="4" fill="#FBBF24"/>
-                        <rect x="26" y="30" width="2" height="4" fill="#FBBF24"/>
-                        <rect x="42" y="22" width="2" height="4" fill="#FBBF24"/>
-                    </svg>
-                    <span class="block mt-2 text-xl font-bold tracking-wide text-blue-100">OneTagumVision</span>
+            <div class="mb-8 w-full px-6">
+                <a href="{% url 'home' %}" class="flex flex-col items-center justify-center text-center group">
+                    <img src="{% static 'img/logo-onetagumvision.png' %}" alt="OneTagumVision logo" class="h-14 w-14 object-cover rounded-full ring-2 ring-green-100 bg-white p-1 shadow-md">
+                    <div class="min-w-0 mt-2">
+                        <div class="text-lg font-extrabold tracking-wide text-gray-100 leading-tight">OneTagumVision</div>
+                        {% if user|has_group:"Finance Manager" %}
+                            <div class="text-xs text-green-100">Budget Monitoring</div>
+                        {% endif %}
+                    </div>
                 </a>
             </div>
             <!-- Navigation -->
             <nav class="flex flex-col gap-4 w-full px-4 flex-grow">
                 {% if user|has_group:"Finance Manager" %}
-                <a href="{% url 'finance_dashboard' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6m-6 0H7m6 0v6m0 0H7m6 0h6" /></svg>
-                    Architect's Dashboard
-                </a>
-                <a href="{% url 'finance_projects' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" /></svg>
-                    Project Lists
-                </a>
-                <a href="{% url 'finance_cost_management' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m-7-7h14" /></svg>
-                    Architect Management
-                </a>
-                <a href="{% url 'budget_reports' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m-7-7h14" /></svg>
-                    Budget Reports
-                </a>
-                <a href="{% url 'finance_notifications' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                    Notifications
-                </a>
+                <div class="space-y-1">
+                    <a href="{% url 'finance_dashboard' %}"
+                       class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                              {% if request.resolver_match.url_name == 'finance_dashboard' %}bg-green-600 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6" />
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="{% url 'finance_projects' %}"
+                       class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                              {% if request.resolver_match.url_name == 'finance_projects' or request.resolver_match.url_name == 'finance_project_detail' %}bg-green-600 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10" />
+                        </svg>
+                        Projects
+                    </a>
+                    <a href="{% url 'finance_cost_management' %}"
+                       class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                              {% if request.resolver_match.url_name == 'finance_cost_management' %}bg-green-600 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 11V3h2v8h-2zm0 10v-8h2v8h-2zM3 13v-2h18v2H3z" />
+                        </svg>
+                        Budget Monitoring
+                    </a>
+                    <a href="{% url 'map_view' %}"
+                       class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                              {% if request.resolver_match.url_name == 'map_view' %}bg-green-600 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.948L9 2m0 0l6 2.67M9 2v18m6-15.33l5.447 2.724A2 2 0 0121 8.618v9.764a2 2 0 01-1.553 1.948L15 22m0 0V4.67" />
+                        </svg>
+                        Map View
+                    </a>
+                    <a href="{% url 'finance_reports' %}"
+                       class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                              {% if request.resolver_match.url_name == 'finance_reports' %}bg-green-600 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-8 0h8m2 4H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z" />
+                        </svg>
+                        Reports
+                    </a>
+                    <a href="{% url 'finance_notifications' %}"
+                       class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
+                              {% if request.resolver_match.url_name == 'finance_notifications' %}bg-green-600 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                        <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        Notifications
+                    </a>
+                </div>
                 {% else %}
                 <a href="{% url 'dashboard' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'dashboard' %}bg-gray-800{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6m-6 0H7m6 0v6m0 0H7m6 0h6" /></svg>
@@ -93,13 +118,7 @@
                     </svg>
                     City Overview
                 </a>
-                <a href="{% url 'project_list' %}" class="text-gray-300 hover:bg-gray-700 hover:text-white group flex items-center px-2 py-2 text-base font-medium rounded-md">
-                    <svg class="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Project Lists
-                </a>
-                {% if user|has_group:"Head Engineer" %}
+                {% if user.is_superuser or user|has_group:"Head Engineer" %}
                 <a href="{% url 'head_engineer_analytics' %}" class="text-gray-300 hover:bg-gray-700 hover:text-white group flex items-center px-2 py-2 text-base font-medium rounded-md">
                     <svg class="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -119,7 +138,7 @@
                     </svg>
                     Budget Reports
                 </a>
-                {% if user|has_group:"Head Engineer" %}
+                {% if user.is_superuser or user|has_group:"Head Engineer" %}
                 <a href="{% url 'head_engineer_notifications' %}" id="notification-bell" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 relative">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                     Notifications
@@ -134,19 +153,19 @@
                 {% endif %}
 
                 {# Engineers Management #}
-                {% if user|has_group:"Head Engineer" %}
+                {% if user.is_superuser or user|has_group:"Head Engineer" %}
                 <a href="{% url 'engineer_list' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 {% if request.resolver_match.url_name == 'engineer_list' or request.resolver_match.url_name == 'engineer_create' or request.resolver_match.url_name == 'engineer_detail' or request.resolver_match.url_name == 'engineer_edit' %}bg-gray-800 text-white{% else %}text-gray-300{% endif %}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c0 1.49-.293 2.96-.856 4.369a20.061 20.061 0 01-2.615 3.556M16 14c0 1.49-.293 2.96-.856 4.369a20.061 20.061 0 01-2.615 3.556"/>
                     </svg>
-                    Engineers
+                    User Management
                 </a>
                 {% endif %}
                 {% endif %}
             </nav>
             <!-- Logout Button -->
             <div class="w-full px-4 mt-auto">
-                <a href="{% url 'logout' %}" class="flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 text-red-400 hover:text-red-300">
+                <a href="{% url 'logout' %}" class="sidebar-action flex items-center gap-2 py-2 px-4 rounded hover:bg-gray-800 text-red-400 hover:text-red-300">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
@@ -172,16 +191,26 @@
                     </button>
                 </div>
             </div>
+            {% if user|has_group:"Finance Manager" %}
+                <div class="min-h-screen bg-gray-50">
+                    <div class="w-full px-3 sm:px-4 lg:px-5 py-6">
+            {% endif %}
+
             {% block content %}{% endblock %}
+
+            {% if user|has_group:"Finance Manager" %}
+                    </div>
+                </div>
+            {% endif %}
         </main>
     </div>
     <!-- Leaflet and MarkerCluster JS (Local Files) -->
     <script src="{% static 'leaflet/leaflet.js' %}"></script>
     <script src="{% static 'leaflet-markercluster/leaflet.markercluster.js' %}"></script>
     <!-- Real-time Updates -->
-    <script src="{% static 'js/realtime.js' %}"></script>
+    <script src="{% static 'js/realtime.js' %}?v=20260330-2"></script>
     <!-- Phase 4: WebSocket Client (parallel to SSE) -->
-    <script src="{% static 'js/websocket_client.js' %}"></script>
+    <script src="{% static 'js/websocket_client.js' %}?v=20260330-1"></script>
     {% block extra_js %}{% endblock %}
 
     <!-- Engineer Projects Modal (always present) -->
@@ -223,6 +252,35 @@
 }
 .animate-slide-in {
     animation: slide-in 0.3s ease-out;
+}
+.sidebar-theme {
+    background: linear-gradient(180deg, #228B22 0%, #1E7A1E 45%, #166534 100%);
+}
+.sidebar-theme nav a,
+.sidebar-theme .sidebar-action {
+    color: #ecfdf5 !important;
+}
+.sidebar-theme nav a svg,
+.sidebar-theme .sidebar-action svg {
+    color: #d1fae5 !important;
+}
+.sidebar-theme nav a:hover,
+.sidebar-theme .sidebar-action:hover {
+    background-color: rgba(20, 83, 45, 0.72) !important;
+    color: #ffffff !important;
+}
+.sidebar-theme nav a:hover svg,
+.sidebar-theme .sidebar-action:hover svg {
+    color: #ffffff !important;
+}
+.sidebar-theme nav a.bg-green-600,
+.sidebar-theme nav a.bg-gray-800 {
+    background-color: rgba(6, 78, 59, 0.9) !important;
+    color: #ffffff !important;
+}
+.sidebar-theme nav a.bg-green-600 svg,
+.sidebar-theme nav a.bg-gray-800 svg {
+    color: #ffffff !important;
 }
 @keyframes modal-scale {
     from {
@@ -397,13 +455,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (engineer.username === "headeng") return; // Skip headeng
                 const link = document.createElement('a');
                 link.href = 'javascript:void(0);';
-                link.className = 'block px-4 py-2 text-sm text-gray-100 hover:bg-gray-700';
+                link.className = 'block px-4 py-2 text-sm text-green-50 hover:bg-green-800';
                 link.textContent = engineer.full_name || engineer.username;
                 link.onclick = () => window.showEngineerProjectsModal(engineer);
                 engineersDropdownContent.appendChild(link);
               });
             } else {
-              engineersDropdownContent.innerHTML = '<div class="px-4 py-2 text-gray-400">No engineers found.</div>';
+              engineersDropdownContent.innerHTML = '<div class="px-4 py-2 text-green-100">No engineers found.</div>';
             }
             engineersLoaded = true;
           });

@@ -22,6 +22,21 @@ class RealtimeManager {
     }
 
     /**
+     * Resolve SSE paths to absolute same-origin URLs.
+     * This prevents accidental relative requests such as "dashboard/projeng/api/...".
+     */
+    _absoluteSseUrl(path) {
+        const normalized = String(path || '').trim();
+        if (!normalized) return '';
+        const ensured = normalized.startsWith('/') ? normalized : `/${normalized}`;
+        try {
+            return new URL(ensured, window.location.origin).toString();
+        } catch (e) {
+            return ensured;
+        }
+    }
+
+    /**
      * Connect to notifications stream
      */
     connectNotifications(callback) {
@@ -34,7 +49,7 @@ class RealtimeManager {
             return; // Already connected
         }
 
-        const url = '/projeng/api/realtime/notifications/';
+        const url = this._absoluteSseUrl('/projeng/api/realtime/notifications/');
         if (window.DEBUG_REALTIME) console.log('🔌 Connecting to notifications SSE:', url);
         this._connectSSE('notifications', url);
     }
@@ -51,7 +66,7 @@ class RealtimeManager {
             return; // Already connected
         }
 
-        const url = '/projeng/api/realtime/dashboard/';
+        const url = this._absoluteSseUrl('/projeng/api/realtime/dashboard/');
         this._connectSSE('dashboard', url);
     }
 
@@ -68,9 +83,9 @@ class RealtimeManager {
             return; // Already connected
         }
 
-        const url = projectId 
+        const url = this._absoluteSseUrl(projectId 
             ? `/projeng/api/realtime/projects/${projectId}/`
-            : '/projeng/api/realtime/projects/';
+            : '/projeng/api/realtime/projects/');
         this._connectSSE(key, url);
     }
 
@@ -78,41 +93,77 @@ class RealtimeManager {
      * Internal method to connect SSE
      */
     _connectSSE(key, url) {
-        const eventSource = new EventSource(url);
-        
-        eventSource.onmessage = (event) => {
-            try {
-                // Skip heartbeat messages
-                if (!event.data || event.data.trim() === '' || event.data.startsWith(':')) {
+        const openEventSource = () => {
+            const eventSource = new EventSource(url);
+
+            eventSource.onmessage = (event) => {
+                try {
+                    // Skip heartbeat messages
+                    if (!event.data || event.data.trim() === '' || event.data.startsWith(':')) {
+                        return;
+                    }
+                    const data = JSON.parse(event.data);
+                    this._handleMessage(key, data);
+                } catch (e) {
+                    if (event.data && !event.data.startsWith(':') && window.DEBUG_REALTIME) {
+                        console.error('Error parsing SSE data:', e, event.data);
+                    }
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                // Log once per key per page load to avoid flooding console
+                if (!this._errorLogged[key]) {
+                    this._errorLogged[key] = true;
+                    const msg = `SSE connection issue for ${key} (reconnecting silently). Set DEBUG_REALTIME=true for details.`;
+                    console.warn(msg, window.DEBUG_REALTIME ? error : '(If you see ERR_QUIC_PROTOCOL_ERROR, it is often a browser/network quirk with long-lived connections; app still works.)');
+                }
+                this._handleError(key, error);
+            };
+
+            eventSource.onopen = () => {
+                // Do not reset _errorLogged here so we only ever log one warning per stream per page load
+                if (window.DEBUG_REALTIME) console.log('SSE connected:', key, url);
+                this.isConnected = true;
+                this.reconnectAttempts = 0;
+            };
+
+            this.eventSources[key] = eventSource;
+        };
+
+        // Preflight check: avoid opening EventSource when endpoint responds with HTML (e.g. login page).
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'text/event-stream'
+            }
+        })
+            .then((response) => {
+                const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                if (response.body && typeof response.body.cancel === 'function') {
+                    response.body.cancel().catch(() => {});
+                }
+
+                if (response.ok && contentType.indexOf('text/event-stream') !== -1) {
+                    openEventSource();
                     return;
                 }
-                const data = JSON.parse(event.data);
-                this._handleMessage(key, data);
-            } catch (e) {
-                if (event.data && !event.data.startsWith(':') && window.DEBUG_REALTIME) {
-                    console.error('Error parsing SSE data:', e, event.data);
+
+                if (!this._errorLogged[key]) {
+                    this._errorLogged[key] = true;
+                    console.warn(
+                        `Skipping SSE ${key}: expected text/event-stream but got "${contentType || 'unknown'}" (status ${response.status}).`
+                    );
                 }
-            }
-        };
-
-        eventSource.onerror = (error) => {
-            // Log once per key per page load to avoid flooding console (e.g. ERR_QUIC_PROTOCOL_ERROR)
-            if (!this._errorLogged[key]) {
-                this._errorLogged[key] = true;
-                const msg = `SSE connection issue for ${key} (reconnecting silently). Set DEBUG_REALTIME=true for details.`;
-                console.warn(msg, window.DEBUG_REALTIME ? error : '(If you see ERR_QUIC_PROTOCOL_ERROR, it is often a browser/network quirk with long-lived connections; app still works.)');
-            }
-            this._handleError(key, error);
-        };
-
-        eventSource.onopen = () => {
-            // Do not reset _errorLogged here so we only ever log one warning per stream per page load
-            if (window.DEBUG_REALTIME) console.log('✅ SSE connected:', key, url);
-            this.isConnected = true;
-            this.reconnectAttempts = 0;
-        };
-
-        this.eventSources[key] = eventSource;
+            })
+            .catch((error) => {
+                if (!this._errorLogged[key]) {
+                    this._errorLogged[key] = true;
+                    console.warn(`Skipping SSE ${key}: preflight failed.`, window.DEBUG_REALTIME ? error : '');
+                }
+            });
     }
 
     /**
@@ -153,6 +204,17 @@ class RealtimeManager {
         if (eventSource) {
             eventSource.close();
             delete this.eventSources[key];
+        }
+
+        // If redirected to HTML/login page, don't keep retrying this stream.
+        // This avoids repeated console errors: "MIME type text/html is not text/event-stream".
+        const lastErrorText = String((error && error.message) || '');
+        if (/text\/html|event-stream|mime/i.test(lastErrorText)) {
+            if (window.DEBUG_REALTIME) {
+                console.warn(`Stopping SSE retries for ${key} due to non-event-stream response.`);
+            }
+            this.isConnected = false;
+            return;
         }
 
         // Attempt reconnection (silent unless DEBUG_REALTIME to avoid console spam)

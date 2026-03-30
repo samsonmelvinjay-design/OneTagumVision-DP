@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Receipt Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <main class="max-w-md mx-auto px-4 py-6">
+        <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+            <h1 class="text-lg font-bold">Upload Receipt Photo</h1>
+            {% if is_valid %}
+                <p class="mt-1 text-sm text-slate-600">
+                    Project:
+                    <span class="font-semibold">{{ project.name }}</span>
+                    {% if project.prn %}<span class="text-slate-500">({{ project.prn }})</span>{% endif %}
+                </p>
+                <p class="mt-2 text-xs text-slate-500">Allowed: JPG, JPEG, PNG (max {{ max_size_mb }}MB)</p>
+
+                <form id="mobile-receipt-form" class="mt-4 space-y-3">
+                    {% csrf_token %}
+                    <input type="hidden" id="mobile-token" value="{{ token }}">
+                    <input
+                        type="file"
+                        id="mobile-image"
+                        accept="image/*"
+                        capture="environment"
+                        class="w-full rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-sm"
+                        required
+                    >
+
+                    <div id="mobile-preview-wrap" class="hidden rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p id="mobile-preview-meta" class="text-xs text-slate-600 mb-2"></p>
+                        <img id="mobile-preview-img" alt="Receipt preview" class="w-full max-h-72 object-contain rounded-md border border-slate-200 bg-white">
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="mobile-upload-btn"
+                        class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 transition"
+                    >
+                        Upload Receipt
+                    </button>
+                </form>
+
+                <div id="mobile-status" class="mt-3 hidden rounded-lg px-3 py-2 text-sm"></div>
+            {% else %}
+                <div class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                    {{ error_message|default:"Invalid or expired upload link." }}
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+    {% if is_valid %}
+    <script>
+    (() => {
+        const form = document.getElementById('mobile-receipt-form');
+        const fileInput = document.getElementById('mobile-image');
+        const tokenInput = document.getElementById('mobile-token');
+        const statusBox = document.getElementById('mobile-status');
+        const uploadBtn = document.getElementById('mobile-upload-btn');
+        const previewWrap = document.getElementById('mobile-preview-wrap');
+        const previewImg = document.getElementById('mobile-preview-img');
+        const previewMeta = document.getElementById('mobile-preview-meta');
+        const csrfInput = form ? form.querySelector('input[name=csrfmiddlewaretoken]') : null;
+        const uploadApiUrl = "{{ upload_api_url|escapejs }}";
+
+        if (!form || !fileInput || !tokenInput || !statusBox || !uploadBtn || !previewWrap || !previewImg || !previewMeta || !csrfInput) {
+            return;
+        }
+
+        function setStatus(message, type) {
+            statusBox.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'border', 'border-emerald-200', 'bg-rose-50', 'text-rose-700', 'border-rose-200', 'bg-amber-50', 'text-amber-700', 'border-amber-200');
+            if (type === 'ok') {
+                statusBox.classList.add('bg-emerald-50', 'text-emerald-700', 'border', 'border-emerald-200');
+            } else if (type === 'warn') {
+                statusBox.classList.add('bg-amber-50', 'text-amber-700', 'border', 'border-amber-200');
+            } else {
+                statusBox.classList.add('bg-rose-50', 'text-rose-700', 'border', 'border-rose-200');
+            }
+            statusBox.textContent = message;
+        }
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                previewWrap.classList.add('hidden');
+                previewImg.removeAttribute('src');
+                previewMeta.textContent = '';
+                return;
+            }
+
+            const kb = (file.size / 1024).toFixed(1);
+            previewMeta.textContent = `${file.name} (${kb} KB)`;
+            if (!file.type.startsWith('image/')) {
+                previewWrap.classList.add('hidden');
+                setStatus('Please choose a valid image file.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                previewImg.src = event.target.result;
+                previewWrap.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                setStatus('Please capture a receipt photo first.', 'warn');
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            try {
+                const payload = new FormData();
+                payload.append('token', tokenInput.value);
+                payload.append('image', file);
+                const response = await fetch(uploadApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfInput.value,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: payload,
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error((data && data.error) || 'Upload failed.');
+                }
+                setStatus('Receipt uploaded successfully. You can return to the desktop screen.', 'ok');
+                uploadBtn.textContent = 'Uploaded';
+            } catch (error) {
+                setStatus(error.message || 'Unable to upload receipt.', 'error');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Receipt';
+            }
+        });
+    })();
+    </script>
+    {% endif %}
+</body>
+</html>

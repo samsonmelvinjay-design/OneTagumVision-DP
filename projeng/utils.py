@@ -269,6 +269,9 @@ def get_project_from_notification(notification_message):
         """Search for project in a specific Project model"""
         # Pattern 0: "You have been assigned to project 'ProjectName (PRN: PRN123)' by ..."
         match = re.search(r"You have been assigned to project ['\u0027]([^'\u0027]+)['\u0027]", notification_message)
+        # Pattern 1: "Progress update edited for project 'ProjectName (PRN: PRN123)' by ..."
+        if not match:
+            match = re.search(r"for project ['\u0027]([^'\u0027]+)['\u0027]", notification_message)
         if not match:
             return None
             

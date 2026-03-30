@@ -141,6 +141,14 @@ Open `.env` and set at least:
 | `DEBUG` | `true` for development, `false` for production | `true` |
 | `ALLOWED_HOSTS` | Comma-separated hosts that can serve the app | `localhost,127.0.0.1,0.0.0.0` |
 | `CSRF_TRUSTED_ORIGINS` | Comma-separated origins for CSRF | `http://localhost:8000,http://127.0.0.1:8000` |
+| `EMAIL_HOST` | SMTP host for password reset email | `smtp.gmail.com` |
+| `EMAIL_HOST_USER` | SMTP username/email | `your-email@gmail.com` |
+| `EMAIL_HOST_PASSWORD` | SMTP password/app password | `your-app-password` |
+| `EMAIL_PORT` | SMTP port | `587` |
+| `EMAIL_USE_TLS` | Use TLS for SMTP | `true` |
+| `DEFAULT_FROM_EMAIL` | Sender shown in reset emails | `no-reply@yourdomain.com` |
+| `PASSWORD_RESET_DOMAIN` | Public domain to place in reset links (Droplet recommended) | `onetagumvision.com` |
+| `PASSWORD_RESET_USE_HTTPS` | Force `https://` in reset links | `true` |
 
 For **local database** you can leave `DATABASE_URL` unset and either:
 
@@ -150,6 +158,18 @@ For **local database** you can leave `DATABASE_URL` unset and either:
 For **production**, set `DATABASE_URL` to your Postgres connection string (see [Database Setup](#4-database-setup)).
 
 Remove or comment out any line in `.env` that runs a script (e.g. a line that runs `Activate.ps1`); those are for your local shell, not for the app.
+
+### 3.3 Forgot Password on Droplet
+
+For hosted deployments, forgot-password links should always point to your public domain (not `127.0.0.1` or private IP).
+
+Set these variables in your Droplet environment file:
+
+- `PASSWORD_RESET_DOMAIN=yourdomain.com`
+- `PASSWORD_RESET_USE_HTTPS=true`
+- SMTP variables: `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`
+
+Then restart your app service and test by submitting an email from `/accounts/login/` -> `Forgot password?`.
 
 ---
 

@@ -615,14 +615,13 @@ function setupEventListeners() {
     console.log('Filter event listeners set up successfully');
 }
 
-// Real-time project list updates
 function setupRealtimeProjectList() {
-    console.log('📋 Setting up real-time project list updates...');
+    console.log('Setting up real-time project list updates...');
     
     // Connect to project status SSE stream
     if (window.realtimeManager) {
         window.realtimeManager.connectProjects((data) => {
-            console.log('📦 Received project update:', data);
+            console.log('Received project update:', data);
             
             if (data.type === 'project_status' && data.projects) {
                 // Handle multiple project updates
@@ -635,7 +634,7 @@ function setupRealtimeProjectList() {
             }
         }, null); // null = monitor all projects
     } else {
-        console.error('❌ RealtimeManager not available!');
+        console.error('RealtimeManager not available!');
     }
 }
 
@@ -796,7 +795,7 @@ function updateProjectCard(card, projectData) {
 
 // Add new project to the list
 function addProjectToList(projectData) {
-    console.log('➕ Adding new project to list:', projectData);
+    console.log('Adding new project to list:', projectData);
     const projectsList = document.getElementById('projects-list');
     if (!projectsList) return;
     

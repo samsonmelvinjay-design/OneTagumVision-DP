@@ -1,85 +1,92 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load humanize %}
 {% block content %}
-<div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8 lg:px-8">
-        <!-- Header Section -->
-        <div class="mb-6">
-            <nav class="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-                <a href="{% url 'finance_cost_management' %}" class="hover:text-blue-600 transition-colors">Architect Management</a>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+<div class="mb-6">
+    <nav class="flex items-center gap-2 text-sm text-gray-600">
+        <a href="{% url 'finance_cost_management' %}" class="hover:text-gray-900 font-semibold">Budget Monitoring</a>
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+        <span class="text-gray-900 font-semibold">Project Details</span>
+    </nav>
+    <div class="mt-3">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900">{{ project.name }}</h1>
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+            {% if project.prn %}
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-gray-100 border border-gray-200 font-semibold text-gray-800">
+                    {{ project.prn }}
+                </span>
+            {% endif %}
+            <span class="inline-flex items-center gap-2">
+                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
-                <span class="text-gray-900 font-medium">Project Financial Details</span>
-            </nav>
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ project.name }}</h1>
-                    <div class="flex items-center space-x-4 text-sm text-gray-600">
-                        {% if project.prn %}
-                        <span class="flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                            </svg>
-                            {{ project.prn }}
-                        </span>
-                        {% endif %}
-                        <span class="flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                            {{ project.barangay }}
-                        </span>
-                    </div>
-                </div>
-            </div>
+                {{ project.barangay|default:"-" }}
+            </span>
         </div>
+    </div>
+</div>
+
+<div class="mb-4 flex justify-end">
+    <div class="relative" id="project-export-dropdown">
+        <button type="button" id="project-export-trigger" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Export Report
+        </button>
+        <div id="project-export-menu" class="hidden absolute right-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white shadow-lg z-40 py-1">
+            <a href="{% url 'finance_project_export_csv' project_id=project.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as CSV</a>
+            <a href="{% url 'finance_project_export_excel' project_id=project.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export as Excel</a>
+        </div>
+    </div>
+</div>
 
         <!-- Financial Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <!-- Approved Budget Card -->
-            <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-white text-sm font-semibold">Approved Budget</span>
-                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-blue-700 text-xs font-semibold uppercase tracking-wide">Approved Budget</span>
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold text-white">₱{{ project.project_cost|floatformat:2|intcomma }}</p>
+                <p class="text-2xl font-extrabold text-gray-900">&#8369;{{ project.project_cost|floatformat:2|intcomma }}</p>
             </div>
 
             <!-- Total Spent Card -->
-            <div class="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="bg-green-50 border border-green-200 rounded-xl p-5">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-white text-sm font-semibold">Total Spent</span>
-                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-green-700 text-xs font-semibold uppercase tracking-wide">Total Spent</span>
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold text-white">₱{{ total_spent|floatformat:2|intcomma }}</p>
+                <p class="text-2xl font-extrabold text-gray-900">&#8369;{{ total_spent|floatformat:2|intcomma }}</p>
             </div>
 
             <!-- Remaining Budget Card -->
-            <div class="bg-gradient-to-br {% if remaining < 0 %}from-red-600 to-red-700{% elif remaining < threshold %}from-amber-600 to-amber-700{% else %}from-indigo-600 to-indigo-700{% endif %} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="{% if remaining < 0 %}bg-red-50 border-red-200{% elif remaining < threshold %}bg-yellow-50 border-yellow-200{% else %}bg-emerald-50 border-emerald-200{% endif %} border rounded-xl p-5">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-white text-sm font-semibold">Remaining Budget</span>
-                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-xs font-semibold uppercase tracking-wide {% if remaining < 0 %}text-red-700{% elif remaining < threshold %}text-yellow-700{% else %}text-emerald-700{% endif %}">Remaining Budget</span>
+                    <svg class="w-6 h-6 {% if remaining < 0 %}text-red-600{% elif remaining < threshold %}text-yellow-600{% else %}text-emerald-600{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold text-white">₱{{ remaining|floatformat:2|intcomma }}</p>
+                <p class="text-2xl font-extrabold text-gray-900">&#8369;{{ remaining|floatformat:2|intcomma }}</p>
             </div>
 
             <!-- Utilization Card -->
-            <div class="bg-gradient-to-br {% if budget_utilization >= 100 %}from-red-600 to-red-700{% elif budget_utilization >= 80 %}from-orange-600 to-orange-700{% elif budget_utilization >= 50 %}from-amber-600 to-amber-700{% else %}from-green-600 to-green-700{% endif %} rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-all duration-300">
+            <div class="{% if budget_utilization >= 100 %}bg-red-50 border-red-200{% elif budget_utilization >= 80 %}bg-yellow-50 border-yellow-200{% else %}bg-green-50 border-green-200{% endif %} border rounded-xl p-5">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-white text-sm font-semibold">Budget Utilization</span>
-                    <svg class="w-8 h-8 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="text-xs font-semibold uppercase tracking-wide {% if budget_utilization >= 100 %}text-red-700{% elif budget_utilization >= 80 %}text-yellow-700{% else %}text-green-700{% endif %}">Budget Utilization</span>
+                    <svg class="w-6 h-6 {% if budget_utilization >= 100 %}text-red-600{% elif budget_utilization >= 80 %}text-yellow-600{% else %}text-green-600{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
                 </div>
-                <p class="text-3xl font-bold text-white">{{ budget_utilization|floatformat:1 }}%</p>
+                <p class="text-2xl font-extrabold text-gray-900">{{ budget_utilization|floatformat:1 }}%</p>
             </div>
         </div>
 
@@ -149,7 +156,7 @@
                 </div>
                 <div class="bg-white rounded-lg p-4 shadow-sm">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Requested Amount</p>
-                    <p class="text-2xl font-bold text-indigo-700">₱{{ pending_budget_request.requested_amount|floatformat:2|intcomma }}</p>
+                    <p class="text-2xl font-bold text-indigo-700">&#8369;{{ pending_budget_request.requested_amount|floatformat:2|intcomma }}</p>
                 </div>
                 <div class="bg-white rounded-lg p-4 shadow-sm">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Request Date</p>
@@ -165,7 +172,7 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-sm text-gray-500">—</p>
+                        <p class="text-sm text-gray-500">-</p>
                     {% endif %}
                 </div>
             </div>
@@ -221,7 +228,7 @@
                     {% for type, amount in cost_by_type.items %}
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <span class="font-medium text-gray-700">{{ type }}</span>
-                        <span class="font-bold text-gray-900">₱{{ amount|floatformat:2|intcomma }}</span>
+                        <span class="font-bold text-gray-900">&#8369;{{ amount|floatformat:2|intcomma }}</span>
                     </div>
                     {% empty %}
                     <p class="text-gray-500 text-center py-4">No costs recorded.</p>
@@ -231,13 +238,25 @@
 
             <!-- Cost Entries Table -->
             <div class="lg:col-span-2 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                <div class="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                <div class="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex items-center justify-between gap-4">
                     <h3 class="text-lg font-bold text-gray-900 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                         </svg>
                         All Cost Entries
                     </h3>
+                    <button
+                        type="button"
+                        id="open-all-receipts-btn"
+                        class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-300 hover:text-cyan-700 {% if not all_receipt_count %}opacity-50 cursor-not-allowed{% endif %}"
+                        {% if all_receipt_count %}{% else %}disabled{% endif %}
+                    >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2 1.586-1.586a2 2 0 012.828 0L20 14m-6-10h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        Receipt Gallery
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">{{ all_receipt_count }}</span>
+                    </button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -259,19 +278,25 @@
                                         {{ cost.get_cost_type_display }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-700">{{ cost.description|default:"—" }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₱{{ cost.amount|floatformat:2|intcomma }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700">{{ cost.description|default:"-" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">&#8369;{{ cost.amount|floatformat:2|intcomma }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    {% if cost.receipt %}
-                                    <a href="{{ cost.receipt.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 font-medium flex items-center">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {% if cost.has_receipts %}
+                                    <button
+                                        type="button"
+                                        data-gallery-scope="cost"
+                                        data-cost-id="{{ cost.id }}"
+                                        class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 hover:text-blue-900"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
-                                        View
-                                    </a>
+                                        <span>View</span>
+                                        <span class="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-blue-700 shadow-sm">{{ cost.receipt_count }}</span>
+                                    </button>
                                     {% else %}
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-gray-400">-</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -287,6 +312,76 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+<div id="receiptGalleryModal" class="hidden" style="display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(15, 23, 42, 0.82);">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="w-full max-w-6xl overflow-hidden rounded-[32px] border border-slate-700 bg-slate-950 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 px-6 py-4 text-white">
+                <div>
+                    <p id="receiptGalleryEyebrow" class="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">Receipt Library</p>
+                    <h3 id="receiptGalleryTitle" class="mt-1 text-2xl font-bold">All Uploaded Receipts</h3>
+                    <p id="receiptGalleryMeta" class="mt-1 text-sm text-slate-400">Browse every receipt and attachment linked to this project.</p>
+                </div>
+                <button type="button" id="closeReceiptGalleryBtn" class="rounded-full border border-slate-700 p-2 text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="border-b border-slate-800 bg-slate-900/80 px-6 py-4">
+                <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                    <span id="receiptGalleryCount" class="rounded-full bg-cyan-500/10 px-3 py-1 font-semibold text-cyan-200">0 items</span>
+                    <span class="rounded-full bg-slate-800 px-3 py-1 text-slate-300">Click any card to preview the image</span>
+                </div>
+            </div>
+            <div id="receiptGalleryGrid" class="grid max-h-[70vh] gap-5 overflow-y-auto bg-slate-950 px-6 py-6 md:grid-cols-2 xl:grid-cols-3"></div>
+        </div>
+    </div>
+</div>
+
+<div id="receiptImageModal" class="hidden" style="display: none; position: fixed; inset: 0; z-index: 100000; background: rgba(2, 6, 23, 0.9);">
+    <div class="flex min-h-full items-center justify-center p-5">
+        <div class="relative w-full max-w-5xl overflow-hidden rounded-[28px] border border-slate-700 bg-slate-950 shadow-2xl">
+            <button type="button" id="closeReceiptImageBtn" class="absolute right-4 top-4 z-10 rounded-full border border-slate-600 bg-slate-900/90 p-2 text-slate-200 transition hover:border-slate-400 hover:text-white">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <div class="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div class="flex items-center justify-center bg-slate-900 p-6">
+                    <img id="receiptImagePreview" src="" alt="Receipt preview" class="max-h-[80vh] w-full rounded-2xl object-contain">
+                </div>
+                <div class="border-l border-slate-800 bg-slate-950 p-6 text-slate-200">
+                    <p class="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">Image Preview</p>
+                    <h4 id="receiptImageTitle" class="mt-2 text-xl font-bold text-white"></h4>
+                    <div class="mt-5 space-y-4 text-sm">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Uploaded</p>
+                            <p id="receiptImageUploaded" class="mt-1 font-semibold text-slate-100"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Cost Entry</p>
+                            <p id="receiptImageEntry" class="mt-1 font-semibold text-slate-100"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Amount</p>
+                            <p id="receiptImageAmount" class="mt-1 font-semibold text-slate-100"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Notes</p>
+                            <p id="receiptImageCaption" class="mt-1 leading-6 text-slate-300"></p>
+                        </div>
+                    </div>
+                    <a id="receiptImageOpenLink" href="#" target="_blank" class="mt-6 inline-flex items-center gap-2 rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400">
+                        Open original image
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3h7m0 0v7m0-7L10 14"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5h5m-5 0v14h14v-5"></path>
+                        </svg>
+                    </a>
                 </div>
             </div>
         </div>
@@ -321,7 +416,7 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Current Budget</p>
-                            <p class="text-lg font-bold text-gray-900">₱{{ project.project_cost|floatformat:2|intcomma }}</p>
+                            <p class="text-lg font-bold text-gray-900">&#8369;{{ project.project_cost|floatformat:2|intcomma }}</p>
                         </div>
                         <div>
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Utilization</p>
@@ -333,7 +428,7 @@
                 </div>
                 <div class="mb-6">
                     <label for="approved_amount" class="block text-sm font-semibold text-gray-700 mb-2">
-                        Approved Budget Increase Amount (₱)
+                        Approved Budget Increase Amount (&#8369;)
                     </label>
                     <input type="number" 
                            id="approved_amount" 
@@ -395,7 +490,7 @@
             <div class="p-6">
                 <div class="bg-gray-50 rounded-lg p-4 mb-6">
                     <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Current Budget</p>
-                    <p class="text-lg font-bold text-gray-900">₱{{ project.project_cost|floatformat:2|intcomma }}</p>
+                    <p class="text-lg font-bold text-gray-900">&#8369;{{ project.project_cost|floatformat:2|intcomma }}</p>
                     <p class="text-sm text-gray-600 mt-2">
                         The budget will remain unchanged. Head Engineers will be notified of the rejection.
                     </p>
@@ -468,10 +563,120 @@ window.hideRejectBudgetModal = function() {
     }
 };
 
+const receiptGalleryItems = [
+    {% for receipt in all_receipt_gallery %}
+    {
+        costId: {{ receipt.cost_id }},
+        url: "{{ receipt.url|escapejs }}",
+        title: "{{ receipt.title|escapejs }}",
+        typeLabel: "{{ receipt.type_label|escapejs }}",
+        amountLabel: "{{ receipt.amount_label|escapejs }}",
+        uploadedLabel: "{{ receipt.uploaded_label|escapejs }}",
+        entryDateLabel: "{{ receipt.entry_date_label|escapejs }}",
+        caption: "{{ receipt.caption|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+function setBodyScrollLock(locked) {
+    document.body.style.overflow = locked ? 'hidden' : '';
+}
+
+function syncOverlayScrollState() {
+    const galleryVisible = document.getElementById('receiptGalleryModal') && !document.getElementById('receiptGalleryModal').classList.contains('hidden');
+    const imageVisible = document.getElementById('receiptImageModal') && !document.getElementById('receiptImageModal').classList.contains('hidden');
+    const approveVisible = document.getElementById('approveBudgetModal') && !document.getElementById('approveBudgetModal').classList.contains('hidden');
+    const rejectVisible = document.getElementById('rejectBudgetModal') && !document.getElementById('rejectBudgetModal').classList.contains('hidden');
+    setBodyScrollLock(galleryVisible || imageVisible || approveVisible || rejectVisible);
+}
+
+window.showReceiptGalleryModal = function(items, heading, meta) {
+    const modal = document.getElementById('receiptGalleryModal');
+    const grid = document.getElementById('receiptGalleryGrid');
+    const title = document.getElementById('receiptGalleryTitle');
+    const metaText = document.getElementById('receiptGalleryMeta');
+    const count = document.getElementById('receiptGalleryCount');
+    if (!modal || !grid || !title || !metaText || !count) return;
+
+    title.textContent = heading || 'All Uploaded Receipts';
+    metaText.textContent = meta || 'Browse every receipt and attachment linked to this project.';
+    count.textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+
+    if (!items.length) {
+        grid.innerHTML = '<div class=\"md:col-span-2 xl:col-span-3 rounded-3xl border border-dashed border-slate-700 bg-slate-900 px-6 py-12 text-center text-slate-400\">No receipts or attachments are available for this selection.</div>';
+    } else {
+        grid.innerHTML = items.map((item) => `
+            <article class="overflow-hidden rounded-[28px] border border-slate-700 bg-white shadow-xl">
+                <button type="button" class="receipt-image-trigger block w-full text-left" data-url="${item.url}" data-title="${item.title}" data-uploaded="${item.uploadedLabel}" data-entry="${item.entryDateLabel}" data-amount="${item.amountLabel}" data-caption="${item.caption}">
+                    <img src="${item.url}" alt="${item.title}" class="h-56 w-full object-cover">
+                    <div class="space-y-3 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900">${item.uploadedLabel}</p>
+                                <h4 class="mt-1 text-lg font-bold text-slate-950">${item.title}</h4>
+                            </div>
+                            <span class="rounded-full bg-cyan-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-700">${item.typeLabel}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm text-slate-500">
+                            <span>Cost entry: ${item.entryDateLabel || 'N/A'}</span>
+                            <span class="font-semibold text-slate-900">&#8369;${item.amountLabel}</span>
+                        </div>
+                        <p class="text-sm leading-6 text-slate-500">${item.caption}</p>
+                    </div>
+                </button>
+            </article>
+        `).join('');
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+    syncOverlayScrollState();
+};
+
+window.hideReceiptGalleryModal = function() {
+    const modal = document.getElementById('receiptGalleryModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    syncOverlayScrollState();
+};
+
+window.showReceiptImageModal = function(item) {
+    const modal = document.getElementById('receiptImageModal');
+    if (!modal) return;
+    document.getElementById('receiptImagePreview').src = item.url;
+    document.getElementById('receiptImagePreview').alt = item.title;
+    document.getElementById('receiptImageTitle').textContent = item.title;
+    document.getElementById('receiptImageUploaded').textContent = item.uploaded;
+    document.getElementById('receiptImageEntry').textContent = item.entry || 'N/A';
+    document.getElementById('receiptImageAmount').innerHTML = `&#8369;${item.amount}`;
+    document.getElementById('receiptImageCaption').textContent = item.caption;
+    document.getElementById('receiptImageOpenLink').href = item.url;
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+    syncOverlayScrollState();
+};
+
+window.hideReceiptImageModal = function() {
+    const modal = document.getElementById('receiptImageModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    syncOverlayScrollState();
+};
+
 // Close modals when clicking outside
 document.addEventListener('DOMContentLoaded', function() {
     const approveModal = document.getElementById('approveBudgetModal');
     const rejectModal = document.getElementById('rejectBudgetModal');
+    const exportDropdown = document.getElementById('project-export-dropdown');
+    const exportTrigger = document.getElementById('project-export-trigger');
+    const exportMenu = document.getElementById('project-export-menu');
+    const openAllReceiptsBtn = document.getElementById('open-all-receipts-btn');
+    const receiptGalleryModal = document.getElementById('receiptGalleryModal');
+    const receiptImageModal = document.getElementById('receiptImageModal');
+    const closeReceiptGalleryBtn = document.getElementById('closeReceiptGalleryBtn');
+    const closeReceiptImageBtn = document.getElementById('closeReceiptImageBtn');
     
     if (approveModal) {
         approveModal.addEventListener('click', function(e) {
@@ -488,6 +693,100 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    if (openAllReceiptsBtn) {
+        openAllReceiptsBtn.addEventListener('click', function() {
+            showReceiptGalleryModal(
+                receiptGalleryItems,
+                'All Uploaded Receipts',
+                'Browse every receipt and attachment linked to this project.'
+            );
+        });
+    }
+
+    document.querySelectorAll('[data-gallery-scope="cost"]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const costId = Number(button.getAttribute('data-cost-id'));
+            const filtered = receiptGalleryItems.filter((item) => item.costId === costId);
+            showReceiptGalleryModal(
+                filtered,
+                'Cost Entry Attachments',
+                'Only the receipts and attachments linked to this cost entry are shown here.'
+            );
+        });
+    });
+
+    if (receiptGalleryModal) {
+        receiptGalleryModal.addEventListener('click', function(e) {
+            if (e.target === receiptGalleryModal) {
+                hideReceiptGalleryModal();
+            }
+        });
+        document.body.appendChild(receiptGalleryModal);
+    }
+
+    if (receiptImageModal) {
+        receiptImageModal.addEventListener('click', function(e) {
+            if (e.target === receiptImageModal) {
+                hideReceiptImageModal();
+            }
+        });
+        document.body.appendChild(receiptImageModal);
+    }
+
+    if (closeReceiptGalleryBtn) {
+        closeReceiptGalleryBtn.addEventListener('click', hideReceiptGalleryModal);
+    }
+
+    if (closeReceiptImageBtn) {
+        closeReceiptImageBtn.addEventListener('click', hideReceiptImageModal);
+    }
+
+    document.addEventListener('click', function(e) {
+        const trigger = e.target.closest('.receipt-image-trigger');
+        if (!trigger) return;
+        showReceiptImageModal({
+            url: trigger.getAttribute('data-url') || '',
+            title: trigger.getAttribute('data-title') || 'Receipt preview',
+            uploaded: trigger.getAttribute('data-uploaded') || '',
+            entry: trigger.getAttribute('data-entry') || '',
+            amount: trigger.getAttribute('data-amount') || '',
+            caption: trigger.getAttribute('data-caption') || ''
+        });
+    });
+
+    if (exportTrigger && exportMenu) {
+        exportTrigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            exportMenu.classList.toggle('hidden');
+        });
+    }
+
+    if (exportDropdown) {
+        exportDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    document.addEventListener('click', function() {
+        if (exportMenu) {
+            exportMenu.classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (exportMenu) {
+                exportMenu.classList.add('hidden');
+            }
+            hideReceiptGalleryModal();
+            hideReceiptImageModal();
+            hideApproveBudgetModal();
+            hideRejectBudgetModal();
+        }
+    });
 });
 </script>
 {% endblock %}
+

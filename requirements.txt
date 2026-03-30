@@ -27,8 +27,10 @@ channels-redis==4.1.0  # Redis backend for Channels
 daphne==4.0.0  # ASGI server for WebSocket support
 django-storages==1.14.2  # For DigitalOcean Spaces (S3-compatible storage)
 boto3==1.34.0  # AWS SDK for Python (used by django-storages for Spaces)
+django-anymail==12.0  # Resend HTTP API email backend support
 # GDAL==3.10.*  # Commented out - not needed (django.contrib.gis is disabled in settings.py)
 scikit-learn==1.3.2
 numpy==1.26.2
 pandas==2.1.4
 holidays>=0.40  # Optional: PH holidays for years not in projeng.working_days (2026 is built-in)
+qrcode[pil]==7.4.2

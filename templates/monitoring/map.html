@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load user_groups %}
 {% block content %}
 <style>
 #map {
@@ -237,9 +238,31 @@
 <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-6 lg:px-8">
         <!-- Page Header -->
-        <div class="mb-6">
-            <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">City Overview</h1>
-            <p class="text-gray-600 text-sm lg:text-base">Interactive map view of all projects and zoning information across Tagum City</p>
+        <div class="mb-6 flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                    {% if user|has_group:"Finance Manager" %}
+                        Map View
+                    {% else %}
+                        City Overview
+                    {% endif %}
+                </h1>
+                <p class="text-gray-600 text-sm lg:text-base">
+                    {% if user|has_group:"Finance Manager" %}
+                        Geographic visualization of project locations
+                    {% else %}
+                        Interactive map view of all projects and zoning information across Tagum City
+                    {% endif %}
+                </p>
+            </div>
+            {% if is_head_engineer %}
+            <button id="add-project-btn" type="button" class="inline-flex items-center gap-2 px-6 py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-300 whitespace-nowrap">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Add Project
+            </button>
+            {% endif %}
         </div>
 
         <!-- Main Content Card -->
@@ -247,7 +270,7 @@
             <!-- Filter Section (Above Map) -->
             <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                 <div id="filter-section">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                         <!-- Date Range -->
                         <div class="lg:col-span-2 grid grid-cols-2 gap-3">
                             <div>
@@ -258,6 +281,14 @@
                                 <label class="block text-xs font-semibold text-gray-600 mb-1.5">End Date</label>
                                 <input id="end-date-filter" type="date" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium transition-all hover:border-gray-300" />
                             </div>
+                        </div>
+
+                        <!-- Year Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Year</label>
+                            <select id="year-filter" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base font-medium bg-white transition-all hover:border-gray-300">
+                                <option value="">All Years</option>
+                            </select>
                         </div>
                         
                         <!-- Barangay Filter -->
@@ -291,7 +322,7 @@
                             </select>
                         </div>
                         
-                        <!-- Status Filters and Add Project Button -->
+                        <!-- Status Filters -->
                         <div class="lg:col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                             <div class="flex gap-3 items-center">
@@ -301,14 +332,6 @@
                                     <button id="btn-planned" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all text-sm h-[38px] whitespace-nowrap">Planned</button>
                                     <button id="btn-delayed" class="flex-1 px-3 py-2 rounded-lg font-semibold border-2 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all text-sm h-[38px] whitespace-nowrap">Delayed</button>
                                 </div>
-                                {% if is_head_engineer %}
-                                <button id="add-project-btn" type="button" class="ml-auto inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 hover:shadow-lg flex-shrink-0">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    Add Project
-                                </button>
-                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -401,6 +424,81 @@
 <script>
 // Barangay Projects Modal - show projects when "View Projects" is clicked in barangay popup
 function _normalizeBarangayForMatch(s) { return (s || '').toString().toLowerCase().trim(); }
+const _barangayStatusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'In Progress', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
+const _barangayStatusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-yellow-100 text-yellow-800', ongoing: 'bg-yellow-100 text-yellow-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
+const _barangayModalFilterButtonStyle = {
+    completed: { active: 'bg-green-600 text-white border-green-600', inactive: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
+    in_progress: { active: 'bg-yellow-500 text-white border-yellow-500', inactive: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' },
+    planned: { active: 'bg-purple-600 text-white border-purple-600', inactive: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
+    delayed: { active: 'bg-red-600 text-white border-red-600', inactive: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' }
+};
+const _barangayModalFilterButtonBaseClass = 'px-3 py-1 rounded-md text-xs font-semibold border transition whitespace-nowrap';
+let _barangayModalProjects = [];
+let _barangayModalActiveStatusFilter = '';
+
+function _normalizeBarangayProjectStatus(status) {
+    const normalized = (status || '').toString().toLowerCase().trim();
+    if (normalized === 'ongoing') return 'in_progress';
+    if (normalized === 'pending') return 'planned';
+    return normalized;
+}
+
+function _escapeHtml(value) {
+    return (value || '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _updateBarangayModalFilterButtons() {
+    const buttons = document.querySelectorAll('[data-barangay-status-filter]');
+    buttons.forEach(function(btn) {
+        const status = btn.getAttribute('data-barangay-status-filter');
+        const style = _barangayModalFilterButtonStyle[status];
+        if (!style) return;
+        const isActive = _barangayModalActiveStatusFilter === status;
+        btn.className = _barangayModalFilterButtonBaseClass + ' ' + (isActive ? style.active : style.inactive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+}
+
+function _renderBarangayProjectsRows() {
+    const tbody = document.getElementById('barangay-projects-table-body');
+    const emptyEl = document.getElementById('barangay-projects-empty');
+    if (!tbody || !emptyEl) return;
+
+    tbody.innerHTML = '';
+    const projectsToRender = _barangayModalActiveStatusFilter
+        ? _barangayModalProjects.filter(function(p) { return _normalizeBarangayProjectStatus(p.status) === _barangayModalActiveStatusFilter; })
+        : _barangayModalProjects;
+
+    if (projectsToRender.length === 0) {
+        const filterLabel = _barangayStatusMap[_barangayModalActiveStatusFilter] || 'selected';
+        emptyEl.textContent = _barangayModalActiveStatusFilter
+            ? 'No ' + filterLabel + ' projects found for this barangay.'
+            : 'No projects found for this barangay.';
+        emptyEl.classList.remove('hidden');
+        return;
+    }
+
+    emptyEl.classList.add('hidden');
+    emptyEl.textContent = 'No projects found for this barangay.';
+    projectsToRender.forEach(function(p, i) {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        const rawStatus = (p.status || '').toLowerCase();
+        const status = _barangayStatusMap[rawStatus] || (p.status || '').replace(/_/g, ' ');
+        const statusClass = _barangayStatusClassMap[rawStatus] || 'bg-gray-100 text-gray-800';
+        const cost = (p.project_cost && parseFloat(p.project_cost) >= 0) ? '₱' + parseFloat(p.project_cost).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
+        const projId = _escapeHtml((p.id || '').toString());
+        const prn = _escapeHtml(p.prn || '—');
+        const projectName = _escapeHtml(p.name || '—');
+        tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + prn + '</td><td class="px-4 py-2 font-medium text-gray-900">' + projectName + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + statusClass + '">' + status + '</span></td><td class="px-4 py-2"><button type="button" class="barangay-project-view-detail text-blue-600 hover:text-blue-800 font-medium" data-project-id="' + projId + '">View</button></td>';
+        tbody.appendChild(tr);
+    });
+}
 window.showBarangayProjectsModal = function(barangayName) {
     const el = document.getElementById('projects-data');
     let projects = [];
@@ -408,35 +506,17 @@ window.showBarangayProjectsModal = function(barangayName) {
         try { projects = JSON.parse(el.textContent.trim()); } catch (e) { projects = []; }
     }
     const normalized = _normalizeBarangayForMatch(barangayName);
-    const filtered = projects.filter(function(p) {
+    _barangayModalProjects = projects.filter(function(p) {
         const pb = _normalizeBarangayForMatch(p.barangay);
         return pb === normalized || pb.replace(/\s+/g,'') === normalized.replace(/\s+/g,'');
     });
     const modal = document.getElementById('barangay-projects-modal');
     const titleEl = document.getElementById('barangay-projects-barangay-name');
-    const tbody = document.getElementById('barangay-projects-table-body');
-    const emptyEl = document.getElementById('barangay-projects-empty');
-    if (!modal || !tbody) return;
+    if (!modal) return;
     if (titleEl) titleEl.textContent = barangayName || 'Barangay';
-    tbody.innerHTML = '';
-    if (filtered.length === 0) {
-        emptyEl.classList.remove('hidden');
-    } else {
-        emptyEl.classList.add('hidden');
-        const statusMap = { completed: 'Completed', in_progress: 'In Progress', ongoing: 'Ongoing', planned: 'Planned', delayed: 'Delayed', pending: 'Planned' };
-        const statusClassMap = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-yellow-100 text-yellow-800', ongoing: 'bg-yellow-100 text-yellow-800', planned: 'bg-purple-100 text-purple-800', delayed: 'bg-red-100 text-red-800', pending: 'bg-purple-100 text-purple-800' };
-        filtered.forEach(function(p, i) {
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            const rawStatus = (p.status || '').toLowerCase();
-            const status = statusMap[rawStatus] || (p.status || '').replace(/_/g, ' ');
-            const statusClass = statusClassMap[rawStatus] || 'bg-gray-100 text-gray-800';
-            const cost = (p.project_cost && parseFloat(p.project_cost) >= 0) ? '₱' + parseFloat(p.project_cost).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
-            const projId = (p.id || '').toString().replace(/"/g, '&quot;');
-            tr.innerHTML = '<td class="px-4 py-2">' + (i + 1) + '</td><td class="px-4 py-2 font-mono text-gray-700">' + (p.prn || '—') + '</td><td class="px-4 py-2 font-medium text-gray-900">' + (p.name || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</td><td class="px-4 py-2">' + cost + '</td><td class="px-4 py-2"><span class="px-2 py-0.5 text-xs font-semibold rounded-full ' + statusClass + '">' + status + '</span></td><td class="px-4 py-2"><button type="button" class="barangay-project-view-detail text-blue-600 hover:text-blue-800 font-medium" data-project-id="' + projId + '">View</button></td>';
-            tbody.appendChild(tr);
-        });
-    }
+    _barangayModalActiveStatusFilter = '';
+    _updateBarangayModalFilterButtons();
+    _renderBarangayProjectsRows();
     modal.classList.remove('hidden');
 };
 document.addEventListener('click', function(e) {
@@ -452,6 +532,16 @@ document.addEventListener('click', function(e) {
     if (btn && btn.getAttribute('data-barangay')) {
         e.preventDefault();
         if (window.showBarangayProjectsModal) window.showBarangayProjectsModal(btn.getAttribute('data-barangay'));
+        return;
+    }
+    const statusFilterBtn = e.target.closest && e.target.closest('[data-barangay-status-filter]');
+    if (statusFilterBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const status = _normalizeBarangayProjectStatus(statusFilterBtn.getAttribute('data-barangay-status-filter'));
+        _barangayModalActiveStatusFilter = (_barangayModalActiveStatusFilter === status) ? '' : status;
+        _updateBarangayModalFilterButtons();
+        _renderBarangayProjectsRows();
         return;
     }
     const viewBtn = e.target.closest && e.target.closest('.barangay-project-view-detail');
@@ -641,7 +731,7 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <!-- Load SimpleChoropleth script statically (before DOMContentLoaded) -->
 <!-- Add cache busting with timestamp to ensure latest version loads -->
-<script src="{% static 'js/simple_choropleth.js' %}?v=2.1"></script>
+<script src="{% static 'js/simple_choropleth.js' %}?v=2.2"></script>
 <script>
     // Verify SimpleChoropleth class is loaded with all methods
     document.addEventListener('DOMContentLoaded', function() {
@@ -664,131 +754,135 @@ console.log('[OK] showPopupMap function defined globally (early placeholder)');
 
 <!-- View Details Modal (Initially hidden) -->
 <div id="details-modal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-40" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease-in-out; position: fixed; z-index: 20010;">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl relative mx-4 my-4 max-h-[85vh] overflow-hidden flex flex-col" style="position: relative; z-index: 10000; pointer-events: auto;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative mx-4 my-4 max-h-[90vh] overflow-hidden flex flex-col" style="position: relative; z-index: 10000; pointer-events: auto;">
         <!-- Header with Gradient -->
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl px-6 py-4 relative flex-shrink-0">
+        <div class="bg-green-700 rounded-t-2xl px-4 py-3 relative flex-shrink-0">
             <button id="close-details-modal" class="absolute top-3 right-3 text-white hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20 transition-all">&times;</button>
             <div class="pr-10">
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 mb-1 flex-wrap">
-                        <h2 class="text-xl font-bold text-white" id="details-title">Project Details</h2>
+                        <h2 class="text-lg font-bold text-white" id="details-title">Project Details</h2>
                         <span id="details-status"></span>
                     </div>
-                    <div class="text-base font-semibold text-white mb-1" id="details-name"></div>
-                    <div class="text-sm text-blue-100 font-mono" id="details-prn"></div>
+                    <div class="text-sm font-semibold text-white mb-0.5" id="details-name"></div>
+                    <div class="text-xs text-blue-100 font-mono" id="details-prn"></div>
                 </div>
             </div>
         </div>
         
         <!-- Content - Scrollable so all project details are visible -->
-        <div class="p-5 overflow-y-auto flex-1 min-h-0">
+        <div class="p-3 overflow-y-auto flex-1 min-h-0">
             <!-- View Report - opens report in nested modal (stays on page) -->
-            <button type="button" id="view-report-button" class="mb-4 inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all text-sm shadow-md">
+            <button type="button" id="view-report-button" class="mb-3 inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white font-semibold py-2 px-3 rounded-lg transition-all text-xs shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 View Report
             </button>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <!-- Project Info Card -->
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border-l-4 border-blue-500">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">ℹ️</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Project Info</h3>
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-2 border-l-4 border-blue-500">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">ℹ️</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Project Info</h3>
                     </div>
-                    <div class="space-y-2">
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Description</div>
-                            <div class="text-sm font-medium text-gray-800" id="details-description">No description</div>
+                    <div class="space-y-1.5">
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Description</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-description">No description</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Date Started</div>
-                            <div class="text-sm font-medium text-gray-800" id="details-start-date">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Date Started</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-start-date">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Date Ended</div>
-                            <div class="text-sm font-medium text-gray-800" id="details-end-date">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Date Ended</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-end-date">—</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Day Count Type</div>
+                            <div class="text-xs font-medium text-gray-800" id="details-day-count-type">—</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Financial Card -->
-                <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 border-l-4 border-yellow-500">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">💰</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Financial</h3>
+                <div class="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-2 border-l-4 border-yellow-500">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">💰</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Financial</h3>
                     </div>
-                    <div class="space-y-2">
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Project Cost</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-cost">—</div>
+                    <div class="space-y-1.5">
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Project Cost</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-cost">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Total Spent</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-spent">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Total Spent</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-spent">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Remaining Funds</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-remaining">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Remaining Funds</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-remaining">—</div>
                         </div>
-                        <div class="bg-white rounded-lg p-2 shadow-sm">
-                            <div class="text-sm text-gray-500 uppercase mb-1">Source of Funds</div>
-                            <div class="text-sm font-semibold text-gray-800" id="details-funds">—</div>
+                        <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                            <div class="text-xs text-gray-500 uppercase mb-1">Source of Funds</div>
+                            <div class="text-xs font-semibold text-gray-800" id="details-funds">—</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Progress Card (Conditional) -->
-                <div id="details-progress-section" class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 border-l-4 border-purple-500 hidden">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">📈</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Progress</h3>
+                <div id="details-progress-section" class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-2 border-l-4 border-purple-500 hidden">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📈</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Progress</h3>
                     </div>
-                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                    <div class="bg-white rounded-lg p-1.5 shadow-sm">
                         <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                             <div id="details-progress-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
-                        <div id="details-progress-text" class="text-sm font-semibold text-gray-700 text-center">0% Complete</div>
+                        <div id="details-progress-text" class="text-xs font-semibold text-gray-700 text-center">0% Complete</div>
                     </div>
                 </div>
                 
                 <!-- Assigned Engineers Card -->
-                <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-3 border-l-4 border-gray-400">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div class="w-7 h-7 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">👷</div>
-                        <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">Assigned Engineer(s)</h3>
+                <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-2 border-l-4 border-gray-400">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 bg-gray-400 rounded-lg flex items-center justify-center text-white font-bold text-xs">👷</div>
+                        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Assigned Engineer(s)</h3>
                     </div>
-                    <div class="bg-white rounded-lg p-2 shadow-sm">
-                        <div id="details-assigned-engineers" class="text-sm text-gray-700">None assigned</div>
+                    <div class="bg-white rounded-lg p-1.5 shadow-sm">
+                        <div id="details-assigned-engineers" class="text-xs text-gray-700">None assigned</div>
                     </div>
                 </div>
                 
                 <!-- Location Card - Full Width -->
-                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border-l-4 border-green-500 lg:col-span-2">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-7 h-7 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📍</div>
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-2 border-l-4 border-green-500 lg:col-span-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-xs">📍</div>
                         <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wide">Location</h3>
                     </div>
                     <!-- Side-by-side Layout: Details Left, Map Right -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <!-- Left Side: Location Details -->
-                        <div class="space-y-2">
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="space-y-1.5">
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Barangay</div>
-                                <div class="text-sm font-semibold text-gray-800" id="details-barangay">—</div>
+                                <div class="text-xs font-semibold text-gray-800" id="details-barangay">—</div>
                             </div>
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Latitude</div>
                                 <div class="text-xs font-mono text-gray-700" id="details-latitude">—</div>
                             </div>
-                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                            <div class="bg-white rounded-lg p-1.5 shadow-sm">
                                 <div class="text-xs text-gray-500 uppercase mb-1">Longitude</div>
                                 <div class="text-xs font-mono text-gray-700" id="details-longitude">—</div>
                             </div>
                         </div>
                         <!-- Right Side: Map -->
                         <div class="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200">
-                            <div id="details-map" class="w-full rounded-lg" style="height: 240px; min-height: 240px; background-color: #f3f4f6;"></div>
+                            <div id="details-map" class="w-full rounded-lg" style="height: 200px; min-height: 200px; background-color: #f3f4f6;"></div>
                         </div>
                     </div>
                 </div>
@@ -1235,10 +1329,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to create modern custom marker icon with shadow (colors match dashboard cards)
     function createMarkerIcon(status) {
+        const normalizedStatus = normalizeProjectStatus(status);
         let color = '#a855f7'; // Planned - purple
-        if (status === 'completed') color = '#10b981'; // Completed - green
-        else if (status === 'delayed') color = '#ef4444'; // Delayed - red
-        else if (status === 'ongoing' || status === 'in_progress') color = '#eab308'; // In Progress - yellow
+        if (normalizedStatus === 'completed') color = '#10b981'; // Completed - green
+        else if (normalizedStatus === 'delayed') color = '#ef4444'; // Delayed - red
+        else if (normalizedStatus === 'in_progress') color = '#eab308'; // In Progress - yellow
         
         // Generate unique filter ID to avoid conflicts
         const filterId = 'shadow-' + Math.random().toString(36).substr(2, 9);
@@ -1280,6 +1375,54 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function normalizeProjectStatus(status) {
+        const s = (status || '').toString().trim().toLowerCase();
+        if (s === 'ongoing' || s === 'in_progress') return 'in_progress';
+        if (s === 'planned' || s === 'pending') return 'planned';
+        if (s === 'completed') return 'completed';
+        if (s === 'delayed') return 'delayed';
+        return s;
+    }
+
+    function getProjectStatusLabel(status) {
+        const normalized = normalizeProjectStatus(status);
+        if (normalized === 'in_progress') return 'In Progress';
+        if (normalized === 'planned') return 'Planned';
+        if (normalized === 'completed') return 'Completed';
+        if (normalized === 'delayed') return 'Delayed';
+        return (status || '').toString().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function getProjectStatusBadgeClass(status) {
+        const normalized = normalizeProjectStatus(status);
+        if (normalized === 'completed') return 'bg-green-50 text-green-700 border border-green-200';
+        if (normalized === 'in_progress') return 'bg-yellow-50 text-yellow-700 border border-yellow-200';
+        if (normalized === 'planned') return 'bg-purple-50 text-purple-700 border border-purple-200';
+        if (normalized === 'delayed') return 'bg-red-50 text-red-700 border border-red-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
+    }
+
+    function getProjectYear(dateStr) {
+        if (!dateStr) return null;
+        const raw = String(dateStr).trim();
+        const isoMatch = raw.match(/^(\d{4})-/);
+        if (isoMatch) return parseInt(isoMatch[1], 10);
+        const parsed = new Date(raw);
+        if (!isNaN(parsed.getTime())) return parsed.getFullYear();
+        return null;
+    }
+
+    function getProjectYears(project) {
+        const years = [];
+        const startYear = getProjectYear(project.start_date);
+        const endYear = getProjectYear(project.end_date);
+        const createdYear = getProjectYear(project.created_at);
+        if (startYear) years.push(startYear);
+        if (endYear) years.push(endYear);
+        if (createdYear) years.push(createdYear);
+        return Array.from(new Set(years));
+    }
+
     // Helper: get projects that match current filters and have valid coordinates
     function getFilteredProjectsForMap() {
         const results = [];
@@ -1288,9 +1431,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const barangay = barangayFilter.value;
+        const selectedYear = yearFilter ? yearFilter.value : '';
         const startDate = startDateFilter.value;
         const endDate = endDateFilter.value;
-        console.log('Applying filters: Status=', statusFilter, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
+        console.log('Applying filters: Status=', statusFilter, 'Year=', selectedYear, 'Barangay=', barangay, 'StartDate=', startDate, 'EndDate=', endDate);
 
         window.projects.forEach(project => {
             // Use same status as Overall Project Metrics (backend sends computed status; treat missing as 'planned')
@@ -1310,6 +1454,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusMatch = projectStatus === statusFilter;
             }
             const barangayMatch = !barangay || (project.barangay && project.barangay.toLowerCase() === barangay.toLowerCase());
+            // Year filter logic: match project start year or end year
+            let yearMatch = true;
+            if (selectedYear) {
+                const targetYear = parseInt(selectedYear, 10);
+                const projectYears = getProjectYears(project);
+                yearMatch = projectYears.includes(targetYear);
+            }
             // Date filter logic
             let dateMatch = true;
             if (startDate && project.start_date) {
@@ -1321,7 +1472,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Validate coordinates as numbers
             const hasValidCoords = project.latitude && !isNaN(parseFloat(project.latitude)) && project.longitude && !isNaN(parseFloat(project.longitude));
 
-            if (statusMatch && barangayMatch && dateMatch && hasValidCoords) {
+            if (statusMatch && barangayMatch && yearMatch && dateMatch && hasValidCoords) {
                 results.push(project);
             }
         });
@@ -1352,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Rendering markers for', filteredProjects.length, 'filtered projects');
 
         filteredProjects.forEach(project => {
-            let projectStatus = (project.status || '').toLowerCase();
+            const projectStatus = normalizeProjectStatus(project.status || '');
                 const marker = L.marker([parseFloat(project.latitude), parseFloat(project.longitude)], {
                     icon: createMarkerIcon(project.status)
                 });
@@ -1371,11 +1522,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="flex items-center gap-2 mb-3 flex-wrap">
                             <span class="px-3 py-1 text-xs rounded-full font-semibold shadow-sm
-                                ${projectStatus === 'delayed' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                  projectStatus === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' : 
-                                  (projectStatus === 'ongoing' || projectStatus === 'in_progress') ? 'bg-blue-50 text-blue-700 border border-blue-200' : 
-                                  (projectStatus === 'planned' || projectStatus === 'pending') ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-50 text-gray-700 border border-gray-200'}">
-                                ${project.status ? project.status.charAt(0).toUpperCase() + project.status.slice(1) : ''}
+                                ${getProjectStatusBadgeClass(projectStatus)}">
+                                ${getProjectStatusLabel(projectStatus)}
                             </span>
                             ${project.zone_type ? `<span class="px-3 py-1 text-xs rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">Zone: ${project.zone_type}</span>` : ''}
                         </div>
@@ -1393,12 +1541,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="font-semibold text-gray-900">${progressLabel}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${displayProgress}%"></div>
+                                <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-300" style="width: ${displayProgress}%"></div>
                             </div>
                         </div>
                         ` : ''}
                         <button onclick="window.openDetailsModal(${project.id})" 
-                                class="w-full mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-sm">
+                                class="w-full mt-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-sm">
                             View Details →
                         </button>
                     </div>
@@ -1484,7 +1632,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         map.options.maxBoundsViscosity = 1.0; // Keep view strictly inside bounds
                         try {
                             const zoomForBounds = map.getBoundsZoom(paddedBounds);
-                            if (typeof zoomForBounds === 'number' && zoomForBounds >= 0) map.setMinZoom(zoomForBounds);
+                            // Allow a little extra zoom-out beyond the strict bounds-fit zoom.
+                            const extraZoomOutLevels = 1;
+                            if (typeof zoomForBounds === 'number' && zoomForBounds >= 0) {
+                                map.setMinZoom(Math.max(3, zoomForBounds - extraZoomOutLevels));
+                            }
                         } catch (e) { console.warn('Could not set minZoom from bounds:', e); }
                     }
                     // Default: markers only (no city outline, no choropleth). User can enable "City outline only" or a view type from Zoning Control.
@@ -1779,9 +1931,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     }
 
-    // Add date filter logic in JS
+    // Add date/year filter logic in JS
     const startDateFilter = document.getElementById('start-date-filter');
     const endDateFilter = document.getElementById('end-date-filter');
+    const yearFilter = document.getElementById('year-filter');
+
+    function populateYearFilterOptions() {
+        if (!yearFilter) return;
+        const currentValue = yearFilter.value;
+        const years = new Set();
+
+        (window.projects || []).forEach((project) => {
+            getProjectYears(project).forEach((y) => years.add(y));
+        });
+
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
+        yearFilter.innerHTML = '<option value="">All Years</option>';
+        sortedYears.forEach((year) => {
+            const opt = document.createElement('option');
+            opt.value = String(year);
+            opt.textContent = String(year);
+            yearFilter.appendChild(opt);
+        });
+
+        if (currentValue && sortedYears.includes(parseInt(currentValue, 10))) {
+            yearFilter.value = currentValue;
+        }
+    }
+    populateYearFilterOptions();
 
     startDateFilter.addEventListener('change', function() {
         // Always render markers (combined view)
@@ -1797,6 +1974,14 @@ document.addEventListener('DOMContentLoaded', function() {
             renderHeatmap();
         }
     });
+    if (yearFilter) {
+        yearFilter.addEventListener('change', function() {
+            renderMarkers();
+            if (heatmapEnabled) {
+                renderHeatmap();
+            }
+        });
+    }
 
     // Heatmap toggle handler
     if (heatmapToggle) {
@@ -2239,6 +2424,7 @@ window.openDetailsModal = function(id) {
     const detailsLongitude = document.getElementById('details-longitude');
     const detailsStartDate = document.getElementById('details-start-date');
     const detailsEndDate = document.getElementById('details-end-date');
+    const detailsDayCountType = document.getElementById('details-day-count-type');
     const detailsMapDiv = document.getElementById('details-map');
     const assignedEngineersElement = document.getElementById('details-assigned-engineers');
     const progressSection = document.getElementById('details-progress-section');
@@ -2297,6 +2483,13 @@ window.openDetailsModal = function(id) {
                 detailsEndDate.textContent = '—';
             }
         }
+        if (detailsDayCountType) {
+            const statusValue = (project.calculated_status || project.status || '').toLowerCase();
+            const isPlanned = statusValue === 'planned' || statusValue === 'pending';
+            detailsDayCountType.textContent = (isPlanned || !project.start_date || !project.end_date)
+                ? '—'
+                : (project.day_count_type === 'calendar_days' ? 'Calendar Days' : 'Working Days');
+        }
 
         // Display assigned engineers
         if (assignedEngineersElement) {
@@ -2321,8 +2514,8 @@ window.openDetailsModal = function(id) {
 
         // Handle map in modal
         if (detailsMapDiv) {
-            // Small delay before initializing the map to ensure modal is visible and map container has dimensions
-            setTimeout(() => {
+            // Initialize on next paint so the modal container already has dimensions.
+            requestAnimationFrame(() => {
                 if (window.detailsMap) {
                     window.detailsMap.remove();
                 }
@@ -2355,7 +2548,7 @@ window.openDetailsModal = function(id) {
                 } else {
                     detailsMapDiv.innerHTML = '<div class="text-gray-400 text-center py-8">No location set</div>';
                 }
-            }, 100); // Small delay
+            });
         }
 
     } else {
@@ -2366,13 +2559,19 @@ window.openDetailsModal = function(id) {
 
 // Include the getStatusBadge function (copy from project_list.html)
 function getStatusBadge(status) {
-    if (status === 'completed') {
+    const s = (status || '').toString().trim().toLowerCase();
+    const normalizedStatus =
+        (s === 'ongoing' || s === 'in_progress') ? 'in_progress' :
+        (s === 'planned' || s === 'pending') ? 'planned' :
+        (s === 'completed') ? 'completed' :
+        (s === 'delayed') ? 'delayed' : s;
+    if (normalizedStatus === 'completed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-semibold">Completed</span>';
-    } else if (status === 'in_progress' || status === 'ongoing') {
-        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-semibold">Ongoing</span>';
-    } else if (status === 'planned' || status === 'pending') {
-        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">Planned</span>';
-    } else if (status === 'delayed') {
+    } else if (normalizedStatus === 'in_progress') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">In Progress</span>';
+    } else if (normalizedStatus === 'planned') {
+        return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700 font-semibold">Planned</span>';
+    } else if (normalizedStatus === 'delayed') {
         return '<span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 font-semibold">Delayed</span>';
     } else {
         return status;
@@ -2396,11 +2595,11 @@ function formatDate(dateStr) {
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
                 <!-- Left column: PRN, Name, Description, Barangay, Project Cost, Project Type -->
                 <div class="lg:col-span-5 space-y-3">
-                    <div class="hidden" aria-hidden="true">
+                    <div>
                         <label class="font-semibold text-gray-700 text-sm">PRN</label>
-                        <input type="text" name="prn" readonly inputmode="none" aria-readonly="true"
-                               class="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none" />
-                        <p class="text-[10px] text-gray-500 mt-0.5">Auto-generated (not editable)</p>
+                        <input type="text" name="prn" required
+                               class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none"
+                               placeholder="Enter PRN manually (e.g., PRN-2026-001)" />
                     </div>
                     <div>
                         <label class="font-semibold text-gray-700 text-sm">Name</label>
@@ -2500,24 +2699,32 @@ function formatDate(dateStr) {
                             </span>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">Start Date</label>
-                            {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                            <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
-                            {% else %}
-                            <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
-                            {% endif %}
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Start Date</label>
+                                {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+                                {% else %}
+                                <input type="date" name="start_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">End Date</label>
+                                {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+                                {% else %}
+                                <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" disabled />
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-700 text-sm">Day Count Type</label>
+                                <select name="day_count_type" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer">
+                                    <option value="working_days" selected>Working days</option>
+                                    <option value="calendar_days">Calendar days</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="font-semibold text-gray-700 text-sm">End Date</label>
-                            {% if request.user.is_superuser or request.user.groups.all.0.name == 'Head Engineer' %}
-                            <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required />
-                            {% else %}
-                            <input type="date" name="end_date" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" required disabled />
-                            {% endif %}
-                        </div>
-                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-3">
                             <div>
@@ -2562,7 +2769,7 @@ function formatDate(dateStr) {
 
             <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
                 <button type="button" onclick="closeProjectModal()" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-sm shadow-sm">Cancel</button>
-                <button type="submit" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm shadow-sm flex items-center gap-1.5">
+                <button type="submit" class="px-5 py-2 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-lg text-sm shadow-sm flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-green-300">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                     Save Project
                 </button>
@@ -2592,9 +2799,15 @@ function formatDate(dateStr) {
 <!-- Barangay Projects Modal -->
 <div id="barangay-projects-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden overflow-y-auto" style="z-index: 20003;">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 my-8 max-h-[90vh] flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 id="barangay-projects-modal-title" class="text-lg font-bold text-gray-800">Projects in <span id="barangay-projects-barangay-name"></span></h3>
-            <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">&times;</button>
+        <div class="flex flex-col gap-3 p-4 border-b border-green-800 bg-green-700 sm:flex-row sm:items-center">
+            <h3 id="barangay-projects-modal-title" class="text-lg font-bold text-white">Projects in <span id="barangay-projects-barangay-name"></span></h3>
+            <div class="flex items-center gap-2 ml-auto flex-wrap justify-end">
+                <button type="button" data-barangay-status-filter="completed" class="px-3 py-1 rounded-md text-xs font-semibold border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition whitespace-nowrap">Completed</button>
+                <button type="button" data-barangay-status-filter="in_progress" class="px-3 py-1 rounded-md text-xs font-semibold border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition whitespace-nowrap">In Progress</button>
+                <button type="button" data-barangay-status-filter="planned" class="px-3 py-1 rounded-md text-xs font-semibold border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition whitespace-nowrap">Planned</button>
+                <button type="button" data-barangay-status-filter="delayed" class="px-3 py-1 rounded-md text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition whitespace-nowrap">Delayed</button>
+                <button type="button" id="close-barangay-projects-modal" class="p-2 rounded-lg text-white/90 hover:text-white hover:bg-green-800 transition">&times;</button>
+            </div>
         </div>
         <div class="flex-1 overflow-auto p-4">
             <table class="w-full divide-y divide-gray-200 text-sm">
@@ -2690,36 +2903,28 @@ function showModal() {
         }
     }
 
-    // Ensure PRN is always auto-generated on Add mode
-    ensureAutoPrn();
+    updateDateRequirementsByStatus();
     if (typeof updateLocationDisplays === 'function') updateLocationDisplays();
 }
 
-async function ensureAutoPrn() {
-    try {
-        const form = document.getElementById('project-form');
-        if (!form) return;
-        const mode = form.getAttribute('data-mode') || 'add';
-        if (mode !== 'add') return; // keep PRN on edit
-        const prnInput = form.elements ? form.elements['prn'] : null;
-        if (!prnInput) return;
-        prnInput.readOnly = true;
-        prnInput.value = 'Generating...';
-        const res = await fetch('/dashboard/api/prn/generate/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const data = await res.json();
-        if (data && data.success && data.prn) {
-            prnInput.value = data.prn;
-        } else {
-            prnInput.value = '';
-            console.error('Failed to generate PRN:', data);
-        }
-    } catch (e) {
-        console.error('Failed to generate PRN:', e);
-        try {
-            const form = document.getElementById('project-form');
-            const prnInput = form && form.elements ? form.elements['prn'] : null;
-            if (prnInput) prnInput.value = '';
-        } catch (_) {}
+function updateDateRequirementsByStatus() {
+    const form = document.getElementById('project-form');
+    if (!form || !form.elements) return;
+    const statusEl = form.elements['status'];
+    const startEl = form.elements['start_date'];
+    const endEl = form.elements['end_date'];
+    if (!statusEl || !startEl || !endEl) return;
+
+    const status = (statusEl.value || '').toLowerCase();
+    if (status === 'planned' || status === '') {
+        startEl.required = false;
+        endEl.required = false;
+    } else if (status === 'in_progress' || status === 'ongoing') {
+        startEl.required = true;
+        endEl.required = false;
+    } else {
+        startEl.required = true;
+        endEl.required = true;
     }
 }
 
@@ -3003,7 +3208,7 @@ function initializeModalButtons() {
                 }
                 
                 // Validate required fields
-                const requiredFields = ['name', 'status', 'latitude', 'longitude'];
+                const requiredFields = ['prn', 'name', 'status', 'latitude', 'longitude'];
                 const missingFields = [];
                 for (const fieldName of requiredFields) {
                     const value = formValues[fieldName] || formData.get(fieldName) || '';
@@ -3606,6 +3811,9 @@ function populateEngineers() {
         }
         if (closeModal) closeModal.addEventListener('click', hideModal);
         if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+        if (projectForm && projectForm.elements && projectForm.elements['status']) {
+            projectForm.elements['status'].addEventListener('change', updateDateRequirementsByStatus);
+        }
         // Click outside modal (on backdrop) closes it using the same hideModal
         if (projectModal) {
             projectModal.addEventListener('click', function(e) {
@@ -4154,3 +4362,4 @@ function setupMapPopupModal() {
 // This ensures it's set up every time the modal opens
 </script>
 {% endblock %} 
+

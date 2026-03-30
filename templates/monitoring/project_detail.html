@@ -46,6 +46,7 @@
         <div class="value"><span class="label">Longitude:</span> {{ project.longitude }}</div>
         <div class="value"><span class="label">Start Date:</span> {{ project.start_date }}</div>
         <div class="value"><span class="label">End Date:</span> {{ project.end_date }}</div>
+        <div class="value"><span class="label">Day Count Type:</span> {% if project.status == 'planned' or project.status == 'pending' or not project.start_date or not project.end_date %}—{% elif project.day_count_type == 'calendar_days' %}Calendar Days{% else %}Working Days{% endif %}</div>
         <div class="value"><span class="label">Created At:</span> {{ project.created_at }}</div>
         <div class="value"><span class="label">Updated At:</span> {{ project.updated_at }}</div>
         <div class="value"><span class="label">Assigned Engineers:</span>

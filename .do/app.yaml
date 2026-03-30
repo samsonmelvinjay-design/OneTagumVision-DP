@@ -13,7 +13,7 @@ databases:
 services:
 - name: gisonetagumvision
   github:
-    repo: kennethkeeen/GISONETAGUMVISION
+    repo: samsonmelvinjay-design/OneTagumVision-DP
     branch: main
     deploy_on_push: true
   dockerfile_path: Dockerfile
@@ -72,7 +72,7 @@ services:
 # Worker component for background tasks (Celery)
 - name: gisonetagumvision-worker
   github:
-    repo: kennethkeeen/GISONETAGUMVISION
+    repo: samsonmelvinjay-design/OneTagumVision-DP
     branch: main
     deploy_on_push: true
   dockerfile_path: Dockerfile
