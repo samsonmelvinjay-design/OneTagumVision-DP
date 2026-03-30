@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ov_primary">#14824B</color>
+    <color name="ov_primary_dark">#0C5C34</color>
+    <color name="ov_primary_soft">#E8F6EE</color>
+    <color name="ov_accent">#0EA5A4</color>
+    <color name="ov_info">#1D4ED8</color>
+    <color name="ov_surface">#F3F7F5</color>
+    <color name="ov_surface_card">#FFFFFF</color>
+    <color name="ov_surface_dark">#0F172A</color>
+    <color name="ov_surface_dark_2">#162033</color>
+    <color name="ov_outline">#D6E4DB</color>
+    <color name="ov_text_primary">#0F172A</color>
+    <color name="ov_text_muted">#64748B</color>
+    <color name="ov_text_muted_on_dark">#C8D5D0</color>
+    <color name="ov_white">#FFFFFF</color>
+</resources>

@@ -15,7 +15,7 @@ from django.core.files.storage import default_storage
 from django.utils.text import get_valid_filename
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.conf import settings
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
@@ -96,6 +96,11 @@ def _issue_mobile_receipt_token(project_id: int, user_id: int):
             "temp_path": "",
             "filename": "",
             "uploaded_at": "",
+            "temp_uploads": [],
+            "uploaded_count": 0,
+            "last_event": "",
+            "last_error": "",
+            "last_message": "",
             "created_ts": timezone.now().timestamp(),
         },
         timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS,
@@ -161,36 +166,54 @@ def _attach_mobile_receipt_to_cost(cost, token: str, expected_project_id: int, e
         return False, "Upload session expired."
     if session_data.get("consumed"):
         return False, "This mobile receipt token has already been used."
-    if not session_data.get("uploaded") or not session_data.get("temp_path"):
+    temp_uploads = list(session_data.get("temp_uploads") or [])
+    if not temp_uploads and session_data.get("temp_path"):
+        temp_uploads = [
+            {
+                "path": session_data.get("temp_path"),
+                "filename": session_data.get("filename") or "receipt.jpg",
+                "uploaded_at": session_data.get("uploaded_at") or "",
+            }
+        ]
+    if not session_data.get("uploaded") or not temp_uploads:
         return False, "No mobile receipt was uploaded yet."
+    uploaded_any = False
+    first_saved_name = None
+    for upload in temp_uploads:
+        temp_path = (upload.get("path") or "").strip()
+        if not temp_path or not default_storage.exists(temp_path):
+            continue
+        try:
+            with default_storage.open(temp_path, "rb") as temp_file:
+                image_bytes = temp_file.read()
+        except Exception:
+            return False, "Unable to read uploaded receipt."
 
-    temp_path = session_data.get("temp_path")
-    if not default_storage.exists(temp_path):
+        safe_name = _build_safe_receipt_name(upload.get("filename") or "receipt.jpg", prefix="mobile")
+        if not first_saved_name:
+            cost.receipt.save(safe_name, ContentFile(image_bytes), save=False)
+            first_saved_name = safe_name
+
+        receipt_row = ExpenseReceipt(expense=cost)
+        receipt_row.image.save(safe_name, ContentFile(image_bytes), save=True)
+        uploaded_any = True
+
+        try:
+            default_storage.delete(temp_path)
+        except Exception:
+            logger.warning("Could not delete temporary receipt file: %s", temp_path)
+
+    if not uploaded_any:
         return False, "Uploaded receipt file was not found."
 
-    try:
-        with default_storage.open(temp_path, "rb") as temp_file:
-            image_bytes = temp_file.read()
-    except Exception:
-        return False, "Unable to read uploaded receipt."
-
-    safe_name = _build_safe_receipt_name(session_data.get("filename") or "receipt.jpg", prefix="mobile")
-
-    # Keep compatibility with existing ProjectCost.receipt field
-    cost.receipt.save(safe_name, ContentFile(image_bytes), save=False)
     cost.save(update_fields=["receipt"])
-
-    # Additional attachment record for scanned uploads
-    receipt_row = ExpenseReceipt(expense=cost)
-    receipt_row.image.save(safe_name, ContentFile(image_bytes), save=True)
-
-    try:
-        default_storage.delete(temp_path)
-    except Exception:
-        logger.warning("Could not delete temporary receipt file: %s", temp_path)
 
     session_data["consumed"] = True
     session_data["temp_path"] = ""
+    session_data["filename"] = ""
+    session_data["uploaded_at"] = ""
+    session_data["temp_uploads"] = []
+    session_data["last_message"] = f"Attached {len(temp_uploads)} mobile receipt(s) to the cost entry."
     cache.set(cache_key, session_data, timeout=60)
     return True, ""
 
@@ -1047,6 +1070,7 @@ def finance_mobile_receipt_capture(request):
     )
 
 
+@csrf_exempt
 @require_POST
 def finance_mobile_receipt_upload_api(request):
     token = (request.POST.get("token") or "").strip()
@@ -1060,41 +1084,101 @@ def finance_mobile_receipt_upload_api(request):
         return JsonResponse({"success": False, "error": "Upload session expired."}, status=410)
     if session_data.get("consumed"):
         return JsonResponse({"success": False, "error": "Token already used."}, status=409)
-    if session_data.get("uploaded"):
-        return JsonResponse({"success": False, "error": "A receipt was already uploaded for this token."}, status=409)
+    uploaded_files = request.FILES.getlist("image") or request.FILES.getlist("receipt")
+    if not uploaded_files:
+        single_file = request.FILES.get("image") or request.FILES.get("receipt")
+        if single_file:
+            uploaded_files = [single_file]
 
-    uploaded_file = request.FILES.get("image") or request.FILES.get("receipt")
+    if not uploaded_files:
+        error_message = "Please capture or choose an image first."
+        session_data.update({"last_event": "failure", "last_error": error_message, "last_message": error_message})
+        cache.set(cache_key, session_data, timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS)
+        return JsonResponse({"success": False, "error": error_message}, status=400)
+
     try:
-        _validate_mobile_receipt_file(uploaded_file)
+        for uploaded_file in uploaded_files:
+            _validate_mobile_receipt_file(uploaded_file)
     except ValueError as exc:
+        session_data.update({"last_event": "failure", "last_error": str(exc), "last_message": str(exc)})
+        cache.set(cache_key, session_data, timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS)
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
-    safe_name = _build_safe_receipt_name(uploaded_file.name, prefix="tmp")
-    temp_path = f"receipts/tmp/{payload['nonce']}_{safe_name}"
+    existing_uploads = list(session_data.get("temp_uploads") or [])
+    saved_uploads = []
     try:
-        saved_path = default_storage.save(temp_path, uploaded_file)
+        for uploaded_file in uploaded_files:
+            safe_name = _build_safe_receipt_name(uploaded_file.name, prefix="tmp")
+            temp_path = f"receipts/tmp/{payload['nonce']}_{uuid4().hex[:8]}_{safe_name}"
+            saved_path = default_storage.save(temp_path, uploaded_file)
+            upload_meta = {
+                "path": saved_path,
+                "filename": safe_name,
+                "uploaded_at": timezone.now().isoformat(),
+            }
+            existing_uploads.append(upload_meta)
+            saved_uploads.append(upload_meta)
     except Exception:
         logger.error("Failed saving mobile receipt upload", exc_info=True)
-        return JsonResponse({"success": False, "error": "Unable to save receipt. Please try again."}, status=500)
+        for upload_meta in saved_uploads:
+            temp_path = upload_meta.get("path")
+            if temp_path and default_storage.exists(temp_path):
+                try:
+                    default_storage.delete(temp_path)
+                except Exception:
+                    logger.warning("Could not roll back temp receipt path: %s", temp_path)
+        error_message = "Unable to save receipt. Please try again."
+        session_data.update({"last_event": "failure", "last_error": error_message, "last_message": error_message})
+        cache.set(cache_key, session_data, timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS)
+        return JsonResponse({"success": False, "error": error_message}, status=500)
 
-    # Keep only one temporary file per token.
-    old_temp_path = (session_data.get("temp_path") or "").strip()
-    if old_temp_path and old_temp_path != saved_path and default_storage.exists(old_temp_path):
-        try:
-            default_storage.delete(old_temp_path)
-        except Exception:
-            logger.warning("Could not delete old temp receipt path: %s", old_temp_path)
-
+    latest_upload = existing_uploads[-1]
     session_data.update(
         {
             "uploaded": True,
-            "temp_path": saved_path,
-            "filename": safe_name,
-            "uploaded_at": timezone.now().isoformat(),
+            "temp_path": latest_upload.get("path", ""),
+            "filename": latest_upload.get("filename", ""),
+            "uploaded_at": latest_upload.get("uploaded_at", ""),
+            "temp_uploads": existing_uploads,
+            "uploaded_count": len(existing_uploads),
+            "last_event": "success",
+            "last_error": "",
+            "last_message": f"Uploaded {len(uploaded_files)} image(s). Total queued: {len(existing_uploads)}.",
         }
     )
     cache.set(cache_key, session_data, timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS)
-    return JsonResponse({"success": True, "filename": safe_name})
+    return JsonResponse(
+        {
+            "success": True,
+            "filename": latest_upload.get("filename", ""),
+            "uploaded_at": latest_upload.get("uploaded_at", ""),
+            "uploaded_count": len(existing_uploads),
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def finance_mobile_receipt_event_api(request):
+    token = (request.POST.get("token") or "").strip()
+    event_type = (request.POST.get("event_type") or "").strip().lower()
+    message = (request.POST.get("message") or "").strip()
+    payload, token_error = _decode_mobile_receipt_token(token)
+    if token_error:
+        return JsonResponse({"success": False, "error": token_error}, status=400)
+
+    cache_key = _mobile_receipt_cache_key(payload["nonce"])
+    session_data = cache.get(cache_key)
+    if not session_data:
+        return JsonResponse({"success": False, "error": "Upload session expired."}, status=410)
+    if event_type not in {"success", "failure"}:
+        return JsonResponse({"success": False, "error": "Invalid event type."}, status=400)
+
+    session_data["last_event"] = event_type
+    session_data["last_message"] = message
+    session_data["last_error"] = message if event_type == "failure" else ""
+    cache.set(cache_key, session_data, timeout=MOBILE_RECEIPT_TOKEN_MAX_AGE_SECONDS)
+    return JsonResponse({"success": True})
 
 
 @login_required
@@ -1122,6 +1206,11 @@ def finance_receipt_upload_status_api(request):
             "consumed": bool(session_data.get("consumed")),
             "filename": session_data.get("filename") or "",
             "uploaded_at": session_data.get("uploaded_at") or "",
+            "uploaded_count": int(session_data.get("uploaded_count") or len(session_data.get("temp_uploads") or [])),
+            "filenames": [item.get("filename") or "" for item in (session_data.get("temp_uploads") or []) if item.get("filename")],
+            "last_event": session_data.get("last_event") or "",
+            "last_error": session_data.get("last_error") or "",
+            "last_message": session_data.get("last_message") or "",
             "expires_in": remaining,
         }
     )
@@ -1231,7 +1320,12 @@ def finance_project_detail(request, project_id):
         raise Http404("Project not found")
     
     try:
-        costs = ProjectCost.objects.filter(project=project).order_by('-date')
+        costs = (
+            ProjectCost.objects
+            .filter(project=project)
+            .prefetch_related('mobile_receipts')
+            .order_by('-date')
+        )
         total_spent = costs.aggregate(total=Sum('amount'))['total'] or 0
         project_budget = float(project.project_cost) if project.project_cost else 0
         total_spent_float = float(total_spent)
@@ -1242,8 +1336,56 @@ def finance_project_detail(request, project_id):
         threshold = project_budget * 0.2
         
         cost_by_type = defaultdict(float)
+        all_receipt_gallery = []
         for cost in costs:
             cost_by_type[cost.get_cost_type_display()] += float(cost.amount)
+            receipt_gallery = []
+            mobile_receipts = list(cost.mobile_receipts.all())
+            for receipt in mobile_receipts:
+                if not getattr(receipt, "image", None):
+                    continue
+                try:
+                    receipt_url = receipt.image.url
+                except Exception:
+                    continue
+                receipt_gallery.append(
+                    {
+                        "cost_id": cost.id,
+                        "url": receipt_url,
+                        "uploaded_at": receipt.uploaded_at,
+                        "uploaded_label": timezone.localtime(receipt.uploaded_at).strftime("%b %d, %Y"),
+                        "entry_date_label": cost.date.strftime("%b %d, %Y") if getattr(cost, "date", None) else "",
+                        "type_label": cost.get_cost_type_display(),
+                        "amount_label": f"{float(cost.amount):,.2f}",
+                        "title": (cost.description or "").strip() or cost.get_cost_type_display(),
+                        "caption": "Uploaded from mobile scanner",
+                    }
+                )
+
+            if not receipt_gallery and cost.receipt:
+                try:
+                    legacy_url = cost.receipt.url
+                except Exception:
+                    legacy_url = ""
+                if legacy_url:
+                    receipt_gallery.append(
+                        {
+                            "cost_id": cost.id,
+                            "url": legacy_url,
+                            "uploaded_at": getattr(cost, "date", None),
+                            "uploaded_label": cost.date.strftime("%b %d, %Y") if getattr(cost, "date", None) else "",
+                            "entry_date_label": cost.date.strftime("%b %d, %Y") if getattr(cost, "date", None) else "",
+                            "type_label": cost.get_cost_type_display(),
+                            "amount_label": f"{float(cost.amount):,.2f}",
+                            "title": (cost.description or "").strip() or cost.get_cost_type_display(),
+                            "caption": "Attached to cost entry",
+                        }
+                    )
+
+            cost.receipt_gallery = receipt_gallery
+            cost.receipt_count = len(receipt_gallery)
+            cost.has_receipts = bool(receipt_gallery)
+            all_receipt_gallery.extend(receipt_gallery)
         
         # Budget Requests (model-based, with statuses + attachments + history)
         from projeng.models import BudgetRequest
@@ -1272,6 +1414,8 @@ def finance_project_detail(request, project_id):
             'project_budget': project_budget,
             'threshold': threshold,
             'cost_by_type': dict(cost_by_type),
+            'all_receipt_gallery': all_receipt_gallery,
+            'all_receipt_count': len(all_receipt_gallery),
             'pending_budget_request': pending_budget_request,
             'budget_requests': budget_requests,
         }

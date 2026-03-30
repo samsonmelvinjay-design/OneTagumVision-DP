@@ -10,7 +10,7 @@ env_path = _root / '.env'
 if env_path.exists():
     try:
         from dotenv import load_dotenv
-        load_dotenv(env_path)
+        load_dotenv(env_path, override=True)
     except ImportError:
         pass
 

@@ -271,6 +271,21 @@ document.addEventListener('DOMContentLoaded', function () {
             t = setTimeout(autoSubmit, 150);
         });
     });
+
+    // Allow deep-link edit opening from other pages (e.g., analytics actions)
+    const urlParams = new URLSearchParams(window.location.search);
+    const editFromQuery = Number.parseInt(urlParams.get('edit_project'), 10);
+    if (Number.isInteger(editFromQuery) && editFromQuery > 0) {
+        setTimeout(() => {
+            if (typeof window.openEditModal === 'function') {
+                window.openEditModal(editFromQuery);
+                urlParams.delete('edit_project');
+                const nextQuery = urlParams.toString();
+                const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+                window.history.replaceState({}, '', nextUrl);
+            }
+        }, 0);
+    }
 });
 </script>
 
