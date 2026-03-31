@@ -528,11 +528,32 @@ def dashboard(request):
             },
         ]
 
+        analytics_base_url = reverse('head_engineer_analytics')
         action_queue_items = [
-            {'label': 'Critical delays', 'value': critical_delay_count},
-            {'label': 'No update >30 days', 'value': stale_over_30_count},
-            {'label': 'Last update 15-30 days', 'value': stale_15_30_count},
-            {'label': 'Stalled projects', 'value': stalled_projects_count},
+            {
+                'key': 'critical_delays',
+                'label': 'Critical delays',
+                'value': critical_delay_count,
+                'url': f'{analytics_base_url}?queue=critical_delays',
+            },
+            {
+                'key': 'stale_over_30',
+                'label': 'No update >30 days',
+                'value': stale_over_30_count,
+                'url': f'{analytics_base_url}?queue=stale_over_30',
+            },
+            {
+                'key': 'stale_15_30',
+                'label': 'Last update 15-30 days',
+                'value': stale_15_30_count,
+                'url': f'{analytics_base_url}?queue=stale_15_30',
+            },
+            {
+                'key': 'stalled_projects',
+                'label': 'Stalled projects',
+                'value': stalled_projects_count,
+                'url': f'{analytics_base_url}?queue=stalled_projects',
+            },
         ]
 
         def _month_start(day_obj):
@@ -3357,6 +3378,7 @@ def head_engineer_analytics(request):
     cost_min_raw = (request.GET.get('cost_min') or '').strip()
     cost_max_raw = (request.GET.get('cost_max') or '').strip()
     search_query = (request.GET.get('search') or '').strip()
+    queue_filter = (request.GET.get('queue') or '').strip().lower()
 
     # Apply NON-status filters first (so summary cards reflect this scope)
     if barangay_filter:
@@ -3478,6 +3500,35 @@ def head_engineer_analytics(request):
             ).order_by('-date', '-created_at').first()
             if latest:
                 latest_progress_dict[project_id] = latest
+
+    # Keep the two latest progress entries per project to detect stalled movement.
+    progress_pair_map = {}
+    if all_project_ids_for_page:
+        progress_rows = (
+            ProjectProgress.objects
+            .filter(project_id__in=all_project_ids_for_page)
+            .order_by('project_id', '-date', '-id')
+            .values('project_id', 'date', 'percentage_complete')
+        )
+        for row in progress_rows:
+            project_id = row['project_id']
+            pair = progress_pair_map.setdefault(project_id, [])
+            if len(pair) < 2:
+                pair.append({
+                    'date': row['date'],
+                    'percentage_complete': float(row['percentage_complete'] or 0),
+                })
+
+    stalled_project_flags = {}
+    for project_id, pair in progress_pair_map.items():
+        if len(pair) < 2:
+            stalled_project_flags[project_id] = False
+            continue
+        latest_entry = pair[0]
+        previous_entry = pair[1]
+        day_gap = (latest_entry['date'] - previous_entry['date']).days
+        pct_delta = abs(float(latest_entry['percentage_complete']) - float(previous_entry['percentage_complete']))
+        stalled_project_flags[project_id] = day_gap >= 15 and pct_delta < 0.01
     
     # Batch fetch assigned engineers for all projects
     from django.db.models import Prefetch
@@ -3540,6 +3591,28 @@ def head_engineer_analytics(request):
         
         # Assigned engineers from batch query
         assigned_to = engineers_dict.get(p.id, [])
+
+        last_update_date = (
+            (latest_progress.date if latest_progress else None)
+            or getattr(p, 'last_update', None)
+            or (p.created_at.date() if getattr(p, 'created_at', None) else today)
+        )
+        stale_days = (today - last_update_date).days if last_update_date else 0
+        active_for_update_cycle = calculated_status in ('in_progress', 'delayed')
+        stalled_project = bool(stalled_project_flags.get(p.id, False))
+
+        delay_days = 0
+        if p.end_date and calculated_status == 'delayed' and p.end_date < today:
+            delay_days = (today - p.end_date).days
+
+        is_critical_delay = (
+            calculated_status == 'delayed'
+            and (
+                delay_days >= 15
+                or stale_days > 30
+                or stalled_project
+            )
+        )
         
         projects_list.append({
             'id': p.id,
@@ -3556,11 +3629,42 @@ def head_engineer_analytics(request):
             'start_date_display': formats.date_format(p.start_date, "N j, Y") if p.start_date else '',
             'end_date_display': formats.date_format(p.end_date, "N j, Y") if p.end_date else '',
             'assigned_to': assigned_to,
+            'stale_days': stale_days,
+            'active_for_update_cycle': active_for_update_cycle,
+            'is_stalled': stalled_project,
+            'is_critical_delay': is_critical_delay,
         })
     
     # If filtering by delayed status, filter the list to only show delayed projects
     if status_filter == 'delayed':
         projects_list = [p for p in projects_list if p['status'] == 'delayed']
+
+    queue_filter_labels = {
+        'critical_delays': 'Critical Delays',
+        'stale_over_30': 'No Update >30 Days',
+        'stale_15_30': 'Last Update 15-30 Days',
+        'stalled_projects': 'Stalled Projects',
+    }
+    if queue_filter not in queue_filter_labels:
+        queue_filter = ''
+
+    if queue_filter == 'critical_delays':
+        projects_list = [p for p in projects_list if p.get('is_critical_delay')]
+    elif queue_filter == 'stale_over_30':
+        projects_list = [
+            p for p in projects_list
+            if p.get('active_for_update_cycle') and int(p.get('stale_days', 0)) > 30
+        ]
+    elif queue_filter == 'stale_15_30':
+        projects_list = [
+            p for p in projects_list
+            if p.get('active_for_update_cycle') and 15 <= int(p.get('stale_days', 0)) <= 30
+        ]
+    elif queue_filter == 'stalled_projects':
+        projects_list = [
+            p for p in projects_list
+            if p.get('active_for_update_cycle') and p.get('is_stalled')
+        ]
     
     # Pagination - 15 items per page (after filtering if needed)
     from django.core.paginator import Paginator
@@ -3591,6 +3695,8 @@ def head_engineer_analytics(request):
         'project_type_filter': project_type_filter,
         'cost_min': cost_min_raw,
         'cost_max': cost_max_raw,
+        'queue_filter': queue_filter,
+        'queue_filter_label': queue_filter_labels.get(queue_filter, ''),
     }
     return render(request, 'monitoring/analytics.html', context)
 
@@ -4252,6 +4358,7 @@ def head_engineer_project_detail(request, pk):
 @head_engineer_required
 def head_dashboard_card_data_api(request):
     from django.db.models import Max
+    from django.urls import reverse
     from projeng.models import Notification
 
     projects = list(Project.objects.all())
@@ -4358,11 +4465,32 @@ def head_dashboard_card_data_api(request):
 
     completion_rate = round((completed_count / project_count) * 100, 1) if project_count else 0.0
     unread_notifications = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    analytics_base_url = reverse('head_engineer_analytics')
     action_queue_items = [
-        {'label': 'Critical delays', 'value': critical_delay_count},
-        {'label': 'No update >30 days', 'value': stale_over_30_count},
-        {'label': 'Last update 15-30 days', 'value': stale_15_30_count},
-        {'label': 'Stalled projects', 'value': stalled_projects_count},
+        {
+            'key': 'critical_delays',
+            'label': 'Critical delays',
+            'value': critical_delay_count,
+            'url': f'{analytics_base_url}?queue=critical_delays',
+        },
+        {
+            'key': 'stale_over_30',
+            'label': 'No update >30 days',
+            'value': stale_over_30_count,
+            'url': f'{analytics_base_url}?queue=stale_over_30',
+        },
+        {
+            'key': 'stale_15_30',
+            'label': 'Last update 15-30 days',
+            'value': stale_15_30_count,
+            'url': f'{analytics_base_url}?queue=stale_15_30',
+        },
+        {
+            'key': 'stalled_projects',
+            'label': 'Stalled projects',
+            'value': stalled_projects_count,
+            'url': f'{analytics_base_url}?queue=stalled_projects',
+        },
     ]
     key_insights = []
     if stale_over_30_count > 0:

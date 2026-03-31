@@ -76,10 +76,10 @@
                     <p class="mb-4 text-xs text-emerald-700">Immediate decision items.</p>
                     <div id="action-queue-list" class="space-y-3">
                         {% for item in action_queue_items %}
-                        <div class="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                        <a href="{{ item.url|default:'#' }}" class="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 hover:bg-emerald-100 transition-colors duration-150">
                             <span class="text-sm text-emerald-900">{{ item.label }}</span>
-                            <span class="rounded-full bg-emerald-800 px-2.5 py-1 text-xs font-semibold text-white">{{ item.value }}</span>
-                        </div>
+                            <span class="inline-flex min-w-[2.25rem] items-center justify-center rounded-md px-3 py-1.5 text-sm font-extrabold shadow-sm" style="background:#065f46;color:#ffffff;border:1px solid #064e3b;">{{ item.value|default_if_none:0 }}</span>
+                        </a>
                         {% endfor %}
                     </div>
                 </article>
@@ -524,12 +524,15 @@
         }
         container.innerHTML = items.map((item) => {
             const label = safeText(item && item.label ? item.label : 'Item');
-            const value = Number(item && item.value ? item.value : 0);
+            const rawValue = item && item.value != null ? item.value : 0;
+            const numericValue = Number(rawValue);
+            const value = Number.isFinite(numericValue) ? numericValue : 0;
+            const url = safeText(item && item.url ? item.url : '#');
             return [
-                '<div class="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">',
+                '<a href="' + url + '" class="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 hover:bg-emerald-100 transition-colors duration-150">',
                 '<span class="text-sm text-emerald-900">' + label + '</span>',
-                '<span class="rounded-full bg-emerald-800 px-2.5 py-1 text-xs font-semibold text-white">' + value + '</span>',
-                '</div>'
+                '<span class="inline-flex min-w-[2.25rem] items-center justify-center rounded-md px-3 py-1.5 text-sm font-extrabold shadow-sm" style="background:#065f46;color:#ffffff;border:1px solid #064e3b;">' + value + '</span>',
+                '</a>'
             ].join('');
         }).join('');
     }
