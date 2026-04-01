@@ -3368,6 +3368,14 @@ def head_engineer_analytics(request):
 
     source_of_funds_options = SourceOfFunds.objects.filter(is_active=True).order_by('name')
     project_type_options = ProjectType.objects.all().order_by('name')
+    barangay_options = sorted(
+        {
+            (value or '').strip()
+            for value in Project.objects.exclude(barangay__isnull=True).exclude(barangay='').values_list('barangay', flat=True)
+            if (value or '').strip()
+        },
+        key=str.casefold,
+    )
 
     # Read filters (match Head Engineer filter bar)
     barangay_filter = (request.GET.get('barangay') or '').strip()
@@ -3405,11 +3413,10 @@ def head_engineer_analytics(request):
             cost_max_raw = ''
 
     if search_query:
+        # PRN-first search (also allow project name for convenience).
         base_projects = base_projects.filter(
-            Q(name__icontains=search_query) |
             Q(prn__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(barangay__icontains=search_query)
+            Q(name__icontains=search_query)
         )
 
     # Duration filter (based on project duration start_date→end_date)
@@ -3430,54 +3437,64 @@ def head_engineer_analytics(request):
 
     # Build latest progress map for the current filtered scope (for cards + status filtering)
     filtered_ids = list(base_projects.values_list('id', flat=True))
-    latest_progress_all = {}
     if filtered_ids:
-        latest_progress_qs = ProjectProgress.objects.filter(project_id__in=filtered_ids).values('project_id').annotate(
-            latest_date=Max('date'),
-            latest_created=Max('created_at'),
-        )
-        for item in latest_progress_qs:
-            latest = ProjectProgress.objects.filter(
-                project_id=item['project_id'],
-                date=item['latest_date'],
-                created_at=item['latest_created']
-            ).order_by('-created_at').first()
-            if latest and latest.percentage_complete is not None:
-                latest_progress_all[item['project_id']] = float(latest.percentage_complete)
+        latest_progress_all, today = _compute_project_progress_map(base_projects)
+    else:
+        latest_progress_all, today = {}, timezone.now().date()
 
-    today = timezone.now().date()
-    total_projects_all = base_projects.count()
+    projects_scope = list(base_projects)
+    total_projects_all = len(projects_scope)
     completed_projects = 0
     ongoing_projects = 0
     planned_projects = 0
     delayed_projects = 0
 
+    def _normalized_progress(project_obj):
+        raw_progress = latest_progress_all.get(project_obj.id, getattr(project_obj, 'progress', 0))
+        try:
+            return max(0.0, min(100.0, float(raw_progress or 0)))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _compute_analytics_status(project_obj, progress_value):
+        stored_status = (project_obj.status or '').lower().strip()
+        if progress_value >= 99 or stored_status == 'completed':
+            return 'completed'
+        if stored_status == 'delayed':
+            return 'delayed'
+        if (
+            project_obj.end_date
+            and project_obj.end_date < today
+            and progress_value < 99
+            and stored_status in ('in_progress', 'ongoing')
+        ):
+            return 'delayed'
+        if stored_status in ('in_progress', 'ongoing'):
+            return 'in_progress'
+        if stored_status in ('planned', 'pending'):
+            return 'planned'
+        return 'planned'
+
     calculated_statuses = {}
-    for p in list(base_projects):
-        progress = latest_progress_all.get(p.id, 0)
-        stored_status = p.status or ''
-
-        calculated_status = stored_status
-        # Completed only when progress is exactly 100
-        if progress == 100:
-            calculated_status = 'completed'
+    progress_by_project = {}
+    for p in projects_scope:
+        progress = _normalized_progress(p)
+        progress_by_project[p.id] = progress
+        calculated_status = _compute_analytics_status(p, progress)
+        if calculated_status == 'completed':
             completed_projects += 1
-        # Delayed when end date has passed and progress is still below 99
-        elif p.end_date and p.end_date < today and progress < 99:
-            calculated_status = 'delayed'
+        elif calculated_status == 'delayed':
             delayed_projects += 1
-        elif stored_status == 'delayed':
-            calculated_status = 'delayed'
-            delayed_projects += 1
-        elif stored_status in ['in_progress', 'ongoing']:
-            calculated_status = 'in_progress'
+        elif calculated_status == 'in_progress':
             ongoing_projects += 1
-        elif stored_status in ['planned', 'pending']:
-            calculated_status = 'planned'
+        else:
             planned_projects += 1
-
         calculated_statuses[p.id] = calculated_status
     
+    valid_status_filters = {'planned', 'in_progress', 'completed', 'delayed'}
+    if status_filter and status_filter not in valid_status_filters:
+        status_filter = ''
+
     # Apply status filter on top of the filtered base scope
     projects = base_projects
     if status_filter:
@@ -3490,16 +3507,15 @@ def head_engineer_analytics(request):
     # Get all project IDs for batch queries (after filtering)
     all_project_ids_for_page = list(projects.values_list('id', flat=True))
     
-    # Batch fetch latest progress for filtered projects
-    latest_progress_dict = {}
+    latest_update_map = {}
     if all_project_ids_for_page:
-        # Get the latest progress update for each project
-        for project_id in all_project_ids_for_page:
-            latest = ProjectProgress.objects.filter(
-                project_id=project_id
-            ).order_by('-date', '-created_at').first()
-            if latest:
-                latest_progress_dict[project_id] = latest
+        latest_update_rows = (
+            ProjectProgress.objects
+            .filter(project_id__in=all_project_ids_for_page)
+            .values('project_id')
+            .annotate(last_date=Max('date'))
+        )
+        latest_update_map = {row['project_id']: row['last_date'] for row in latest_update_rows}
 
     # Keep the two latest progress entries per project to detect stalled movement.
     progress_pair_map = {}
@@ -3542,50 +3558,15 @@ def head_engineer_analytics(request):
     # Prepare project list for the table and JS (calculate status for all projects first)
     projects_list = []
     for p in projects:
-        # Get latest progress from batch query
-        latest_progress = latest_progress_dict.get(p.id)
-        
-        # Calculate progress - priority: 1) completed status = 100%, 2) latest progress update, 3) project.progress field, 4) 0
-        if p.status == 'completed':
-            progress = 100
-        elif latest_progress and latest_progress.percentage_complete is not None:
-            # Ensure progress is between 0 and 100
-            try:
-                progress = max(0, min(100, float(latest_progress.percentage_complete)))
-            except (ValueError, TypeError):
-                progress = 0
-        elif hasattr(p, 'progress') and p.progress is not None:
-            # Fallback to project's direct progress field
-            try:
-                progress = max(0, min(100, float(p.progress)))
-            except (ValueError, TypeError):
-                progress = 0
-        else:
-            progress = 0
-        
-        # Calculate actual status dynamically (including delayed)
-        stored_status = p.status or ''
-        calculated_status = stored_status
-        
-        # Priority: completed > delayed > in_progress > planned
-        if progress >= 99:
-            calculated_status = 'completed'
-        elif stored_status == 'delayed':
-            calculated_status = 'delayed'
-        elif progress < 99 and p.end_date and p.end_date < today and stored_status in ['in_progress', 'ongoing']:
-            # Project is delayed if: end_date passed, progress < 99%, and status is in_progress/ongoing
-            calculated_status = 'delayed'
-        elif stored_status in ['in_progress', 'ongoing']:
-            calculated_status = 'in_progress'
-        elif stored_status in ['planned', 'pending']:
-            calculated_status = 'planned'
+        progress = progress_by_project.get(p.id, 0)
+        calculated_status = calculated_statuses.get(p.id, 'planned')
         
         # Status display
         status_display = (
             'Completed' if calculated_status == 'completed' else
             'Delayed' if calculated_status == 'delayed' else
-            'Ongoing' if calculated_status in ['in_progress', 'ongoing'] else
-            'Planned' if calculated_status in ['planned', 'pending'] else
+            'Ongoing' if calculated_status == 'in_progress' else
+            'Planned' if calculated_status == 'planned' else
             calculated_status.title()
         )
         
@@ -3593,7 +3574,7 @@ def head_engineer_analytics(request):
         assigned_to = engineers_dict.get(p.id, [])
 
         last_update_date = (
-            (latest_progress.date if latest_progress else None)
+            latest_update_map.get(p.id)
             or getattr(p, 'last_update', None)
             or (p.created_at.date() if getattr(p, 'created_at', None) else today)
         )
@@ -3634,10 +3615,6 @@ def head_engineer_analytics(request):
             'is_stalled': stalled_project,
             'is_critical_delay': is_critical_delay,
         })
-    
-    # If filtering by delayed status, filter the list to only show delayed projects
-    if status_filter == 'delayed':
-        projects_list = [p for p in projects_list if p['status'] == 'delayed']
 
     queue_filter_labels = {
         'critical_delays': 'Critical Delays',
@@ -3667,7 +3644,6 @@ def head_engineer_analytics(request):
         ]
     
     # Pagination - 15 items per page (after filtering if needed)
-    from django.core.paginator import Paginator
     paginator = Paginator(projects_list, 15)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
@@ -3686,6 +3662,7 @@ def head_engineer_analytics(request):
         'delayed_projects': delayed_projects,
         'status_filter': status_filter,
         'barangay_filter': barangay_filter,
+        'barangay_options': barangay_options,
         'search_query': search_query,
         'user_role': 'head_engineer',
         'duration_filter': duration_filter,
