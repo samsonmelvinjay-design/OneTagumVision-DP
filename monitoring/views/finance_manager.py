@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import Http404, HttpResponse, JsonResponse
 from django.contrib import messages
 from projeng.models import Project, ProjectCost, ProjectCostAllocation, ExpenseReceipt
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.db import connection
 from collections import defaultdict
 from django.db.models.functions import TruncMonth
@@ -28,6 +28,7 @@ import base64
 import csv
 import io
 import openpyxl
+import calendar
 
 # Import centralized access control functions
 from gistagum.access_control import (
@@ -264,6 +265,176 @@ def finance_reports(request):
         'default_month': timezone.now().month,
     })
 
+
+def _finance_report_period(period, year, month):
+    from datetime import date
+
+    today = timezone.now().date()
+    try:
+        year = int(year)
+    except (TypeError, ValueError):
+        year = today.year
+    try:
+        month = int(month)
+    except (TypeError, ValueError):
+        month = today.month
+    month = min(12, max(1, month))
+    period = (period or 'monthly').strip().lower()
+
+    if period == 'yearly':
+        start = date(year, 1, 1)
+        end = date(year, 12, 31)
+        label = str(year)
+    elif period == 'quarterly':
+        quarter = ((month - 1) // 3) + 1
+        start_month = ((quarter - 1) * 3) + 1
+        end_month = start_month + 2
+        start = date(year, start_month, 1)
+        end = date(year, end_month, calendar.monthrange(year, end_month)[1])
+        label = f"Q{quarter} {year}"
+    else:
+        start = date(year, month, 1)
+        end = date(year, month, calendar.monthrange(year, month)[1])
+        label = start.strftime('%B %Y')
+        period = 'monthly'
+
+    return period, start, end, label
+
+
+def _finance_report_status_label(status):
+    labels = {
+        'planned': 'Planned',
+        'pending': 'Pending',
+        'in_progress': 'In Progress',
+        'ongoing': 'In Progress',
+        'completed': 'Completed',
+        'delayed': 'Delayed',
+        'cancelled': 'Cancelled',
+    }
+    return labels.get((status or '').strip().lower(), (status or 'Unknown').replace('_', ' ').title())
+
+
+@login_required
+@finance_manager_required
+def finance_report_preview(request):
+    from django.utils import timezone
+
+    template_key = (request.GET.get('template') or 'monthly_budget').strip().lower()
+    period, start_date, end_date, period_label = _finance_report_period(
+        request.GET.get('period'),
+        request.GET.get('year'),
+        request.GET.get('month'),
+    )
+    category = (request.GET.get('category') or '').strip()
+
+    title_map = {
+        'monthly_budget': 'Monthly Budget Summary',
+        'project_status': 'Project Status Report',
+        'quarterly_performance': 'Quarterly Performance Report',
+        'barangay_allocation': 'Barangay Budget Allocation',
+        'over_budget_alert': 'Over Budget Alert Report',
+        'annual_summary': 'Annual Summary Report',
+    }
+    title = title_map.get(template_key, 'Budget Monitoring Report')
+
+    projects = Project.objects.all().select_related('project_type').prefetch_related('assigned_engineers')
+    projects = projects.filter(
+        Q(start_date__isnull=False) | Q(end_date__isnull=False),
+        Q(start_date__isnull=True) | Q(start_date__lte=end_date),
+        Q(end_date__isnull=True) | Q(end_date__gte=start_date),
+    )
+    if category:
+        projects = projects.filter(project_type__name=category)
+    if template_key == 'project_status':
+        projects = projects.filter(Q(status='in_progress') | Q(status='ongoing') | Q(status='delayed'))
+
+    project_rows = []
+    status_counts = defaultdict(int)
+    barangay_map = defaultdict(lambda: {'barangay': '', 'budget': 0.0, 'spent': 0.0, 'projects': 0})
+    totals = {
+        'budget': 0.0,
+        'spent': 0.0,
+        'remaining': 0.0,
+        'projects': 0,
+        'over': 0,
+        'within': 0,
+        'under': 0,
+        'at_risk': 0,
+    }
+
+    for project in projects.order_by('barangay', 'name'):
+        costs = ProjectCost.objects.filter(project=project)
+        spent = float(costs.aggregate(total=Sum('amount'))['total'] or 0)
+        budget = float(project.project_cost or 0)
+        remaining = budget - spent
+        utilization = (spent / budget * 100.0) if budget > 0 else 0.0
+        if budget > 0 and spent > budget:
+            budget_state = 'Over'
+        elif budget > 0 and utilization >= 80:
+            budget_state = 'Within'
+        else:
+            budget_state = 'Under'
+
+        if template_key == 'over_budget_alert' and budget_state != 'Over':
+            continue
+
+        status_label = _finance_report_status_label(project.status)
+        status_counts[status_label] += 1
+        totals['projects'] += 1
+        totals['budget'] += budget
+        totals['spent'] += spent
+        totals['remaining'] += remaining
+        totals[budget_state.lower()] += 1
+        if 90 <= utilization <= 100:
+            totals['at_risk'] += 1
+
+        barangay_key = project.barangay or 'Unspecified'
+        barangay_map[barangay_key]['barangay'] = barangay_key
+        barangay_map[barangay_key]['budget'] += budget
+        barangay_map[barangay_key]['spent'] += spent
+        barangay_map[barangay_key]['projects'] += 1
+
+        engineers = [u.get_full_name() or u.username for u in project.assigned_engineers.all()]
+        project_rows.append({
+            'prn': project.prn or '',
+            'name': project.name or '',
+            'barangay': project.barangay or 'Unspecified',
+            'status': status_label,
+            'start_date': project.start_date.isoformat() if project.start_date else '',
+            'end_date': project.end_date.isoformat() if project.end_date else '',
+            'engineers': ', '.join(engineers) if engineers else 'Unassigned',
+            'budget': round(budget, 2),
+            'spent': round(spent, 2),
+            'remaining': round(remaining, 2),
+            'utilization': round(utilization, 2),
+            'budget_state': budget_state,
+        })
+
+    barangays = sorted(barangay_map.values(), key=lambda item: item['budget'], reverse=True)
+    for item in barangays:
+        budget = item['budget']
+        item['remaining'] = round(budget - item['spent'], 2)
+        item['utilization'] = round((item['spent'] / budget * 100.0) if budget > 0 else 0.0, 2)
+        item['budget'] = round(item['budget'], 2)
+        item['spent'] = round(item['spent'], 2)
+
+    payload = {
+        'title': title,
+        'template': template_key,
+        'period': period,
+        'period_label': period_label,
+        'start_date': start_date.isoformat(),
+        'end_date': end_date.isoformat(),
+        'category': category or 'All Categories',
+        'generated_at': timezone.localtime(timezone.now()).strftime('%b %d, %Y %I:%M %p'),
+        'summary': {key: round(value, 2) if isinstance(value, float) else value for key, value in totals.items()},
+        'status_counts': [{'label': key, 'value': value} for key, value in sorted(status_counts.items())],
+        'barangays': barangays,
+        'projects': project_rows,
+    }
+
+    return render(request, 'finance_manager/finance_report_preview.html', {'report_payload': payload})
+
 @login_required
 @finance_manager_required
 def finance_dashboard(request):
@@ -287,6 +458,7 @@ def finance_dashboard(request):
     recent_activity = []
     for c in recent_costs:
         recent_activity.append({
+            'project_id': getattr(c.project, 'id', None) if getattr(c, 'project', None) else None,
             'project_name': getattr(c.project, 'name', '') if getattr(c, 'project', None) else '',
             'barangay': getattr(c.project, 'barangay', '') if getattr(c, 'project', None) else '',
             'amount': float(getattr(c, 'amount', 0) or 0),
@@ -296,10 +468,13 @@ def finance_dashboard(request):
 
     # Bar Chart: Top 10 projects by budget
     project_financials = []
+    budget_watchlist = []
     for project in projects:
         spent = ProjectCost.objects.filter(project=project).aggregate(total=Sum('amount'))['total'] or 0
         project_financials.append({
+            'id': project.id,
             'name': project.name,
+            'barangay': project.barangay or '',
             'budget': float(project.project_cost or 0),
             'spent': float(spent),
         })
@@ -313,6 +488,17 @@ def finance_dashboard(request):
                     over_budget_count += 1
                 elif used_pct >= 85.0:
                     near_limit_count += 1
+                if used_pct >= 85.0:
+                    budget_watchlist.append({
+                        'id': project.id,
+                        'name': project.name,
+                        'barangay': project.barangay or '',
+                        'budget': budget_val,
+                        'spent': spent_val,
+                        'remaining': budget_val - spent_val,
+                        'utilization': used_pct,
+                        'is_over_budget': used_pct > 100.0,
+                    })
             if project.barangay:
                 budget_by_barangay_spent[str(project.barangay).strip()] += spent_val
         except Exception:
@@ -343,6 +529,13 @@ def finance_dashboard(request):
     # Doughnut Chart: Budget utilization
     utilization_data = [float(total_spent), float(remaining)]
     utilization_percentage = (float(total_spent) / float(total_budget) * 100) if total_budget > 0 else 0
+    available_budget_percentage = max(0, 100 - utilization_percentage)
+    at_risk_count = over_budget_count + near_limit_count
+    budget_watchlist = sorted(
+        budget_watchlist,
+        key=lambda x: (x['is_over_budget'], x['utilization']),
+        reverse=True
+    )[:6]
 
     # Budget distribution by barangay (Top 6 by spent)
     barangay_items = sorted(
@@ -358,6 +551,7 @@ def finance_dashboard(request):
         'total_spent': total_spent,
         'remaining': remaining,
         'utilization_percentage': utilization_percentage,
+        'available_budget_percentage': available_budget_percentage,
         'project_names': project_names,
         'project_budgets': project_budgets,
         'project_spent': project_spent,
@@ -367,8 +561,11 @@ def finance_dashboard(request):
         'utilization_data': utilization_data,
         # New UI data (Finance Manager refreshed layout)
         'active_projects_count': active_projects_count,
+        'total_projects_count': projects.count(),
         'over_budget_count': over_budget_count,
         'near_limit_count': near_limit_count,
+        'at_risk_count': at_risk_count,
+        'budget_watchlist': budget_watchlist,
         'recent_activity': recent_activity,
         'budget_by_barangay': barangay_items,
     }

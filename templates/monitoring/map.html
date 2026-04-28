@@ -1874,7 +1874,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Update legend (shows Project Status for markers, or Heatmap description when heatmap is on)
+    // Update legend for optional overlays.
     function updateLegend() {
         if (!map) return;
         
@@ -1882,6 +1882,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mapLegend) {
             map.removeControl(mapLegend);
             mapLegend = null;
+        }
+
+        if (!heatmapEnabled) {
+            return;
         }
         
         mapLegend = L.control({ position: 'bottomleft' });

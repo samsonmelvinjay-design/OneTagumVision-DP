@@ -7,21 +7,13 @@
         </svg>
     </div>
     <h1 class="text-5xl font-extrabold text-blue-900 mb-4">Welcome to OneTagumVision</h1>
-    <p class="text-lg text-gray-600 mb-8 max-w-xl">A modern GIS-driven platform for project monitoring and visualization for the City Government of Tagum. Explore project data, visualize progress, and empower decision-making with interactive maps and dashboards.</p>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-5xl mt-8">
+    <p class="text-lg text-gray-600 mb-8 max-w-xl">A modern platform for project monitoring and reporting for the City Government of Tagum. Explore project data, track progress, and support budget decisions with clear dashboards.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl mt-8">
         <!-- Dashboard Card -->
         <a href="{% url 'dashboard' %}" class="bg-white rounded-2xl shadow-lg p-8 min-h-[18rem] flex flex-col items-center justify-center hover:-translate-y-1 hover:shadow-2xl transition-transform group">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-blue-700 mb-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6m-6 0H7m6 0v6m0 0H7m6 0h6" /></svg>
             <div class="text-xl font-bold text-blue-900 mb-2">Dashboard</div>
             <div class="text-gray-500">Project stats and recent activity</div>
-        </a>
-        <!-- Map Card -->
-        <a href="{% url 'map_view' %}" class="bg-white rounded-2xl shadow-lg p-8 min-h-[18rem] flex flex-col items-center justify-center hover:-translate-y-1 hover:shadow-2xl transition-transform group">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-green-600 mb-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.948L9 2m0 0l6 2.67M9 2v18m6-15.33l5.447 2.724A2 2 0 0121 8.618v9.764a2 2 0 01-1.553 1.948L15 22m0 0V4.67" />
-            </svg>
-            <div class="text-xl font-bold text-green-800 mb-2">Map</div>
-            <div class="text-gray-500">View and explore project locations</div>
         </a>
         <!-- Project List Card -->
         <a href="{% url 'project_list' %}" class="bg-white rounded-2xl shadow-lg p-8 min-h-[18rem] flex flex-col items-center justify-center hover:-translate-y-1 hover:shadow-2xl transition-transform group">

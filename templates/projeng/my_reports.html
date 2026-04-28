@@ -2,267 +2,494 @@
 {% load humanize %}
 
 {% block content %}
-<div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8 lg:px-8">
-        <!-- Header Section -->
-        <div class="mb-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 mb-2">My Reports</h1>
-                    <p class="text-gray-600">Assigned Projects for Reporting</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <button id="export-button" class="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-2.5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center font-medium">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        Export
-                    </button>
-                </div>
-            </div>
+<style>
+  .pe-reports-page {
+    min-height: 100vh;
+    background: #f6f8f7;
+    padding: 30px clamp(18px, 3vw, 42px);
+  }
+  .pe-reports-shell {
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .reports-hero,
+  .reports-filter-panel,
+  .reports-table-panel {
+    background: #ffffff;
+    border: 1px solid #dce3df;
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+  }
+  .reports-hero {
+    padding: 22px;
+  }
+  .reports-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .reports-eyebrow::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #15803d;
+  }
+  .reports-title {
+    margin-top: 8px;
+    color: #07150f;
+    font-size: clamp(28px, 2.6vw, 38px);
+    font-weight: 900;
+    line-height: 1.08;
+  }
+  .reports-subtitle {
+    margin-top: 8px;
+    color: #475569;
+    font-size: 14px;
+  }
+  .reports-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .report-button {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid #d6ddd9;
+    background: #ffffff;
+    color: #334155;
+  }
+  .report-button.primary {
+    border-color: #14532d;
+    background: #14532d;
+    color: #ffffff;
+  }
+  .report-button:disabled {
+    opacity: .65;
+    cursor: wait;
+  }
+  .summary-grid {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .summary-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    padding: 14px;
+  }
+  .summary-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .summary-value {
+    margin-top: 5px;
+    color: #07150f;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .summary-card.total { border-left: 4px solid #14532d; }
+  .summary-card.progress { border-left: 4px solid #2563eb; }
+  .summary-card.completed { border-left: 4px solid #15803d; }
+  .summary-card.planned { border-left: 4px solid #ca8a04; }
+  .summary-card.delayed { border-left: 4px solid #be123c; }
+  .reports-filter-panel {
+    margin-top: 18px;
+    border-left: 4px solid #15803d;
+    padding: 16px;
+  }
+  .reports-filter-bar {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(140px, .8fr) minmax(170px, 1fr) minmax(150px, 1fr) minmax(140px, .8fr) minmax(140px, .8fr) auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .filter-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .reports-filter-bar select,
+  .reports-filter-bar input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #d6ddd9;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 12px;
+  }
+  .reports-filter-bar select:focus,
+  .reports-filter-bar input:focus {
+    outline: 3px solid rgba(22, 163, 74, 0.14);
+    border-color: #15803d;
+  }
+  .clear-button {
+    min-height: 42px;
+    border: 1px solid #d6ddd9;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #334155;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 900;
+  }
+  .reports-table-panel {
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .table-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .table-title {
+    color: #07150f;
+    font-size: 18px;
+    font-weight: 900;
+  }
+  .table-caption {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 13px;
+  }
+  .reports-table {
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .reports-table thead {
+    background: #14532d;
+  }
+  .reports-table th {
+    padding: 14px 16px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .reports-table td {
+    padding: 16px;
+    border-top: 1px solid #e2e8f0;
+    color: #0f172a;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  .reports-table tbody tr:hover {
+    background: #f8fafc;
+  }
+  .project-name-cell {
+    font-weight: 900;
+    color: #07150f;
+  }
+  .project-prn {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .status-completed { background: #ecfdf3; color: #166534; }
+  .status-progress { background: #eff6ff; color: #1d4ed8; }
+  .status-planned { background: #fefce8; color: #854d0e; }
+  .status-pending { background: #f8fafc; color: #475569; }
+  .status-delayed { background: #fff1f2; color: #be123c; }
+  .status-cancelled { background: #f1f5f9; color: #475569; }
+  .manage-link {
+    color: #14532d;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .pagination-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+  }
+  .pagination-button,
+  .pagination-current {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .pagination-button {
+    border: 1px solid #d6ddd9;
+    background: #ffffff;
+    color: #334155;
+  }
+  .pagination-current {
+    border: 1px solid #14532d;
+    background: #14532d;
+    color: #ffffff;
+  }
+  .empty-state {
+    padding: 54px 20px;
+    text-align: center;
+    color: #64748b;
+  }
+  @media (max-width: 1280px) {
+    .reports-filter-bar {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .clear-button {
+      width: 100%;
+    }
+  }
+  @media (max-width: 980px) {
+    .summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .reports-actions {
+      justify-content: flex-start;
+    }
+  }
+  @media (max-width: 680px) {
+    .reports-filter-bar,
+    .summary-grid {
+      grid-template-columns: 1fr;
+    }
+    .pagination-row,
+    .table-title-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="pe-reports-page">
+  <div class="pe-reports-shell">
+    <section class="reports-hero">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div class="reports-eyebrow">Project Engineer Reports</div>
+          <h1 class="reports-title">My Reports</h1>
+          <p class="reports-subtitle">Assigned projects prepared for progress reporting and formal printable output.</p>
         </div>
-
-        <!-- Filters Section -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <form method="get" id="filter-form" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
-                    <div>
-                        <label for="barangay-filter" class="block text-sm font-medium text-gray-700 mb-2">Barangay:</label>
-                        <select id="barangay-filter" name="barangay" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
-                            <option value="">All Barangays</option>
-                            {% for barangay in barangays %}
-                                <option value="{{ barangay }}" {% if selected_barangay == barangay %}selected{% endif %}>{{ barangay }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-2">Status:</label>
-                        <select id="status-filter" name="status" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
-                            <option value="">All Statuses</option>
-                            {% for status_key, status_display in statuses %}
-                                {% if status_display != 'Cancelled' %}
-                                    <option value="{{ status_key }}" {% if selected_status == status_key %}selected{% endif %}>{{ status_display }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="source-of-funds-filter" class="block text-sm font-medium text-gray-700 mb-2">Source of Funds:</label>
-                        <select id="source-of-funds-filter" name="source_of_funds" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
-                            <option value="">All Sources</option>
-                            {% for sof in source_of_funds_options %}
-                                <option value="{{ sof }}" {% if selected_source_of_funds == sof %}selected{% endif %}>{{ sof }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="project-type-filter" class="block text-sm font-medium text-gray-700 mb-2">Project Type:</label>
-                        <select id="project-type-filter" name="project_type" class="w-full pl-3 pr-10 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
-                            <option value="">All Types</option>
-                            {% for pt in project_type_options %}
-                                <option value="{{ pt.id }}" {% if selected_project_type == pt.id|stringformat:"i" %}selected{% endif %}>{{ pt.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="start-date-filter" class="block text-sm font-medium text-gray-700 mb-2">Start Date:</label>
-                        <input type="date" id="start-date-filter" name="start_date" value="{{ selected_start_date|default:'' }}" class="w-full pl-3 pr-3 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
-                    </div>
-                    <div>
-                        <label for="end-date-filter" class="block text-sm font-medium text-gray-700 mb-2">End Date:</label>
-                        <input type="date" id="end-date-filter" name="end_date" value="{{ selected_end_date|default:'' }}" class="w-full pl-3 pr-3 py-2.5 text-sm border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg">
-                    </div>
-                    <div>
-                        <button type="button" id="clear-filters-btn" class="w-full px-4 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium text-sm">
-                            Clear Filters
-                        </button>
-                    </div>
-                </div>
-            </form>
+        <div class="reports-actions">
+          <button type="button" id="print-pdf-button" class="report-button primary" data-json-url="{% url 'projeng:projeng_export_reports_json' %}">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2m-12 0h12v4H6v-4z" />
+            </svg>
+            Print PDF
+          </button>
+          <button type="button" id="download-pdf-button" class="report-button" data-json-url="{% url 'projeng:projeng_export_reports_json' %}">Download PDF</button>
+          <a id="export-csv" href="{% url 'projeng:projeng_export_reports_csv' %}" class="report-button">CSV</a>
+          <a id="export-excel" href="{% url 'projeng:projeng_export_reports_excel' %}" class="report-button">Excel</a>
         </div>
+      </div>
 
-        <!-- Projects Table -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table id="assigned-projects-table" class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gradient-to-r from-indigo-600 to-indigo-700">
-                        <tr>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Project Name</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Barangay</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Source of Funds</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Project Type</th>
-                            <th scope="col" class="px-6 py-4 text-right text-xs font-semibold text-white uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for project in page_obj.object_list %}
-                            <tr class="hover:bg-gray-50 transition-colors" data-barangay="{{ project.barangay|lower }}" data-status="{{ project.status|lower }}">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-semibold text-gray-900">{{ project.name }}</div>
-                                    {% if project.prn %}
-                                    <div class="text-xs text-gray-500 mt-1">PRN: {{ project.prn }}</div>
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        {% if project.status == 'completed' %}bg-green-100 text-green-800
-                                        {% elif project.status == 'in_progress' or project.status == 'ongoing' %}bg-blue-100 text-blue-800
-                                        {% elif project.status == 'planned' or project.status == 'pending' %}bg-yellow-100 text-yellow-800
-                                        {% elif project.status == 'delayed' %}bg-red-100 text-red-800
-                                        {% elif project.status == 'cancelled' %}bg-gray-300 text-gray-700
-                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                        {{ project.get_status_display }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ project.barangay|default:'N/A' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ project.source_of_funds|default:'—' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ project.project_type.name|default:'—' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="{% url 'projeng:projeng_project_detail' project.id %}" class="text-indigo-600 hover:text-indigo-900 font-medium inline-flex items-center">
-                                        View/Manage Reports
-                                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                        </svg>
-                                    </a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="6" class="px-6 py-12 text-center">
-                                    <div class="text-gray-400 mb-2">
-                                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                        </svg>
-                                    </div>
-                                    <p class="text-gray-500 font-medium">No projects found</p>
-                                    <p class="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+      <div class="summary-grid">
+        <div class="summary-card total">
+          <div class="summary-label">Total</div>
+          <div class="summary-value">{{ summary_counts.total|default:0 }}</div>
+        </div>
+        <div class="summary-card progress">
+          <div class="summary-label">In Progress</div>
+          <div class="summary-value">{{ summary_counts.in_progress|default:0 }}</div>
+        </div>
+        <div class="summary-card completed">
+          <div class="summary-label">Completed</div>
+          <div class="summary-value">{{ summary_counts.completed|default:0 }}</div>
+        </div>
+        <div class="summary-card planned">
+          <div class="summary-label">Planned / Pending</div>
+          <div class="summary-value">{{ summary_counts.planned|default:0 }}</div>
+        </div>
+        <div class="summary-card delayed">
+          <div class="summary-label">Delayed</div>
+          <div class="summary-value">{{ summary_counts.delayed|default:0 }}</div>
+        </div>
+      </div>
+    </section>
 
-            <!-- Pagination -->
-            {% if page_obj.has_other_pages %}
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                <div class="text-sm text-gray-700">
-                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} projects
+    <form method="get" id="filter-form" class="reports-filter-panel">
+      <div class="reports-filter-bar">
+        <div class="filter-field">
+          <label for="barangay-filter">Barangay</label>
+          <select id="barangay-filter" name="barangay">
+            <option value="">All Barangays</option>
+            {% for barangay in barangays %}
+              <option value="{{ barangay }}" {% if selected_barangay == barangay %}selected{% endif %}>{{ barangay }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="status-filter">Status</label>
+          <select id="status-filter" name="status">
+            <option value="">All Statuses</option>
+            {% for status_key, status_display in statuses %}
+              <option value="{{ status_key }}" {% if selected_status == status_key %}selected{% endif %}>{{ status_display }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="source-of-funds-filter">Source</label>
+          <select id="source-of-funds-filter" name="source_of_funds">
+            <option value="">All Sources</option>
+            {% for sof in source_of_funds_options %}
+              <option value="{{ sof }}" {% if selected_source_of_funds == sof %}selected{% endif %}>{{ sof }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="project-type-filter">Project Type</label>
+          <select id="project-type-filter" name="project_type">
+            <option value="">All Types</option>
+            {% for pt in project_type_options %}
+              <option value="{{ pt.id }}" {% if selected_project_type == pt.id|stringformat:"i" %}selected{% endif %}>{{ pt.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="start-date-filter">Start Date</label>
+          <input type="date" id="start-date-filter" name="start_date" value="{{ selected_start_date|default:'' }}">
+        </div>
+        <div class="filter-field">
+          <label for="end-date-filter">End Date</label>
+          <input type="date" id="end-date-filter" name="end_date" value="{{ selected_end_date|default:'' }}">
+        </div>
+        <button type="button" id="clear-filters-btn" class="clear-button">Clear</button>
+      </div>
+    </form>
+
+    <section class="reports-table-panel">
+      <div class="table-title-row">
+        <div>
+          <div class="table-title">Assigned Project Report List</div>
+        </div>
+        <div class="text-sm font-black text-slate-600">{{ total_projects|default:0 }} project{{ total_projects|pluralize }}</div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="reports-table">
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Status</th>
+              <th>Barangay</th>
+              <th>Source of Funds</th>
+              <th>Project Type</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for project in page_obj.object_list %}
+            <tr>
+              <td>
+                <div class="project-name-cell">{{ project.name }}</div>
+                <div class="project-prn">PRN: {{ project.prn|default:'-' }}</div>
+              </td>
+              <td>
+                <span class="status-pill
+                  {% if project.status == 'completed' %}status-completed
+                  {% elif project.status == 'in_progress' or project.status == 'ongoing' %}status-progress
+                  {% elif project.status == 'planned' %}status-planned
+                  {% elif project.status == 'pending' %}status-pending
+                  {% elif project.status == 'delayed' %}status-delayed
+                  {% elif project.status == 'cancelled' %}status-cancelled
+                  {% else %}status-pending{% endif %}">
+                  {% if project.status == 'in_progress' or project.status == 'ongoing' %}In Progress{% else %}{{ project.get_status_display }}{% endif %}
+                </span>
+              </td>
+              <td>{{ project.barangay|default:'-' }}</td>
+              <td>{{ project.source_of_funds|default:'-' }}</td>
+              <td>{{ project.project_type.name|default:'-' }}</td>
+              <td class="text-right">
+                <a href="{% url 'projeng:projeng_project_detail' project.id %}" class="manage-link">View / Manage</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <div class="text-lg font-black text-slate-900">No projects found</div>
+                  <p class="mt-2 text-sm">Try clearing the filters or choosing a wider date range.</p>
                 </div>
-                <div class="flex space-x-2">
-                    {% if page_obj.has_previous %}
-                    <a href="?page={{ page_obj.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source_of_funds %}&source_of_funds={{ selected_source_of_funds }}{% endif %}{% if selected_project_type %}&project_type={{ selected_project_type }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
-                       class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                        Previous
-                    </a>
-                    {% else %}
-                    <span class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed">
-                        Previous
-                    </span>
-                    {% endif %}
-                    
-                    {% for num in page_obj.paginator.page_range %}
-                        {% if page_obj.number == num %}
-                        <span class="px-4 py-2 bg-indigo-600 border border-indigo-600 rounded-lg text-sm font-medium text-white">
-                            {{ num }}
-                        </span>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <a href="?page={{ num }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source_of_funds %}&source_of_funds={{ selected_source_of_funds }}{% endif %}{% if selected_project_type %}&project_type={{ selected_project_type }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
-                           class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                            {{ num }}
-                        </a>
-                        {% endif %}
-                    {% endfor %}
-                    
-                    {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source_of_funds %}&source_of_funds={{ selected_source_of_funds }}{% endif %}{% if selected_project_type %}&project_type={{ selected_project_type }}{% endif %}{% if selected_start_date %}&start_date={{ selected_start_date }}{% endif %}{% if selected_end_date %}&end_date={{ selected_end_date }}{% endif %}" 
-                       class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                        Next
-                    </a>
-                    {% else %}
-                    <span class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed">
-                        Next
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if page_obj.has_other_pages %}
+      <div class="pagination-row">
+        <div class="text-sm font-bold text-slate-600">
+          Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" class="pagination-button">Previous</a>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+              <span class="pagination-current">{{ num }}</span>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <a href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" class="pagination-button">{{ num }}</a>
             {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" class="pagination-button">Next</a>
+          {% endif %}
         </div>
-    </div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
 </div>
-
-<!-- Export Modal - responsive for laptop view -->
-<div id="exportModal" class="fixed inset-0 z-50 hidden overflow-y-auto overflow-x-hidden">
-    <div class="flex min-h-full min-w-0 items-center justify-center p-2 sm:p-4">
-        <div class="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" id="exportModalBackdrop"></div>
-        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-[min(95vw,56rem)] max-h-[min(90vh,calc(100vh-2rem))] overflow-hidden flex flex-col my-auto">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700">
-            <h3 class="text-xl font-semibold text-white">Export Project List</h3>
-            <div class="flex items-center gap-4">
-                <div class="relative">
-                    <select id="modal-barangay-filter" name="modal_barangay" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600">
-                        <option value="">All Barangays</option>
-                        {% for barangay in barangays %}
-                            <option value="{{ barangay }}">{{ barangay }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="relative">
-                    <button type="button" id="export-dropdown-button" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600">
-                        Export As
-                        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                    <div id="export-dropdown-menu" class="origin-top-right absolute right-0 mt-2 w-40 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-10" role="menu">
-                        <div class="py-1" role="none">
-                            <a href="{% url 'projeng:projeng_export_reports_csv' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-csv">Export CSV</a>
-                            <a href="{% url 'projeng:projeng_export_reports_excel' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-excel">Export Excel</a>
-                            <a href="#" data-json-url="{% url 'projeng:projeng_export_reports_json' %}" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100 transition-colors" role="menuitem" id="export-pdf">Export PDF</a>
-                        </div>
-                    </div>
-                </div>
-                <button id="closeModal" class="text-white hover:text-gray-200 text-2xl font-bold transition-colors">&times;</button>
-            </div>
-        </div>
-        
-        <div class="flex-1 overflow-auto p-4 sm:p-6 min-h-0">
-            <div class="overflow-x-auto -mx-2 sm:mx-0">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRN#</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source of Funds</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Type</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ended</th>
-                            <th scope="col" class="px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modal-projects-table-body" class="bg-white divide-y divide-gray-200">
-                        {# Project rows will be added here by JavaScript #}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        </div>
-    </div>
-</div>
-
-{{ projects_data|json_script:"projects-data" }}
-
 {% endblock %}
 
 {% block extra_js %}
@@ -270,407 +497,273 @@
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Get current filter values from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const currentBarangay = urlParams.get('barangay') || '';
-    const currentStatus = urlParams.get('status') || '';
-    const currentSourceOfFunds = urlParams.get('source_of_funds') || '';
-    const currentProjectType = urlParams.get('project_type') || '';
-    const currentStartDate = urlParams.get('start_date') || '';
-    const currentEndDate = urlParams.get('end_date') || '';
-    
-    // Auto-submit filter form when filters change
-    const filterForm = document.getElementById('filter-form');
-    const barangayFilter = document.getElementById('barangay-filter');
-    const statusFilter = document.getElementById('status-filter');
-    const sourceOfFundsFilter = document.getElementById('source-of-funds-filter');
-    const projectTypeFilter = document.getElementById('project-type-filter');
-    const startDateFilter = document.getElementById('start-date-filter');
-    const endDateFilter = document.getElementById('end-date-filter');
-    const clearFiltersBtn = document.getElementById('clear-filters-btn');
-    
-    // Debounce function for date inputs
-    let dateFilterTimeout;
-    let isLoading = false;
-    
-    function showLoadingOverlay() {
-        if (!isLoading) {
-            isLoading = true;
-            let overlay = document.getElementById('loading-overlay');
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.id = 'loading-overlay';
-                overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 9999; display: flex; align-items: center; justify-content: center;';
-                overlay.innerHTML = '<div style="background: white; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div><p style="margin-top: 15px; color: #333; font-weight: 500;">Loading projects...</p></div>';
-                let style = document.createElement('style');
-                style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
-                document.head.appendChild(style);
-                document.body.appendChild(overlay);
-            } else {
-                overlay.style.display = 'flex';
-            }
-        }
-    }
-    
-    function submitFilterForm() {
-        if (isLoading) return;
-        
-        showLoadingOverlay();
-        
-        const pageInput = document.createElement('input');
-        pageInput.type = 'hidden';
-        pageInput.name = 'page';
-        pageInput.value = '1';
-        filterForm.appendChild(pageInput);
-        filterForm.submit();
-    }
-    
-    // Auto-submit on dropdown changes
-    if (barangayFilter) {
-        barangayFilter.addEventListener('change', submitFilterForm);
-    }
-    
-    if (statusFilter) {
-        statusFilter.addEventListener('change', submitFilterForm);
-    }
-    
-    if (sourceOfFundsFilter) {
-        sourceOfFundsFilter.addEventListener('change', submitFilterForm);
-    }
-    
-    if (projectTypeFilter) {
-        projectTypeFilter.addEventListener('change', submitFilterForm);
-    }
-    
-    // Auto-submit on date changes (with debounce)
-    if (startDateFilter) {
-        startDateFilter.addEventListener('change', function() {
-            clearTimeout(dateFilterTimeout);
-            dateFilterTimeout = setTimeout(submitFilterForm, 300);
-        });
-    }
-    
-    if (endDateFilter) {
-        endDateFilter.addEventListener('change', function() {
-            clearTimeout(dateFilterTimeout);
-            dateFilterTimeout = setTimeout(submitFilterForm, 300);
-        });
-    }
-    
-    // Clear filters button
-    if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener('click', function() {
-            barangayFilter.value = '';
-            statusFilter.value = '';
-            if (sourceOfFundsFilter) sourceOfFundsFilter.value = '';
-            if (projectTypeFilter) projectTypeFilter.value = '';
-            startDateFilter.value = '';
-            endDateFilter.value = '';
-            submitFilterForm();
-        });
-    }
-    
-    // Export Modal Functions
-    const exportButton = document.getElementById('export-button');
-    const exportModal = document.getElementById('exportModal');
-    const closeModalButton = document.getElementById('closeModal');
-    const modalTableBody = document.getElementById('modal-projects-table-body');
-    const exportDropdownButton = document.getElementById('export-dropdown-button');
-    const exportDropdownMenu = document.getElementById('export-dropdown-menu');
-    const modalBarangayFilter = document.getElementById('modal-barangay-filter');
-    
-    // Get project data from template
-    const projects = JSON.parse(document.getElementById('projects-data').textContent);
-    
-    // Function to filter projects based on current filters
-    function getFilteredProjects() {
-        let filtered = projects;
-        
-        // Apply current page filters
-        if (currentBarangay) {
-            filtered = filtered.filter(p => p.barangay === currentBarangay);
-        }
-        if (currentStatus) {
-            if (currentStatus === 'in_progress') {
-                filtered = filtered.filter(p => p.status === 'in_progress' || p.status === 'ongoing');
-            } else {
-                filtered = filtered.filter(p => p.status === currentStatus);
-            }
-        }
-        if (currentSourceOfFunds) {
-            filtered = filtered.filter(p => (p.source_of_funds || '') === currentSourceOfFunds);
-        }
-        if (currentProjectType) {
-            filtered = filtered.filter(p => String(p.project_type_id || '') === String(currentProjectType));
-        }
-        if (currentStartDate) {
-            filtered = filtered.filter(p => {
-                if (!p.start_date) return false;
-                return p.start_date >= currentStartDate;
-            });
-        }
-        if (currentEndDate) {
-            filtered = filtered.filter(p => {
-                if (!p.end_date) return false;
-                return p.end_date <= currentEndDate;
-            });
-        }
-        
-        return filtered;
-    }
-    
-    // Function to render the modal table
-    function renderModalTable(projectsToDisplay) {
-        modalTableBody.innerHTML = '';
-        
-        if (projectsToDisplay.length === 0) {
-            const noProjectsRow = document.createElement('tr');
-            noProjectsRow.innerHTML = `
-                <td colspan="10" class="px-6 py-8 text-center">
-                    <div class="text-gray-400 mb-2">
-                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                    </div>
-                    <p class="text-gray-500 font-medium">No projects found for the selected criteria.</p>
-                </td>
-            `;
-            modalTableBody.appendChild(noProjectsRow);
-            return;
-        }
-        
-        projectsToDisplay.forEach((project, index) => {
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 transition-colors';
-            
-            // Determine status badge class
-            let statusClass = 'bg-gray-100 text-gray-800';
-            if (project.status === 'completed') {
-                statusClass = 'bg-green-100 text-green-800';
-            } else if (project.status === 'in_progress' || project.status === 'ongoing') {
-                statusClass = 'bg-blue-100 text-blue-800';
-            } else if (project.status === 'planned' || project.status === 'pending') {
-                statusClass = 'bg-yellow-100 text-yellow-800';
-            } else if (project.status === 'delayed') {
-                statusClass = 'bg-red-100 text-red-800';
-            } else if (project.status === 'cancelled') {
-                statusClass = 'bg-gray-300 text-gray-700';
-            }
-            
-            row.innerHTML = `
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${index + 1}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.prn || '')}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 text-sm font-medium text-gray-900">${escapeHtml(project.name || '')}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.barangay || '')}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${project.project_cost !== null && project.project_cost !== undefined ? '₱' + parseFloat(project.project_cost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ''}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.source_of_funds || '')}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${escapeHtml(project.project_type_name || '')}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${project.start_date || ''}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-sm text-gray-900">${project.end_date || ''}</td>
-                <td class="px-3 py-3 sm:px-4 sm:py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                        ${escapeHtml(project.status_display || project.status || '')}
-                    </span>
-                </td>
-            `;
-            modalTableBody.appendChild(row);
-        });
-    }
-    
-    // Helper function to escape HTML
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // Function to build export URL with all filters
-    function buildExportUrl(baseUrl) {
-        const params = new URLSearchParams();
-        if (currentBarangay) params.append('barangay', currentBarangay);
-        if (currentStatus) params.append('status', currentStatus);
-        if (currentSourceOfFunds) params.append('source_of_funds', currentSourceOfFunds);
-        if (currentProjectType) params.append('project_type', currentProjectType);
-        if (currentStartDate) params.append('start_date', currentStartDate);
-        if (currentEndDate) params.append('end_date', currentEndDate);
-        
-        const queryString = params.toString();
-        return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-    }
-    
-    // Function to open the modal
-    function openExportModal() {
-        // Get filtered projects based on current page filters
-        const filteredProjects = getFilteredProjects();
-        renderModalTable(filteredProjects);
-        
-        // Set modal barangay filter to current value
-        if (modalBarangayFilter) {
-            modalBarangayFilter.value = currentBarangay;
-        }
-        
-        exportModal.classList.remove('hidden');
-        exportModal.classList.add('flex', 'items-center', 'justify-center');
-    }
-    
-    // Function to close export modal
-    function closeExportModal() {
-        exportModal.classList.add('hidden');
-        exportModal.classList.remove('flex');
-        exportDropdownMenu.classList.add('hidden');
-    }
-    
-    // Event listeners
-    if (exportButton) {
-        exportButton.addEventListener('click', openExportModal);
-    }
-    
-    if (closeModalButton) {
-        closeModalButton.addEventListener('click', closeExportModal);
-    }
-    
-    // Close modal on backdrop click
-    exportModal.addEventListener('click', function(e) {
-        if (e.target === exportModal || e.target.id === 'exportModalBackdrop') {
-            closeExportModal();
-        }
+  const filterForm = document.getElementById('filter-form');
+  const filterInputs = [
+    'barangay-filter',
+    'status-filter',
+    'source-of-funds-filter',
+    'project-type-filter',
+    'start-date-filter',
+    'end-date-filter'
+  ].map(function(id) { return document.getElementById(id); }).filter(Boolean);
+  const clearFiltersBtn = document.getElementById('clear-filters-btn');
+  const printPdfButton = document.getElementById('print-pdf-button');
+  const downloadPdfButton = document.getElementById('download-pdf-button');
+  const exportCsv = document.getElementById('export-csv');
+  const exportExcel = document.getElementById('export-excel');
+  const engineerName = '{{ request.user.get_full_name|default:request.user.username|escapejs }}';
+
+  function submitFilters() {
+    if (!filterForm) return;
+    const pageInput = document.createElement('input');
+    pageInput.type = 'hidden';
+    pageInput.name = 'page';
+    pageInput.value = '1';
+    filterForm.appendChild(pageInput);
+    filterForm.submit();
+  }
+
+  filterInputs.forEach(function(input) {
+    input.addEventListener('change', submitFilters);
+  });
+
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener('click', function() {
+      window.location.href = window.location.pathname;
     });
-    
-    // Modal barangay filter
-    if (modalBarangayFilter) {
-        modalBarangayFilter.addEventListener('change', function() {
-            const selectedBarangay = this.value;
-            let filteredProjects = getFilteredProjects();
-            
-            if (selectedBarangay) {
-                filteredProjects = filteredProjects.filter(p => p.barangay === selectedBarangay);
-            }
-            
-            renderModalTable(filteredProjects);
-        });
-    }
-    
-    // Export dropdown toggle
-    if (exportDropdownButton) {
-        exportDropdownButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            exportDropdownMenu.classList.toggle('hidden');
-        });
-    }
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!exportDropdownButton.contains(e.target) && !exportDropdownMenu.contains(e.target)) {
-            exportDropdownMenu.classList.add('hidden');
-        }
+  }
+
+  function filteredParams() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('page');
+    return params;
+  }
+
+  function buildExportUrl(baseUrl) {
+    const params = filteredParams();
+    const queryString = params.toString();
+    return queryString ? baseUrl + '?' + queryString : baseUrl;
+  }
+
+  if (exportCsv) {
+    exportCsv.addEventListener('click', function(event) {
+      event.preventDefault();
+      window.location.href = buildExportUrl(exportCsv.href);
     });
-    
-    // Export link handlers - pass all current filters
-    const exportCsv = document.getElementById('export-csv');
-    const exportExcel = document.getElementById('export-excel');
-    const exportPdf = document.getElementById('export-pdf');
-    
-    if (exportCsv) {
-        exportCsv.addEventListener('click', function(e) {
-            e.preventDefault();
-            const exportUrl = buildExportUrl(this.href);
-            window.location.href = exportUrl;
-            closeExportModal();
-        });
+  }
+
+  if (exportExcel) {
+    exportExcel.addEventListener('click', function(event) {
+      event.preventDefault();
+      window.location.href = buildExportUrl(exportExcel.href);
+    });
+  }
+
+  function formatMoney(value) {
+    if (value === null || value === undefined || value === '') return '';
+    const numeric = Number(String(value).replace(/[^\d.-]/g, ''));
+    if (!Number.isFinite(numeric)) return '';
+    return 'PHP ' + numeric.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(value) {
+    if (!value) return '';
+    const date = new Date(value + 'T00:00:00');
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  }
+
+  function activeFilterSummary() {
+    const labels = [];
+    const selectMap = [
+      ['Barangay', document.getElementById('barangay-filter')],
+      ['Status', document.getElementById('status-filter')],
+      ['Source', document.getElementById('source-of-funds-filter')],
+      ['Type', document.getElementById('project-type-filter')]
+    ];
+    selectMap.forEach(function(item) {
+      const label = item[0];
+      const element = item[1];
+      if (element && element.value) labels.push(label + ': ' + element.options[element.selectedIndex].text);
+    });
+    const start = document.getElementById('start-date-filter');
+    const end = document.getElementById('end-date-filter');
+    if (start && start.value) labels.push('Start: ' + formatDate(start.value));
+    if (end && end.value) labels.push('End: ' + formatDate(end.value));
+    return labels.length ? labels.join(' | ') : 'All assigned projects';
+  }
+
+  function buildPdfDefinition(projects) {
+    const generated = new Date();
+    const generatedLabel = generated.toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const body = [[
+      { text: '#', style: 'tableHeader', alignment: 'center' },
+      { text: 'PRN', style: 'tableHeader' },
+      { text: 'Project Name', style: 'tableHeader' },
+      { text: 'Barangay', style: 'tableHeader' },
+      { text: 'Cost', style: 'tableHeader', alignment: 'right' },
+      { text: 'Source of Funds', style: 'tableHeader' },
+      { text: 'Project Type', style: 'tableHeader' },
+      { text: 'Started', style: 'tableHeader', alignment: 'center' },
+      { text: 'Ended', style: 'tableHeader', alignment: 'center' },
+      { text: 'Status', style: 'tableHeader' }
+    ]];
+
+    if (!projects.length) {
+      body.push([
+        { text: 'No projects found for the selected filters.', colSpan: 10, alignment: 'center', margin: [0, 12], color: '#64748b' },
+        {}, {}, {}, {}, {}, {}, {}, {}, {}
+      ]);
+    } else {
+      projects.forEach(function(project, index) {
+        body.push([
+          { text: String(index + 1), alignment: 'center' },
+          project.prn || '-',
+          project.name || '-',
+          project.barangay || '-',
+          { text: formatMoney(project.project_cost), alignment: 'right' },
+          project.source_of_funds || '-',
+          project.project_type_name || '-',
+          { text: formatDate(project.start_date), alignment: 'center' },
+          { text: formatDate(project.end_date), alignment: 'center' },
+          project.status_display || project.status || '-'
+        ]);
+      });
     }
-    
-    if (exportExcel) {
-        exportExcel.addEventListener('click', function(e) {
-            e.preventDefault();
-            const exportUrl = buildExportUrl(this.href);
-            window.location.href = exportUrl;
-            closeExportModal();
-        });
+
+    return {
+      pageSize: 'A4',
+      pageOrientation: 'landscape',
+      pageMargins: [28, 88, 28, 46],
+      header: function() {
+        return {
+          margin: [28, 22, 28, 0],
+          stack: [
+            {
+              columns: [
+                {
+                  stack: [
+                    { text: 'OneTagumVision', style: 'brand' },
+                    { text: 'Project Engineer Assigned Projects Report', style: 'reportTitle' }
+                  ]
+                },
+                {
+                  width: 220,
+                  stack: [
+                    { text: 'Generated: ' + generatedLabel, alignment: 'right', style: 'metaText' },
+                    { text: 'Prepared by: ' + engineerName, alignment: 'right', style: 'metaText' }
+                  ]
+                }
+              ]
+            },
+            { canvas: [{ type: 'line', x1: 0, y1: 12, x2: 786, y2: 12, lineWidth: 1, lineColor: '#14532d' }] }
+          ]
+        };
+      },
+      footer: function(currentPage, pageCount) {
+        return {
+          margin: [28, 12, 28, 0],
+          columns: [
+            { text: 'OneTagumVision Project Monitoring', color: '#64748b', fontSize: 8 },
+            { text: 'Page ' + currentPage + ' of ' + pageCount, alignment: 'right', color: '#64748b', fontSize: 8 }
+          ]
+        };
+      },
+      content: [
+        {
+          columns: [
+            { text: activeFilterSummary(), fontSize: 9, color: '#334155' },
+            { text: 'Total Projects: ' + projects.length, alignment: 'right', fontSize: 9, bold: true, color: '#0f172a' }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: [22, 60, '*', 62, 62, 84, 78, 54, 54, 62],
+            body: body
+          },
+          layout: {
+            fillColor: function(rowIndex) {
+              return rowIndex === 0 ? '#14532d' : (rowIndex % 2 === 0 ? '#f8fafc' : null);
+            },
+            hLineColor: function() { return '#cbd5e1'; },
+            vLineColor: function() { return '#e2e8f0'; },
+            hLineWidth: function(i) { return i === 0 || i === 1 ? 0.8 : 0.4; },
+            vLineWidth: function() { return 0.4; },
+            paddingLeft: function() { return 5; },
+            paddingRight: function() { return 5; },
+            paddingTop: function() { return 5; },
+            paddingBottom: function() { return 5; }
+          }
+        }
+      ],
+      defaultStyle: {
+        fontSize: 7.5,
+        color: '#0f172a'
+      },
+      styles: {
+        brand: { fontSize: 10, bold: true, color: '#14532d' },
+        reportTitle: { fontSize: 15, bold: true, color: '#07150f', margin: [0, 3, 0, 0] },
+        metaText: { fontSize: 8, color: '#475569' },
+        tableHeader: { bold: true, fontSize: 7, color: '#ffffff' }
+      }
+    };
+  }
+
+  function runPdf(action, button) {
+    if (typeof pdfMake === 'undefined') {
+      alert('PDF library is still loading. Please try again.');
+      return;
     }
-    
-    if (exportPdf) {
-        exportPdf.addEventListener('click', function(e) {
-            e.preventDefault();
-            const jsonBaseUrl = this.getAttribute('data-json-url') || '';
-            if (!jsonBaseUrl) return;
-            const jsonUrl = buildExportUrl(jsonBaseUrl);
-            closeExportModal();
-            
-            fetch(jsonUrl, { credentials: 'same-origin' })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    const list = data.projects || [];
-                    const now = new Date();
-                    const reportDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    
-                    function toDdMonYy(dateStr) {
-                        if (!dateStr) return '';
-                        const d = new Date(dateStr);
-                        return isNaN(d) ? '' : d.getDate() + '-' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
-                    }
-                    function formatCost(c) {
-                        if (c == null || c === '') return '';
-                        const num = parseFloat(String(c).replace(/[^\d.]/g, ''));
-                        return isNaN(num) ? '' : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    }
-                    
-                    const headerRow = [
-                        { text: '#', style: 'tableHeader', alignment: 'center' },
-                        { text: 'PRN#', style: 'tableHeader' },
-                        { text: 'NAME', style: 'tableHeader' },
-                        { text: 'LOCATION', style: 'tableHeader' },
-                        { text: 'COST', style: 'tableHeader', alignment: 'right' },
-                        { text: 'SOURCE OF FUNDS', style: 'tableHeader' },
-                        { text: 'PROJECT TYPE', style: 'tableHeader' },
-                        { text: 'STARTED', style: 'tableHeader', alignment: 'center' },
-                        { text: 'ENDED', style: 'tableHeader', alignment: 'center' },
-                        { text: 'STATUS', style: 'tableHeader' }
-                    ];
-                    const colWidths = [18, 48, '*', 45, 42, 55, 50, 38, 38, 42];
-                    const tableBody = [headerRow];
-                    
-                    list.forEach(function(p, idx) {
-                        tableBody.push([
-                            { text: String(idx + 1), alignment: 'center', fontSize: 7 },
-                            { text: (p.prn || '').toString(), fontSize: 7 },
-                            { text: (p.name || '').toString().substring(0, 60), fontSize: 7 },
-                            { text: (p.barangay || '').toString(), fontSize: 7 },
-                            { text: formatCost(p.project_cost) ? '₱' + formatCost(p.project_cost) : '', alignment: 'right', fontSize: 7 },
-                            { text: (p.source_of_funds || '').toString(), fontSize: 7 },
-                            { text: (p.project_type_name || '').toString(), fontSize: 7 },
-                            { text: toDdMonYy(p.start_date), alignment: 'center', fontSize: 7 },
-                            { text: toDdMonYy(p.end_date), alignment: 'center', fontSize: 7 },
-                            { text: (p.status_display || p.status || '').toString(), fontSize: 7 }
-                        ]);
-                    });
-                    
-                    const docDef = {
-                        pageSize: 'A4',
-                        pageOrientation: 'landscape',
-                        pageMargins: [25, 60, 25, 50],
-                        header: { text: 'Assigned Projects Report — ' + reportDate, fontSize: 10, bold: true, margin: [25, 15, 25, 10] },
-                        footer: function(currentPage, pageCount) {
-                            return { text: 'Page ' + currentPage + ' of ' + pageCount, fontSize: 8, alignment: 'center', margin: [0, 10, 0, 0] };
-                        },
-                        content: [{
-                            table: { headerRows: 1, widths: colWidths, body: tableBody },
-                            layout: { hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0.5; } }
-                        }],
-                        styles: { tableHeader: { bold: true, fontSize: 7, fillColor: '#4338ca', color: 'white' } }
-                    };
-                    
-                    if (typeof pdfMake !== 'undefined') {
-                        pdfMake.createPdf(docDef).download('assigned_projects_report_' + now.toISOString().slice(0, 10) + '.pdf');
-                    } else {
-                        alert('PDF library not loaded. Please refresh the page and try again.');
-                    }
-                })
-                .catch(function(err) {
-                    console.error('Export PDF failed:', err);
-                    alert('Failed to export PDF. Please try again.');
-                });
-        });
-    }
+    const jsonBaseUrl = button.getAttribute('data-json-url');
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.textContent = action === 'print' ? 'Preparing...' : 'Building...';
+
+    fetch(buildExportUrl(jsonBaseUrl), { credentials: 'same-origin' })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Unable to load report data.');
+        return response.json();
+      })
+      .then(function(data) {
+        const projects = data.projects || [];
+        const definition = buildPdfDefinition(projects);
+        const pdf = pdfMake.createPdf(definition);
+        if (action === 'print') {
+          pdf.print();
+        } else {
+          const datePart = new Date().toISOString().slice(0, 10);
+          pdf.download('project_engineer_assigned_projects_' + datePart + '.pdf');
+        }
+      })
+      .catch(function(error) {
+        console.error('PDF generation failed:', error);
+        alert('Unable to generate the PDF. Please refresh the page and try again.');
+      })
+      .finally(function() {
+        button.disabled = false;
+        button.innerHTML = originalContent;
+      });
+  }
+
+  if (printPdfButton) {
+    printPdfButton.addEventListener('click', function() {
+      runPdf('print', printPdfButton);
+    });
+  }
+
+  if (downloadPdfButton) {
+    downloadPdfButton.addEventListener('click', function() {
+      runPdf('download', downloadPdfButton);
+    });
+  }
 });
 </script>
 {% endblock %}

@@ -1,120 +1,427 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Projects Management</h1>
-    <p class="text-sm text-gray-600 mt-1">View and manage all engineering projects</p>
-</div>
+<style>
+  .finance-projects-page {
+    min-height: 100vh;
+    padding: 28px clamp(18px, 3vw, 42px);
+    background: #f6f8f7;
+  }
+  .projects-shell {
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .projects-hero {
+    border: 1px solid #dce3df;
+    border-radius: 14px;
+    padding: 22px;
+    background: #ffffff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+  }
+  .projects-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .projects-eyebrow::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #15803d;
+  }
+  .projects-title {
+    margin-top: 8px;
+    color: #07150f;
+    font-size: clamp(27px, 2.6vw, 36px);
+    font-weight: 900;
+    line-height: 1.08;
+  }
+  .projects-subtitle {
+    margin-top: 9px;
+    color: #475569;
+    font-size: 14px;
+  }
+  .project-count-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    border-radius: 10px;
+    padding: 9px 14px;
+    background: #f8fafc;
+    color: #14532d;
+    border: 1px solid #dce3df;
+    font-size: 13px;
+    font-weight: 900;
+  }
+  .filter-panel {
+    margin-top: 18px;
+    border: 1px solid #dce3df;
+    border-left: 4px solid #15803d;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 16px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+  }
+  .project-filter-bar {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(150px, .85fr) minmax(170px, 1fr) minmax(220px, 1.25fr) auto auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .filter-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .project-filter-bar select,
+  .project-filter-bar input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #d6ddd9;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 12px;
+  }
+  .project-filter-bar input.has-icon {
+    padding-left: 40px;
+  }
+  .project-filter-bar select:focus,
+  .project-filter-bar input:focus {
+    outline: 3px solid rgba(22, 163, 74, 0.16);
+    border-color: #15803d;
+  }
+  .filter-icon {
+    position: absolute;
+    left: 13px;
+    top: 38px;
+    width: 18px;
+    height: 18px;
+    color: #64748b;
+  }
+  .filter-button,
+  .reset-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .filter-button {
+    border: 0;
+    color: #ffffff;
+    background: #14532d;
+  }
+  .reset-button {
+    border: 1px solid #d6ddd9;
+    color: #334155;
+    background: #f8fafc;
+  }
+  .projects-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .project-card {
+    position: relative;
+    overflow: hidden;
+    display: block;
+    border: 1px solid #dce3df;
+    border-radius: 14px;
+    padding: 20px;
+    color: inherit;
+    text-decoration: none;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .project-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: var(--status-color, #16a34a);
+  }
+  .project-card:hover {
+    transform: translateY(-2px);
+    border-color: #b7c6bd;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.07);
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .status-delayed { background: #fff1f2; color: #be123c; }
+  .status-completed { background: #ecfdf3; color: #166534; }
+  .status-progress { background: #eff6ff; color: #1d4ed8; }
+  .status-pending { background: #f8fafc; color: #475569; }
+  .status-planned { background: #fefce8; color: #854d0e; }
+  .project-prn {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .02em;
+  }
+  .project-name {
+    margin-top: 10px;
+    color: #0f2419;
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1.25;
+  }
+  .project-meta {
+    margin-top: 14px;
+    display: grid;
+    gap: 8px;
+    color: #475569;
+    font-size: 14px;
+  }
+  .project-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .project-meta-row svg {
+    width: 17px;
+    height: 17px;
+    color: #64748b;
+    flex-shrink: 0;
+  }
+  .money-grid {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .money-box {
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+  }
+  .money-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .money-value {
+    margin-top: 3px;
+    color: #062318;
+    font-weight: 900;
+  }
+  .progress-section {
+    margin-top: 16px;
+  }
+  .progress-track {
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e2e8f0;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: #15803d;
+  }
+  .people-line {
+    margin-top: 15px;
+    display: grid;
+    gap: 3px;
+    color: #64748b;
+    font-size: 12px;
+  }
+  .empty-projects {
+    grid-column: 1 / -1;
+    border: 1px dashed #cbd5d1;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 44px;
+    text-align: center;
+    color: #64748b;
+  }
+  @media (max-width: 1180px) {
+    .project-filter-bar {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .filter-button,
+    .reset-button {
+      width: 100%;
+    }
+  }
+  @media (max-width: 920px) {
+    .projects-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 680px) {
+    .project-filter-bar {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
 
-<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <select name="category" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+<div class="finance-projects-page">
+  <div class="projects-shell">
+    <div class="projects-hero flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <div class="projects-eyebrow">Finance Workspace</div>
+        <h1 class="projects-title">Projects Management</h1>
+        <p class="projects-subtitle">View, filter, and review engineering projects with budget and progress context.</p>
+      </div>
+      <div class="project-count-pill">{{ project_cards|length }} project{{ project_cards|length|pluralize }} shown</div>
+    </div>
+
+    <form method="get" class="filter-panel">
+      <div class="project-filter-bar">
+        <div class="filter-field">
+          <label for="project-category">Category</label>
+          <select id="project-category" name="category">
             <option value="">All Categories</option>
             {% for c in categories %}
-                <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+              <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
             {% endfor %}
-        </select>
-        <select name="status" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+          </select>
+        </div>
+
+        <div class="filter-field">
+          <label for="project-status">Status</label>
+          <select id="project-status" name="status">
             <option value="">All Status</option>
             <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
             <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
             <option value="delayed" {% if selected_status == 'delayed' %}selected{% endif %}>Delayed</option>
             <option value="planned" {% if selected_status == 'planned' %}selected{% endif %}>Planned</option>
-        </select>
-        <div class="relative">
-            <input name="prn" value="{{ selected_prn }}" placeholder="Filter by PRN..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm font-medium" />
-            <svg class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
-            </svg>
+          </select>
         </div>
-        <div class="relative">
-            <input name="q" value="{{ q }}" placeholder="Search project name..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm font-medium" />
-            <svg class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
-            </svg>
-        </div>
-    </div>
-    <div class="mt-3 flex items-center justify-end gap-2">
-        <a href="{% url 'finance_projects' %}" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition">Reset</a>
-        <button type="submit" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">Apply</button>
-    </div>
-</form>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    {% for p in project_cards %}
-    <a href="{% url 'finance_project_detail' p.id %}" class="block bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+        <div class="filter-field relative">
+          <label for="project-prn">PRN</label>
+          <input id="project-prn" class="has-icon" name="prn" value="{{ selected_prn }}" placeholder="Filter by PRN" />
+          <svg class="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
+          </svg>
+        </div>
+
+        <div class="filter-field relative">
+          <label for="project-search">Project</label>
+          <input id="project-search" class="has-icon" name="q" value="{{ q }}" placeholder="Search project name" />
+          <svg class="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
+          </svg>
+        </div>
+
+        <a href="{% url 'finance_projects' %}" class="reset-button">Reset</a>
+        <button type="submit" class="filter-button">Apply</button>
+      </div>
+    </form>
+
+    <div class="projects-grid">
+      {% for p in project_cards %}
+      <a href="{% url 'finance_project_detail' p.id %}" class="project-card"
+         style="--status-color:{% if p.status == 'delayed' %}#be123c{% elif p.status == 'completed' %}#15803d{% elif p.status == 'in_progress' or p.status == 'ongoing' %}#2563eb{% elif p.status == 'planned' %}#ca8a04{% else %}#94a3b8{% endif %}">
         <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-semibold text-gray-500">{{ p.prn|default:"—" }}</span>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-bold
-                        {% if p.status == 'delayed' %}bg-red-100 text-red-700
-                        {% elif p.status == 'completed' %}bg-green-100 text-green-700
-                        {% elif p.status == 'in_progress' or p.status == 'ongoing' %}bg-blue-100 text-blue-700
-                        {% else %}bg-gray-100 text-gray-700{% endif %}">
-                        {% if p.status == 'in_progress' or p.status == 'ongoing' %}In Progress{% else %}{{ p.status|title }}{% endif %}
-                    </span>
-                </div>
-                <div class="mt-2 text-base font-extrabold text-gray-900 truncate">{{ p.name }}</div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="project-prn">{{ p.prn|default:"-" }}</span>
+              <span class="status-pill
+                {% if p.status == 'delayed' %}status-delayed
+                {% elif p.status == 'completed' %}status-completed
+                {% elif p.status == 'in_progress' or p.status == 'ongoing' %}status-progress
+                {% elif p.status == 'pending' %}status-pending
+                {% else %}status-planned{% endif %}">
+                {% if p.status == 'in_progress' or p.status == 'ongoing' %}In Progress{% else %}{{ p.status|title }}{% endif %}
+              </span>
             </div>
-            <div class="text-gray-400">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </div>
+            <div class="project-name truncate">{{ p.name }}</div>
+          </div>
+          <div class="text-slate-400">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
         </div>
 
-        <div class="mt-3 space-y-2 text-sm text-gray-600">
-            <div class="flex items-center gap-2">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span class="truncate">{{ p.barangay|default:"—" }}</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
-                </svg>
-                <span class="truncate">{{ p.category|default:"—" }}</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10m2 10H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z" />
-                </svg>
-                <span class="truncate">{{ p.date_range|default:"—" }}</span>
-            </div>
+        <div class="project-meta">
+          <div class="project-meta-row">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span class="truncate">{{ p.barangay|default:"-" }}</span>
+          </div>
+          <div class="project-meta-row">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+            </svg>
+            <span class="truncate">{{ p.category|default:"-" }}</span>
+          </div>
+          <div class="project-meta-row">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10m2 10H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z" />
+            </svg>
+            <span class="truncate">{{ p.date_range|default:"-" }}</span>
+          </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div>
-                <div class="text-xs text-gray-500">Budget</div>
-                <div class="font-semibold text-gray-900">₱{{ p.budget|floatformat:0|intcomma }}</div>
-            </div>
-            <div>
-                <div class="text-xs text-gray-500">Spent</div>
-                <div class="font-semibold text-gray-900">₱{{ p.spent|floatformat:0|intcomma }}</div>
-            </div>
-            <div class="col-span-2">
-                <div class="text-xs text-gray-500 mb-1">Progress</div>
-                <div class="flex items-center gap-3">
-                    <div class="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-2.5 bg-gray-900" style="width: {{ p.progress_pct }}%"></div>
-                    </div>
-                    <div class="text-xs font-bold text-gray-700">{{ p.progress_pct|floatformat:0 }}%</div>
-                </div>
-            </div>
+        <div class="money-grid">
+          <div class="money-box">
+            <div class="money-label">Budget</div>
+            <div class="money-value">&#8369;{{ p.budget|floatformat:0|intcomma }}</div>
+          </div>
+          <div class="money-box">
+            <div class="money-label">Spent</div>
+            <div class="money-value">&#8369;{{ p.spent|floatformat:0|intcomma }}</div>
+          </div>
         </div>
 
-        <div class="mt-4 text-xs text-gray-500">
-            <div class="truncate">Engineer: <span class="text-gray-700 font-semibold">{{ p.engineer_name|default:"—" }}</span></div>
-            <div class="truncate">Contractor: <span class="text-gray-700 font-semibold">{{ p.contractor|default:"—" }}</span></div>
+        <div class="progress-section">
+          <div class="mb-2 flex items-center justify-between text-xs font-bold text-slate-500">
+            <span>Progress</span>
+            <span>{{ p.progress_pct|floatformat:0 }}%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: {{ p.progress_pct }}%"></div>
+          </div>
         </div>
-    </a>
-    {% empty %}
-    <div class="col-span-full bg-white border border-gray-200 rounded-xl p-10 text-center text-sm text-gray-500">
-        No projects found.
+
+        <div class="people-line">
+          <div class="truncate">Engineer: <span class="font-bold text-slate-700">{{ p.engineer_name|default:"-" }}</span></div>
+          <div class="truncate">Contractor: <span class="font-bold text-slate-700">{{ p.contractor|default:"-" }}</span></div>
+        </div>
+      </a>
+      {% empty %}
+      <div class="empty-projects">
+        <div class="text-lg font-black text-slate-900">No projects found</div>
+        <p class="mt-2 text-sm">Try clearing the filters or searching for another project.</p>
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
+  </div>
 </div>
 {% endblock %}

@@ -301,6 +301,7 @@ def dashboard(request):
         # Sort by most_recent_activity (descending - most recent first) and take top 6
         projects_list.sort(key=lambda p: p.most_recent_activity, reverse=True)
         assigned_projects = projects_list[:6]
+        recent_activity_map = {project.id: project.most_recent_activity for project in projects_list}
         print("DEBUG: assigned_projects for user", request.user.username, ":", list(assigned_projects))
         today = timezone.now().date()
         status_counts = {'Planned': 0, 'In Progress': 0, 'Completed': 0, 'Delayed': 0}
@@ -314,9 +315,30 @@ def dashboard(request):
             to_attr='latest_progress_list'
         )
         all_assigned_projects = all_assigned_projects.prefetch_related(progress_prefetch)
-        for project in all_assigned_projects:
+        all_projects_list = list(all_assigned_projects)
+        all_project_ids = [project.id for project in all_projects_list]
+        actual_cost_map = {}
+        if all_project_ids:
+            actual_cost_rows = (
+                ProjectCost.objects
+                .filter(project_id__in=all_project_ids)
+                .values('project_id')
+                .annotate(total=Sum('amount'))
+            )
+            actual_cost_map = {
+                row['project_id']: float(row['total'] or 0)
+                for row in actual_cost_rows
+            }
+
+        progress_values = []
+        duration_elapsed_days = 0
+        duration_total_days = 0
+        project_snapshot = []
+
+        for project in all_projects_list:
             latest_progress = project.latest_progress_list[0] if hasattr(project, 'latest_progress_list') and project.latest_progress_list else None
             progress = float(latest_progress.percentage_complete) if latest_progress else 0
+            progress_values.append(progress)
             status = project.status
             # Completed when progress is 100 (or >= 99)
             if progress >= 99:
@@ -337,6 +359,109 @@ def dashboard(request):
                 delayed_projects.append(project)
             elif status == 'planned':
                 status_counts['Planned'] += 1
+
+            if project.start_date and project.end_date and project.end_date >= project.start_date:
+                duration_total = _days_between_for_project(project, project.start_date, project.end_date)
+                if today < project.start_date:
+                    duration_elapsed = 0
+                else:
+                    duration_elapsed = _days_between_for_project(project, project.start_date, min(today, project.end_date))
+                duration_total_days += duration_total
+                duration_elapsed_days += min(duration_elapsed, duration_total)
+
+            actual_cost = actual_cost_map.get(project.id, 0.0)
+            budget = float(project.project_cost or 0)
+            budget_used_percent = round((actual_cost / budget) * 100, 1) if budget > 0 else 0.0
+            if project.end_date:
+                days_remaining = (project.end_date - today).days
+            else:
+                days_remaining = None
+            status_display = (
+                'Completed' if status == 'completed' else
+                'Delayed' if status == 'delayed' else
+                'In Progress' if status == 'in_progress' else
+                'Planned' if status == 'planned' else
+                (project.get_status_display() if hasattr(project, 'get_status_display') else str(status).replace('_', ' ').title())
+            )
+            project_snapshot.append({
+                'name': project.name,
+                'prn': project.prn or '',
+                'barangay': project.barangay or '',
+                'status': status,
+                'status_display': status_display,
+                'progress': round(progress, 1),
+                'budget_used_percent': budget_used_percent,
+                'days_remaining': days_remaining,
+                'days_overdue': abs(days_remaining) if days_remaining is not None and days_remaining < 0 else 0,
+                'last_activity': recent_activity_map.get(project.id),
+            })
+
+        completion_average = round((sum(progress_values) / len(progress_values)), 1) if progress_values else 0.0
+        duration_utilized_percent = round((duration_elapsed_days / duration_total_days) * 100, 1) if duration_total_days else 0.0
+        total_budget = sum(float(project.project_cost or 0) for project in all_projects_list)
+        total_actual_cost = sum(actual_cost_map.get(project.id, 0.0) for project in all_projects_list)
+        budget_variance = total_budget - total_actual_cost
+
+        stage_counts = {
+            'Preconstruction': status_counts['Planned'],
+            'Construction': status_counts['In Progress'] + status_counts['Delayed'],
+            'Post construction': status_counts['Completed'],
+        }
+        budget_projects = sorted(
+            [
+                {
+                    'name': project.name[:18] + '...' if len(project.name) > 18 else project.name,
+                    'budget': round(float(project.project_cost or 0), 2),
+                    'actual': round(actual_cost_map.get(project.id, 0.0), 2),
+                }
+                for project in all_projects_list
+            ],
+            key=lambda item: max(item['budget'], item['actual']),
+            reverse=True
+        )[:8]
+
+        work_status_chart = {
+            'labels': ['Completed', 'In Progress', 'Planned', 'Delayed'],
+            'data': [
+                status_counts['Completed'],
+                status_counts['In Progress'],
+                status_counts['Planned'],
+                status_counts['Delayed'],
+            ],
+        }
+        project_stage_chart = {
+            'labels': list(stage_counts.keys()),
+            'data': list(stage_counts.values()),
+        }
+        budget_variance_chart = {
+            'labels': [item['name'] for item in budget_projects],
+            'planned': [item['budget'] for item in budget_projects],
+            'actual': [item['actual'] for item in budget_projects],
+        }
+        resource_comparison_chart = {
+            'labels': ['Assigned Portfolio'],
+            'planned': [round(total_budget, 2)],
+            'actual': [round(total_actual_cost, 2)],
+        }
+        workload_chart = {
+            'labels': ['Assigned Work'],
+            'completed': [status_counts['Completed']],
+            'remaining': [status_counts['Planned'] + status_counts['In Progress']],
+            'overdue': [status_counts['Delayed']],
+        }
+        overdue_projects_count = status_counts['Delayed']
+        stale_projects_count = sum(
+            1 for project in all_projects_list
+            if recent_activity_map.get(project.id) and (django_timezone.now() - recent_activity_map[project.id]).days >= 15
+        )
+        project_snapshot = sorted(
+            project_snapshot,
+            key=lambda item: (
+                item['status'] != 'delayed',
+                item['days_remaining'] if item['days_remaining'] is not None else 99999,
+                -item['progress'],
+            )
+        )[:8]
         projects_data = []
         # Get project IDs from the list (for last update calculation)
         project_ids = [p.id for p in assigned_projects]
@@ -449,6 +574,23 @@ def dashboard(request):
             'delayed_count': status_counts['Delayed'],
             'delayed_projects': delayed_projects,
             'projects_data': projects_data,
+            'completion_average': completion_average,
+            'duration_utilized_percent': duration_utilized_percent,
+            'duration_elapsed_days': duration_elapsed_days,
+            'duration_total_days': duration_total_days,
+            'total_budget': total_budget,
+            'total_actual_cost': total_actual_cost,
+            'budget_variance': budget_variance,
+            'overdue_projects_count': overdue_projects_count,
+            'active_projects_count': status_counts['In Progress'],
+            'stale_projects_count': stale_projects_count,
+            'project_snapshot': project_snapshot,
+            'work_status_chart': work_status_chart,
+            'project_stage_chart': project_stage_chart,
+            'budget_variance_chart': budget_variance_chart,
+            'resource_comparison_chart': resource_comparison_chart,
+            'workload_chart': workload_chart,
+            'last_refreshed': django_timezone.now(),
         }
         print(f'Dashboard View Context: {context}') # Debugging line
         return render(request, 'projeng/dashboard.html', context)
@@ -560,18 +702,28 @@ def my_projects_view(request):
         document_times = dict(latest_documents)
     
     # Get projects with prefetch for efficient access
-    projects = projects_queryset.select_related('created_by').prefetch_related('assigned_engineers')
+    projects = projects_queryset.select_related('created_by', 'project_type').prefetch_related('assigned_engineers')
     
     # Calculate status counts and delayed status dynamically
     today = timezone.now().date()
     delayed_count = 0
     planned_pending_count = 0
+    status_summary = {
+        'total': 0,
+        'planned': 0,
+        'in_progress': 0,
+        'completed': 0,
+        'delayed': 0,
+    }
+    progress_total = 0
+    projects_with_activity = 0
     
     # Calculate the most recent update time and status for each project
     projects_with_updates = []
     for project in projects:
         # Get latest progress percentage
-        progress = latest_progress_percent.get(project.id, 0)
+        progress = latest_progress_percent.get(project.id, float(project.progress or 0))
+        progress = max(0, min(progress, 100))
         stored_status = project.status or ''
         
         # Calculate actual status dynamically (same logic as head engineer module)
@@ -594,10 +746,39 @@ def my_projects_view(request):
         
         # Store calculated status on project object for template filtering
         project.calculated_status = calculated_status
+        project.display_progress = int(round(progress)) if progress is not None else 0
+        progress_total += project.display_progress
+        if calculated_status in status_summary:
+            status_summary[calculated_status] += 1
+        status_summary['total'] += 1
+
+        status_labels = {
+            'planned': 'Planned',
+            'in_progress': 'In Progress',
+            'completed': 'Completed',
+            'delayed': 'Delayed',
+            'cancelled': 'Cancelled',
+        }
+        project.display_status_label = status_labels.get(calculated_status, project.get_status_display())
+
+        if project.end_date:
+            days_until_end = (project.end_date - today).days
+            project.days_remaining = days_until_end
+            if calculated_status == 'completed':
+                project.schedule_label = 'Completed'
+            elif days_until_end < 0:
+                project.schedule_label = f'{abs(days_until_end)} days overdue'
+            elif days_until_end <= 30:
+                project.schedule_label = f'{days_until_end} days left'
+            else:
+                project.schedule_label = 'On schedule'
+        else:
+            project.days_remaining = None
+            project.schedule_label = 'No end date'
         
         # If project status is "planned", always show "None" for last update
         # Last update should only be shown when status is not "planned"
-        if project.status == 'planned':
+        if calculated_status == 'planned':
             project.calculated_last_update = None
             projects_with_updates.append(project)
             continue
@@ -629,6 +810,8 @@ def my_projects_view(request):
         
         # Add calculated_last_update to project for template access
         project.calculated_last_update = last_update
+        if last_update:
+            projects_with_activity += 1
         projects_with_updates.append(project)
     
     project_type_options = ProjectType.objects.order_by('name')
@@ -637,6 +820,9 @@ def my_projects_view(request):
         'projects': projects_with_updates,
         'delayed_count': delayed_count,
         'planned_pending_count': planned_pending_count,
+        'status_summary': status_summary,
+        'average_progress': round(progress_total / status_summary['total']) if status_summary['total'] else 0,
+        'projects_with_activity': projects_with_activity,
         'scope': request.GET.get('scope', 'assigned'),
         'project_type_options': project_type_options,
         'selected_project_type': selected_project_type,
@@ -793,14 +979,23 @@ def my_reports_view(request):
     # Get delayed count from status_counts (already calculated, no extra query needed)
     delayed_count = status_counts.get('Delayed', 0)
     total_projects = assigned_projects.count()
+    summary_counts = {
+        'total': total_projects,
+        'in_progress': status_dict.get('in_progress', 0) + status_dict.get('ongoing', 0),
+        'completed': status_dict.get('completed', 0),
+        'planned': status_dict.get('planned', 0) + status_dict.get('pending', 0),
+        'delayed': status_dict.get('delayed', 0),
+    }
     barangays = [
         "Apokon", "Bincungan", "Busaon", "Canocotan", "Cuambogan", "La Filipina", "Liboganon", "Madaum", "Magdum", "Magugpo East", "Magugpo North", "Magugpo Poblacion", "Magugpo South", "Magugpo West", "Mankilam", "New Balamban", "Nueva Fuerza", "Pagsabangan", "Pandapan", "San Agustin", "San Isidro", "San Miguel", "Visayan Village"
     ]
-    # Filter statuses to only show: Planned, In Progress, Completed
+    # Filter statuses used by the report page.
     statuses = [
         ('planned', 'Planned'),
+        ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
+        ('delayed', 'Delayed'),
     ]
     
     # Optimize query - use select_related and prefetch_related to avoid N+1 queries
@@ -809,6 +1004,8 @@ def my_reports_view(request):
     paginator = Paginator(assigned_projects, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
     
     # Optimize progress queries - get all progress updates for projects in this page efficiently
     # Instead of N+1 queries, fetch all progress records for these projects in 1-2 queries
@@ -853,6 +1050,7 @@ def my_reports_view(request):
         'projects_data': projects_list_for_modal,
         'total_projects': total_projects,
         'status_counts': status_counts,
+        'summary_counts': summary_counts,
         'barangays': barangays,
         'statuses': statuses,
         'source_of_funds_options': source_of_funds_options,
@@ -864,6 +1062,7 @@ def my_reports_view(request):
         'selected_source_of_funds': source_of_funds_filter,
         'selected_project_type': project_type_filter,
         'delayed_count': delayed_count,
+        'pagination_querystring': query_params.urlencode(),
     }
     return render(request, 'projeng/my_reports.html', context)
 
@@ -2697,7 +2896,8 @@ def export_reports_json(request):
             'Completed' if project.status == 'completed' else
             'Delayed' if project.status == 'delayed' else
             'Ongoing' if project.status in ['in_progress', 'ongoing'] else
-            'Planned' if project.status in ['planned', 'pending'] else
+            'Planned' if project.status == 'planned' else
+            'Pending' if project.status == 'pending' else
             (project.status or '').title()
         )
         projects_list.append({

@@ -107,6 +107,97 @@ def _get_or_create_project_type_by_name(name: str):
         requires_residential=False,
     )
 
+def _get_budget_report_projects_for_user(user):
+    """Return the project queryset allowed for the current budget-report user."""
+    if is_head_engineer(user) or is_finance_manager(user):
+        return Project.objects.all()
+    if is_project_engineer(user):
+        return Project.objects.filter(assigned_engineers=user)
+    return Project.objects.none()
+
+def _apply_budget_report_filters(projects, params):
+    """
+    Apply budget report filters.
+
+    Date filters are treated as an active/reporting period: projects are included
+    when their schedule overlaps the selected start/end range.
+    """
+    from datetime import date
+    from django.db.models import Q
+    from django.utils.dateparse import parse_date
+
+    selected = {
+        'barangay': params.get('barangay', '').strip(),
+        'status': params.get('status', '').strip(),
+        'start_date': params.get('start_date', '').strip(),
+        'end_date': params.get('end_date', '').strip(),
+        'cost_min': params.get('cost_min', '').strip(),
+        'cost_max': params.get('cost_max', '').strip(),
+        'budget_status': params.get('budget_status', '').strip(),
+        'prn': params.get('prn', '').strip(),
+        'year': params.get('year', '').strip(),
+    }
+
+    if selected['barangay']:
+        projects = projects.filter(barangay=selected['barangay'])
+
+    if selected['status']:
+        if selected['status'] == 'in_progress':
+            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
+        else:
+            projects = projects.filter(status=selected['status'])
+
+    if selected['prn']:
+        projects = projects.filter(prn__icontains=selected['prn'])
+
+    start_date = parse_date(selected['start_date']) if selected['start_date'] else None
+    end_date = parse_date(selected['end_date']) if selected['end_date'] else None
+    if start_date and end_date and start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    if selected['year']:
+        try:
+            year_int = int(selected['year'])
+            year_start = date(year_int, 1, 1)
+            year_end = date(year_int, 12, 31)
+            projects = projects.filter(
+                Q(start_date__isnull=False) | Q(end_date__isnull=False),
+                Q(start_date__isnull=True) | Q(start_date__lte=year_end),
+                Q(end_date__isnull=True) | Q(end_date__gte=year_start),
+            )
+        except (TypeError, ValueError):
+            pass
+
+    if start_date and end_date:
+        projects = projects.filter(
+            Q(start_date__isnull=False) | Q(end_date__isnull=False),
+            Q(start_date__isnull=True) | Q(start_date__lte=end_date),
+            Q(end_date__isnull=True) | Q(end_date__gte=start_date),
+        )
+    elif start_date:
+        projects = projects.filter(
+            Q(start_date__isnull=False) | Q(end_date__isnull=False),
+            Q(end_date__isnull=True) | Q(end_date__gte=start_date),
+        )
+    elif end_date:
+        projects = projects.filter(
+            Q(start_date__isnull=False) | Q(end_date__isnull=False),
+            Q(start_date__isnull=True) | Q(start_date__lte=end_date),
+        )
+
+    if selected['cost_min']:
+        try:
+            projects = projects.filter(project_cost__gte=float(selected['cost_min']))
+        except (ValueError, TypeError):
+            pass
+    if selected['cost_max']:
+        try:
+            projects = projects.filter(project_cost__lte=float(selected['cost_max']))
+        except (ValueError, TypeError):
+            pass
+
+    return projects, selected
+
 def home(request):
     """
     Redirect to login page - no direct access to home
@@ -226,6 +317,7 @@ def head_engineer_dashboard_preview(request):
 @prevent_project_engineer_access
 def dashboard(request):
     try:
+        from calendar import monthrange
         from datetime import date, timedelta
         from django.db.models import Max, Sum
         from django.urls import reverse
@@ -490,6 +582,7 @@ def dashboard(request):
             if row['status'] == 'delayed' and row['end_date'] and week_start <= row['end_date'] <= today
         )
 
+        analytics_base_url = reverse('head_engineer_analytics')
         kpi_cards = [
             {
                 'label': 'Total Projects',
@@ -497,6 +590,7 @@ def dashboard(request):
                 'tone': 'info',
                 'trend': f'+{new_projects_this_week} this week' if new_projects_this_week else 'No new projects this week',
                 'trend_tone': 'neutral',
+                'url': analytics_base_url,
             },
             {
                 'label': 'Completed Projects',
@@ -504,6 +598,7 @@ def dashboard(request):
                 'tone': 'good',
                 'trend': f'+{completed_this_week} this week' if completed_this_week else 'No new completions this week',
                 'trend_tone': 'good' if completed_this_week else 'neutral',
+                'url': f'{analytics_base_url}?status=completed',
             },
             {
                 'label': 'In Progress Projects',
@@ -511,6 +606,7 @@ def dashboard(request):
                 'tone': 'warning',
                 'trend': f'{ongoing_updated_this_week} updated this week',
                 'trend_tone': 'neutral',
+                'url': f'{analytics_base_url}?status=in_progress',
             },
             {
                 'label': 'Planned Projects',
@@ -518,6 +614,7 @@ def dashboard(request):
                 'tone': 'info',
                 'trend': 'Queued for implementation',
                 'trend_tone': 'neutral',
+                'url': f'{analytics_base_url}?status=planned',
             },
             {
                 'label': 'Delayed Projects',
@@ -525,10 +622,10 @@ def dashboard(request):
                 'tone': 'danger',
                 'trend': f'+{newly_delayed_this_week} new this week' if newly_delayed_this_week else 'No new delays this week',
                 'trend_tone': 'danger' if newly_delayed_this_week else 'good',
+                'url': f'{analytics_base_url}?status=delayed',
             },
         ]
 
-        analytics_base_url = reverse('head_engineer_analytics')
         action_queue_items = [
             {
                 'key': 'critical_delays',
@@ -620,6 +717,78 @@ def dashboard(request):
                 'actual': round(actual_by_month.get(month_key, 0.0), 2),
             })
 
+        completion_year_start = date(today.year, 1, 1)
+        completion_year_end = date(today.year, 12, 31)
+        completion_period_map = {}
+
+        def _completion_period_for(day_obj):
+            period_day = 15 if day_obj.day <= 15 else min(30, monthrange(day_obj.year, day_obj.month)[1])
+            period_date = date(day_obj.year, day_obj.month, period_day)
+            return {
+                'key': period_date.isoformat(),
+                'date': period_date,
+                'label': period_date.strftime('%b ') + str(period_day),
+                'date_label': str(period_date.year),
+            }
+
+        if project_ids:
+            progress_rows = (
+                ProjectProgress.objects
+                .filter(project_id__in=project_ids, date__gte=completion_year_start, date__lte=completion_year_end)
+                .order_by('-date', '-id')
+                .values('date', 'percentage_complete')
+            )
+            for row in progress_rows:
+                progress_date = row['date']
+                if not progress_date:
+                    continue
+                period = _completion_period_for(progress_date)
+                bucket = completion_period_map.setdefault(period['key'], {
+                    'date': period['date'],
+                    'label': period['label'],
+                    'date_label': period['date_label'],
+                    'values': [],
+                })
+                try:
+                    bucket['values'].append(max(0.0, min(100.0, float(row['percentage_complete'] or 0))))
+                except (TypeError, ValueError):
+                    continue
+
+        completion_buckets = sorted(completion_period_map.values(), key=lambda item: item['date'])[-6:]
+        completion_trend = []
+        for bucket in completion_buckets:
+            values = bucket['values']
+            if not values:
+                continue
+            completion_trend.append({
+                'label': bucket['label'],
+                'date_label': bucket['date_label'],
+                'value': round(sum(values) / len(values), 1),
+            })
+
+        if not completion_trend and projects:
+            current_progress_values = []
+            for project in projects:
+                progress = latest_progress_map.get(project.id)
+                if progress is None:
+                    progress = getattr(project, 'progress', 0)
+                try:
+                    current_progress_values.append(max(0.0, min(100.0, float(progress or 0))))
+                except (TypeError, ValueError):
+                    continue
+            if current_progress_values:
+                period = _completion_period_for(today)
+                completion_trend.append({
+                    'label': period['label'],
+                    'date_label': period['date_label'],
+                    'value': round(sum(current_progress_values) / len(current_progress_values), 1),
+                })
+
+        completion_period_label = (
+            f"{completion_year_start.strftime('%b')} {completion_year_start.day}, {completion_year_start.year} - "
+            f"{completion_year_end.strftime('%b')} {completion_year_end.day}, {completion_year_end.year}"
+        )
+
         health_breakdown = [
             {'label': 'On Track', 'value': health_counts['on_track']},
             {'label': 'At Risk', 'value': health_counts['at_risk']},
@@ -646,6 +815,8 @@ def dashboard(request):
             'map_projects': map_projects,
             'delay_trend': delay_trend,
             'budget_vs_actual': budget_vs_actual,
+            'completion_trend': completion_trend,
+            'completion_period_label': completion_period_label,
             'health_breakdown': health_breakdown,
             'top_risk_projects': top_risk_projects,
             'key_insights': key_insights[:5],
@@ -2264,69 +2435,20 @@ def reports(request):
 def budget_reports(request):
     from projeng.models import Project, ProjectCost
     from collections import defaultdict
-    from django.db.models import Q
     from django.core.paginator import Paginator
     
-    # Role-based queryset
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-    
-    # Apply filters
-    selected_barangay = request.GET.get('barangay', '').strip()
-    selected_status = request.GET.get('status', '').strip()
-    selected_start_date = request.GET.get('start_date', '').strip()
-    selected_end_date = request.GET.get('end_date', '').strip()
-    selected_cost_min = request.GET.get('cost_min', '').strip()
-    selected_cost_max = request.GET.get('cost_max', '').strip()
-    selected_budget_status = request.GET.get('budget_status', '').strip()
-    selected_prn = request.GET.get('prn', '').strip()
-    selected_year = request.GET.get('year', '').strip()
+    projects = _get_budget_report_projects_for_user(request.user)
+    projects, selected_filters = _apply_budget_report_filters(projects, request.GET)
+    selected_barangay = selected_filters['barangay']
+    selected_status = selected_filters['status']
+    selected_start_date = selected_filters['start_date']
+    selected_end_date = selected_filters['end_date']
+    selected_cost_min = selected_filters['cost_min']
+    selected_cost_max = selected_filters['cost_max']
+    selected_budget_status = selected_filters['budget_status']
     selected_chart_period = request.GET.get('chart_period', 'month').strip().lower()
     if selected_chart_period not in ('week', 'month', 'year'):
         selected_chart_period = 'month'
-    
-    if selected_barangay:
-        projects = projects.filter(barangay=selected_barangay)
-    
-    if selected_status:
-        if selected_status == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        else:
-            projects = projects.filter(status=selected_status)
-
-    if selected_prn:
-        projects = projects.filter(prn__icontains=selected_prn)
-
-    if selected_year:
-        try:
-            year_int = int(selected_year)
-            projects = projects.filter(start_date__year=year_int)
-        except (TypeError, ValueError):
-            pass
-    
-    if selected_start_date:
-        projects = projects.filter(start_date__gte=selected_start_date)
-    
-    if selected_end_date:
-        projects = projects.filter(end_date__lte=selected_end_date)
-
-    # Cost range filters (by project budget)
-    if selected_cost_min:
-        try:
-            cost_min_val = float(selected_cost_min)
-            projects = projects.filter(project_cost__gte=cost_min_val)
-        except (ValueError, TypeError):
-            pass
-    if selected_cost_max:
-        try:
-            cost_max_val = float(selected_cost_max)
-            projects = projects.filter(project_cost__lte=cost_max_val)
-        except (ValueError, TypeError):
-            pass
     
     # Get all projects for summary calculations (before pagination)
     all_projects_for_summary = projects
@@ -2487,6 +2609,9 @@ def budget_reports(request):
     
     # Get paginated project data for display
     paginated_project_data = list(page_obj.object_list)
+    pagination_params = request.GET.copy()
+    pagination_params.pop('page', None)
+    pagination_querystring = pagination_params.urlencode()
     
     # Get all unique barangays for filter dropdown
     all_barangays = Project.objects.values_list('barangay', flat=True).distinct().exclude(barangay__isnull=True).exclude(barangay='').order_by('barangay')
@@ -2525,6 +2650,8 @@ def budget_reports(request):
     context = {
         'project_data': paginated_project_data,
         'project_data_json': json.dumps(paginated_project_data),  # For JavaScript modal
+        'filtered_project_count': len(project_data),
+        'pagination_querystring': pagination_querystring,
         'budget_report_pdf_data': budget_report_pdf_data,
         'project_names': json.dumps(chart_project_names),
         'utilizations': json.dumps(chart_utilizations),
@@ -2558,7 +2685,6 @@ def budget_reports_chart_data_api(request):
     """API: return chart data for Budget Reports (utilization or over/under) by period. No page reload."""
     from django.http import JsonResponse
     from projeng.models import Project, ProjectCost
-    from django.db.models import Q
     from datetime import date, timedelta
 
     chart_type = (request.GET.get('chart') or '').strip().lower()
@@ -2568,54 +2694,9 @@ def budget_reports_chart_data_api(request):
     if period not in ('week', 'month', 'year'):
         period = 'month'
 
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-
-    selected_barangay = request.GET.get('barangay', '').strip()
-    selected_status = request.GET.get('status', '').strip()
-    selected_start_date = request.GET.get('start_date', '').strip()
-    selected_end_date = request.GET.get('end_date', '').strip()
-    selected_cost_min = request.GET.get('cost_min', '').strip()
-    selected_cost_max = request.GET.get('cost_max', '').strip()
-    selected_budget_status = request.GET.get('budget_status', '').strip()
-    selected_prn = request.GET.get('prn', '').strip()
-    selected_year = request.GET.get('year', '').strip()
-
-    if selected_barangay:
-        projects = projects.filter(barangay=selected_barangay)
-    if selected_status:
-        if selected_status == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        else:
-            projects = projects.filter(status=selected_status)
-
-    if selected_prn:
-        projects = projects.filter(prn__icontains=selected_prn)
-
-    if selected_year:
-        try:
-            year_int = int(selected_year)
-            projects = projects.filter(start_date__year=year_int)
-        except (TypeError, ValueError):
-            pass
-    if selected_start_date:
-        projects = projects.filter(start_date__gte=selected_start_date)
-    if selected_end_date:
-        projects = projects.filter(end_date__lte=selected_end_date)
-    if selected_cost_min:
-        try:
-            projects = projects.filter(project_cost__gte=float(selected_cost_min))
-        except (ValueError, TypeError):
-            pass
-    if selected_cost_max:
-        try:
-            projects = projects.filter(project_cost__lte=float(selected_cost_max))
-        except (ValueError, TypeError):
-            pass
+    projects = _get_budget_report_projects_for_user(request.user)
+    projects, selected_filters = _apply_budget_report_filters(projects, request.GET)
+    selected_budget_status = selected_filters['budget_status']
 
     today = timezone.now().date() if timezone.is_naive(timezone.now()) else timezone.now().date()
     if period == 'week':
@@ -3565,7 +3646,7 @@ def head_engineer_analytics(request):
         status_display = (
             'Completed' if calculated_status == 'completed' else
             'Delayed' if calculated_status == 'delayed' else
-            'Ongoing' if calculated_status == 'in_progress' else
+            'In Progress' if calculated_status == 'in_progress' else
             'Planned' if calculated_status == 'planned' else
             calculated_status.title()
         )
@@ -5234,65 +5315,10 @@ def export_reports_pdf(request):
 def export_budget_reports_csv(request):
     """Export budget reports as CSV"""
     from projeng.models import ProjectCost
-    from collections import defaultdict
-    from django.db.models import Q
     
-    # Role-based queryset
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-    
-    # Apply filters (same as budget_reports view)
-    selected_barangay = request.GET.get('barangay', '').strip()
-    selected_status = request.GET.get('status', '').strip()
-    selected_start_date = request.GET.get('start_date', '').strip()
-    selected_end_date = request.GET.get('end_date', '').strip()
-    selected_cost_min = request.GET.get('cost_min', '').strip()
-    selected_cost_max = request.GET.get('cost_max', '').strip()
-    selected_budget_status = request.GET.get('budget_status', '').strip()
-    selected_prn = request.GET.get('prn', '').strip()
-    selected_year = request.GET.get('year', '').strip()
-    
-    if selected_barangay:
-        projects = projects.filter(barangay=selected_barangay)
-    
-    if selected_status:
-        if selected_status == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        else:
-            projects = projects.filter(status=selected_status)
-
-    if selected_prn:
-        projects = projects.filter(prn__icontains=selected_prn)
-
-    if selected_year:
-        try:
-            year_int = int(selected_year)
-            projects = projects.filter(start_date__year=year_int)
-        except (TypeError, ValueError):
-            pass
-    
-    if selected_start_date:
-        projects = projects.filter(start_date__gte=selected_start_date)
-    
-    if selected_end_date:
-        projects = projects.filter(end_date__lte=selected_end_date)
-
-    if selected_cost_min:
-        try:
-            cost_min_val = float(selected_cost_min)
-            projects = projects.filter(project_cost__gte=cost_min_val)
-        except (ValueError, TypeError):
-            pass
-    if selected_cost_max:
-        try:
-            cost_max_val = float(selected_cost_max)
-            projects = projects.filter(project_cost__lte=cost_max_val)
-        except (ValueError, TypeError):
-            pass
+    projects = _get_budget_report_projects_for_user(request.user)
+    projects, selected_filters = _apply_budget_report_filters(projects, request.GET)
+    selected_budget_status = selected_filters['budget_status']
     
     # Create the HttpResponse object with the appropriate CSV header
     response = HttpResponse(content_type='text/csv')
@@ -5303,7 +5329,8 @@ def export_budget_reports_csv(request):
     writer.writerow(['#', 'PRN#', 'Project Name', 'Barangay', 'Budget', 'Spent', 'Remaining', 'Utilization %', 'Status', 'Over/Under Budget'])
     
     # Write data rows
-    for i, project in enumerate(projects):
+    row_number = 1
+    for project in projects:
         costs = ProjectCost.objects.filter(project=project)
         spent = sum([float(c.amount) for c in costs]) if costs else 0
         budget = float(project.project_cost) if project.project_cost else 0
@@ -5323,7 +5350,7 @@ def export_budget_reports_csv(request):
             continue
         
         writer.writerow([
-            i + 1,
+            row_number,
             project.prn or '',
             project.name or '',
             project.barangay or '',
@@ -5334,6 +5361,7 @@ def export_budget_reports_csv(request):
             project.get_status_display() or '',
             over_under,
         ])
+        row_number += 1
     
     return response
 
@@ -5341,64 +5369,10 @@ def export_budget_reports_csv(request):
 def export_budget_reports_excel(request):
     """Export budget reports as Excel"""
     from projeng.models import ProjectCost
-    from django.db.models import Q
     
-    # Role-based queryset
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-    
-    # Apply filters (same as budget_reports view)
-    selected_barangay = request.GET.get('barangay', '').strip()
-    selected_status = request.GET.get('status', '').strip()
-    selected_start_date = request.GET.get('start_date', '').strip()
-    selected_end_date = request.GET.get('end_date', '').strip()
-    selected_cost_min = request.GET.get('cost_min', '').strip()
-    selected_cost_max = request.GET.get('cost_max', '').strip()
-    selected_budget_status = request.GET.get('budget_status', '').strip()
-    selected_prn = request.GET.get('prn', '').strip()
-    selected_year = request.GET.get('year', '').strip()
-    
-    if selected_barangay:
-        projects = projects.filter(barangay=selected_barangay)
-    
-    if selected_status:
-        if selected_status == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        else:
-            projects = projects.filter(status=selected_status)
-
-    if selected_prn:
-        projects = projects.filter(prn__icontains=selected_prn)
-
-    if selected_year:
-        try:
-            year_int = int(selected_year)
-            projects = projects.filter(start_date__year=year_int)
-        except (TypeError, ValueError):
-            pass
-    
-    if selected_start_date:
-        projects = projects.filter(start_date__gte=selected_start_date)
-    
-    if selected_end_date:
-        projects = projects.filter(end_date__lte=selected_end_date)
-
-    if selected_cost_min:
-        try:
-            cost_min_val = float(selected_cost_min)
-            projects = projects.filter(project_cost__gte=cost_min_val)
-        except (ValueError, TypeError):
-            pass
-    if selected_cost_max:
-        try:
-            cost_max_val = float(selected_cost_max)
-            projects = projects.filter(project_cost__lte=cost_max_val)
-        except (ValueError, TypeError):
-            pass
+    projects = _get_budget_report_projects_for_user(request.user)
+    projects, selected_filters = _apply_budget_report_filters(projects, request.GET)
+    selected_budget_status = selected_filters['budget_status']
     
     # Create a new workbook and select the active sheet
     workbook = openpyxl.Workbook()
@@ -5410,7 +5384,8 @@ def export_budget_reports_excel(request):
     sheet.append(headers)
     
     # Write data rows
-    for i, project in enumerate(projects):
+    row_number = 1
+    for project in projects:
         costs = ProjectCost.objects.filter(project=project)
         spent = sum([float(c.amount) for c in costs]) if costs else 0
         budget = float(project.project_cost) if project.project_cost else 0
@@ -5430,7 +5405,7 @@ def export_budget_reports_excel(request):
             continue
         
         sheet.append([
-            i + 1,
+            row_number,
             project.prn or '',
             project.name or '',
             project.barangay or '',
@@ -5441,6 +5416,7 @@ def export_budget_reports_excel(request):
             project.get_status_display() or '',
             over_under,
         ])
+        row_number += 1
     
     # Create an in-memory BytesIO stream
     excel_file = io.BytesIO()
@@ -5458,64 +5434,10 @@ def export_budget_reports_pdf(request):
     """Export budget reports as PDF"""
     from projeng.models import ProjectCost
     from collections import defaultdict
-    from django.db.models import Q
     
-    # Role-based queryset
-    if is_head_engineer(request.user) or is_finance_manager(request.user):
-        projects = Project.objects.all()
-    elif is_project_engineer(request.user):
-        projects = Project.objects.filter(assigned_engineers=request.user)
-    else:
-        projects = Project.objects.none()
-    
-    # Apply filters (same as budget_reports view)
-    selected_barangay = request.GET.get('barangay', '').strip()
-    selected_status = request.GET.get('status', '').strip()
-    selected_start_date = request.GET.get('start_date', '').strip()
-    selected_end_date = request.GET.get('end_date', '').strip()
-    selected_cost_min = request.GET.get('cost_min', '').strip()
-    selected_cost_max = request.GET.get('cost_max', '').strip()
-    selected_budget_status = request.GET.get('budget_status', '').strip()
-    selected_prn = request.GET.get('prn', '').strip()
-    selected_year = request.GET.get('year', '').strip()
-    
-    if selected_barangay:
-        projects = projects.filter(barangay=selected_barangay)
-    
-    if selected_status:
-        if selected_status == 'in_progress':
-            projects = projects.filter(Q(status='in_progress') | Q(status='ongoing'))
-        else:
-            projects = projects.filter(status=selected_status)
-
-    if selected_prn:
-        projects = projects.filter(prn__icontains=selected_prn)
-
-    if selected_year:
-        try:
-            year_int = int(selected_year)
-            projects = projects.filter(start_date__year=year_int)
-        except (TypeError, ValueError):
-            pass
-    
-    if selected_start_date:
-        projects = projects.filter(start_date__gte=selected_start_date)
-    
-    if selected_end_date:
-        projects = projects.filter(end_date__lte=selected_end_date)
-
-    if selected_cost_min:
-        try:
-            cost_min_val = float(selected_cost_min)
-            projects = projects.filter(project_cost__gte=cost_min_val)
-        except (ValueError, TypeError):
-            pass
-    if selected_cost_max:
-        try:
-            cost_max_val = float(selected_cost_max)
-            projects = projects.filter(project_cost__lte=cost_max_val)
-        except (ValueError, TypeError):
-            pass
+    projects = _get_budget_report_projects_for_user(request.user)
+    projects, selected_filters = _apply_budget_report_filters(projects, request.GET)
+    selected_budget_status = selected_filters['budget_status']
     
     # Prepare project data (format to match template: #, PRN #, PROJECT, BARANGAY, ASSIGNED ENGINEERS, BUDGET, SPENT, UTILIZATION, OVER/UNDER, STATUS, COST BREAKDOWN)
     project_rows = []
@@ -5523,7 +5445,7 @@ def export_budget_reports_pdf(request):
     total_spent = 0.0
     over_budget_count = 0
     under_budget_count = 0
-    for idx, project in enumerate(projects):
+    for project in projects:
         costs = ProjectCost.objects.filter(project=project)
         spent = sum([float(c.amount) for c in costs]) if costs else 0
         budget = float(project.project_cost) if project.project_cost else 0
@@ -5559,7 +5481,7 @@ def export_budget_reports_pdf(request):
         assigned_engineers_str = ', '.join(engineer_names) if engineer_names else '—'
 
         project_rows.append({
-            'Num': idx + 1,
+            'Num': len(project_rows) + 1,
             'PRN': project.prn or '—',
             'Project_Name': project.name or '—',
             'Barangay': project.barangay or '—',

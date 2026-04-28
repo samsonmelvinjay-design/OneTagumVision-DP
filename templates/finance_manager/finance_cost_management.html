@@ -23,35 +23,35 @@
 
 <!-- Filters row (screenshot style) -->
 <form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <select name="year" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
-            <option value="">All Years</option>
-            {% for y in year_options %}
-                <option value="{{ y }}" {% if selected_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
-            {% endfor %}
-        </select>
-        <select name="budget_status" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
-            <option value="">All Status</option>
-            <option value="under" {% if selected_budget_status == 'under' %}selected{% endif %}>Within Budget</option>
-            <option value="within" {% if selected_budget_status == 'within' %}selected{% endif %}>Near Limit</option>
-            <option value="over" {% if selected_budget_status == 'over' %}selected{% endif %}>Over Budget</option>
-        </select>
-        <select name="barangay" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
-            <option value="">All Barangays</option>
-            {% for b in all_barangays %}
-                <option value="{{ b }}" {% if selected_barangay == b %}selected{% endif %}>{{ b }}</option>
-            {% endfor %}
-        </select>
-        <div class="relative">
+    <div class="flex flex-col xl:flex-row xl:items-center gap-3">
+        <div class="relative w-full xl:flex-1">
             <input name="prn" value="{{ selected_prn }}" placeholder="Filter by PRN..." class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2 text-sm font-medium" />
             <svg class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 110-15 7.5 7.5 0 010 15z" />
             </svg>
         </div>
-    </div>
-    <div class="mt-3 flex items-center justify-end gap-2">
-        <a href="{% url 'finance_cost_management' %}" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition">Reset</a>
-        <button type="submit" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">Apply</button>
+        <select name="year" class="w-full xl:w-44 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+            <option value="">All Years</option>
+            {% for y in year_options %}
+                <option value="{{ y }}" {% if selected_year == y|stringformat:"d" %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+        <select name="budget_status" class="w-full xl:w-52 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+            <option value="">All Status</option>
+            <option value="under" {% if selected_budget_status == 'under' %}selected{% endif %}>Within Budget</option>
+            <option value="within" {% if selected_budget_status == 'within' %}selected{% endif %}>Near Limit</option>
+            <option value="over" {% if selected_budget_status == 'over' %}selected{% endif %}>Over Budget</option>
+        </select>
+        <select name="barangay" class="w-full xl:w-64 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+            <option value="">All Barangays</option>
+            {% for b in all_barangays %}
+                <option value="{{ b }}" {% if selected_barangay == b %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+        </select>
+        <div class="flex items-center justify-end gap-2 xl:flex-shrink-0">
+            <a href="{% url 'finance_cost_management' %}" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition">Reset</a>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">Apply</button>
+        </div>
     </div>
 </form>
 

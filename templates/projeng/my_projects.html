@@ -2,990 +2,383 @@
 
 {% block extra_js %}
 {{ block.super }}
-<!-- Define filter functions BEFORE content loads -->
 <script>
-// Initialize filter state on window object
 window.currentStatusFilter = '';
 window.currentBarangayFilter = '';
 window.searchTerm = '';
 
-// Define filterProjects function early so inline handlers can use it
 window.filterProjects = function() {
     const statusFilter = window.currentStatusFilter || '';
     const barangayFilter = window.currentBarangayFilter || '';
-    const searchTerm = window.searchTerm || '';
-    
-    const projectCards = document.querySelectorAll('.project-card');
+    const searchTerm = (window.searchTerm || '').toLowerCase();
+    const projectRows = document.querySelectorAll('.project-card');
     let visibleCount = 0;
-    
-    console.log('Filtering projects:', {
-        statusFilter: statusFilter,
-        barangayFilter: barangayFilter,
-        searchTerm: searchTerm
-    });
-    
-    projectCards.forEach(card => {
-        const projectStatus = (card.getAttribute('data-status') || '').trim();
-        const projectBarangay = (card.getAttribute('data-barangay') || '').trim();
-        const nameEl = card.querySelector('.text-lg');
-        const descEl = card.querySelector('.text-sm.text-gray-600');
-        const name = nameEl ? nameEl.textContent.toLowerCase() : '';
-        const desc = descEl ? descEl.textContent.toLowerCase() : '';
-        
-        // Status filter - must match exactly (handle in_progress/ongoing and delayed)
+
+    projectRows.forEach(row => {
+        const projectStatus = (row.getAttribute('data-status') || '').trim();
+        const projectBarangay = (row.getAttribute('data-barangay') || '').trim();
+        const searchableText = (row.getAttribute('data-search') || '').toLowerCase();
+
         let statusMatch = true;
         if (statusFilter) {
             if (statusFilter === 'in_progress') {
                 statusMatch = projectStatus === 'in_progress' || projectStatus === 'ongoing';
-            } else if (statusFilter === 'delayed') {
-                // Match delayed status (calculated or stored)
-                statusMatch = projectStatus === 'delayed';
             } else {
                 statusMatch = projectStatus === statusFilter;
             }
         }
-        
-        // Barangay filter - must match exactly (case-insensitive)
-        let barangayMatch = true;
-        if (barangayFilter) {
-            barangayMatch = projectBarangay.toLowerCase() === barangayFilter.toLowerCase();
-        }
-        
-        // Search filter - must contain search term
-        const searchMatch = !searchTerm || name.includes(searchTerm) || desc.includes(searchTerm);
-        
-        // Show/hide card based on all filters
+
+        const barangayMatch = !barangayFilter || projectBarangay.toLowerCase() === barangayFilter.toLowerCase();
+        const searchMatch = !searchTerm || searchableText.includes(searchTerm);
+
         if (statusMatch && barangayMatch && searchMatch) {
-            card.style.display = '';
+            row.style.display = '';
             visibleCount++;
         } else {
-            card.style.display = 'none';
+            row.style.display = 'none';
         }
     });
-    
-    console.log(`Filtered: ${visibleCount} projects visible out of ${projectCards.length} total`);
-    
-    // Show/hide "no projects" message for filtered results
+
     const emptyStateFiltered = document.getElementById('empty-state-filtered');
-    
-    if (visibleCount === 0 && projectCards.length > 0) {
-        // Show empty state for filtered results
-        if (emptyStateFiltered) {
-            emptyStateFiltered.classList.remove('hidden');
-        }
-    } else {
-        // Hide empty state for filtered results
-        if (emptyStateFiltered) {
-            emptyStateFiltered.classList.add('hidden');
-        }
+    if (emptyStateFiltered) {
+        emptyStateFiltered.classList.toggle('hidden', !(visibleCount === 0 && projectRows.length > 0));
     }
 };
 
-// Define updateActiveFilter function early
 window.updateActiveFilter = function(activeStatus) {
-    const filterAll = document.getElementById('filter-all');
-    const filterInProgress = document.getElementById('filter-in-progress');
-    const filterPlanned = document.getElementById('filter-planned');
-    const filterCompleted = document.getElementById('filter-completed');
-    const filterDelayed = document.getElementById('filter-delayed');
-    
-    const statusFilters = {
-        '': filterAll,
-        'in_progress': filterInProgress,
-        'planned': filterPlanned,
-        'completed': filterCompleted,
-        'delayed': filterDelayed
+    const filters = {
+        '': document.getElementById('filter-all'),
+        'planned': document.getElementById('filter-planned'),
+        'in_progress': document.getElementById('filter-in-progress'),
+        'completed': document.getElementById('filter-completed'),
+        'delayed': document.getElementById('filter-delayed')
     };
-    
-    // First, reset all buttons to inactive state
-    Object.keys(statusFilters).forEach(status => {
-        const btn = statusFilters[status];
-        if (!btn) return;
-        
-        // Remove active class and all possible active styles
-        btn.classList.remove('active');
-        btn.classList.remove('bg-gray-100', 'text-gray-900', 'border-gray-400');
-        btn.classList.remove('bg-blue-100', 'text-blue-800', 'border-blue-400');
-        btn.classList.remove('bg-amber-100', 'text-amber-800', 'border-amber-400');
-        btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-400');
-        btn.classList.remove('bg-red-100', 'text-red-800', 'border-red-400');
-        
-        // Reset to default inactive styles based on button type
-        if (status === '') {
-            btn.classList.add('bg-gray-50', 'text-gray-700', 'border-gray-300');
-        } else if (status === 'in_progress') {
-            btn.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-300');
-        } else if (status === 'planned') {
-            btn.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-300');
-        } else if (status === 'completed') {
-            btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
-        } else if (status === 'delayed') {
-            btn.classList.add('bg-red-50', 'text-red-700', 'border-red-300');
-        }
+
+    Object.keys(filters).forEach(status => {
+        const button = filters[status];
+        if (!button) return;
+        const isActive = status === activeStatus;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
-    
-    // Then, set the active button
-    const activeBtn = statusFilters[activeStatus];
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-        
-        // Remove all default styles first
-        activeBtn.classList.remove('bg-gray-50', 'text-gray-700', 'border-gray-300');
-        activeBtn.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-300');
-        activeBtn.classList.remove('bg-amber-50', 'text-amber-700', 'border-amber-300');
-        activeBtn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
-        activeBtn.classList.remove('bg-red-50', 'text-red-700', 'border-red-300');
-        
-        // Add active styles based on status
-        if (activeStatus === '') {
-            activeBtn.classList.add('bg-gray-100', 'text-gray-900', 'border-gray-400');
-        } else if (activeStatus === 'in_progress') {
-            activeBtn.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-400');
-        } else if (activeStatus === 'planned') {
-            activeBtn.classList.add('bg-amber-100', 'text-amber-800', 'border-amber-400');
-        } else if (activeStatus === 'completed') {
-            activeBtn.classList.add('bg-green-100', 'text-green-800', 'border-green-400');
-        } else if (activeStatus === 'delayed') {
-            activeBtn.classList.add('bg-red-100', 'text-red-800', 'border-red-400');
-        }
-    }
 };
 
-// Define global functions IMMEDIATELY so inline handlers can use them
 window.setStatusFilter = function(status) {
-    console.log('setStatusFilter called with:', status);
     window.currentStatusFilter = status;
-    if (typeof window.updateActiveFilter === 'function') {
-        window.updateActiveFilter(status);
-    }
-    if (typeof window.filterProjects === 'function') {
-        window.filterProjects();
-    }
+    window.updateActiveFilter(status);
+    window.filterProjects();
 };
 
 window.setBarangayFilter = function(barangay) {
-    console.log('setBarangayFilter called with:', barangay);
     window.currentBarangayFilter = barangay;
-    if (typeof window.filterProjects === 'function') {
-        window.filterProjects();
-    }
+    window.filterProjects();
 };
 
-// Panel #4: server-side filters (project type + cost range)
 window.applyServerFilters = function() {
-    const p = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
     const typeVal = (document.getElementById('project-type-filter')?.value || '').trim();
     const minVal = (document.getElementById('cost-min-filter')?.value || '').trim();
     const maxVal = (document.getElementById('cost-max-filter')?.value || '').trim();
 
-    if (typeVal) p.set('project_type', typeVal); else p.delete('project_type');
-    if (minVal) p.set('cost_min', minVal); else p.delete('cost_min');
-    if (maxVal) p.set('cost_max', maxVal); else p.delete('cost_max');
+    if (typeVal) params.set('project_type', typeVal); else params.delete('project_type');
+    if (minVal) params.set('cost_min', minVal); else params.delete('cost_min');
+    if (maxVal) params.set('cost_max', maxVal); else params.delete('cost_max');
 
-    window.location.search = '?' + p.toString();
+    window.location.search = '?' + params.toString();
 };
 
 window.clearServerFilters = function() {
-    const p = new URLSearchParams(window.location.search);
-    p.delete('project_type');
-    p.delete('cost_min');
-    p.delete('cost_max');
-    window.location.search = '?' + p.toString();
+    const params = new URLSearchParams(window.location.search);
+    params.delete('project_type');
+    params.delete('cost_min');
+    params.delete('cost_max');
+    window.location.search = '?' + params.toString();
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.updateActiveFilter('');
+    window.filterProjects();
+});
 </script>
 {% endblock %}
 
 {% block content %}
 <style>
     .filter-btn {
-        transition: all 0.2s ease;
+        border: 1px solid #d1fae5;
+        background: #ffffff;
+        color: #334155;
+        transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+    }
+    .filter-btn:hover {
+        background: #ecfdf5;
+        border-color: #10b981;
+        color: #065f46;
     }
     .filter-btn.active {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background: #047857;
+        border-color: #047857;
+        color: #ffffff;
+        box-shadow: 0 1px 2px rgba(6, 95, 70, 0.16);
     }
     .project-card {
-        transition: all 0.2s ease;
-    }
-    .project-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.18s ease;
     }
 </style>
-<div class="container mx-auto px-4 lg:px-6 py-6 max-w-screen-2xl">
-    <!-- Header Section -->
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900 mb-6">My Projects</h1>
-        
-        <!-- Filters Section -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                <!-- Search Bar -->
-                <div class="lg:col-span-2">
-                    <label for="search-projects" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Search</label>
-                    <div class="relative">
-                        <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text"
-                               id="search-projects"
-                               oninput="window.searchTerm = this.value.toLowerCase(); if (typeof window.filterProjects === 'function') window.filterProjects();"
-                               placeholder="Search projects..."
-                               class="h-11 w-full pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                    </div>
-                </div>
 
-                <!-- Barangay Filter -->
-                <div class="lg:col-span-2">
-                    <label for="barangay-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Barangay</label>
-                    <select id="barangay-filter" onchange="window.setBarangayFilter(this.value)" class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                        <option value="">All Barangays</option>
-                        <option value="Apokon">Apokon</option>
-                        <option value="Bincungan">Bincungan</option>
-                        <option value="Busaon">Busaon</option>
-                        <option value="Canocotan">Canocotan</option>
-                        <option value="Cuambogan">Cuambogan</option>
-                        <option value="La Filipina">La Filipina</option>
-                        <option value="Liboganon">Liboganon</option>
-                        <option value="Madaum">Madaum</option>
-                        <option value="Magdum">Magdum</option>
-                        <option value="Magugpo North">Magugpo North</option>
-                        <option value="Magugpo South">Magugpo South</option>
-                        <option value="Magugpo East">Magugpo East</option>
-                        <option value="Magugpo West">Magugpo West</option>
-                        <option value="Magugpo Poblacion">Magugpo Poblacion</option>
-                        <option value="Mankilam">Mankilam</option>
-                        <option value="New Balamban">New Balamban</option>
-                        <option value="Nueva Fuerza">Nueva Fuerza</option>
-                        <option value="Pagsabangan">Pagsabangan</option>
-                        <option value="Pandapan">Pandapan</option>
-                        <option value="San Agustin">San Agustin</option>
-                        <option value="San Isidro">San Isidro</option>
-                        <option value="San Miguel">San Miguel</option>
-                        <option value="Visayan Village">Visayan Village</option>
-                    </select>
+<div class="min-h-screen bg-gradient-to-b from-green-50 via-green-50 to-blue-50">
+    <div class="container mx-auto max-w-screen-2xl px-4 py-6 lg:px-6">
+        <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="text-xs font-semibold uppercase tracking-wide text-green-700">Project Engineer Workspace</div>
+                <h1 class="mt-1 text-3xl font-bold text-gray-950">My Projects</h1>
+                <p class="mt-1 text-sm text-gray-600">Assigned project register with progress, schedule, location, and latest activity.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[560px]">
+                <div class="rounded-lg border border-green-100 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Assigned</div>
+                    <div class="mt-1 text-2xl font-bold text-green-800">{{ status_summary.total|default:"0" }}</div>
                 </div>
-
-                <!-- Scope Filter (Panel #24) -->
-                <div class="lg:col-span-2">
-                    <label for="scope-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Scope</label>
-                    <select id="scope-filter"
-                            onchange="window.location.search = (function() { const p = new URLSearchParams(window.location.search); p.set('scope', this.value); return '?' + p.toString(); }).call(this)"
-                            class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                        <option value="assigned" {% if scope == 'assigned' or not scope %}selected{% endif %}>Assigned (default)</option>
-                        <option value="combined" {% if scope == 'combined' %}selected{% endif %}>Combined</option>
-                        <option value="own" {% if scope == 'own' %}selected{% endif %}>Own (created by me)</option>
-                    </select>
+                <div class="rounded-lg border border-green-100 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">In Progress</div>
+                    <div class="mt-1 text-2xl font-bold text-blue-700">{{ status_summary.in_progress|default:"0" }}</div>
                 </div>
-
-                <!-- Panel #4: Project Type + Cost Range filters (server-side, auto-apply) -->
-                <div class="lg:col-span-2">
-                    <label for="project-type-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Project Type</label>
-                    <select id="project-type-filter"
-                            onchange="window.applyServerFilters && window.applyServerFilters()"
-                            class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                        <option value="">All Project Types</option>
-                        {% for pt in project_type_options %}
-                            <option value="{{ pt.id }}" {% if selected_project_type|default:'' == pt.id|stringformat:'s' %}selected{% endif %}>
-                                {{ pt.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+                <div class="rounded-lg border border-green-100 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Average</div>
+                    <div class="mt-1 text-2xl font-bold text-green-700">{{ average_progress|default:"0" }}%</div>
                 </div>
-
-                <div class="lg:col-span-1">
-                    <label for="cost-min-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Min</label>
-                    <input id="cost-min-filter" type="number" step="0.01" min="0"
-                           placeholder="0"
-                           value="{{ cost_min|default:'' }}"
-                           onchange="window.applyServerFilters && window.applyServerFilters()"
-                           class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                </div>
-                <div class="lg:col-span-1">
-                    <label for="cost-max-filter" class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Max</label>
-                    <input id="cost-max-filter" type="number" step="0.01" min="0"
-                           placeholder="0"
-                           value="{{ cost_max|default:'' }}"
-                           onchange="window.applyServerFilters && window.applyServerFilters()"
-                           class="h-11 w-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
-                </div>
-
-                <div class="lg:col-span-2 flex flex-wrap gap-2 justify-start lg:justify-end">
-                    <button type="button"
-                            onclick="window.clearServerFilters && window.clearServerFilters()"
-                            class="h-11 px-4 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold">
-                        Clear
-                    </button>
+                <div class="rounded-lg border border-green-100 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Delayed</div>
+                    <div class="mt-1 text-2xl font-bold text-red-600">{{ status_summary.delayed|default:"0" }}</div>
                 </div>
             </div>
-            
-            <!-- Status Filter Buttons -->
-            <div class="mt-4 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-2">
-                <span class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mr-1">Status</span>
-                <button type="button" id="filter-all" onclick="window.setStatusFilter('')" class="filter-btn active px-3 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100" style="cursor: pointer;">
-                    All
+        </div>
+
+        <div class="mb-5 rounded-lg border border-green-100 bg-white shadow-sm">
+            <div class="border-b border-green-100 px-5 py-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
+                    <div class="lg:col-span-3">
+                        <label for="search-projects" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Search</label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 h-5 w-5 -trangray-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text"
+                                   id="search-projects"
+                                   oninput="window.searchTerm = this.value.toLowerCase(); window.filterProjects();"
+                                   placeholder="Search project, PRN, barangay..."
+                                   class="h-10 w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 text-sm focus:border-green-600 focus:ring-2 focus:ring-green-100">
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <label for="barangay-filter" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Barangay</label>
+                        <select id="barangay-filter" onchange="window.setBarangayFilter(this.value)" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-green-600 focus:ring-2 focus:ring-green-100">
+                            <option value="">All Barangays</option>
+                            <option value="Apokon">Apokon</option>
+                            <option value="Bincungan">Bincungan</option>
+                            <option value="Busaon">Busaon</option>
+                            <option value="Canocotan">Canocotan</option>
+                            <option value="Cuambogan">Cuambogan</option>
+                            <option value="La Filipina">La Filipina</option>
+                            <option value="Liboganon">Liboganon</option>
+                            <option value="Madaum">Madaum</option>
+                            <option value="Magdum">Magdum</option>
+                            <option value="Magugpo North">Magugpo North</option>
+                            <option value="Magugpo South">Magugpo South</option>
+                            <option value="Magugpo East">Magugpo East</option>
+                            <option value="Magugpo West">Magugpo West</option>
+                            <option value="Magugpo Poblacion">Magugpo Poblacion</option>
+                            <option value="Mankilam">Mankilam</option>
+                            <option value="New Balamban">New Balamban</option>
+                            <option value="Nueva Fuerza">Nueva Fuerza</option>
+                            <option value="Pagsabangan">Pagsabangan</option>
+                            <option value="Pandapan">Pandapan</option>
+                            <option value="San Agustin">San Agustin</option>
+                            <option value="San Isidro">San Isidro</option>
+                            <option value="San Miguel">San Miguel</option>
+                            <option value="Visayan Village">Visayan Village</option>
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <label for="scope-filter" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Scope</label>
+                        <select id="scope-filter"
+                                onchange="window.location.search = (function() { const params = new URLSearchParams(window.location.search); params.set('scope', this.value); return '?' + params.toString(); }).call(this)"
+                                class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-green-600 focus:ring-2 focus:ring-green-100">
+                            <option value="assigned" {% if scope == 'assigned' or not scope %}selected{% endif %}>Assigned (default)</option>
+                            <option value="combined" {% if scope == 'combined' %}selected{% endif %}>Combined</option>
+                            <option value="own" {% if scope == 'own' %}selected{% endif %}>Own (created by me)</option>
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <label for="project-type-filter" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Project Type</label>
+                        <select id="project-type-filter"
+                                onchange="window.applyServerFilters()"
+                                class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-green-600 focus:ring-2 focus:ring-green-100">
+                            <option value="">All Project Types</option>
+                            {% for pt in project_type_options %}
+                                <option value="{{ pt.id }}" {% if selected_project_type|default:'' == pt.id|stringformat:'s' %}selected{% endif %}>{{ pt.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-1">
+                        <label for="cost-min-filter" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Min</label>
+                        <input id="cost-min-filter" type="number" step="0.01" min="0"
+                               placeholder="0"
+                               value="{{ cost_min|default:'' }}"
+                               onchange="window.applyServerFilters()"
+                               class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-green-600 focus:ring-2 focus:ring-green-100">
+                    </div>
+                    <div class="lg:col-span-1">
+                        <label for="cost-max-filter" class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Max</label>
+                        <input id="cost-max-filter" type="number" step="0.01" min="0"
+                               placeholder="0"
+                               value="{{ cost_max|default:'' }}"
+                               onchange="window.applyServerFilters()"
+                               class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-green-600 focus:ring-2 focus:ring-green-100">
+                    </div>
+
+                    <div class="lg:col-span-1">
+                        <button type="button"
+                                onclick="window.clearServerFilters()"
+                                class="h-10 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 px-5 py-3">
+                <span class="mr-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Status</span>
+                <button type="button" id="filter-all" onclick="window.setStatusFilter('')" class="filter-btn active rounded-md px-3 py-1.5 text-sm font-semibold" aria-pressed="true">
+                    All <span class="ml-1 opacity-80">{{ status_summary.total|default:"0" }}</span>
                 </button>
-                <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" style="cursor: pointer;">
-                    Planned ({{ planned_pending_count|default:0 }})
+                <button type="button" id="filter-planned" onclick="window.setStatusFilter('planned')" class="filter-btn rounded-md px-3 py-1.5 text-sm font-semibold" aria-pressed="false">
+                    Planned <span class="ml-1 opacity-80">{{ status_summary.planned|default:"0" }}</span>
                 </button>
-                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100" style="cursor: pointer;">
-                    In Progress
+                <button type="button" id="filter-in-progress" onclick="window.setStatusFilter('in_progress')" class="filter-btn rounded-md px-3 py-1.5 text-sm font-semibold" aria-pressed="false">
+                    In Progress <span class="ml-1 opacity-80">{{ status_summary.in_progress|default:"0" }}</span>
                 </button>
-                <button type="button" id="filter-completed" onclick="window.setStatusFilter('completed')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100" style="cursor: pointer;">
-                    Completed
+                <button type="button" id="filter-completed" onclick="window.setStatusFilter('completed')" class="filter-btn rounded-md px-3 py-1.5 text-sm font-semibold" aria-pressed="false">
+                    Completed <span class="ml-1 opacity-80">{{ status_summary.completed|default:"0" }}</span>
                 </button>
-                <button type="button" id="filter-delayed" onclick="window.setStatusFilter('delayed')" class="filter-btn px-3 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100" style="cursor: pointer;">
-                    Delayed
+                <button type="button" id="filter-delayed" onclick="window.setStatusFilter('delayed')" class="filter-btn rounded-md px-3 py-1.5 text-sm font-semibold" aria-pressed="false">
+                    Delayed <span class="ml-1 opacity-80">{{ status_summary.delayed|default:"0" }}</span>
                 </button>
             </div>
         </div>
-    </div>
-    
-    <!-- Projects List -->
-    <div class="space-y-3" id="projects-list">
-        {% for project in projects %}
-            <div class="project-card bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between px-6 py-5 gap-4" 
-                 data-project-id="{{ project.id }}"
-                 data-status="{{ project.calculated_status|default:project.status }}"
-                 data-barangay="{{ project.barangay|default:'' }}">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-2 flex-wrap">
-                        <div class="text-lg font-semibold text-gray-900">{{ project.name }}</div>
-                        {% with calculated_status=project.calculated_status|default:project.status %}
-                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full 
-                            {% if calculated_status == 'completed' %}bg-green-100 text-green-800 border border-green-200
-                            {% elif calculated_status == 'in_progress' %}bg-blue-100 text-blue-800 border border-blue-200
-                            {% elif calculated_status == 'planned' %}bg-amber-100 text-amber-800 border border-amber-200
-                            {% elif calculated_status == 'delayed' %}bg-red-100 text-red-800 border border-red-200
-                            {% elif calculated_status == 'cancelled' %}bg-gray-200 text-gray-700 border border-gray-300
-                            {% else %}bg-gray-100 text-gray-800 border border-gray-200{% endif %}">
-                            {% if calculated_status == 'delayed' %}Delayed{% else %}{{ project.get_status_display }}{% endif %}
-                        </span>
-                        {% endwith %}
-                    </div>
-                    <div class="text-sm text-gray-500 mb-1">
-                        <span class="font-medium">Last Update:</span> 
-                        {% if project.calculated_last_update %}
-                            {{ project.calculated_last_update|date:"M. d, Y" }} at {{ project.calculated_last_update|time:"g:i A" }}
-                        {% else %}
-                            Never
-                        {% endif %}
-                    </div>
-                    <div class="text-sm text-gray-600 mt-1 mb-2">{{ project.description|default:"No description" }}</div>
-                    
-                    <!-- Progress Bar (Only for In Progress projects) -->
-                    {% if project.status == 'in_progress' and project.progress is not None %}
-                    <div class="mb-3">
-                        <div class="flex items-center justify-between text-xs text-gray-600 mb-1.5">
-                            <span class="font-medium">Progress</span>
-                            <span class="font-semibold text-gray-900">{{ project.progress }}%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" style="width: {{ project.progress }}%"></div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                        {% if project.barangay %}
-                        <div class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            <span>{{ project.barangay }}</span>
-                        </div>
-                        {% endif %}
-                        <div class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                            <span>{{ project.start_date|date:"M. d, Y"|default:"N/A" }} - {{ project.end_date|date:"M. d, Y"|default:"N/A" }}</span>
-                        </div>
-                    </div>
+
+        <div class="overflow-hidden rounded-lg border border-green-100 bg-white shadow-sm" id="projects-list">
+            <div class="flex items-center justify-between border-b border-green-100 px-5 py-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-950">Project Register</h2>
+                    <p class="text-sm text-gray-500">{{ projects_with_activity|default:"0" }} project{{ projects_with_activity|default:"0"|pluralize }} with recorded activity</p>
                 </div>
-                <a href="{% url 'projeng:projeng_project_detail' project.pk %}" 
-                   class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition-colors duration-200 inline-flex items-center justify-center gap-2 whitespace-nowrap">
-                    <span>View Details</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-green-100">
+                    <thead class="bg-green-800 text-white">
+                        <tr>
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Project</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Location</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Type</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Status</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Progress</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Schedule</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide">Last Update</th>
+                            <th class="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        {% for project in projects %}
+                        <tr class="project-card hover:bg-green-50/60"
+                            data-project-id="{{ project.id }}"
+                            data-status="{{ project.calculated_status|default:project.status }}"
+                            data-barangay="{{ project.barangay|default:'' }}"
+                            data-search="{{ project.name|default:'' }} {{ project.prn|default:'' }} {{ project.description|default:'' }} {{ project.barangay|default:'' }}">
+                            <td class="px-5 py-4 align-top">
+                                <div class="text-sm font-bold text-gray-950">{{ project.name }}</div>
+                                <div class="mt-1 text-xs font-mono uppercase tracking-wide text-gray-500">{{ project.prn|default:"No PRN" }}</div>
+                                <div class="mt-1 max-w-md truncate text-sm text-gray-600">{{ project.description|default:"No description" }}</div>
+                            </td>
+                            <td class="px-4 py-4 align-top text-sm text-gray-700">
+                                {{ project.barangay|default:"Unassigned" }}
+                            </td>
+                            <td class="px-4 py-4 align-top text-sm text-gray-700">
+                                {{ project.project_type.name|default:"Not specified" }}
+                            </td>
+                            <td class="px-4 py-4 align-top">
+                                {% with calculated_status=project.calculated_status|default:project.status %}
+                                <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold
+                                    {% if calculated_status == 'completed' %}bg-green-100 text-green-800
+                                    {% elif calculated_status == 'in_progress' %}bg-blue-100 text-blue-800
+                                    {% elif calculated_status == 'planned' %}bg-yellow-100 text-yellow-800
+                                    {% elif calculated_status == 'delayed' %}bg-red-100 text-red-700
+                                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                    {{ project.display_status_label|default:project.get_status_display }}
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td class="px-4 py-4 align-top">
+                                <div class="flex min-w-[150px] items-center gap-3">
+                                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+                                        <div class="h-full rounded-full bg-green-600" style="width: {{ project.display_progress }}%"></div>
+                                    </div>
+                                    <span class="w-10 text-right text-xs font-semibold text-gray-800">{{ project.display_progress }}%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 align-top text-sm text-gray-700">
+                                <div>{{ project.start_date|date:"M. d, Y"|default:"No start" }}</div>
+                                <div class="text-xs text-gray-500">{{ project.end_date|date:"M. d, Y"|default:"No end" }}</div>
+                                <div class="mt-1 text-xs font-semibold {% if project.calculated_status == 'delayed' %}text-red-600{% else %}text-green-700{% endif %}">{{ project.schedule_label }}</div>
+                            </td>
+                            <td class="px-4 py-4 align-top text-sm text-gray-700">
+                                {% if project.calculated_last_update %}
+                                    {{ project.calculated_last_update|date:"M. d, Y" }}<br>
+                                    <span class="text-xs text-gray-500">{{ project.calculated_last_update|time:"g:i A" }}</span>
+                                {% else %}
+                                    <span class="text-gray-400">No activity</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-5 py-4 align-top text-right">
+                                <a href="{% url 'projeng:projeng_project_detail' project.pk %}"
+                                   class="inline-flex items-center justify-center gap-2 rounded-md bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-800">
+                                    View Details
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="empty-state-container">
+                            <td colspan="8" class="px-5 py-12 text-center">
+                                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-700">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                </div>
+                                <p id="no-projects-message" class="mt-3 text-sm font-semibold text-gray-700">No projects found.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="hidden border-t border-green-100 px-5 py-10 text-center" id="empty-state-filtered">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-700">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                </a>
+                </div>
+                <p id="no-projects-message-filtered" class="mt-3 text-sm font-semibold text-gray-700">No projects match your filters.</p>
             </div>
-        {% empty %}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center" id="empty-state-container">
-                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <p id="no-projects-message" class="text-gray-500 text-lg">No projects found.</p>
-            </div>
-        {% endfor %}
-        
-        <!-- Empty state for filtered results (hidden by default) -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center hidden" id="empty-state-filtered">
-            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            <p id="no-projects-message-filtered" class="text-gray-500 text-lg">No projects match your filters.</p>
         </div>
     </div>
 </div>
 {% endblock %}
-
-<script>
-// Filter state - use window object to make accessible from inline handlers
-window.currentStatusFilter = window.currentStatusFilter || '';
-window.currentBarangayFilter = window.currentBarangayFilter || '';
-window.searchTerm = window.searchTerm || '';
-
-// Local variables for internal use
-let currentStatusFilter = window.currentStatusFilter;
-let currentBarangayFilter = window.currentBarangayFilter;
-let searchTerm = window.searchTerm;
-
-// Filter elements (will be initialized in DOMContentLoaded)
-let searchInput, barangayFilter, filterAll, filterInProgress, filterPlanned, filterCompleted, filterDelayed;
-
-// Update global functions to use window variables
-if (typeof window.setStatusFilter === 'undefined') {
-    window.setStatusFilter = function(status) {
-        console.log('setStatusFilter called with:', status);
-        window.currentStatusFilter = status;
-        currentStatusFilter = status;
-        if (typeof updateActiveFilter === 'function') {
-            updateActiveFilter(status);
-        }
-        if (typeof filterProjects === 'function') {
-            filterProjects();
-        } else {
-            console.warn('filterProjects not yet defined, will retry...');
-            setTimeout(function() {
-                if (typeof filterProjects === 'function') {
-                    filterProjects();
-                }
-            }, 100);
-        }
-    };
-}
-
-if (typeof window.setBarangayFilter === 'undefined') {
-    window.setBarangayFilter = function(barangay) {
-        console.log('setBarangayFilter called with:', barangay);
-        window.currentBarangayFilter = barangay;
-        currentBarangayFilter = barangay;
-        if (typeof filterProjects === 'function') {
-            filterProjects();
-        } else {
-            console.warn('filterProjects not yet defined, will retry...');
-            setTimeout(function() {
-                if (typeof filterProjects === 'function') {
-                    filterProjects();
-                }
-            }, 100);
-        }
-    };
-}
-
-// Function to get status filter buttons object
-function getStatusFilters() {
-    return {
-        '': filterAll,
-        'in_progress': filterInProgress,
-        'planned': filterPlanned,
-        'completed': filterCompleted,
-        'delayed': filterDelayed
-    };
-}
-
-// Use the window.updateActiveFilter function (already defined in extra_js block)
-// Just create a local reference for convenience
-const updateActiveFilter = window.updateActiveFilter;
-
-// Use the window.filterProjects function (already defined in extra_js block)
-// Just create a local reference for convenience
-const filterProjects = window.filterProjects;
-
-// Setup event listeners
-function setupEventListeners() {
-    // Get all filter elements
-    searchInput = document.getElementById('search-projects');
-    barangayFilter = document.getElementById('barangay-filter');
-    filterAll = document.getElementById('filter-all');
-    filterInProgress = document.getElementById('filter-in-progress');
-    filterPlanned = document.getElementById('filter-planned');
-    filterCompleted = document.getElementById('filter-completed');
-    filterDelayed = document.getElementById('filter-delayed');
-    
-    // Check if all elements exist
-    if (!searchInput || !barangayFilter || !filterAll || !filterInProgress || !filterPlanned || !filterCompleted || !filterDelayed) {
-        console.error('Filter elements not found!', {
-            searchInput: !!searchInput,
-            barangayFilter: !!barangayFilter,
-            filterAll: !!filterAll,
-            filterInProgress: !!filterInProgress,
-            filterPlanned: !!filterPlanned,
-            filterCompleted: !!filterCompleted,
-            filterDelayed: !!filterDelayed
-        });
-        return;
-    }
-    
-    console.log('Setting up filter event listeners...');
-    
-    // Search filter
-    searchInput.addEventListener('input', function() {
-        searchTerm = this.value.toLowerCase();
-        window.searchTerm = searchTerm;
-        console.log('Search term changed:', searchTerm);
-        filterProjects();
-    });
-    
-    // Barangay filter
-    barangayFilter.addEventListener('change', function() {
-        currentBarangayFilter = this.value;
-        window.currentBarangayFilter = currentBarangayFilter;
-        console.log('Barangay filter changed:', currentBarangayFilter);
-        filterProjects();
-    });
-    
-    // Status filter buttons - use both click and mousedown for better reliability
-    filterAll.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        currentStatusFilter = '';
-        window.currentStatusFilter = '';
-        console.log('Status filter: All');
-        updateActiveFilter('');
-        filterProjects();
-        return false;
-    });
-    
-    filterInProgress.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        currentStatusFilter = 'in_progress';
-        window.currentStatusFilter = 'in_progress';
-        console.log('Status filter: In Progress');
-        updateActiveFilter('in_progress');
-        filterProjects();
-        return false;
-    });
-    
-    filterPlanned.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        currentStatusFilter = 'planned';
-        window.currentStatusFilter = 'planned';
-        console.log('Status filter: Planned');
-        updateActiveFilter('planned');
-        filterProjects();
-        return false;
-    });
-    
-    filterCompleted.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        currentStatusFilter = 'completed';
-        window.currentStatusFilter = 'completed';
-        console.log('Status filter: Completed');
-        updateActiveFilter('completed');
-        filterProjects();
-        return false;
-    });
-    
-    filterDelayed.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        currentStatusFilter = 'delayed';
-        window.currentStatusFilter = 'delayed';
-        console.log('Status filter: Delayed');
-        updateActiveFilter('delayed');
-        filterProjects();
-        return false;
-    });
-    
-    // Also add pointer-events style to ensure buttons are clickable
-    [filterAll, filterInProgress, filterPlanned, filterCompleted, filterDelayed].forEach(btn => {
-        if (btn) {
-            btn.style.cursor = 'pointer';
-            btn.style.pointerEvents = 'auto';
-        }
-    });
-    
-    console.log('Filter event listeners set up successfully');
-}
-
-function setupRealtimeProjectList() {
-    console.log('Setting up real-time project list updates...');
-    
-    // Connect to project status SSE stream
-    if (window.realtimeManager) {
-        window.realtimeManager.connectProjects((data) => {
-            console.log('Received project update:', data);
-            
-            if (data.type === 'project_status' && data.projects) {
-                // Handle multiple project updates
-                data.projects.forEach(projectData => {
-                    addOrUpdateProjectInList(projectData);
-                });
-            } else if (data.type === 'project_status' && data.project_id) {
-                // Handle single project update
-                addOrUpdateProjectInList(data);
-            }
-        }, null); // null = monitor all projects
-    } else {
-        console.error('RealtimeManager not available!');
-    }
-}
-
-// Add or update a project in the list
-function addOrUpdateProjectInList(projectData) {
-    const projectsList = document.getElementById('projects-list');
-    if (!projectsList) return;
-    
-    const existingCard = document.querySelector(`[data-project-id="${projectData.id}"]`);
-    
-    if (existingCard) {
-        // Update existing project
-        updateProjectCard(existingCard, projectData);
-        // Highlight the updated project
-        existingCard.classList.add('bg-yellow-50');
-        setTimeout(() => {
-            existingCard.classList.remove('bg-yellow-50');
-        }, 2000);
-    } else {
-        // Add new project
-        addProjectToList(projectData);
-    }
-}
-
-// Helper function to get status badge HTML
-function getStatusBadgeHTML(status, statusDisplay) {
-    const statusLower = (status || '').toLowerCase();
-    let badgeClass = 'bg-gray-100 text-gray-800 border border-gray-200';
-    
-    if (statusLower === 'completed') {
-        badgeClass = 'bg-green-100 text-green-800 border border-green-200';
-    } else if (statusLower === 'in_progress') {
-        badgeClass = 'bg-blue-100 text-blue-800 border border-blue-200';
-    } else if (statusLower === 'planned') {
-        badgeClass = 'bg-amber-100 text-amber-800 border border-amber-200';
-    } else if (statusLower === 'delayed') {
-        badgeClass = 'bg-red-100 text-red-800 border border-red-200';
-    } else if (statusLower === 'cancelled') {
-        badgeClass = 'bg-gray-200 text-gray-700 border border-gray-300';
-    }
-    
-    const displayText = statusDisplay || status || 'Unknown';
-    return `<span class="inline-block px-3 py-1 text-xs font-semibold rounded-full ${badgeClass}">${escapeHtml(displayText)}</span>`;
-}
-
-// Update existing project card
-function updateProjectCard(card, projectData) {
-    // Find name container (new structure with badge)
-    const nameContainer = card.querySelector('.flex.items-center.gap-3');
-    
-    if (nameContainer) {
-        // New structure: update name and badge
-        const nameEl = nameContainer.querySelector('.text-lg');
-        const badgeEl = nameContainer.querySelector('span.inline-block.rounded-full');
-        
-        if (nameEl) nameEl.textContent = projectData.name || 'Unnamed Project';
-        
-        // Update status badge - use calculated_status if available
-        const statusForBadge = projectData.calculated_status || projectData.status;
-        const statusDisplay = statusForBadge === 'delayed' ? 'Delayed' : (projectData.status_display || projectData.get_status_display || statusForBadge);
-        const badgeHTML = getStatusBadgeHTML(statusForBadge, statusDisplay);
-        
-        if (badgeEl) {
-            badgeEl.outerHTML = badgeHTML;
-        } else {
-            // If badge doesn't exist, create it
-            nameContainer.insertAdjacentHTML('beforeend', badgeHTML);
-        }
-    } else {
-        // Fallback: old structure - update name directly
-        const nameEl = card.querySelector('.text-lg');
-        if (nameEl) nameEl.textContent = projectData.name || 'Unnamed Project';
-    }
-    
-    // Update data attributes - use calculated_status if available, otherwise use status
-    const statusToUse = projectData.calculated_status || projectData.status;
-    if (statusToUse) {
-        card.setAttribute('data-status', statusToUse);
-    }
-    if (projectData.barangay) {
-        card.setAttribute('data-barangay', projectData.barangay);
-    }
-    
-    // Update last update text
-    const statusContainers = card.querySelectorAll('.text-sm.text-gray-500');
-    let statusContainer = null;
-    
-    // Find the container that starts with "Last Update:"
-    statusContainers.forEach(container => {
-        if (container.textContent.includes('Last Update:')) {
-            statusContainer = container;
-        }
-    });
-    
-    if (statusContainer) {
-        const lastUpdate = projectData.calculated_last_update || projectData.updated_at;
-        let lastUpdateText = 'Never';
-        if (lastUpdate) {
-            const updateDate = new Date(lastUpdate);
-            lastUpdateText = updateDate.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
-            }) + ' at ' + updateDate.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit',
-                hour12: true 
-            });
-        }
-        statusContainer.innerHTML = `<span class="font-medium">Last Update:</span> ${lastUpdateText}`;
-    }
-    
-    // Update progress bar for in-progress projects - use calculated_status if available
-    const statusForProgress = projectData.calculated_status || projectData.status;
-    const isInProgress = (statusForProgress || '').toLowerCase() === 'in_progress';
-    const progressValue = projectData.progress !== null && projectData.progress !== undefined ? parseInt(projectData.progress, 10) : null;
-    const showProgressBar = isInProgress && progressValue !== null && !isNaN(progressValue);
-    
-    // Find existing progress bar or location to insert it
-    const descriptionEl = card.querySelector('.text-sm.text-gray-600');
-    const locationInfoEl = card.querySelector('.flex.items-center.gap-4.text-xs.text-gray-500');
-    
-    if (descriptionEl && locationInfoEl) {
-        // Check if progress bar already exists
-        let existingProgressBar = card.querySelector('.mb-3 .bg-gray-200.rounded-full');
-        
-        if (showProgressBar) {
-            const progressBarHTML = `
-                <div class="mb-3">
-                    <div class="flex items-center justify-between text-xs text-gray-600 mb-1.5">
-                        <span class="font-medium">Progress</span>
-                        <span class="font-semibold text-gray-900">${progressValue}%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${progressValue}%"></div>
-                    </div>
-                </div>
-            `;
-            
-            if (existingProgressBar) {
-                // Update existing progress bar
-                existingProgressBar.closest('.mb-3').outerHTML = progressBarHTML.trim();
-            } else {
-                // Insert new progress bar before location info
-                locationInfoEl.insertAdjacentHTML('beforebegin', progressBarHTML);
-            }
-        } else {
-            // Remove progress bar if project is no longer in progress
-            if (existingProgressBar) {
-                existingProgressBar.closest('.mb-3').remove();
-            }
-        }
-    }
-    
-    // Re-apply filters after update
-    filterProjects();
-}
-
-// Add new project to the list
-function addProjectToList(projectData) {
-    console.log('Adding new project to list:', projectData);
-    const projectsList = document.getElementById('projects-list');
-    if (!projectsList) return;
-    
-    // Hide "no projects" message
-    const noProjectsMsg = document.getElementById('no-projects-message');
-    if (noProjectsMsg) {
-        noProjectsMsg.parentElement.style.display = 'none';
-    }
-    
-    // Create new project card
-    const projectCard = document.createElement('div');
-    projectCard.className = 'project-card bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between px-6 py-5 gap-4 animate-fade-in';
-    projectCard.setAttribute('data-project-id', projectData.id);
-    const statusToUse = projectData.calculated_status || projectData.status || '';
-    projectCard.setAttribute('data-status', statusToUse);
-    projectCard.setAttribute('data-barangay', projectData.barangay || '');
-    projectCard.style.opacity = '0';
-    projectCard.style.transform = 'translateY(-10px)';
-    
-    const lastUpdate = projectData.calculated_last_update || projectData.updated_at;
-    let lastUpdateText = 'Never';
-    if (lastUpdate) {
-        const updateDate = new Date(lastUpdate);
-        lastUpdateText = updateDate.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-        }) + ' at ' + updateDate.toLocaleTimeString('en-US', { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
-        });
-    }
-    const startDate = projectData.start_date ? new Date(projectData.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
-    const endDate = projectData.end_date ? new Date(projectData.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
-    
-    // Get status badge HTML - use calculated_status if available
-    const statusForBadge = projectData.calculated_status || projectData.status;
-    const statusDisplay = statusForBadge === 'delayed' ? 'Delayed' : (projectData.status_display || projectData.get_status_display || statusForBadge);
-    const statusBadge = getStatusBadgeHTML(statusForBadge, statusDisplay);
-    
-    // Check if project is in progress and has progress value
-    const isInProgress = (statusForBadge || '').toLowerCase() === 'in_progress';
-    const progressValue = projectData.progress !== null && projectData.progress !== undefined ? parseInt(projectData.progress, 10) : null;
-    const showProgressBar = isInProgress && progressValue !== null && !isNaN(progressValue);
-    
-    const progressBarHTML = showProgressBar ? `
-        <div class="mb-3">
-            <div class="flex items-center justify-between text-xs text-gray-600 mb-1.5">
-                <span class="font-medium">Progress</span>
-                <span class="font-semibold text-gray-900">${progressValue}%</span>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${progressValue}%"></div>
-            </div>
-        </div>
-    ` : '';
-    
-    projectCard.innerHTML = `
-        <div class="flex-1">
-            <div class="flex items-center gap-3 mb-2 flex-wrap">
-                <div class="text-lg font-semibold text-gray-900">${escapeHtml(projectData.name || 'Unnamed Project')}</div>
-                ${statusBadge}
-            </div>
-            <div class="text-sm text-gray-500 mb-1">
-                <span class="font-medium">Last Update:</span> ${lastUpdateText}
-            </div>
-            <div class="text-sm text-gray-600 mt-1 mb-2">${escapeHtml(projectData.description || 'No description')}</div>
-            ${progressBarHTML}
-            <div class="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                ${projectData.barangay ? `
-                <div class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    <span>${escapeHtml(projectData.barangay)}</span>
-                </div>
-                ` : ''}
-                <div class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span>${startDate} - ${endDate}</span>
-                </div>
-            </div>
-        </div>
-        <a href="/projeng/projects/${projectData.id}/detail/" 
-           class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition-colors duration-200 inline-flex items-center justify-center gap-2 whitespace-nowrap">
-            <span>View Details</span>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-        </a>
-    `;
-    
-    // Add to top of list
-    projectsList.insertBefore(projectCard, projectsList.firstChild);
-    
-    // Animate in
-    setTimeout(() => {
-        projectCard.style.transition = 'all 0.3s ease';
-        projectCard.style.opacity = '1';
-        projectCard.style.transform = 'translateY(0)';
-        projectCard.classList.add('bg-green-50');
-        setTimeout(() => {
-            projectCard.classList.remove('bg-green-50');
-        }, 2000);
-    }, 10);
-    
-    // Re-apply filters
-    filterProjects();
-}
-
-// Helper function to escape HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Initialize on page load - try multiple methods to ensure it runs
-(function() {
-    function initFilters() {
-        console.log('Initializing filters...');
-        
-        // Setup event listeners first
-        setupEventListeners();
-        
-        // Set initial active filter state (All is selected by default)
-        if (typeof window.updateActiveFilter === 'function') {
-            window.updateActiveFilter(window.currentStatusFilter || '');
-        }
-        
-        // Initialize filters - ensure all projects are visible initially
-        filterProjects();
-        
-        // Test that filters are working
-        console.log('Filter initialization complete. Testing...');
-        console.log('Available filter buttons:', {
-            all: !!filterAll,
-            inProgress: !!filterInProgress,
-            planned: !!filterPlanned,
-            completed: !!filterCompleted,
-            delayed: !!filterDelayed
-        });
-    }
-    
-    // Try multiple ways to ensure initialization
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initFilters, 100);
-        });
-    } else {
-        // DOM already loaded
-        setTimeout(initFilters, 100);
-    }
-    
-    // Also try on window load as backup
-    window.addEventListener('load', function() {
-        if (!filterAll || !filterInProgress) {
-            console.log('Retrying filter setup on window load...');
-            setTimeout(initFilters, 200);
-        }
-    });
-    
-    // Wait a bit for realtimeManager to be initialized
-    setTimeout(() => {
-        setupRealtimeProjectList();
-        
-        // Also setup notifications to show toast
-        if (typeof setupRealtimeNotifications === 'function') {
-            setupRealtimeNotifications();
-        }
-    }, 500);
-})();
-</script>
-
-<style>
-@keyframes fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-.animate-fade-in {
-    animation: fade-in 0.3s ease;
-}
-</style>

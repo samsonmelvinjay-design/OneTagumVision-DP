@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 from monitoring.views.finance_manager import (
     finance_dashboard,
@@ -12,6 +13,7 @@ from monitoring.views.finance_manager import (
     finance_notifications,
     finance_project_detail,
     finance_reports,
+    finance_report_preview,
     finance_project_export_csv,
     finance_project_export_excel,
 )
@@ -22,7 +24,7 @@ urlpatterns = [
     path('head-engineer-preview/', views.head_engineer_dashboard_preview, name='head_engineer_dashboard_preview'),
     path('home/', views.home, name='home'),  # Moved home to /dashboard/home/
     path('projects/', views.project_list, name='project_list'),
-    path('map/', views.map_view, name='map_view'),
+    path('map/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='map_view'),
     path('reports/', views.reports, name='reports'),
     path('reports/export/csv/', views.export_reports_csv, name='export_reports_csv'),
     path('reports/export/excel/', views.export_reports_excel, name='export_reports_excel'),
@@ -74,6 +76,7 @@ urlpatterns = [
     path('finance/receipts/mobile-upload/event/', finance_mobile_receipt_event_api, name='finance_mobile_receipt_event_api'),
     path('finance/receipts/mobile-upload/status/', finance_receipt_upload_status_api, name='finance_receipt_upload_status_api'),
     path('finance/reports/', finance_reports, name='finance_reports'),
+    path('finance/reports/preview/', finance_report_preview, name='finance_report_preview'),
     path('finance/notifications/', finance_notifications, name='finance_notifications'),
     path('finance/project/<int:project_id>/', finance_project_detail, name='finance_project_detail'),
     path('finance/project/<int:project_id>/export/csv/', finance_project_export_csv, name='finance_project_export_csv'),

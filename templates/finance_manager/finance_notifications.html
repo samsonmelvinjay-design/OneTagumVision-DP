@@ -1,5 +1,178 @@
 {% extends 'base.html' %}
 {% block content %}
+<style>
+  .finance-notifications-page {
+    min-height: 100vh;
+    padding: 28px clamp(18px, 3vw, 42px);
+    background:
+      linear-gradient(135deg, rgba(22, 101, 52, 0.08), rgba(250, 204, 21, 0.08) 42%, rgba(14, 165, 233, 0.06)),
+      #f7faf8;
+  }
+  .notifications-shell {
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+  .notifications-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(22, 101, 52, 0.16);
+    border-radius: 22px;
+    padding: 24px;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(236, 253, 245, 0.95)),
+      radial-gradient(circle at 92% 18%, rgba(250, 204, 21, 0.28), transparent 28%);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.07);
+  }
+  .notifications-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .notifications-eyebrow::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #facc15;
+    box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.18);
+  }
+  .notifications-title {
+    margin-top: 8px;
+    color: #062318;
+    font-size: clamp(28px, 3vw, 38px);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+  .notifications-subtitle {
+    margin-top: 9px;
+    color: #475569;
+    font-size: 14px;
+  }
+  .notifications-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .unread-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(220, 38, 38, 0.18);
+    background: #fff1f2;
+    color: #b91c1c;
+    font-size: 14px;
+    font-weight: 900;
+  }
+  .unread-pill-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #ef4444;
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.14);
+  }
+  .action-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 12px;
+    color: #ffffff !important;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .action-button:hover {
+    transform: translateY(-1px);
+  }
+  .mark-all-button {
+    background: linear-gradient(135deg, #166534, #16a34a) !important;
+    box-shadow: 0 12px 22px rgba(22, 101, 52, 0.22);
+  }
+  .delete-all-button {
+    background: linear-gradient(135deg, #b91c1c, #ef4444) !important;
+    box-shadow: 0 12px 22px rgba(185, 28, 28, 0.2);
+  }
+  .notifications-panel {
+    margin-top: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(22, 101, 52, 0.14);
+    border-top: 5px solid #16a34a;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+  }
+  .notification-item {
+    border-left-width: 5px !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    background: #ffffff;
+  }
+  .notification-item:hover {
+    background: #f8fbf8 !important;
+  }
+  .notification-item.bg-blue-50 {
+    background: linear-gradient(90deg, rgba(220, 252, 231, 0.88), rgba(239, 246, 255, 0.75)) !important;
+    border-left-color: #16a34a !important;
+  }
+  .notification-item p {
+    color: #0f2419;
+  }
+  .notification-item .rounded-full {
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+  }
+  .mark-read-btn,
+  .delete-notification-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+  }
+  .mark-read-btn {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+  }
+  .delete-notification-btn {
+    background: #fef2f2 !important;
+    color: #b91c1c !important;
+  }
+  .empty-notifications-card {
+    margin-top: 22px;
+    border: 1px solid rgba(22, 101, 52, 0.14);
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+  }
+  #confirmModal .bg-white {
+    border-radius: 18px !important;
+  }
+  @media (max-width: 760px) {
+    .notifications-hero {
+      padding: 20px;
+    }
+    .notifications-actions {
+      width: 100%;
+    }
+    .action-button,
+    .unread-pill {
+      flex: 1 1 auto;
+    }
+  }
+</style>
+
 <!-- Custom Confirmation Modal -->
 <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
@@ -29,29 +202,32 @@
     </div>
 </div>
 
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-    <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Notifications</h1>
-        <p class="text-sm text-gray-600 mt-1">Stay updated with budget alerts and project updates</p>
-    </div>
-    <div class="flex items-center gap-2 flex-wrap">
-        {% if unread_count > 0 %}
-        <span class="inline-flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm font-semibold" id="unreadCount">
-            <span class="h-2 w-2 bg-red-600 rounded-full"></span>
-            {{ unread_count }} unread
-        </span>
-        {% endif %}
-        <button id="markAllReadBtn" class="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold transition">
-            Mark all read
-        </button>
-        <button id="deleteAllBtn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition">
-            Delete all
-        </button>
-    </div>
-</div>
+<div class="finance-notifications-page">
+    <div class="notifications-shell">
+        <div class="notifications-hero flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+                <div class="notifications-eyebrow">Budget Monitoring</div>
+                <h1 class="notifications-title">Notifications</h1>
+                <p class="notifications-subtitle">Stay updated with budget alerts, project actions, and review requests.</p>
+            </div>
+            <div class="notifications-actions">
+                {% if unread_count > 0 %}
+                <span class="unread-pill" id="unreadCount">
+                    <span class="unread-pill-dot"></span>
+                    {{ unread_count }} unread
+                </span>
+                {% endif %}
+                <button id="markAllReadBtn" class="action-button mark-all-button">
+                    Mark all read
+                </button>
+                <button id="deleteAllBtn" class="action-button delete-all-button">
+                    Delete all
+                </button>
+            </div>
+        </div>
 
     {% if notifications %}
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="notifications-panel">
             <div class="divide-y divide-gray-100">
                 {% for item in notifications_with_projects %}
                 {% with notification=item.notification project_id=item.project_id is_clickable=item.is_clickable %}
@@ -127,7 +303,7 @@
             </div>
         </div>
     {% else %}
-        <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <div class="empty-notifications-card p-12 text-center">
             <div class="text-gray-400 mb-6">
                 <svg class="mx-auto h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -137,6 +313,8 @@
             <p class="text-gray-500 text-lg">No new notifications at the moment.</p>
         </div>
     {% endif %}
+    </div>
+</div>
 
 <script>
 // Function to redirect to project detail page - Define globally before DOMContentLoaded

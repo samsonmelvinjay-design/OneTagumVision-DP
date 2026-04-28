@@ -1,59 +1,79 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-    <p class="text-sm text-gray-600 mt-1">Comprehensive view of all engineering projects and budgets</p>
+<div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Budget Monitoring Dashboard</h1>
+        <p class="text-sm text-gray-600 mt-1">Track allocation, spending, remaining funds, and budget risks.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <a href="{% url 'finance_cost_management' %}" class="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800 transition">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Cost
+        </a>
+        <a href="{% url 'finance_reports' %}" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+            Reports
+        </a>
+    </div>
 </div>
 
-<!-- Metric Cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
-        <div class="flex items-start justify-between">
-            <div>
-                <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Active Projects</p>
-                <p class="text-2xl font-extrabold text-gray-900 mt-2">{{ active_projects_count|default:0 }}</p>
-            </div>
-            <div class="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10" />
-                </svg>
-            </div>
-        </div>
-    </div>
-    <div class="bg-green-50 border border-green-200 rounded-xl p-5">
-        <div class="flex items-start justify-between">
+<!-- Essential Budget Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white border border-green-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
             <div>
                 <p class="text-xs font-semibold text-green-700 uppercase tracking-wide">Total Budget</p>
-                <p class="text-2xl font-extrabold text-gray-900 mt-2">₱{{ total_budget|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">&#8369;{{ total_budget|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-xs text-gray-500 mt-2">{{ total_projects_count|default:0 }} monitored projects</p>
             </div>
-            <div class="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center text-white">
+            <div class="h-11 w-11 rounded-xl bg-green-700 flex items-center justify-center text-white">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1" />
                 </svg>
             </div>
         </div>
     </div>
-    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
-        <div class="flex items-start justify-between">
+
+    <div class="bg-white border border-yellow-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
             <div>
                 <p class="text-xs font-semibold text-yellow-700 uppercase tracking-wide">Total Spent</p>
-                <p class="text-2xl font-extrabold text-gray-900 mt-2">₱{{ total_spent|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">&#8369;{{ total_spent|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-xs text-gray-500 mt-2">{{ utilization_percentage|floatformat:1 }}% of budget used</p>
             </div>
-            <div class="h-10 w-10 rounded-xl bg-yellow-500 flex items-center justify-center text-white">
+            <div class="h-11 w-11 rounded-xl bg-yellow-500 flex items-center justify-center text-white">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9" />
                 </svg>
             </div>
         </div>
     </div>
-    <div class="bg-red-50 border border-red-200 rounded-xl p-5">
-        <div class="flex items-start justify-between">
+
+    <div class="bg-white border {% if remaining < 0 %}border-red-200{% else %}border-blue-200{% endif %} rounded-xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
             <div>
-                <p class="text-xs font-semibold text-red-700 uppercase tracking-wide">Over Budget</p>
-                <p class="text-2xl font-extrabold text-gray-900 mt-2">{{ over_budget_count|default:0 }}</p>
+                <p class="text-xs font-semibold {% if remaining < 0 %}text-red-700{% else %}text-blue-700{% endif %} uppercase tracking-wide">Remaining Budget</p>
+                <p class="text-2xl font-extrabold {% if remaining < 0 %}text-red-700{% else %}text-gray-900{% endif %} mt-2">&#8369;{{ remaining|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-xs text-gray-500 mt-2">{{ available_budget_percentage|floatformat:1 }}% still available</p>
             </div>
-            <div class="h-10 w-10 rounded-xl bg-red-600 flex items-center justify-center text-white">
+            <div class="h-11 w-11 rounded-xl {% if remaining < 0 %}bg-red-600{% else %}bg-blue-600{% endif %} flex items-center justify-center text-white">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white border {% if at_risk_count %}border-red-200{% else %}border-gray-200{% endif %} rounded-xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold {% if at_risk_count %}text-red-700{% else %}text-gray-700{% endif %} uppercase tracking-wide">Budget Alerts</p>
+                <p class="text-2xl font-extrabold text-gray-900 mt-2">{{ at_risk_count|default:0 }}</p>
+                <p class="text-xs text-gray-500 mt-2">{{ over_budget_count|default:0 }} over budget, {{ near_limit_count|default:0 }} near limit</p>
+            </div>
+            <div class="h-11 w-11 rounded-xl {% if at_risk_count %}bg-red-600{% else %}bg-gray-700{% endif %} flex items-center justify-center text-white">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 18h13.86c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 15c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -62,76 +82,142 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Recent Activity -->
-    <div class="bg-white border border-gray-200 rounded-xl p-5">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-gray-900">Recent Activity</h2>
-            <div class="text-xs text-gray-500">Latest cost entries</div>
-        </div>
-        <div class="divide-y divide-gray-100">
-            {% for a in recent_activity %}
-            <div class="py-3 flex items-start gap-3">
-                <span class="mt-2 h-2.5 w-2.5 rounded-full bg-green-500 flex-shrink-0"></span>
-                <div class="min-w-0 flex-1">
-                    <div class="text-sm font-semibold text-gray-900 truncate">{{ a.project_name|default:"Project" }}</div>
-                    <div class="text-xs text-gray-500 truncate">
-                        {{ a.cost_type|default:"Cost" }} • ₱{{ a.amount|floatformat:0|intcomma }} • {{ a.date|date:"M j, Y"|default:"—" }}
-                    </div>
-                </div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <!-- Budget Utilization -->
+    <div class="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between gap-4 mb-5">
+            <div>
+                <h2 class="text-base font-bold text-gray-900">Budget Utilization</h2>
+                <p class="text-xs text-gray-500 mt-1">Total spending against approved project budgets</p>
             </div>
-            {% empty %}
-            <div class="py-8 text-sm text-gray-500 text-center">No recent activity yet.</div>
-            {% endfor %}
+            <span class="text-2xl font-extrabold {% if utilization_percentage >= 100 %}text-red-700{% elif utilization_percentage >= 85 %}text-yellow-700{% else %}text-green-700{% endif %}">
+                {{ utilization_percentage|floatformat:1 }}%
+            </span>
+        </div>
+        <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full {% if utilization_percentage >= 100 %}bg-red-600{% elif utilization_percentage >= 85 %}bg-yellow-500{% else %}bg-green-700{% endif %} rounded-full" style="width: {% if utilization_percentage > 100 %}100{% else %}{{ utilization_percentage|floatformat:2 }}{% endif %}%"></div>
+        </div>
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="rounded-lg bg-green-50 border border-green-100 p-3">
+                <p class="text-xs font-semibold text-green-800 uppercase tracking-wide">Allocated</p>
+                <p class="mt-1 text-lg font-bold text-gray-900">&#8369;{{ total_budget|floatformat:0|intcomma|default:"0" }}</p>
+            </div>
+            <div class="rounded-lg bg-yellow-50 border border-yellow-100 p-3">
+                <p class="text-xs font-semibold text-yellow-800 uppercase tracking-wide">Spent</p>
+                <p class="mt-1 text-lg font-bold text-gray-900">&#8369;{{ total_spent|floatformat:0|intcomma|default:"0" }}</p>
+            </div>
+            <div class="rounded-lg {% if remaining < 0 %}bg-red-50 border-red-100{% else %}bg-blue-50 border-blue-100{% endif %} border p-3">
+                <p class="text-xs font-semibold {% if remaining < 0 %}text-red-800{% else %}text-blue-800{% endif %} uppercase tracking-wide">Remaining</p>
+                <p class="mt-1 text-lg font-bold text-gray-900">&#8369;{{ remaining|floatformat:0|intcomma|default:"0" }}</p>
+            </div>
         </div>
     </div>
 
-    <!-- Budget Distribution by Barangay -->
-    <div class="bg-white border border-gray-200 rounded-xl p-5">
+    <!-- Projects Needing Attention -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-gray-900">Budget Distribution by Barangay</h2>
-            <div class="text-xs text-gray-500">By total spent</div>
+            <h2 class="text-base font-bold text-gray-900">Projects Needing Attention</h2>
+            <a href="{% url 'finance_cost_management' %}" class="text-xs font-semibold text-green-700 hover:text-green-800">View all</a>
         </div>
-        <div class="space-y-4">
-            {% for b in budget_by_barangay %}
-            <div>
-                <div class="flex items-center justify-between text-xs text-gray-600 mb-2">
-                    <span class="font-semibold text-gray-900">{{ b.barangay }}</span>
-                    <span class="text-gray-500">₱{{ b.spent|floatformat:0|intcomma }}</span>
+        <div class="space-y-3">
+            {% for p in budget_watchlist %}
+            <a href="{% url 'finance_project_detail' p.id %}" class="block rounded-lg border {% if p.is_over_budget %}border-red-200 bg-red-50{% else %}border-yellow-200 bg-yellow-50{% endif %} p-3 hover:shadow-sm transition">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-gray-900 truncate">{{ p.name }}</p>
+                        <p class="text-xs text-gray-500 truncate">{{ p.barangay|default:"No barangay" }}</p>
+                    </div>
+                    <span class="text-xs font-bold {% if p.is_over_budget %}text-red-700{% else %}text-yellow-700{% endif %}">{{ p.utilization|floatformat:1 }}%</span>
                 </div>
-                <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div class="h-2.5 bg-gray-900" style="width: {{ b.percent }}%"></div>
+                <div class="mt-2 h-2 bg-white rounded-full overflow-hidden">
+                    <div class="h-full {% if p.is_over_budget %}bg-red-600{% else %}bg-yellow-500{% endif %}" style="width: {% if p.utilization > 100 %}100{% else %}{{ p.utilization|floatformat:2 }}{% endif %}%"></div>
                 </div>
-            </div>
+                <p class="mt-2 text-xs text-gray-600">Remaining: &#8369;{{ p.remaining|floatformat:0|intcomma }}</p>
+            </a>
             {% empty %}
-            <div class="py-8 text-sm text-gray-500 text-center">No barangay data yet.</div>
+            <div class="rounded-lg border border-green-100 bg-green-50 p-4 text-sm text-green-800">No projects are near or over budget.</div>
             {% endfor %}
-        </div>
-        <div class="mt-5 text-xs text-gray-500">
-            Legend: <span class="inline-flex items-center gap-2 ml-2"><span class="h-2 w-2 bg-green-500 rounded-full inline-block"></span>Within budget</span>
-            <span class="inline-flex items-center gap-2 ml-3"><span class="h-2 w-2 bg-yellow-500 rounded-full inline-block"></span>Near limit</span>
-            <span class="inline-flex items-center gap-2 ml-3"><span class="h-2 w-2 bg-red-600 rounded-full inline-block"></span>Over budget</span>
         </div>
     </div>
 </div>
 
-<!-- Dashboard charts -->
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-    <div class="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+    <!-- Spending Trend -->
+    <div class="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-gray-900">Recent Spending Trend</h2>
-            <div class="text-xs text-gray-500">Line Chart</div>
+            <div>
+                <h2 class="text-base font-bold text-gray-900">Recent Spending Trend</h2>
+                <p class="text-xs text-gray-500 mt-1">Latest recorded cost entries over time</p>
+            </div>
         </div>
-        <div class="h-80">
+        <div class="h-72">
             <canvas id="fm-dashboard-trend-chart"></canvas>
         </div>
     </div>
-    <div class="bg-white border border-gray-200 rounded-xl p-5">
+
+    <!-- Barangay Spending -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-gray-900">Barangay Spending Share</h2>
-            <div class="text-xs text-gray-500">Doughnut Chart</div>
+            <h2 class="text-base font-bold text-gray-900">Top Barangay Spending</h2>
+            <span class="text-xs text-gray-500">By total spent</span>
         </div>
-        <div class="h-80">
+        <div class="space-y-4">
+            {% for b in budget_by_barangay %}
+            <div>
+                <div class="flex items-center justify-between text-xs mb-2">
+                    <span class="font-semibold text-gray-900 truncate">{{ b.barangay }}</span>
+                    <span class="text-gray-500">&#8369;{{ b.spent|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-2.5 bg-green-700" style="width: {{ b.percent }}%"></div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="py-8 text-sm text-gray-500 text-center">No barangay spending data yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
+    <!-- Recent Cost Entries -->
+    <div class="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-base font-bold text-gray-900">Recent Cost Entries</h2>
+                <p class="text-xs text-gray-500 mt-1">Latest expenses posted to project budgets</p>
+            </div>
+            <a href="{% url 'finance_cost_management' %}" class="text-xs font-semibold text-green-700 hover:text-green-800">Manage costs</a>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for a in recent_activity %}
+            <div class="py-3 flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    {% if a.project_id %}
+                    <a href="{% url 'finance_project_detail' a.project_id %}" class="text-sm font-bold text-gray-900 hover:text-green-700 truncate block">{{ a.project_name|default:"Project" }}</a>
+                    {% else %}
+                    <p class="text-sm font-bold text-gray-900 truncate">{{ a.project_name|default:"Project" }}</p>
+                    {% endif %}
+                    <p class="text-xs text-gray-500 truncate">{{ a.cost_type|default:"Cost entry" }}{% if a.barangay %} &bull; {{ a.barangay }}{% endif %}</p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <p class="text-sm font-bold text-gray-900">&#8369;{{ a.amount|floatformat:0|intcomma }}</p>
+                    <p class="text-xs text-gray-500">{{ a.date|date:"M j, Y"|default:"-" }}</p>
+                </div>
+            </div>
+            {% empty %}
+            <div class="py-8 text-sm text-gray-500 text-center">No recent cost entries yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Spending Share -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900">Spending Share</h2>
+            <span class="text-xs text-gray-500">Barangay</span>
+        </div>
+        <div class="h-72">
             <canvas id="fm-dashboard-share-chart"></canvas>
         </div>
     </div>
@@ -161,14 +247,15 @@
         },
         {% endfor %}
     ];
+
     const toNumber = (raw) => Number(String(raw || '0').replace(/,/g, ''));
 
     if (trendCanvas && recentSpending.length) {
         const trendRows = [...recentSpending].reverse();
         const ctx = trendCanvas.getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+        gradient.addColorStop(0, 'rgba(21, 128, 61, 0.28)');
+        gradient.addColorStop(1, 'rgba(21, 128, 61, 0.02)');
 
         new Chart(trendCanvas, {
             type: 'line',
@@ -177,27 +264,22 @@
                 datasets: [{
                     label: 'Spent',
                     data: trendRows.map((r) => toNumber(r.amount)),
-                    borderColor: '#10b981',
+                    borderColor: '#15803d',
                     backgroundColor: gradient,
                     fill: true,
                     tension: 0.35,
                     borderWidth: 3,
                     pointRadius: 4,
                     pointHoverRadius: 5,
-                    pointBackgroundColor: '#059669',
+                    pointBackgroundColor: '#166534',
                 }],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                },
+                plugins: { legend: { display: false } },
                 scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#6b7280' },
-                    },
+                    x: { grid: { display: false }, ticks: { color: '#6b7280' } },
                     y: {
                         beginAtZero: true,
                         ticks: {
@@ -212,7 +294,7 @@
     }
 
     if (shareCanvas && barangaySpending.length) {
-        const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#84cc16'];
+        const colors = ['#15803d', '#65a30d', '#f59e0b', '#2563eb', '#dc2626', '#0d9488', '#7c3aed', '#ea580c'];
         new Chart(shareCanvas, {
             type: 'doughnut',
             data: {
@@ -228,7 +310,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '62%',
+                cutout: '64%',
                 plugins: {
                     legend: {
                         position: 'bottom',
