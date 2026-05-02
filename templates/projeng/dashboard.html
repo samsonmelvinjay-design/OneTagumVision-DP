@@ -2,343 +2,264 @@
 {% load humanize %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-teal-50 px-4 py-4 lg:px-6">
-  <div class="mx-auto max-w-screen-2xl">
-    <div class="mb-4 flex flex-col gap-2 rounded-md border border-emerald-200 bg-white px-4 py-3 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+<style>
+  .pe-shell {
+    height: 100vh;
+    overflow: hidden;
+    background: #f3f8f3;
+  }
+  .pe-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 12px;
+    min-height: 0;
+    flex: 1;
+  }
+  .pe-card {
+    border: 1px solid #d4e3d4;
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
+  }
+  .pe-card-brand {
+    border-top: 3px solid #228B22;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%);
+  }
+  .pe-brand-title {
+    color: #0f3f1b;
+  }
+  .pe-brand-muted {
+    color: #2f6f37;
+  }
+  .pe-refresh-pill {
+    border: 1px solid #b8d7b8;
+    background: #eef8ee;
+    color: #14532d;
+  }
+  .pe-metric {
+    border-left: 4px solid var(--accent);
+  }
+  .pe-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    border-radius: 6px;
+    border: 1px solid #b8d7b8;
+    background: #ffffff;
+    color: #14532d;
+    font-size: 12px;
+    font-weight: 700;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .pe-action-button:hover {
+    background: #eef8ee;
+    border-color: #228B22;
+  }
+  .pe-table-wrap {
+    border: 1px solid #cfe3cf;
+  }
+  .pe-table-head {
+    background: #eef8ee;
+    color: #14532d;
+  }
+  .pe-priority-table tbody tr:hover {
+    background: #f6fbf6;
+  }
+  .pe-priority-table th,
+  .pe-priority-table td {
+    vertical-align: middle;
+  }
+  .pe-progress-fill {
+    background: linear-gradient(90deg, #228B22 0%, #166534 100%);
+  }
+  .pe-open-link {
+    background: #166534;
+  }
+  .pe-open-link:hover {
+    background: #14532d;
+  }
+  @media (max-width: 1279px) {
+    .pe-shell {
+      height: auto;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+    .pe-main-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="pe-shell box-border px-4 py-3 lg:px-5">
+  <div class="mx-auto flex h-full max-w-screen-2xl flex-col gap-3">
+    <header class="pe-card pe-card-brand flex flex-col gap-2 rounded-md px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-emerald-950 lg:text-3xl">Project Engineer's Dashboard</h1>
-        <p class="text-sm text-emerald-700">Assigned project workload, completion, budget, and schedule overview.</p>
+        <h1 class="pe-brand-title text-xl font-bold tracking-tight lg:text-2xl">Project Engineer Dashboard</h1>
+        <p class="pe-brand-muted text-sm">Assigned work, urgent updates, deadline risk, and next actions.</p>
       </div>
-      <div class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">Last refreshed: {{ last_refreshed|date:"M d, Y h:i A" }}</div>
-    </div>
+      <div class="pe-refresh-pill inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold">
+        Last refreshed: {{ last_refreshed|date:"M d, Y h:i A" }}
+      </div>
+    </header>
 
-    <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase text-emerald-700">Assigned Projects</div>
-        <div class="mt-2 text-3xl font-extrabold text-emerald-950">{{ total_projects }}</div>
-        <div class="mt-1 text-xs text-emerald-700">{{ status_counts.Completed }} completed, {{ delayed_count }} delayed</div>
-      </section>
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase text-emerald-700">Completion Average</div>
-        <div class="mt-2 text-3xl font-extrabold text-green-700">{{ completion_average }}%</div>
-        <div class="mt-1 text-xs text-emerald-700">Average latest progress</div>
-      </section>
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase text-emerald-700">Duration Utilized</div>
-        <div class="mt-2 text-3xl font-extrabold text-teal-700">{{ duration_utilized_percent }}%</div>
-        <div class="mt-1 text-xs text-emerald-700">{{ duration_elapsed_days|intcomma }} of {{ duration_total_days|intcomma }} days</div>
-      </section>
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm">
-        <div class="text-xs font-semibold uppercase text-emerald-700">Budget Variance</div>
-        <div class="mt-2 text-2xl font-extrabold {% if budget_variance < 0 %}text-rose-700{% else %}text-emerald-950{% endif %}">
-          PHP {{ budget_variance|floatformat:0|intcomma }}
-        </div>
-        <div class="mt-1 text-xs text-emerald-700">Budget PHP {{ total_budget|floatformat:0|intcomma }} / Actual PHP {{ total_actual_cost|floatformat:0|intcomma }}</div>
-      </section>
-    </div>
+    <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <article class="pe-card pe-metric rounded-md p-3" style="--accent:#228B22;">
+        <div class="pe-brand-muted text-xs font-semibold uppercase">Assigned Projects</div>
+        <div class="pe-brand-title mt-1 text-3xl font-extrabold">{{ total_projects }}</div>
+        <div class="pe-brand-muted text-xs">{{ active_projects_count }} active, {{ completed_projects_count }} completed</div>
+      </article>
+      <article class="pe-card pe-metric rounded-md p-3" style="--accent:#d97706;">
+        <div class="text-xs font-semibold uppercase text-amber-700">Need Update</div>
+        <div class="mt-1 text-3xl font-extrabold text-amber-700">{{ need_update_count }}</div>
+        <div class="text-xs text-amber-700">Active projects with no recent activity</div>
+      </article>
+      <article class="pe-card pe-metric rounded-md p-3" style="--accent:#e11d48;">
+        <div class="text-xs font-semibold uppercase text-rose-700">Delayed / Overdue</div>
+        <div class="mt-1 text-3xl font-extrabold text-rose-700">{{ overdue_projects_count }}</div>
+        <div class="text-xs text-rose-700">Projects needing schedule attention</div>
+      </article>
+      <article class="pe-card pe-metric rounded-md p-3" style="--accent:#2563eb;">
+        <div class="text-xs font-semibold uppercase text-slate-700">Budget Watch</div>
+        <div class="mt-1 text-3xl font-extrabold text-slate-900">{{ budget_watch_count }}</div>
+        <div class="text-xs text-slate-600">Projects at 80%+ budget use</div>
+      </article>
+    </section>
 
-    <div class="grid grid-cols-1 gap-3 xl:grid-cols-12">
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-3">
-        <h2 class="text-sm font-bold text-emerald-950">Work Status</h2>
-        <div class="mt-2 h-44">
-          <canvas id="workStatusChart"></canvas>
+    <main class="pe-main-grid">
+      <section class="pe-card min-h-0 rounded-md p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="pe-brand-title text-base font-bold">Priority Projects</h2>
+            <p class="pe-brand-muted text-xs">Sorted by delay, stale updates, deadline, and budget risk.</p>
+          </div>
+          <a href="{% url 'projeng:projeng_my_projects' %}" class="pe-action-button shrink-0 px-3">My Projects</a>
         </div>
-      </section>
 
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-3">
-        <h2 class="text-sm font-bold text-emerald-950">Project by Stage</h2>
-        <div class="mt-2 h-44">
-          <canvas id="projectStageChart"></canvas>
-        </div>
-      </section>
-
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-3">
-        <h2 class="text-sm font-bold text-emerald-950">Completion Percentage</h2>
-        <div class="mt-2 h-44">
-          <canvas id="completionGaugeChart"></canvas>
-        </div>
-      </section>
-
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-3">
-        <h2 class="text-sm font-bold text-emerald-950">Utilized Duration</h2>
-        <div class="mt-2 h-44">
-          <canvas id="durationGaugeChart"></canvas>
-        </div>
-      </section>
-
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-5">
-        <h2 class="text-sm font-bold text-emerald-950">Budget Variance</h2>
-        <p class="text-xs text-emerald-700">Planned budget against actual expenses by project</p>
-        <div class="mt-2 h-56">
-          <canvas id="budgetVarianceChart"></canvas>
-        </div>
-      </section>
-
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-3">
-        <h2 class="text-sm font-bold text-emerald-950">Actual vs Planned Cost</h2>
-        <p class="text-xs text-emerald-700">Assigned portfolio total</p>
-        <div class="mt-2 h-56">
-          <canvas id="resourceComparisonChart"></canvas>
-        </div>
-      </section>
-
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-4">
-        <h2 class="text-sm font-bold text-emerald-950">Workload</h2>
-        <p class="text-xs text-emerald-700">Completed, remaining, and overdue assigned work</p>
-        <div class="mt-2 h-32">
-          <canvas id="workloadChart"></canvas>
-        </div>
-        <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-          <div class="rounded bg-emerald-50 p-2"><div class="font-bold text-emerald-950">{{ active_projects_count }}</div><div class="text-emerald-700">Active</div></div>
-          <div class="rounded bg-rose-50 p-2"><div class="font-bold text-rose-700">{{ overdue_projects_count }}</div><div class="text-rose-600">Overdue</div></div>
-          <div class="rounded bg-lime-50 p-2"><div class="font-bold text-lime-700">{{ stale_projects_count }}</div><div class="text-lime-700">No update 15d</div></div>
-        </div>
-      </section>
-
-      <section class="rounded-md border border-emerald-200 bg-white p-4 shadow-sm xl:col-span-12">
-        <div class="mb-3 flex items-center justify-between">
-          <h2 class="text-sm font-bold text-emerald-950">Assigned Projects Snapshot</h2>
-          <a href="{% url 'projeng:projeng_my_projects' %}" class="text-xs font-semibold text-emerald-700 hover:text-emerald-900">Open My Projects</a>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[920px] text-sm">
+        <div class="pe-table-wrap min-h-0 overflow-hidden rounded-md">
+          <table class="pe-priority-table w-full table-fixed text-sm">
             <thead>
-              <tr class="border-y border-emerald-200 bg-emerald-50 text-left text-xs uppercase tracking-wide text-emerald-800">
+              <tr class="pe-table-head border-b border-green-100 text-left text-xs uppercase tracking-wide">
                 <th class="px-3 py-2">Project</th>
-                <th class="px-3 py-2">Barangay</th>
-                <th class="px-3 py-2">Status</th>
-                <th class="px-3 py-2 text-right">Progress</th>
-                <th class="px-3 py-2 text-right">Budget Used</th>
-                <th class="px-3 py-2 text-right">Schedule</th>
-                <th class="px-3 py-2">Last Activity</th>
+                <th class="hidden px-3 py-2 md:table-cell">Barangay</th>
+                <th class="px-3 py-2">Progress</th>
+                <th class="px-3 py-2">Schedule</th>
+                <th class="hidden px-3 py-2 lg:table-cell">Budget</th>
+                <th class="hidden px-3 py-2 xl:table-cell">Last Update</th>
+                <th class="px-3 py-2 text-right">Action</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-emerald-100">
-              {% for project in project_snapshot %}
+              {% for project in priority_projects %}
               <tr>
                 <td class="px-3 py-2">
-                  <div class="font-semibold text-emerald-950">{{ project.name }}</div>
-                  <div class="text-xs font-mono text-emerald-700">{{ project.prn|default:"--" }}</div>
+                  <div class="pe-brand-title truncate font-semibold">{{ project.name }}</div>
+                  <div class="pe-brand-muted truncate text-xs font-mono">{{ project.prn|default:"--" }}</div>
                 </td>
-                <td class="px-3 py-2 text-emerald-900">{{ project.barangay|default:"--" }}</td>
+                <td class="hidden truncate px-3 py-2 text-green-900 md:table-cell">{{ project.barangay|default:"--" }}</td>
                 <td class="px-3 py-2">
-                  <span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold
-                    {% if project.status == 'completed' %}bg-emerald-100 text-emerald-700
-                    {% elif project.status == 'in_progress' %}bg-blue-100 text-blue-700
-                    {% elif project.status == 'delayed' %}bg-rose-100 text-rose-700
-                    {% else %}bg-amber-100 text-amber-700{% endif %}">
-                    {{ project.status_display }}
-                  </span>
+                  <div class="pe-brand-title font-semibold">{{ project.progress }}%</div>
+                  <div class="mt-1 h-1.5 w-full rounded-full bg-slate-100">
+                    <div class="pe-progress-fill h-1.5 rounded-full" style="width: {{ project.progress|floatformat:0 }}%; max-width: 100%;"></div>
+                  </div>
                 </td>
-                <td class="px-3 py-2 text-right font-semibold text-emerald-950">{{ project.progress }}%</td>
-                <td class="px-3 py-2 text-right font-semibold {% if project.budget_used_percent > 100 %}text-rose-700{% else %}text-emerald-950{% endif %}">{{ project.budget_used_percent }}%</td>
-                <td class="px-3 py-2 text-right">
+                <td class="px-3 py-2">
                   {% if project.days_remaining is None %}
-                    <span class="text-emerald-500">No date</span>
+                    <span class="text-xs font-semibold text-slate-500">No date</span>
                   {% elif project.days_remaining < 0 %}
-                    <span class="font-semibold text-rose-700">{{ project.days_overdue }}d overdue</span>
+                    <span class="text-xs font-bold text-rose-700">{{ project.days_overdue }}d overdue</span>
                   {% else %}
-                    <span class="font-semibold text-emerald-900">{{ project.days_remaining }}d left</span>
+                    <span class="text-xs font-bold text-green-900">{{ project.days_remaining }}d left</span>
                   {% endif %}
                 </td>
-                <td class="px-3 py-2 text-emerald-800">{% if project.last_activity %}{{ project.last_activity|date:"M d, Y h:i A" }}{% else %}No activity{% endif %}</td>
+                <td class="hidden px-3 py-2 lg:table-cell">
+                  <span class="text-xs font-bold {% if project.budget_used_percent >= 100 %}text-rose-700{% elif project.budget_used_percent >= 80 %}text-amber-700{% else %}text-green-900{% endif %}">
+                    {{ project.budget_used_percent }}%
+                  </span>
+                </td>
+                <td class="hidden px-3 py-2 text-xs text-green-800 xl:table-cell">
+                  {% if project.last_activity %}{{ project.last_activity|date:"M d, h:i A" }}{% else %}No activity{% endif %}
+                </td>
+                <td class="px-3 py-2 text-right">
+                  <a href="{% url 'projeng:projeng_project_detail' project.id %}" class="pe-open-link inline-flex rounded-md px-3 py-1.5 text-xs font-semibold text-white">Open</a>
+                </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="7" class="px-3 py-8 text-center text-emerald-700">No assigned projects yet.</td>
+                <td colspan="7" class="pe-brand-muted px-3 py-12 text-center text-sm font-semibold">No assigned projects yet.</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
       </section>
-    </div>
+
+      <aside class="flex min-h-0 flex-col gap-3">
+        <section class="pe-card rounded-md p-4">
+          <h2 class="pe-brand-title text-base font-bold">Today's Actions</h2>
+          <div class="mt-3 space-y-2">
+            {% if overdue_projects_count %}
+            <a href="{% url 'projeng:projeng_my_projects' %}?status=delayed" class="block rounded-md border-l-4 border-rose-500 bg-rose-50 px-3 py-2 hover:bg-rose-100">
+              <div class="text-sm font-bold text-rose-800">{{ overdue_projects_count }} delayed project{{ overdue_projects_count|pluralize }}</div>
+              <div class="text-xs text-rose-700">Open and check schedule status.</div>
+            </a>
+            {% endif %}
+            {% if need_update_count %}
+            <a href="{% url 'projeng:projeng_my_projects' %}" class="block rounded-md border-l-4 border-amber-500 bg-amber-50 px-3 py-2 hover:bg-amber-100">
+              <div class="text-sm font-bold text-amber-800">{{ need_update_count }} project{{ need_update_count|pluralize }} need update</div>
+              <div class="text-xs text-amber-700">Submit progress, cost, or document activity.</div>
+            </a>
+            {% endif %}
+            {% if budget_watch_count %}
+            <a href="{% url 'projeng:projeng_my_reports' %}" class="block rounded-md border-l-4 border-blue-500 bg-blue-50 px-3 py-2 hover:bg-blue-100">
+              <div class="text-sm font-bold text-blue-800">{{ budget_watch_count }} budget watch item{{ budget_watch_count|pluralize }}</div>
+              <div class="text-xs text-blue-700">Review spending against allocated budget.</div>
+            </a>
+            {% endif %}
+            {% if not overdue_projects_count and not need_update_count and not budget_watch_count %}
+            <div class="rounded-md border border-green-100 bg-green-50 px-3 py-3">
+              <div class="text-sm font-bold text-green-900">No urgent action right now</div>
+              <div class="text-xs text-green-700">Assigned projects have no immediate schedule, update, or budget alerts.</div>
+            </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="pe-card rounded-md p-4">
+          <h2 class="pe-brand-title text-base font-bold">Quick Actions</h2>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <a href="{% url 'projeng:projeng_my_projects' %}" class="pe-action-button px-3">My Projects</a>
+            <a href="{% url 'projeng:projeng_map' %}" class="pe-action-button px-3">Project Map</a>
+            <a href="{% url 'projeng:projeng_my_reports' %}" class="pe-action-button px-3">My Reports</a>
+            <a href="{% url 'projeng:projeng_notifications' %}" class="pe-action-button px-3">Notifications</a>
+          </div>
+        </section>
+
+        <section class="pe-card min-h-0 flex-1 rounded-md p-4">
+          <h2 class="pe-brand-title text-base font-bold">Portfolio Status</h2>
+          <div class="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
+            <div class="rounded border border-green-100 bg-green-50 p-2">
+              <div class="text-lg font-extrabold text-green-950">{{ completed_projects_count }}</div>
+              <div class="text-green-700">Completed</div>
+            </div>
+            <div class="rounded border border-blue-100 bg-blue-50 p-2">
+              <div class="text-lg font-extrabold text-blue-700">{{ in_progress_projects_count }}</div>
+              <div class="text-blue-700">In Progress</div>
+            </div>
+            <div class="rounded border border-amber-100 bg-amber-50 p-2">
+              <div class="text-lg font-extrabold text-amber-700">{{ planned_projects_count }}</div>
+              <div class="text-amber-700">Planned</div>
+            </div>
+            <div class="rounded border border-rose-100 bg-rose-50 p-2">
+              <div class="text-lg font-extrabold text-rose-700">{{ delayed_projects_count }}</div>
+              <div class="text-rose-700">Delayed</div>
+            </div>
+          </div>
+          <div class="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs text-green-800">
+            Average completion: <span class="font-bold">{{ completion_average }}%</span>
+          </div>
+        </section>
+      </aside>
+    </main>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-{{ block.super }}
-{{ work_status_chart|json_script:"work-status-chart-data" }}
-{{ project_stage_chart|json_script:"project-stage-chart-data" }}
-{{ budget_variance_chart|json_script:"budget-variance-chart-data" }}
-{{ resource_comparison_chart|json_script:"resource-comparison-chart-data" }}
-{{ workload_chart|json_script:"workload-chart-data" }}
-{{ completion_average|json_script:"completion-average-data" }}
-{{ duration_utilized_percent|json_script:"duration-utilized-data" }}
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  function readJson(id, fallback) {
-    const el = document.getElementById(id);
-    if (!el) return fallback;
-    try { return JSON.parse(el.textContent); } catch (error) { return fallback; }
-  }
-
-  const colors = {
-    deepGreen: '#064e3b',
-    forest: '#166534',
-    emerald: '#10b981',
-    teal: '#0d9488',
-    lime: '#84cc16',
-    amber: '#f59e0b',
-    red: '#ef4444',
-    pale: '#ecfdf5',
-    grid: 'rgba(148, 163, 184, 0.28)'
-  };
-
-  const centerTextPlugin = {
-    id: 'centerTextPlugin',
-    afterDraw(chart, args, opts) {
-      if (!opts || !opts.text) return;
-      const { ctx, chartArea } = chart;
-      if (!chartArea) return;
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = opts.color || colors.deepGreen;
-      ctx.font = '700 22px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-      ctx.fillText(opts.text, (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 + (opts.offsetY || 0));
-      ctx.restore();
-    }
-  };
-
-  function doughnutChart(id, labels, data, palette) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    new Chart(canvas.getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor: palette,
-          borderColor: '#ffffff',
-          borderWidth: 2,
-          cutout: '62%'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
-        }
-      }
-    });
-  }
-
-  function gaugeChart(id, value, label, color) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    const cleanValue = Math.max(0, Math.min(100, Number(value || 0)));
-    new Chart(canvas.getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels: [label, 'Remaining'],
-        datasets: [{
-          data: [cleanValue, Math.max(0, 100 - cleanValue)],
-          backgroundColor: [color, '#e5e7eb'],
-          borderWidth: 0,
-          cutout: '72%'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        rotation: -90,
-        circumference: 180,
-        plugins: {
-          legend: { display: false },
-          centerTextPlugin: { text: cleanValue.toFixed(cleanValue % 1 === 0 ? 0 : 1) + '%', offsetY: 24 }
-        }
-      },
-      plugins: [centerTextPlugin]
-    });
-  }
-
-  const workStatus = readJson('work-status-chart-data', { labels: [], data: [] });
-  doughnutChart('workStatusChart', workStatus.labels, workStatus.data, [colors.emerald, colors.teal, colors.lime, colors.red]);
-
-  const projectStage = readJson('project-stage-chart-data', { labels: [], data: [] });
-  doughnutChart('projectStageChart', projectStage.labels, projectStage.data, [colors.pale, colors.emerald, colors.deepGreen]);
-
-  gaugeChart('completionGaugeChart', readJson('completion-average-data', 0), 'Completion', colors.emerald);
-  gaugeChart('durationGaugeChart', readJson('duration-utilized-data', 0), 'Duration', colors.teal);
-
-  const budgetVariance = readJson('budget-variance-chart-data', { labels: [], planned: [], actual: [] });
-  const budgetCanvas = document.getElementById('budgetVarianceChart');
-  if (budgetCanvas) {
-    new Chart(budgetCanvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: budgetVariance.labels,
-        datasets: [
-          { label: 'Planned', data: budgetVariance.planned, backgroundColor: colors.lime, borderColor: colors.lime, borderWidth: 1 },
-          { label: 'Actual', data: budgetVariance.actual, backgroundColor: colors.deepGreen, borderColor: colors.deepGreen, borderWidth: 1 }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } },
-        scales: {
-          x: { ticks: { font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
-          y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { callback: (value) => 'PHP ' + Number(value).toLocaleString('en-US') } }
-        }
-      }
-    });
-  }
-
-  const resourceComparison = readJson('resource-comparison-chart-data', { labels: [], planned: [], actual: [] });
-  const resourceCanvas = document.getElementById('resourceComparisonChart');
-  if (resourceCanvas) {
-    new Chart(resourceCanvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: resourceComparison.labels,
-        datasets: [
-          { label: 'Actual cost', data: resourceComparison.actual, backgroundColor: colors.deepGreen },
-          { label: 'Planned budget', data: resourceComparison.planned, backgroundColor: colors.lime }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { callback: (value) => 'PHP ' + Number(value).toLocaleString('en-US') } },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  const workload = readJson('workload-chart-data', { labels: [], completed: [], remaining: [], overdue: [] });
-  const workloadCanvas = document.getElementById('workloadChart');
-  if (workloadCanvas) {
-    new Chart(workloadCanvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: workload.labels,
-        datasets: [
-          { label: 'Completed', data: workload.completed, backgroundColor: colors.deepGreen },
-          { label: 'Remaining', data: workload.remaining, backgroundColor: colors.emerald },
-          { label: 'Overdue', data: workload.overdue, backgroundColor: colors.amber }
-        ]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } },
-        scales: {
-          x: { stacked: true, beginAtZero: true, grid: { color: colors.grid } },
-          y: { stacked: true, grid: { display: false } }
-        }
-      }
-    });
-  }
-});
-</script>
 {% endblock %}

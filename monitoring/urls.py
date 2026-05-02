@@ -1,5 +1,4 @@
 from django.urls import path
-from django.views.generic import RedirectView
 from . import views
 from monitoring.views.finance_manager import (
     finance_dashboard,
@@ -24,7 +23,7 @@ urlpatterns = [
     path('head-engineer-preview/', views.head_engineer_dashboard_preview, name='head_engineer_dashboard_preview'),
     path('home/', views.home, name='home'),  # Moved home to /dashboard/home/
     path('projects/', views.project_list, name='project_list'),
-    path('map/', RedirectView.as_view(pattern_name='dashboard', permanent=False), name='map_view'),
+    path('map/', views.map_view, name='map_view'),
     path('reports/', views.reports, name='reports'),
     path('reports/export/csv/', views.export_reports_csv, name='export_reports_csv'),
     path('reports/export/excel/', views.export_reports_excel, name='export_reports_excel'),

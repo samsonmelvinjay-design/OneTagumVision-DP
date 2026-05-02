@@ -302,7 +302,6 @@ def dashboard(request):
         projects_list.sort(key=lambda p: p.most_recent_activity, reverse=True)
         assigned_projects = projects_list[:6]
         recent_activity_map = {project.id: project.most_recent_activity for project in projects_list}
-        print("DEBUG: assigned_projects for user", request.user.username, ":", list(assigned_projects))
         today = timezone.now().date()
         status_counts = {'Planned': 0, 'In Progress': 0, 'Completed': 0, 'Delayed': 0}
         delayed_projects = []
@@ -384,6 +383,7 @@ def dashboard(request):
                 (project.get_status_display() if hasattr(project, 'get_status_display') else str(status).replace('_', ' ').title())
             )
             project_snapshot.append({
+                'id': project.id,
                 'name': project.name,
                 'prn': project.prn or '',
                 'barangay': project.barangay or '',
@@ -394,6 +394,7 @@ def dashboard(request):
                 'days_remaining': days_remaining,
                 'days_overdue': abs(days_remaining) if days_remaining is not None and days_remaining < 0 else 0,
                 'last_activity': recent_activity_map.get(project.id),
+                'last_activity_age_days': (django_timezone.now() - recent_activity_map[project.id]).days if recent_activity_map.get(project.id) else None,
             })
 
         completion_average = round((sum(progress_values) / len(progress_values)), 1) if progress_values else 0.0
@@ -454,14 +455,26 @@ def dashboard(request):
             1 for project in all_projects_list
             if recent_activity_map.get(project.id) and (django_timezone.now() - recent_activity_map[project.id]).days >= 15
         )
+        need_update_count = sum(
+            1 for project in project_snapshot
+            if project['status'] in ['in_progress', 'delayed']
+            and (project['last_activity_age_days'] is None or project['last_activity_age_days'] >= 15)
+        )
+        budget_watch_count = sum(
+            1 for project in project_snapshot
+            if project['budget_used_percent'] >= 80
+        )
         project_snapshot = sorted(
             project_snapshot,
             key=lambda item: (
                 item['status'] != 'delayed',
+                item['last_activity_age_days'] is None or item['last_activity_age_days'] < 15,
                 item['days_remaining'] if item['days_remaining'] is not None else 99999,
+                item['budget_used_percent'] < 80,
                 -item['progress'],
             )
         )[:8]
+        priority_projects = project_snapshot[:5]
         projects_data = []
         # Get project IDs from the list (for last update calculation)
         project_ids = [p.id for p in assigned_projects]
@@ -571,6 +584,10 @@ def dashboard(request):
             'assigned_projects': assigned_projects_with_updates,
             'total_projects': total_projects,
             'status_counts': status_counts,
+            'completed_projects_count': status_counts['Completed'],
+            'in_progress_projects_count': status_counts['In Progress'],
+            'planned_projects_count': status_counts['Planned'],
+            'delayed_projects_count': status_counts['Delayed'],
             'delayed_count': status_counts['Delayed'],
             'delayed_projects': delayed_projects,
             'projects_data': projects_data,
@@ -584,7 +601,10 @@ def dashboard(request):
             'overdue_projects_count': overdue_projects_count,
             'active_projects_count': status_counts['In Progress'],
             'stale_projects_count': stale_projects_count,
+            'need_update_count': need_update_count,
+            'budget_watch_count': budget_watch_count,
             'project_snapshot': project_snapshot,
+            'priority_projects': priority_projects,
             'work_status_chart': work_status_chart,
             'project_stage_chart': project_stage_chart,
             'budget_variance_chart': budget_variance_chart,
@@ -592,7 +612,6 @@ def dashboard(request):
             'workload_chart': workload_chart,
             'last_refreshed': django_timezone.now(),
         }
-        print(f'Dashboard View Context: {context}') # Debugging line
         return render(request, 'projeng/dashboard.html', context)
     except Exception as e:
         print(f"Error in dashboard view: {str(e)}")

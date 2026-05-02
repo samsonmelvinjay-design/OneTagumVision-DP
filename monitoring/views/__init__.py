@@ -45,6 +45,8 @@ from collections import Counter, defaultdict
 from monitoring.forms import ProjectForm
 from projeng.working_days import working_days_between
 
+logger = logging.getLogger(__name__)
+
 # Import centralized access control functions (MUST be before views that use them)
 from gistagum.access_control import (
     is_head_engineer, 
@@ -2646,6 +2648,22 @@ def budget_reports(request):
         },
         'projects': budget_pdf_projects,
     }
+
+    is_finance_budget_view = is_finance_manager(request.user) and not is_head_engineer(request.user)
+    if is_finance_budget_view:
+        budget_report_page_title = 'Detailed Budget Report'
+        budget_report_page_subtitle = 'Detailed financial ledger for budget monitoring, spending review, and exports'
+        budget_report_details_title = 'Project Budget Ledger'
+        budget_report_details_subtitle = 'Detailed budget, spending, and utilization records for all projects'
+        budget_report_pdf_title = 'DETAILED BUDGET REPORT'
+        budget_report_pdf_subtitle = 'Financial ledger for budget monitoring and spending review'
+    else:
+        budget_report_page_title = 'Budget Reports'
+        budget_report_page_subtitle = 'Comprehensive financial overview of all projects'
+        budget_report_details_title = 'Project Budget Details'
+        budget_report_details_subtitle = 'Comprehensive budget overview for all projects'
+        budget_report_pdf_title = 'BUDGET REPORTS'
+        budget_report_pdf_subtitle = 'Comprehensive financial overview of all projects'
     
     context = {
         'project_data': paginated_project_data,
@@ -2675,6 +2693,13 @@ def budget_reports(request):
         'chart_over_count': chart_over_count,
         'chart_within_count': chart_within_count,
         'chart_under_count': chart_under_count,
+        'is_finance_budget_view': is_finance_budget_view,
+        'budget_report_page_title': budget_report_page_title,
+        'budget_report_page_subtitle': budget_report_page_subtitle,
+        'budget_report_details_title': budget_report_details_title,
+        'budget_report_details_subtitle': budget_report_details_subtitle,
+        'budget_report_pdf_title': budget_report_pdf_title,
+        'budget_report_pdf_subtitle': budget_report_pdf_subtitle,
     }
     return render(request, 'monitoring/budget_reports.html', context)
 
