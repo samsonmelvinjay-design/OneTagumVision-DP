@@ -147,14 +147,6 @@
                     </svg>
                     Add Update
                 </a>
-                <button type="button"
-                        onclick="openDocumentsModal()"
-                        class="p-3 rounded-lg bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold inline-flex items-center gap-2 shadow-sm border border-gray-200"
-                        title="Project documents">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5h.01M12 12h.01M12 19h.01"/>
-                    </svg>
-                </button>
             </div>
         </div>
         
@@ -189,7 +181,7 @@
                 <div>
                 <div class="flex items-start justify-between text-sm text-gray-600 mb-2 gap-4">
                     <div class="min-w-0">
-                        <span class="font-medium block">Actual Progress</span>
+                        <span class="font-medium block">Progress Target</span>
                         {% if configured_target_date %}
                             <span class="text-xs text-gray-500 block mt-0.5">
                                 Target: {% if configured_target_progress is not None %}{{ configured_target_progress|floatformat:2 }}%{% else %}Not set{% endif %}

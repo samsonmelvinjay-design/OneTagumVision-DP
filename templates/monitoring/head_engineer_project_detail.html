@@ -9,7 +9,55 @@
   .shadow { box-shadow: none !important; }
   .rounded { border-radius: 0 !important; }
   h1, h2 { page-break-after: avoid; }
-  table { page-break-inside: avoid; }
+table { page-break-inside: avoid; }
+}
+.he-scurve-wrap {
+  height: 220px;
+}
+.he-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+.he-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.he-kpi-card {
+  border: 1px solid #dbe7dc;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  min-height: 4.75rem;
+}
+.he-kpi-label {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.he-kpi-value {
+  color: #0f172a;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 0.2rem;
+}
+@media (max-width: 1279px) {
+  .he-command-grid {
+    grid-template-columns: 1fr;
+  }
+  .he-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .he-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>
 <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -39,45 +87,165 @@
             </div>
         </div>
 
-        <!-- Progress Bar Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-lg font-bold text-gray-800">Overall Progress</h2>
-                    <div class="text-right">
-                        <div class="text-2xl font-bold text-blue-600">{{ latest_progress.percentage_complete|default:0|floatformat:2 }}%</div>
-                        <div id="he-overall-progress-target" class="text-xs font-semibold text-emerald-600">
-                            {% if configured_expected_date %}
-                                Target ({{ configured_expected_date|date:"m/d/Y" }}):
-                                {{ configured_expected_progress|floatformat:2 }}%
-                            {% elif expected_progress != None %}
-                                Expected:
-                                {{ expected_progress|floatformat:2 }}%
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </div>
+        <!-- Decision Summary -->
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5">
+            <div class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-gray-800">Project Decision Summary</h2>
+                    <p class="text-xs text-gray-500">Critical monitoring indicators for immediate Head Engineer review.</p>
+                </div>
+                {% if budget_utilization >= 80 %}
+                <button type="button"
+                        onclick="showForwardToFinanceModal()"
+                        class="inline-flex w-fit items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+                    Forward Budget Alert to Finance
+                </button>
+                {% endif %}
+            </div>
+            <div class="he-kpi-grid mb-3">
+                <div class="he-kpi-card border-l-4 border-l-blue-600">
+                    <div class="he-kpi-label">Actual Progress</div>
+                    <div class="he-kpi-value text-blue-700">{{ latest_progress.percentage_complete|default:0|floatformat:2 }}%</div>
+                </div>
+                <div class="he-kpi-card border-l-4 border-l-green-700">
+                    <div class="he-kpi-label">{% if configured_expected_date %}Target{% else %}Expected{% endif %}</div>
+                    <div id="he-overall-progress-target" class="he-kpi-value text-green-700">
+                        {% if configured_expected_progress != None %}
+                            {{ configured_expected_progress|floatformat:2 }}%
+                        {% elif expected_progress != None %}
+                            {{ expected_progress|floatformat:2 }}%
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <div class="mt-1 text-xs text-gray-500">
+                        {% if configured_expected_date %}{{ configured_expected_date|date:"M d, Y" }}{% else %}Timeline basis{% endif %}
                     </div>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2" style="width: {{ latest_progress.percentage_complete|default:0 }}%; min-width: {% if latest_progress.percentage_complete > 0 %}8px{% else %}0{% endif %}">
+                <div class="he-kpi-card border-l-4 {% if slippage_status == 'behind' %}border-l-red-600{% elif slippage_status == 'slightly_behind' %}border-l-yellow-500{% else %}border-l-green-600{% endif %}">
+                    <div class="he-kpi-label">Slippage</div>
+                    <div class="he-kpi-value {% if slippage_status == 'behind' %}text-red-700{% elif slippage_status == 'slightly_behind' %}text-yellow-700{% else %}text-green-700{% endif %}">
+                        {% if progress_variance is not None %}
+                            {% if slippage_status == 'behind' or slippage_status == 'slightly_behind' %}{{ slippage_abs|floatformat:2 }}%{% else %}0.00%{% endif %}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <div class="mt-1 text-xs text-gray-500">
+                        {% if slippage_status == 'behind' or slippage_status == 'slightly_behind' %}Behind schedule{% elif progress_variance is not None %}On track / ahead{% else %}No target{% endif %}
+                    </div>
+                </div>
+                <div class="he-kpi-card border-l-4 {% if budget_utilization > 100 %}border-l-red-600{% elif budget_utilization >= 80 %}border-l-yellow-500{% else %}border-l-green-600{% endif %}">
+                    <div class="he-kpi-label">Budget Used</div>
+                    <div class="he-kpi-value {% if budget_utilization > 100 %}text-red-700{% elif budget_utilization >= 80 %}text-yellow-700{% else %}text-green-700{% endif %}">{{ budget_utilization|floatformat:2 }}%</div>
+                    <div class="mt-1 text-xs text-gray-500">Spent: ₱{{ total_cost|floatformat:0|intcomma }}</div>
+                </div>
+                <div class="he-kpi-card border-l-4 border-l-purple-600">
+                    <div class="he-kpi-label">Timeline</div>
+                    <div class="he-kpi-value text-purple-800">{{ timeline_data.days_elapsed|default:0 }} / {{ timeline_data.total_days|default:0 }}</div>
+                    <div class="mt-1 text-xs text-gray-500">Days elapsed / total</div>
+                </div>
+                <div class="he-kpi-card border-l-4 border-l-gray-500">
+                    <div class="he-kpi-label">Status</div>
+                    <div class="mt-2">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
+                            {% if project.status == 'completed' %}bg-green-100 text-green-700
+                            {% elif project.status == 'in_progress' or project.status == 'ongoing' %}bg-blue-100 text-blue-700
+                            {% elif project.status == 'planned' or project.status == 'pending' %}bg-yellow-100 text-yellow-700
+                            {% elif project.status == 'delayed' %}bg-red-100 text-red-700
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {% if project.status == 'in_progress' %}In Progress
+                            {% elif project.status == 'ongoing' %}Ongoing
+                            {% else %}{{ project.status|title }}{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                {% if progress_variance is not None %}
+                <div class="mb-3 rounded-lg border px-3 py-2
+                    {% if slippage_status == 'behind' %}border-red-200 bg-red-50
+                    {% elif slippage_status == 'slightly_behind' %}border-yellow-200 bg-yellow-50
+                    {% else %}border-green-200 bg-green-50{% endif %}">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-start gap-3">
+                            <div class="mt-0.5 rounded-full p-1
+                                {% if slippage_status == 'behind' %}bg-red-100 text-red-700
+                                {% elif slippage_status == 'slightly_behind' %}bg-yellow-100 text-yellow-700
+                                {% else %}bg-green-100 text-green-700{% endif %}">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18m0-15h13l-1.5 4L16 14H3"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold
+                                    {% if slippage_status == 'behind' %}text-red-800
+                                    {% elif slippage_status == 'slightly_behind' %}text-yellow-800
+                                    {% else %}text-green-800{% endif %}">
+                                    {% if slippage_status == 'behind' or slippage_status == 'slightly_behind' %}
+                                        {{ slippage_abs|floatformat:2 }}% Behind Schedule
+                                    {% else %}
+                                        On Track / Ahead by {{ progress_variance|floatformat:2 }}%
+                                    {% endif %}
+                                </div>
+                                <div class="text-xs leading-tight
+                                    {% if slippage_status == 'behind' %}text-red-700
+                                    {% elif slippage_status == 'slightly_behind' %}text-yellow-700
+                                    {% else %}text-green-700{% endif %}">
+                                    Actual {{ latest_progress.percentage_complete|default:0|floatformat:2 }}% vs Target {{ schedule_target_progress|floatformat:2 }}%.
+                                </div>
+                            </div>
+                        </div>
+                        <span class="inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold
+                            {% if slippage_status == 'behind' %}bg-red-100 text-red-800
+                            {% elif slippage_status == 'slightly_behind' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-green-100 text-green-800{% endif %}">
+                            Schedule Performance
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 flex items-center justify-end pr-2" style="width: {{ latest_progress.percentage_complete|default:0 }}%; min-width: {% if latest_progress.percentage_complete > 0 %}8px{% else %}0{% endif %}">
                         {% if latest_progress.percentage_complete > 5 %}
-                        <span class="text-xs font-semibold text-white">{{ latest_progress.percentage_complete|default:0|floatformat:2 }}%</span>
+                        <span class="text-xs font-semibold text-white leading-none">{{ latest_progress.percentage_complete|default:0|floatformat:2 }}%</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
+        <div class="he-command-grid mb-5">
+        <!-- S-Curve Card -->
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-4">
+            <div class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17l6-6 4 4 8-8"></path>
+                        </svg>
+                        S-Curve: Planned vs Actual Progress
+                    </h2>
+                    <p class="text-xs text-gray-600">Shows the planned progress trend against submitted actual progress updates.</p>
+                </div>
+                <div class="rounded-lg border border-green-100 bg-green-50 px-3 py-1.5 text-xs text-green-800">
+                    Planned line uses configured progress checkpoints when available; otherwise it uses the project timeline.
+                </div>
+            </div>
+            <div class="he-scurve-wrap">
+                <canvas id="headEngineerSCurveChart"></canvas>
+            </div>
+        </div>
+
         <!-- Project Details Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-4">
+            <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 Project Details
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div class="flex flex-col">
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">PRN</span>
                     <span class="text-base font-medium text-gray-900 font-mono">{{ project.prn|default:'—' }}</span>
@@ -127,7 +295,7 @@
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Source of Funds</span>
                     <span class="text-base font-medium text-gray-900">{{ project.source_of_funds|default:'—' }}</span>
                 </div>
-                <div class="flex flex-col md:col-span-2">
+                <div class="flex flex-col sm:col-span-2">
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Assigned Engineers</span>
                     <div class="flex flex-wrap gap-2">
                         {% if projeng_project and projeng_project.assigned_engineers.all %}
@@ -143,15 +311,19 @@
                 </div>
             </div>
         </div>
+        </div>
 
         <!-- Progress Updates Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5">
+            <div class="mb-3 flex items-center justify-between gap-3">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                 </svg>
-                Progress Updates
+                Latest Progress Updates
             </h2>
+            <span class="text-xs font-semibold text-gray-500">Showing latest {{ recent_progress_updates|length }} of {{ progress_updates|length }}</span>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[600px] divide-y divide-gray-200">
                     <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
@@ -164,8 +336,8 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                    {% if progress_updates %}
-                        {% for update in progress_updates %}
+                    {% if recent_progress_updates %}
+                        {% for update in recent_progress_updates %}
                         <tr class="hover:bg-blue-50 transition-colors duration-150">
                             <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                                 <div class="font-medium">{{ update.date|date:"M. d, Y" }}</div>
@@ -225,13 +397,16 @@
         </div>
 
         <!-- Cost Entries Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5">
+            <div class="mb-3 flex items-center justify-between gap-3">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                Cost Entries
+                Latest Cost Entries
             </h2>
+            <span class="text-xs font-semibold text-gray-500">Showing latest {{ recent_costs|length }} of {{ costs|length }}</span>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[600px] divide-y divide-gray-200">
                     <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
@@ -245,8 +420,8 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                    {% if costs %}
-                        {% for cost in costs %}
+                    {% if recent_costs %}
+                        {% for cost in recent_costs %}
                         <tr class="hover:bg-green-50 transition-colors duration-150">
                             <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                                 <div class="font-medium">{{ cost.date|date:"M. d, Y" }}</div>
@@ -305,10 +480,10 @@
         </div>
 
         <!-- Project Documents Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-4 mb-5">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     Project Documents
@@ -430,7 +605,7 @@
         </div>
 
         <!-- Analytics & Summary Card -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
+        <div class="hidden bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -1207,6 +1382,7 @@ document.addEventListener('keydown', function(e) {
 {% if report_data %}
 {{ report_data|json_script:"report-data" }}
 {% endif %}
+{{ s_curve_data|json_script:"s-curve-data" }}
 
 {% endblock %}
 
@@ -1374,4 +1550,103 @@ if (exportPdfBtnFallback) exportPdfBtnFallback.addEventListener('click', functio
 });
 </script>
 {% endif %}
+
+<script>
+(function() {
+    var chartCanvas = document.getElementById('headEngineerSCurveChart');
+    var dataElement = document.getElementById('s-curve-data');
+    if (!chartCanvas || !dataElement || typeof Chart === 'undefined') return;
+
+    var curveData;
+    try {
+        curveData = JSON.parse(dataElement.textContent || '{}');
+    } catch (error) {
+        curveData = {};
+    }
+
+    var labels = curveData.labels || [];
+    var planned = curveData.planned || [];
+    var actual = curveData.actual || [];
+
+    if (!labels.length) {
+        chartCanvas.parentElement.innerHTML = '<div class="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-sm font-semibold text-gray-500">S-Curve unavailable. Project needs start date, end date, and progress timeline data.</div>';
+        return;
+    }
+
+    new Chart(chartCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Planned Progress',
+                    data: planned,
+                    borderColor: '#166534',
+                    backgroundColor: 'rgba(22, 101, 52, 0.08)',
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.35,
+                    fill: true
+                },
+                {
+                    label: 'Actual Progress',
+                    data: actual,
+                    borderColor: '#dc2626',
+                    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    spanGaps: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            var value = context.parsed.y;
+                            return context.dataset.label + ': ' + (value == null ? 'N/A' : Number(value).toFixed(2) + '%');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(148, 163, 184, 0.25)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %} 

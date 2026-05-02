@@ -4303,12 +4303,17 @@ def head_engineer_project_detail(request, pk):
         budget = float(project.project_cost) if project.project_cost else 0
         remaining_budget = budget - total_cost if budget else 0
         expected_progress = min(100.0, (days_elapsed / total_days * 100.0)) if total_days > 0 else None
-        progress_variance = (latest_progress.percentage_complete - expected_progress) if latest_progress and expected_progress is not None else None
-        performance_ratio = (latest_progress.percentage_complete / expected_progress) if latest_progress and expected_progress and expected_progress > 0 else None
+        actual_progress_value = float(latest_progress.percentage_complete) if latest_progress else 0.0
 
         # Preferred display target from Configure Project Settings (15th/30th checkpoints)
         configured_target = None
+        configured_progress_rows = []
         try:
+            configured_progress_rows = list(
+                ProjectConfiguredProgress.objects
+                .filter(project=project)
+                .order_by('target_date')
+            )
             configured_target = (
                 ProjectConfiguredProgress.objects
                 .filter(project=project, target_date__gte=today)
@@ -4330,6 +4335,87 @@ def head_engineer_project_detail(request, pk):
             )
         configured_expected_progress = float(configured_target.percentage) if configured_target else None
         configured_expected_date = configured_target.target_date if configured_target else None
+        schedule_target_progress = configured_expected_progress if configured_expected_progress is not None else expected_progress
+        progress_variance = (actual_progress_value - schedule_target_progress) if schedule_target_progress is not None else None
+        performance_ratio = (actual_progress_value / schedule_target_progress) if schedule_target_progress and schedule_target_progress > 0 else None
+        slippage_abs = abs(progress_variance) if progress_variance is not None else None
+        if progress_variance is None:
+            slippage_status = 'unavailable'
+        elif progress_variance < -5:
+            slippage_status = 'behind'
+        elif progress_variance < 0:
+            slippage_status = 'slightly_behind'
+        else:
+            slippage_status = 'on_track'
+
+        def _planned_progress_on(target_date):
+            if not project.start_date or not project.end_date:
+                return None
+            if configured_progress_rows:
+                points = [(project.start_date, 0.0)]
+                points.extend((row.target_date, float(row.percentage)) for row in configured_progress_rows)
+                if not points or points[-1][0] < project.end_date:
+                    points.append((project.end_date, 100.0))
+                merged = {}
+                for point_date, point_pct in points:
+                    if point_date:
+                        merged[point_date] = point_pct
+                points = sorted(merged.items(), key=lambda item: item[0])
+                if not points:
+                    return None
+                if target_date <= points[0][0]:
+                    return float(points[0][1])
+                for index in range(1, len(points)):
+                    prev_date, prev_pct = points[index - 1]
+                    next_date, next_pct = points[index]
+                    if target_date <= next_date:
+                        span = _days_between_for_project(project, prev_date, next_date)
+                        elapsed = _days_between_for_project(project, prev_date, target_date)
+                        ratio = (elapsed / span) if span else 1
+                        ratio = max(0.0, min(1.0, ratio))
+                        return float(prev_pct + ((next_pct - prev_pct) * ratio))
+                return float(points[-1][1])
+
+            if total_days <= 0:
+                return None
+            elapsed = _days_between_for_project(project, project.start_date, target_date)
+            return max(0.0, min(100.0, (elapsed / total_days) * 100.0))
+
+        s_curve_dates = []
+        if project.start_date and project.end_date:
+            s_curve_dates.extend([project.start_date, project.end_date])
+            if project.start_date <= today <= project.end_date:
+                s_curve_dates.append(today)
+            for row in configured_progress_rows:
+                if project.start_date <= row.target_date <= project.end_date:
+                    s_curve_dates.append(row.target_date)
+            for update in progress_updates:
+                if update.date and project.start_date <= update.date <= project.end_date:
+                    s_curve_dates.append(update.date)
+            s_curve_dates = sorted(set(s_curve_dates))
+
+        actual_by_date = {}
+        for update in progress_updates:
+            if update.date:
+                actual_by_date[update.date] = float(update.percentage_complete or 0)
+
+        latest_actual_for_curve = 0.0
+        s_curve_labels = []
+        s_curve_planned = []
+        s_curve_actual = []
+        for curve_date in s_curve_dates:
+            if curve_date in actual_by_date:
+                latest_actual_for_curve = actual_by_date[curve_date]
+            planned_value = _planned_progress_on(curve_date)
+            s_curve_labels.append(curve_date.strftime('%b %d'))
+            s_curve_planned.append(round(planned_value, 2) if planned_value is not None else None)
+            s_curve_actual.append(round(latest_actual_for_curve, 2) if curve_date <= today else None)
+
+        s_curve_data = {
+            'labels': s_curve_labels,
+            'planned': s_curve_planned,
+            'actual': s_curve_actual,
+        }
 
         performance_label = 'N/A'
         if performance_ratio is not None:
@@ -4380,6 +4466,7 @@ def head_engineer_project_detail(request, pk):
             'total_days': total_days,
             'days_remaining': days_remaining,
             'expected_progress': expected_progress,
+            'schedule_target_progress': schedule_target_progress,
             'progress_variance': progress_variance,
             'performance_label': performance_label,
             'cost_breakdown': dict(cost_breakdown),
@@ -4415,8 +4502,10 @@ def head_engineer_project_detail(request, pk):
             'project': project,
             'projeng_project': project,  # Pass project as projeng_project for template compatibility
             'progress_updates': progress_updates,
+            'recent_progress_updates': list(progress_updates)[-5:][::-1],
             'assigned_to': assigned_to,
             'costs': costs,
+            'recent_costs': list(costs)[-5:][::-1],
             'documents': documents,  # All documents for backward compatibility
             'image_documents': image_documents,  # Images only
             'other_documents': other_documents,  # Non-image documents
@@ -4425,6 +4514,11 @@ def head_engineer_project_detail(request, pk):
             'expected_progress': expected_progress,
             'configured_expected_progress': configured_expected_progress,
             'configured_expected_date': configured_expected_date,
+            'schedule_target_progress': schedule_target_progress,
+            'progress_variance': progress_variance,
+            'slippage_abs': slippage_abs,
+            'slippage_status': slippage_status,
+            's_curve_data': s_curve_data,
             'total_cost': total_cost,
             'budget_utilization': budget_utilization,
             'timeline_data': timeline_data,
@@ -5633,9 +5727,23 @@ def head_engineer_notifications(request):
     from projeng.utils import get_project_from_notification
     import logging
     logger = logging.getLogger(__name__)
+    def is_deleted_project_notification(message):
+        if not message:
+            return False
+
+        normalized_message = str(message)
+        return (
+            "has been deleted" in normalized_message
+            and (
+                "Project '" in normalized_message
+                or "that you were assigned to has been deleted" in normalized_message
+            )
+        )
+
     notifications_with_projects = []
     for notification in page_obj:
         project_id = None
+        project_removed = is_deleted_project_notification(notification.message)
         try:
             if notification.message:
                 # Check if it's a Budget Concern notification
@@ -5652,7 +5760,9 @@ def head_engineer_notifications(request):
             logger.error(f"Error getting project from notification {notification.id}: {str(e)}", exc_info=True)
         notifications_with_projects.append({
             'notification': notification,
-            'project_id': project_id
+            'project_id': project_id,
+            'show_project_link': bool(project_id and not project_removed),
+            'project_removed': project_removed,
         })
 
     context = {
