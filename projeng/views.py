@@ -316,6 +316,22 @@ def dashboard(request):
         all_assigned_projects = all_assigned_projects.prefetch_related(progress_prefetch)
         all_projects_list = list(all_assigned_projects)
         all_project_ids = [project.id for project in all_projects_list]
+        import calendar
+        if today.day <= 15:
+            report_period_start = today.replace(day=1)
+            report_period_end = today.replace(day=15)
+        else:
+            report_period_start = today.replace(day=16)
+            report_period_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+        report_period_label = f"{report_period_start.strftime('%b')} {report_period_start.day}-{report_period_end.day}"
+        reported_project_ids = set()
+        if all_project_ids:
+            reported_project_ids = set(
+                ProjectProgress.objects
+                .filter(project_id__in=all_project_ids, date__gte=report_period_start, date__lte=report_period_end)
+                .values_list('project_id', flat=True)
+                .distinct()
+            )
         actual_cost_map = {}
         if all_project_ids:
             actual_cost_rows = (
@@ -333,6 +349,7 @@ def dashboard(request):
         duration_elapsed_days = 0
         duration_total_days = 0
         project_snapshot = []
+        reports_due_projects = []
 
         for project in all_projects_list:
             latest_progress = project.latest_progress_list[0] if hasattr(project, 'latest_progress_list') and project.latest_progress_list else None
@@ -359,6 +376,8 @@ def dashboard(request):
             elif status == 'planned':
                 status_counts['Planned'] += 1
 
+            is_report_due = status in ['in_progress', 'delayed'] and project.id not in reported_project_ids
+
             if project.start_date and project.end_date and project.end_date >= project.start_date:
                 duration_total = _days_between_for_project(project, project.start_date, project.end_date)
                 if today < project.start_date:
@@ -382,7 +401,7 @@ def dashboard(request):
                 'Planned' if status == 'planned' else
                 (project.get_status_display() if hasattr(project, 'get_status_display') else str(status).replace('_', ' ').title())
             )
-            project_snapshot.append({
+            snapshot_item = {
                 'id': project.id,
                 'name': project.name,
                 'prn': project.prn or '',
@@ -393,9 +412,15 @@ def dashboard(request):
                 'budget_used_percent': budget_used_percent,
                 'days_remaining': days_remaining,
                 'days_overdue': abs(days_remaining) if days_remaining is not None and days_remaining < 0 else 0,
+                'is_report_due': is_report_due,
+                'latest_report_date': latest_progress.date if latest_progress else None,
+                'latest_report_time': latest_progress.created_at if latest_progress else None,
                 'last_activity': recent_activity_map.get(project.id),
                 'last_activity_age_days': (django_timezone.now() - recent_activity_map[project.id]).days if recent_activity_map.get(project.id) else None,
-            })
+            }
+            project_snapshot.append(snapshot_item)
+            if is_report_due:
+                reports_due_projects.append(snapshot_item)
 
         completion_average = round((sum(progress_values) / len(progress_values)), 1) if progress_values else 0.0
         duration_utilized_percent = round((duration_elapsed_days / duration_total_days) * 100, 1) if duration_total_days else 0.0
@@ -460,17 +485,51 @@ def dashboard(request):
             if project['status'] in ['in_progress', 'delayed']
             and (project['last_activity_age_days'] is None or project['last_activity_age_days'] >= 15)
         )
-        budget_watch_count = sum(
-            1 for project in project_snapshot
-            if project['budget_used_percent'] >= 80
+        reports_due_projects = sorted(
+            reports_due_projects,
+            key=lambda item: (
+                item['status'] != 'delayed',
+                item['days_remaining'] if item['days_remaining'] is not None else 99999,
+                -item['progress'],
+            )
         )
+        reports_due_count = len(reports_due_projects)
+        urgent_delayed_project = next(
+            iter(sorted(
+                [project for project in project_snapshot if project['status'] == 'delayed'],
+                key=lambda item: item['days_overdue'],
+                reverse=True
+            )),
+            None
+        )
+        next_deadline_project = next(
+            iter(sorted(
+                [
+                    project for project in project_snapshot
+                    if project['status'] in ['in_progress', 'delayed']
+                    and project['days_remaining'] is not None
+                    and project['days_remaining'] >= 0
+                ],
+                key=lambda item: item['days_remaining']
+            )),
+            None
+        )
+        latest_report_project = next(
+            iter(sorted(
+                [project for project in project_snapshot if project['latest_report_time']],
+                key=lambda item: item['latest_report_time'],
+                reverse=True
+            )),
+            None
+        )
+        top_report_due_project = reports_due_projects[0] if reports_due_projects else None
         project_snapshot = sorted(
             project_snapshot,
             key=lambda item: (
                 item['status'] != 'delayed',
+                not item['is_report_due'],
                 item['last_activity_age_days'] is None or item['last_activity_age_days'] < 15,
                 item['days_remaining'] if item['days_remaining'] is not None else 99999,
-                item['budget_used_percent'] < 80,
                 -item['progress'],
             )
         )[:8]
@@ -602,7 +661,14 @@ def dashboard(request):
             'active_projects_count': status_counts['In Progress'],
             'stale_projects_count': stale_projects_count,
             'need_update_count': need_update_count,
-            'budget_watch_count': budget_watch_count,
+            'reports_due_count': reports_due_count,
+            'report_period_label': report_period_label,
+            'report_period_start': report_period_start,
+            'report_period_end': report_period_end,
+            'top_report_due_project': top_report_due_project,
+            'urgent_delayed_project': urgent_delayed_project,
+            'next_deadline_project': next_deadline_project,
+            'latest_report_project': latest_report_project,
             'project_snapshot': project_snapshot,
             'priority_projects': priority_projects,
             'work_status_chart': work_status_chart,
@@ -1245,9 +1311,10 @@ def project_detail_view(request, pk):
             progress_dates.append(progress.date.strftime('%Y-%m-%d'))
             progress_percentages.append(progress.percentage_complete)
 
-        # Latest actual progress for header display
-        latest_actual_progress = float(progress_percentages[-1]) if progress_percentages else 0.0
+        # Latest actual progress for header display and progress-update form defaults.
+        latest_actual_progress = float(progress_percentages[-1]) if progress_percentages else float(project.progress or 0)
         latest_actual_progress = max(0.0, min(100.0, latest_actual_progress))
+        current_progress = latest_actual_progress
         show_actual_progress_label_inside = latest_actual_progress >= 15.0
 
         today = timezone.now().date()
@@ -1480,6 +1547,8 @@ def project_detail_view(request, pk):
             'documents': documents,  # Pass documents for dedicated section
             'configured_target_date': configured_target_date,
             'configured_target_progress': configured_target_progress,
+            'today': today,
+            'current_progress': current_progress,
             'latest_actual_progress': latest_actual_progress,
             'show_actual_progress_label_inside': show_actual_progress_label_inside,
             'can_edit_any_progress': is_head_engineer(request.user),

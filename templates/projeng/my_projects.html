@@ -3,7 +3,17 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
-window.currentStatusFilter = '';
+window.validStatusFilters = new Set(['', 'planned', 'in_progress', 'completed', 'delayed']);
+window.normalizeStatusFilter = function(status) {
+    const normalized = (status || '').trim().toLowerCase();
+    if (normalized === 'ongoing') return 'in_progress';
+    return window.validStatusFilters.has(normalized) ? normalized : '';
+};
+window.statusFilterFromUrl = function() {
+    const params = new URLSearchParams(window.location.search);
+    return window.normalizeStatusFilter(params.get('status'));
+};
+window.currentStatusFilter = window.statusFilterFromUrl();
 window.currentBarangayFilter = '';
 window.searchTerm = '';
 
@@ -63,9 +73,25 @@ window.updateActiveFilter = function(activeStatus) {
     });
 };
 
-window.setStatusFilter = function(status) {
-    window.currentStatusFilter = status;
-    window.updateActiveFilter(status);
+window.updateStatusUrl = function(status) {
+    const params = new URLSearchParams(window.location.search);
+    if (status) {
+        params.set('status', status);
+    } else {
+        params.delete('status');
+    }
+    const query = params.toString();
+    const nextUrl = window.location.pathname + (query ? '?' + query : '') + window.location.hash;
+    window.history.replaceState({}, '', nextUrl);
+};
+
+window.setStatusFilter = function(status, updateUrl) {
+    const normalizedStatus = window.normalizeStatusFilter(status);
+    window.currentStatusFilter = normalizedStatus;
+    if (updateUrl !== false) {
+        window.updateStatusUrl(normalizedStatus);
+    }
+    window.updateActiveFilter(normalizedStatus);
     window.filterProjects();
 };
 
@@ -96,8 +122,7 @@ window.clearServerFilters = function() {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
-    window.updateActiveFilter('');
-    window.filterProjects();
+    window.setStatusFilter(window.currentStatusFilter, false);
 });
 </script>
 {% endblock %}

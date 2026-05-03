@@ -1,0 +1,581 @@
+<form id="progressForm"
+      data-progress-update-form
+      data-form-mode="{{ progress_form_variant|default:'page' }}"
+      data-current-progress="{{ current_progress|default:0 }}"
+      data-redirect-url="{% url 'projeng:projeng_project_detail' project.pk %}"
+      enctype="multipart/form-data"
+      method="post"
+      action="{% url 'projeng:projeng_add_progress_update' project.pk %}">
+    {% csrf_token %}
+
+    <div class="space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <p class="text-xs font-semibold uppercase text-gray-500">Current</p>
+                <p class="mt-1 text-lg font-bold text-gray-900">{{ current_progress|floatformat:2 }}%</p>
+            </div>
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p class="text-xs font-semibold uppercase text-emerald-700">Target{% if configured_target_date %} Date{% endif %}</p>
+                <p class="mt-1 text-lg font-bold text-emerald-900">
+                    {% if configured_target_progress != None %}
+                        {{ configured_target_progress|floatformat:2 }}%
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </p>
+                {% if configured_target_date %}
+                    <p class="text-xs text-emerald-700">{{ configured_target_date|date:"M j, Y" }}</p>
+                {% endif %}
+            </div>
+            <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                <p class="text-xs font-semibold uppercase text-blue-700">Needed</p>
+                <p class="mt-1 text-lg font-bold text-blue-900" data-progress-needed>
+                    {% if configured_target_progress != None %}
+                        --
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+                <div class="flex items-center gap-2 text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>{{ today|date:'F j, Y' }} (today)</span>
+                </div>
+            </div>
+            <div>
+                <label for="percentage_complete" class="block text-sm font-semibold text-gray-700 mb-2">
+                    New Progress (%)
+                    <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-3 text-xs text-gray-500">
+                        <span class="font-medium">Min: {{ current_progress|floatformat:2 }}%</span>
+                        <div class="flex items-center gap-2">
+                            <input type="number"
+                                   id="percentage_complete_number"
+                                   data-percentage-number
+                                   placeholder="{{ current_progress|floatformat:2 }}"
+                                   value="{{ current_progress|floatformat:2 }}"
+                                   step="0.01"
+                                   class="w-24 px-3 py-2 text-base font-semibold text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   aria-label="Percentage complete">
+                            <span class="text-base font-bold text-gray-700">%</span>
+                        </div>
+                        <span class="font-medium">Max: 100.00%</span>
+                    </div>
+                    <input type="range"
+                           id="percentage_complete"
+                           name="percentage_complete"
+                           min="{{ current_progress|floatformat:2 }}"
+                           max="100"
+                           step="0.01"
+                           value="{{ current_progress|floatformat:2 }}"
+                           required
+                           class="w-full accent-blue-600">
+                    <p class="text-xs text-gray-500">Use the slider or type the percentage above; both stay in sync.</p>
+                    <p class="hidden text-xs font-semibold rounded-md px-3 py-2" data-progress-impact></p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label for="progress-description" class="block text-sm font-semibold text-gray-700 mb-2">
+                Description
+                <span class="text-red-500">*</span>
+            </label>
+            <textarea id="progress-description"
+                      name="description"
+                      rows="4"
+                      required
+                      placeholder="Describe the progress made on this project..."
+                      class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"></textarea>
+            <p class="text-xs text-gray-500 mt-1">Provide a detailed description of the work completed.</p>
+        </div>
+
+        <div id="justification-field" class="hidden" data-justification-field>
+            <label for="progress-justification" class="block text-sm font-semibold text-gray-700 mb-2">
+                Justification for Progress Increase
+                <span class="text-red-500">*</span>
+                <span class="text-xs font-normal text-gray-500">(Required for increases over 10%)</span>
+            </label>
+            <textarea id="progress-justification"
+                      name="justification"
+                      rows="3"
+                      placeholder="Explain why the progress increased significantly. What work was completed?"
+                      class="w-full px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-colors resize-none bg-amber-50"></textarea>
+            <p class="text-xs text-amber-700 mt-1">Large progress jumps need a short explanation for review.</p>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <label for="progress-photo" class="block text-sm font-semibold text-gray-700">
+                    Photos
+                    <span class="text-red-500 hidden" data-photo-required-indicator>*</span>
+                    <span class="text-xs font-normal text-gray-500" data-photo-optional-text>(Optional)</span>
+                </label>
+                <span class="text-xs text-gray-500 font-medium hidden" data-photo-count></span>
+            </div>
+            <p class="text-xs text-gray-500 mb-2" data-photo-requirement-text>Photos are optional but recommended.</p>
+            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors cursor-pointer"
+                 data-photo-upload-area>
+                <div class="space-y-2 text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="flex flex-col items-center text-sm text-gray-600">
+                        <label for="progress-photo" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                            <span>Upload photos</span>
+                            <input type="file"
+                                   id="progress-photo"
+                                   name="photos"
+                                   accept="image/*"
+                                   multiple
+                                   class="sr-only">
+                        </label>
+                        <p class="mt-1 text-xs text-gray-500">or drag and drop images here</p>
+                    </div>
+                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB each.</p>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 hidden" data-photo-preview></div>
+        </div>
+
+        <div class="hidden p-4 rounded-lg border" data-progress-message>
+            <p class="text-sm font-medium"></p>
+        </div>
+
+        <div class="{% if progress_form_variant == 'drawer' %}sticky bottom-0 -mx-5 px-5 py-4 bg-white border-t border-gray-200 shadow-sm{% else %}flex items-center gap-4 pt-4 border-t border-gray-200{% endif %}">
+            <div class="flex items-center gap-3">
+                <button type="submit"
+                        data-submit-progress
+                        class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition-colors duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed">
+                    <span class="hidden" data-progress-spinner>
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                    <span>Add Progress Update</span>
+                </button>
+                {% if progress_form_variant == 'drawer' %}
+                    <button type="button"
+                            data-progress-cancel
+                            class="px-5 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-200">
+                        Cancel
+                    </button>
+                {% else %}
+                    <a href="{% url 'projeng:projeng_project_detail' project.pk %}"
+                       class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-200">
+                        Cancel
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+(function() {
+    function initProgressUpdateForm(form) {
+        if (!form || form.dataset.progressInitialized === 'true') return;
+        form.dataset.progressInitialized = 'true';
+
+        const submitBtn = form.querySelector('[data-submit-progress]');
+        const spinner = form.querySelector('[data-progress-spinner]');
+        const photoInput = form.querySelector('input[name="photos"]');
+        const photoPreview = form.querySelector('[data-photo-preview]');
+        const photoCount = form.querySelector('[data-photo-count]');
+        const photoUploadArea = form.querySelector('[data-photo-upload-area]');
+        const percentageInput = form.querySelector('input[name="percentage_complete"]');
+        const percentageNumberInput = form.querySelector('[data-percentage-number]');
+        const justificationField = form.querySelector('[data-justification-field]');
+        const justificationInput = form.querySelector('textarea[name="justification"]');
+        const photoRequiredIndicator = form.querySelector('[data-photo-required-indicator]');
+        const photoOptionalText = form.querySelector('[data-photo-optional-text]');
+        const photoRequirementText = form.querySelector('[data-photo-requirement-text]');
+        const progressImpact = form.querySelector('[data-progress-impact]');
+        const progressNeeded = form.querySelector('[data-progress-needed]');
+        const messageBox = form.querySelector('[data-progress-message]');
+        const messageText = messageBox ? messageBox.querySelector('p') : null;
+        const mode = form.dataset.formMode || 'page';
+        const currentProgress = parseFloat(form.dataset.currentProgress || '0') || 0;
+        const targetProgress = {% if configured_target_progress != None %}{{ configured_target_progress|floatformat:2 }}{% else %}null{% endif %};
+        let selectedFiles = [];
+        let isDirty = false;
+        form.dataset.progressDirty = 'false';
+
+        function round2(n) {
+            return Math.round(Number(n) * 100) / 100;
+        }
+
+        function setDirty() {
+            isDirty = true;
+            form.dataset.progressDirty = 'true';
+        }
+
+        function showInlineMessage(message, type) {
+            if (!messageBox || !messageText) return;
+            messageText.textContent = message || '';
+            messageBox.classList.remove('hidden', 'bg-green-50', 'border-green-200', 'bg-red-50', 'border-red-200');
+            messageText.classList.remove('text-green-800', 'text-red-800');
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-50', 'border-green-200');
+                messageText.classList.add('text-green-800');
+            } else {
+                messageBox.classList.add('bg-red-50', 'border-red-200');
+                messageText.classList.add('text-red-800');
+            }
+        }
+
+        function hideInlineMessage() {
+            if (messageBox) messageBox.classList.add('hidden');
+        }
+
+        function updateImpact(newProgress) {
+            if (targetProgress == null || Number.isNaN(targetProgress)) {
+                if (progressNeeded) progressNeeded.textContent = 'N/A';
+                if (progressImpact) progressImpact.classList.add('hidden');
+                return;
+            }
+
+            const neededFromCurrent = round2(Math.max(targetProgress - currentProgress, 0));
+            if (progressNeeded) {
+                progressNeeded.textContent = neededFromCurrent > 0 ? '+' + neededFromCurrent.toFixed(2) + '%' : 'Met';
+            }
+
+            if (!progressImpact) return;
+            const variance = round2(newProgress - targetProgress);
+            progressImpact.classList.remove('hidden', 'bg-green-50', 'text-green-800', 'bg-yellow-50', 'text-yellow-800', 'bg-red-50', 'text-red-800');
+            if (variance >= 0) {
+                progressImpact.textContent = 'This update is on or above target by ' + variance.toFixed(2) + '%.';
+                progressImpact.classList.add('bg-green-50', 'text-green-800');
+            } else if (Math.abs(variance) <= 5) {
+                progressImpact.textContent = 'This update is ' + Math.abs(variance).toFixed(2) + '% below target.';
+                progressImpact.classList.add('bg-yellow-50', 'text-yellow-800');
+            } else {
+                progressImpact.textContent = 'This update is ' + Math.abs(variance).toFixed(2) + '% below target.';
+                progressImpact.classList.add('bg-red-50', 'text-red-800');
+            }
+        }
+
+        function updateProgressRequirements() {
+            if (!percentageInput) return;
+
+            const newProgress = parseFloat(percentageInput.value) || currentProgress;
+            const displayProgress = round2(newProgress);
+            if (percentageNumberInput && document.activeElement !== percentageNumberInput) {
+                percentageNumberInput.value = displayProgress.toFixed(2);
+            }
+            updateImpact(displayProgress);
+
+            const progressIncrease = round2(displayProgress - currentProgress);
+            if (progressIncrease > 10) {
+                if (justificationField) justificationField.classList.remove('hidden');
+                if (justificationInput) justificationInput.required = true;
+                if (photoRequiredIndicator) photoRequiredIndicator.classList.remove('hidden');
+                if (photoOptionalText) photoOptionalText.classList.add('hidden');
+                if (photoRequirementText) {
+                    photoRequirementText.textContent = 'Photos are required for this ' + progressIncrease.toFixed(2) + '% increase.';
+                    photoRequirementText.classList.remove('text-gray-500');
+                    photoRequirementText.classList.add('text-red-600', 'font-semibold');
+                }
+                if (photoUploadArea) {
+                    photoUploadArea.classList.remove('border-gray-300');
+                    photoUploadArea.classList.add('border-red-300', 'bg-red-50');
+                }
+                if (photoInput) photoInput.required = true;
+            } else {
+                if (justificationField) justificationField.classList.add('hidden');
+                if (justificationInput) {
+                    justificationInput.required = false;
+                    justificationInput.value = '';
+                }
+                if (photoRequiredIndicator) photoRequiredIndicator.classList.add('hidden');
+                if (photoOptionalText) photoOptionalText.classList.remove('hidden');
+                if (photoRequirementText) {
+                    photoRequirementText.textContent = 'Photos are optional but recommended.';
+                    photoRequirementText.classList.remove('text-red-600', 'font-semibold');
+                    photoRequirementText.classList.add('text-gray-500');
+                }
+                if (photoUploadArea) {
+                    photoUploadArea.classList.remove('border-red-300', 'bg-red-50');
+                    photoUploadArea.classList.add('border-gray-300');
+                }
+                if (photoInput) photoInput.required = false;
+            }
+        }
+
+        function applyNumberInput() {
+            if (!percentageNumberInput || !percentageInput) return;
+            let val = parseFloat(percentageNumberInput.value);
+            if (Number.isNaN(val)) val = currentProgress;
+            const clamped = round2(Math.max(currentProgress, Math.min(100, val)));
+            percentageNumberInput.value = clamped.toFixed(2);
+            percentageInput.value = clamped.toFixed(2);
+            updateProgressRequirements();
+        }
+
+        function syncFromNumberInput() {
+            if (!percentageNumberInput || !percentageInput) return;
+            const raw = percentageNumberInput.value.trim();
+            const val = parseFloat(raw);
+            if (raw === '' || Number.isNaN(val)) return;
+            percentageInput.value = round2(Math.max(currentProgress, Math.min(100, val))).toFixed(2);
+            updateProgressRequirements();
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, function(ch) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[ch];
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 KB';
+            if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function syncFileInput() {
+            if (!photoInput || typeof DataTransfer === 'undefined') return;
+            const dataTransfer = new DataTransfer();
+            selectedFiles.forEach(function(file) {
+                dataTransfer.items.add(file);
+            });
+            photoInput.files = dataTransfer.files;
+        }
+
+        function updatePhotoCount() {
+            if (!photoCount) return;
+            if (selectedFiles.length > 0) {
+                photoCount.textContent = selectedFiles.length + ' image(s) selected';
+                photoCount.classList.remove('hidden');
+            } else {
+                photoCount.classList.add('hidden');
+            }
+        }
+
+        function removePhoto(index) {
+            if (index < 0 || index >= selectedFiles.length) return;
+            selectedFiles.splice(index, 1);
+            syncFileInput();
+            renderPhotoPreviews();
+            updatePhotoCount();
+            setDirty();
+        }
+
+        function renderPhotoPreviews() {
+            if (!photoPreview) return;
+            photoPreview.innerHTML = '';
+            if (selectedFiles.length === 0) {
+                photoPreview.classList.add('hidden');
+                return;
+            }
+
+            photoPreview.classList.remove('hidden');
+            selectedFiles.forEach(function(file, index) {
+                if (!file.type || file.type.indexOf('image/') !== 0) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const div = document.createElement('div');
+                    div.className = 'relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50';
+                    div.innerHTML =
+                        '<div class="relative" style="aspect-ratio: 1 / 1;">' +
+                            '<img src="' + ev.target.result + '" alt="' + escapeHtml(file.name) + '" class="w-full h-full object-cover">' +
+                            '<button type="button" class="remove-photo absolute top-2 right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm hover:bg-red-600 shadow" data-index="' + index + '" title="Remove photo">' +
+                                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+                            '</button>' +
+                        '</div>' +
+                        '<div class="p-2">' +
+                            '<p class="text-xs font-medium text-gray-700 truncate" title="' + escapeHtml(file.name) + '">' + escapeHtml(file.name) + '</p>' +
+                            '<p class="text-xs text-gray-500">' + formatFileSize(file.size) + '</p>' +
+                        '</div>';
+                    photoPreview.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function addFiles(files) {
+            Array.from(files || []).forEach(function(file) {
+                if (!file.type || file.type.indexOf('image/') !== 0) return;
+                const duplicate = selectedFiles.some(function(existing) {
+                    return existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified;
+                });
+                if (!duplicate) selectedFiles.push(file);
+            });
+            syncFileInput();
+            renderPhotoPreviews();
+            updatePhotoCount();
+            setDirty();
+        }
+
+        function resetForm() {
+            form.reset();
+            selectedFiles = [];
+            if (percentageInput) percentageInput.value = currentProgress.toFixed(2);
+            if (percentageNumberInput) percentageNumberInput.value = currentProgress.toFixed(2);
+            if (photoInput) photoInput.value = '';
+            renderPhotoPreviews();
+            updatePhotoCount();
+            updateProgressRequirements();
+            hideInlineMessage();
+            isDirty = false;
+            form.dataset.progressDirty = 'false';
+        }
+
+        form.addEventListener('input', setDirty);
+        form.addEventListener('change', setDirty);
+
+        if (percentageInput) {
+            percentageInput.addEventListener('input', updateProgressRequirements);
+            percentageInput.addEventListener('change', updateProgressRequirements);
+        }
+        if (percentageNumberInput) {
+            percentageNumberInput.addEventListener('input', syncFromNumberInput);
+            percentageNumberInput.addEventListener('change', applyNumberInput);
+            percentageNumberInput.addEventListener('blur', applyNumberInput);
+        }
+
+        if (photoInput) {
+            photoInput.addEventListener('change', function(e) {
+                addFiles(e.target.files);
+            });
+        }
+
+        if (photoUploadArea && photoInput) {
+            photoUploadArea.addEventListener('click', function(e) {
+                if (e.target.closest('label')) return;
+                photoInput.click();
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+                photoUploadArea.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            ['dragenter', 'dragover'].forEach(function(eventName) {
+                photoUploadArea.addEventListener(eventName, function() {
+                    photoUploadArea.classList.add('border-blue-500', 'bg-blue-50');
+                });
+            });
+            ['dragleave', 'drop'].forEach(function(eventName) {
+                photoUploadArea.addEventListener(eventName, function() {
+                    photoUploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+                });
+            });
+            photoUploadArea.addEventListener('drop', function(e) {
+                addFiles(e.dataTransfer.files);
+            });
+        }
+
+        if (photoPreview) {
+            photoPreview.addEventListener('click', function(e) {
+                const btn = e.target.closest('.remove-photo');
+                if (!btn) return;
+                removePhoto(parseInt(btn.dataset.index, 10));
+            });
+        }
+
+        const cancelBtn = form.querySelector('[data-progress-cancel]');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                window.dispatchEvent(new CustomEvent('projeng:progress-update-cancel', {
+                    detail: {
+                        form: form,
+                        resetForm: resetForm,
+                        isDirty: function() { return isDirty; }
+                    }
+                }));
+            });
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            applyNumberInput();
+            hideInlineMessage();
+
+            if (spinner) spinner.classList.remove('hidden');
+            if (submitBtn) submitBtn.disabled = true;
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function(result) {
+                if (spinner) spinner.classList.add('hidden');
+                if (submitBtn) submitBtn.disabled = false;
+
+                if (result.ok && result.data.success) {
+                    const message = result.data.message || 'Progress update added successfully.';
+                    showInlineMessage(message, 'success');
+                    isDirty = false;
+                    form.dataset.progressDirty = 'false';
+                    window.dispatchEvent(new CustomEvent('projeng:progress-update-success', {
+                        detail: {
+                            data: result.data,
+                            form: form,
+                            resetForm: resetForm,
+                            mode: mode
+                        }
+                    }));
+                    if (mode !== 'drawer') {
+                        try {
+                            sessionStorage.setItem('projengProgressToast', message);
+                        } catch (err) {}
+                        setTimeout(function() {
+                            window.location.href = form.dataset.redirectUrl;
+                        }, 900);
+                    }
+                } else {
+                    showInlineMessage(result.data.error || 'Failed to add progress update.', 'error');
+                }
+            })
+            .catch(function(error) {
+                if (spinner) spinner.classList.add('hidden');
+                if (submitBtn) submitBtn.disabled = false;
+                showInlineMessage('An error occurred. Please try again.', 'error');
+                console.error('Progress update error:', error);
+            });
+        });
+
+        updateProgressRequirements();
+        window.addEventListener('projeng:progress-update-reset', function(event) {
+            if (!event.detail || event.detail.form === form) resetForm();
+        });
+    }
+
+    function initAllProgressForms() {
+        document.querySelectorAll('[data-progress-update-form]').forEach(initProgressUpdateForm);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAllProgressForms);
+    } else {
+        initAllProgressForms();
+    }
+})();
+</script>

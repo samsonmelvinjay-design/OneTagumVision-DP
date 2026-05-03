@@ -12,6 +12,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 12px;
+    align-items: start;
     min-height: 0;
     flex: 1;
   }
@@ -78,6 +79,17 @@
   .pe-open-link:hover {
     background: #14532d;
   }
+  .pe-status-link {
+    display: block;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .pe-status-link:hover,
+  .pe-status-link:focus {
+    border-color: #228B22;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+    outline: none;
+  }
   @media (max-width: 1279px) {
     .pe-shell {
       height: auto;
@@ -119,9 +131,9 @@
         <div class="text-xs text-rose-700">Projects needing schedule attention</div>
       </article>
       <article class="pe-card pe-metric rounded-md p-3" style="--accent:#2563eb;">
-        <div class="text-xs font-semibold uppercase text-slate-700">Budget Watch</div>
-        <div class="mt-1 text-3xl font-extrabold text-slate-900">{{ budget_watch_count }}</div>
-        <div class="text-xs text-slate-600">Projects at 80%+ budget use</div>
+        <div class="text-xs font-semibold uppercase text-blue-700">Reports Due</div>
+        <div class="mt-1 text-3xl font-extrabold text-blue-700">{{ reports_due_count }}</div>
+        <div class="text-xs text-blue-700">Progress reports due {{ report_period_label }}</div>
       </article>
     </section>
 
@@ -130,7 +142,7 @@
         <div class="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 class="pe-brand-title text-base font-bold">Priority Projects</h2>
-            <p class="pe-brand-muted text-xs">Sorted by delay, stale updates, deadline, and budget risk.</p>
+            <p class="pe-brand-muted text-xs">Sorted by delay, reports due, stale updates, and deadline.</p>
           </div>
           <a href="{% url 'projeng:projeng_my_projects' %}" class="pe-action-button shrink-0 px-3">My Projects</a>
         </div>
@@ -143,7 +155,7 @@
                 <th class="hidden px-3 py-2 md:table-cell">Barangay</th>
                 <th class="px-3 py-2">Progress</th>
                 <th class="px-3 py-2">Schedule</th>
-                <th class="hidden px-3 py-2 lg:table-cell">Budget</th>
+                <th class="hidden px-3 py-2 lg:table-cell">Report</th>
                 <th class="hidden px-3 py-2 xl:table-cell">Last Update</th>
                 <th class="px-3 py-2 text-right">Action</th>
               </tr>
@@ -172,9 +184,13 @@
                   {% endif %}
                 </td>
                 <td class="hidden px-3 py-2 lg:table-cell">
-                  <span class="text-xs font-bold {% if project.budget_used_percent >= 100 %}text-rose-700{% elif project.budget_used_percent >= 80 %}text-amber-700{% else %}text-green-900{% endif %}">
-                    {{ project.budget_used_percent }}%
-                  </span>
+                  {% if project.is_report_due %}
+                    <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">Due</span>
+                  {% elif project.latest_report_date %}
+                    <span class="rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-green-800">Submitted</span>
+                  {% else %}
+                    <span class="rounded-full bg-slate-50 px-2 py-1 text-xs font-bold text-slate-500">No report</span>
+                  {% endif %}
                 </td>
                 <td class="hidden px-3 py-2 text-xs text-green-800 xl:table-cell">
                   {% if project.last_activity %}{{ project.last_activity|date:"M d, h:i A" }}{% else %}No activity{% endif %}
@@ -206,19 +222,19 @@
             {% if need_update_count %}
             <a href="{% url 'projeng:projeng_my_projects' %}" class="block rounded-md border-l-4 border-amber-500 bg-amber-50 px-3 py-2 hover:bg-amber-100">
               <div class="text-sm font-bold text-amber-800">{{ need_update_count }} project{{ need_update_count|pluralize }} need update</div>
-              <div class="text-xs text-amber-700">Submit progress, cost, or document activity.</div>
+              <div class="text-xs text-amber-700">Submit progress details or supporting documents.</div>
             </a>
             {% endif %}
-            {% if budget_watch_count %}
-            <a href="{% url 'projeng:projeng_my_reports' %}" class="block rounded-md border-l-4 border-blue-500 bg-blue-50 px-3 py-2 hover:bg-blue-100">
-              <div class="text-sm font-bold text-blue-800">{{ budget_watch_count }} budget watch item{{ budget_watch_count|pluralize }}</div>
-              <div class="text-xs text-blue-700">Review spending against allocated budget.</div>
+            {% if reports_due_count %}
+            <a href="{% url 'projeng:projeng_my_projects' %}" class="block rounded-md border-l-4 border-blue-500 bg-blue-50 px-3 py-2 hover:bg-blue-100">
+              <div class="text-sm font-bold text-blue-800">{{ reports_due_count }} progress report{{ reports_due_count|pluralize }} due</div>
+              <div class="text-xs text-blue-700">Submit reports for {{ report_period_label }}.</div>
             </a>
             {% endif %}
-            {% if not overdue_projects_count and not need_update_count and not budget_watch_count %}
+            {% if not overdue_projects_count and not need_update_count and not reports_due_count %}
             <div class="rounded-md border border-green-100 bg-green-50 px-3 py-3">
               <div class="text-sm font-bold text-green-900">No urgent action right now</div>
-              <div class="text-xs text-green-700">Assigned projects have no immediate schedule, update, or budget alerts.</div>
+              <div class="text-xs text-green-700">Assigned projects have no immediate schedule, update, or reporting alerts.</div>
             </div>
             {% endif %}
           </div>
@@ -237,22 +253,22 @@
         <section class="pe-card min-h-0 flex-1 rounded-md p-4">
           <h2 class="pe-brand-title text-base font-bold">Portfolio Status</h2>
           <div class="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
-            <div class="rounded border border-green-100 bg-green-50 p-2">
+            <a href="{% url 'projeng:projeng_my_projects' %}?status=completed" class="pe-status-link rounded border border-green-100 bg-green-50 p-2" aria-label="View completed projects">
               <div class="text-lg font-extrabold text-green-950">{{ completed_projects_count }}</div>
               <div class="text-green-700">Completed</div>
-            </div>
-            <div class="rounded border border-blue-100 bg-blue-50 p-2">
-              <div class="text-lg font-extrabold text-blue-700">{{ in_progress_projects_count }}</div>
-              <div class="text-blue-700">In Progress</div>
-            </div>
-            <div class="rounded border border-amber-100 bg-amber-50 p-2">
-              <div class="text-lg font-extrabold text-amber-700">{{ planned_projects_count }}</div>
-              <div class="text-amber-700">Planned</div>
-            </div>
-            <div class="rounded border border-rose-100 bg-rose-50 p-2">
+            </a>
+            <a href="{% url 'projeng:projeng_my_projects' %}?status=in_progress" class="pe-status-link rounded border border-yellow-100 bg-yellow-50 p-2" aria-label="View in progress projects">
+              <div class="text-lg font-extrabold text-yellow-700">{{ in_progress_projects_count }}</div>
+              <div class="text-yellow-700">In Progress</div>
+            </a>
+            <a href="{% url 'projeng:projeng_my_projects' %}?status=planned" class="pe-status-link rounded border border-purple-100 bg-purple-50 p-2" aria-label="View planned projects">
+              <div class="text-lg font-extrabold text-purple-700">{{ planned_projects_count }}</div>
+              <div class="text-purple-700">Planned</div>
+            </a>
+            <a href="{% url 'projeng:projeng_my_projects' %}?status=delayed" class="pe-status-link rounded border border-rose-100 bg-rose-50 p-2" aria-label="View delayed projects">
               <div class="text-lg font-extrabold text-rose-700">{{ delayed_projects_count }}</div>
               <div class="text-rose-700">Delayed</div>
-            </div>
+            </a>
           </div>
           <div class="mt-3 rounded-md bg-green-50 px-3 py-2 text-xs text-green-800">
             Average completion: <span class="font-bold">{{ completion_average }}%</span>

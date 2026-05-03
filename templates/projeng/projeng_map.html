@@ -15,16 +15,16 @@
                 <button type="button" id="filter-all" onclick="filterMarkersByStatus('')" class="filter-status-btn active px-3 py-2 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all">
                     All
                 </button>
-                <button type="button" id="filter-planned" onclick="filterMarkersByStatus('planned')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all">
+                <button type="button" id="filter-planned" onclick="filterMarkersByStatus('planned')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all">
                     Planned
                 </button>
-                <button type="button" id="filter-in-progress" onclick="filterMarkersByStatus('in_progress')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all">
+                <button type="button" id="filter-in-progress" onclick="filterMarkersByStatus('in_progress')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all">
                     In Progress
                 </button>
-                <button type="button" id="filter-completed" onclick="filterMarkersByStatus('completed')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 transition-all">
+                <button type="button" id="filter-completed" onclick="filterMarkersByStatus('completed')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-all">
                     Completed
                 </button>
-                <button type="button" id="filter-delayed" onclick="filterMarkersByStatus('delayed')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all">
+                <button type="button" id="filter-delayed" onclick="filterMarkersByStatus('delayed')" class="filter-status-btn px-3 py-2 rounded-lg font-semibold text-sm border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-all">
                     Delayed
                 </button>
             </div>
@@ -385,19 +385,53 @@
     var currentStatusFilter = ''; // Current status filter
     var currentBarangayFilter = ''; // Current barangay filter
 
-    // Create custom icon based on status
+    function normalizeProjectStatus(status) {
+        const s = (status || '').toString().trim().toLowerCase();
+        if (s === 'ongoing' || s === 'in_progress') return 'in_progress';
+        if (s === 'planned' || s === 'pending') return 'planned';
+        if (s === 'completed') return 'completed';
+        if (s === 'delayed') return 'delayed';
+        return s;
+    }
+
+    // Create custom icon based on status. Colors match the Head Engineer map.
     function createStatusIcon(status) {
-        let iconColor = '#6B7280'; // gray default
-        if (status === 'completed') iconColor = '#10B981'; // green
-        else if (status === 'ongoing' || status === 'in_progress') iconColor = '#3B82F6'; // blue
-        else if (status === 'planned' || status === 'pending') iconColor = '#F59E0B'; // amber
-        else if (status === 'delayed') iconColor = '#EF4444'; // red
+        const normalizedStatus = normalizeProjectStatus(status);
+        let iconColor = '#a855f7'; // Planned - purple
+        if (normalizedStatus === 'completed') iconColor = '#10b981'; // Completed - green
+        else if (normalizedStatus === 'delayed') iconColor = '#ef4444'; // Delayed - red
+        else if (normalizedStatus === 'in_progress') iconColor = '#eab308'; // In Progress - yellow
+
+        const filterId = 'projeng-shadow-' + Math.random().toString(36).substr(2, 9);
+        const svgIcon = `
+            <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="${filterId}" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+                        <feOffset dx="0" dy="2" result="offsetblur"/>
+                        <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.3"/>
+                        </feComponentTransfer>
+                        <feMerge>
+                            <feMergeNode/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+                <path d="M16 0C7.163 0 0 7.163 0 16c0 11.5 16 24 16 24s16-12.5 16-24C32 7.163 24.837 0 16 0z"
+                      fill="${iconColor}"
+                      filter="url(#${filterId})"/>
+                <circle cx="16" cy="16" r="8" fill="white" opacity="0.9"/>
+                <circle cx="16" cy="16" r="5" fill="${iconColor}"/>
+            </svg>
+        `;
         
         return L.divIcon({
             className: 'custom-marker-icon',
-            html: `<div style="background-color: ${iconColor}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            html: svgIcon,
+            iconSize: [32, 40],
+            iconAnchor: [16, 40],
+            popupAnchor: [0, -40]
         });
     }
 
@@ -409,16 +443,17 @@
         const displayProgress = !isNaN(progress) && progress >= 0 && progress <= 100 ? progress : 0;
         // Use calculated_status if available, otherwise fall back to status
         const status = project.calculated_status || project.status || '';
+        const normalizedStatus = normalizeProjectStatus(status);
         
         var popupContent = `
             <div class="p-3" style="min-width: 250px; max-width: 300px;">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="px-2 py-1 text-xs rounded-full font-semibold shadow-sm
-                        ${status === 'completed' ? 'bg-green-100 text-green-700' :
-                          status === 'ongoing' || status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                          status === 'planned' || status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                          status === 'delayed' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}">
-                        ${status ? status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ') : 'Unknown'}
+                        ${normalizedStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                          normalizedStatus === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                          normalizedStatus === 'planned' ? 'bg-purple-100 text-purple-700' :
+                          normalizedStatus === 'delayed' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}">
+                        ${getStatusText(normalizedStatus)}
                     </span>
                 </div>
                 <h3 class="font-bold text-base mb-1 line-clamp-2">${escapeHtml(project.name || 'Unnamed Project')}</h3>
@@ -430,14 +465,14 @@
                     </svg>
                     <span class="text-xs text-gray-500">${escapeHtml(project.barangay || 'N/A')}</span>
                 </div>
-                ${status === 'ongoing' || status === 'in_progress' ? `
+                ${normalizedStatus === 'in_progress' ? `
                     <div class="mb-2">
                         <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
                             <span>Progress</span>
                             <span class="font-semibold">${displayProgress}%</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-1.5">
-                            <div class="bg-blue-600 h-1.5 rounded-full transition-all" style="width: ${displayProgress}%"></div>
+                            <div class="bg-yellow-500 h-1.5 rounded-full transition-all" style="width: ${displayProgress}%"></div>
                         </div>
                     </div>
                 ` : ''}
@@ -474,6 +509,15 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function getStatusText(status) {
+        const normalizedStatus = normalizeProjectStatus(status);
+        if (normalizedStatus === 'completed') return 'Completed';
+        if (normalizedStatus === 'in_progress') return 'In Progress';
+        if (normalizedStatus === 'planned') return 'Planned';
+        if (normalizedStatus === 'delayed') return 'Delayed';
+        return 'Unknown';
     }
     
     // Project Modal Functions
@@ -512,19 +556,20 @@
         // Status badge - use calculated_status if available
         const statusBadge = document.getElementById('modal-status-badge');
         const status = project.calculated_status || project.status || '';
+        const normalizedStatus = normalizeProjectStatus(status);
         let statusClass = 'bg-gray-100 text-gray-800';
         let statusText = 'Unknown';
         
-        if (status === 'completed') {
+        if (normalizedStatus === 'completed') {
             statusClass = 'bg-green-100 text-green-800 border border-green-200';
             statusText = 'Completed';
-        } else if (status === 'ongoing' || status === 'in_progress') {
-            statusClass = 'bg-blue-100 text-blue-800 border border-blue-200';
-            statusText = 'In Progress';
-        } else if (status === 'planned' || status === 'pending') {
+        } else if (normalizedStatus === 'in_progress') {
             statusClass = 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+            statusText = 'In Progress';
+        } else if (normalizedStatus === 'planned') {
+            statusClass = 'bg-purple-100 text-purple-800 border border-purple-200';
             statusText = 'Planned';
-        } else if (status === 'delayed') {
+        } else if (normalizedStatus === 'delayed') {
             statusClass = 'bg-red-100 text-red-800 border border-red-200';
             statusText = 'Delayed';
         }
@@ -558,7 +603,7 @@
         
         // Progress
         const progressSection = document.getElementById('modal-progress-section');
-        if (status === 'ongoing' || status === 'in_progress' || displayProgress > 0) {
+        if (normalizedStatus === 'in_progress' || displayProgress > 0) {
             progressSection.classList.remove('hidden');
             document.getElementById('modal-progress-percent').textContent = `${displayProgress}%`;
             document.getElementById('modal-progress-bar').style.width = `${displayProgress}%`;
@@ -621,16 +666,15 @@
             
             // Use calculated_status for filtering (especially for delayed)
             const projectStatus = project.calculated_status || project.status || '';
+            const normalizedStatus = normalizeProjectStatus(projectStatus);
             const projectBarangay = (project.barangay || '').trim();
             
             // Status filter
             let statusMatch = true;
             if (currentStatusFilter === '') {
                 statusMatch = true; // Show all
-            } else if (currentStatusFilter === 'in_progress') {
-                statusMatch = projectStatus === 'in_progress' || projectStatus === 'ongoing';
             } else {
-                statusMatch = projectStatus === currentStatusFilter;
+                statusMatch = normalizedStatus === currentStatusFilter;
             }
             
             // Barangay filter
@@ -661,8 +705,8 @@
             btn.classList.remove('active');
             // Remove active styles
             btn.classList.remove('bg-gray-100', 'text-gray-900', 'border-gray-400');
-            btn.classList.remove('bg-blue-100', 'text-blue-800', 'border-blue-400');
-            btn.classList.remove('bg-amber-100', 'text-amber-800', 'border-amber-400');
+            btn.classList.remove('bg-yellow-100', 'text-yellow-800', 'border-yellow-400');
+            btn.classList.remove('bg-purple-100', 'text-purple-800', 'border-purple-400');
             btn.classList.remove('bg-green-100', 'text-green-800', 'border-green-400');
             btn.classList.remove('bg-red-100', 'text-red-800', 'border-red-400');
             
@@ -671,34 +715,35 @@
             if (btnId === 'filter-all') {
                 btn.classList.add('bg-gray-50', 'text-gray-700', 'border-gray-300');
             } else if (btnId === 'filter-in-progress') {
-                btn.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-300');
+                btn.classList.add('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
             } else if (btnId === 'filter-planned') {
-                btn.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-300');
+                btn.classList.add('bg-purple-50', 'text-purple-700', 'border-purple-200');
             } else if (btnId === 'filter-completed') {
-                btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
+                btn.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
             } else if (btnId === 'filter-delayed') {
-                btn.classList.add('bg-red-50', 'text-red-700', 'border-red-300');
+                btn.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
             }
         });
         
         // Set active button
-        const activeBtn = document.getElementById('filter-' + (status || 'all'));
+        const activeBtnId = status === 'in_progress' ? 'filter-in-progress' : 'filter-' + (status || 'all');
+        const activeBtn = document.getElementById(activeBtnId);
         if (activeBtn) {
             activeBtn.classList.add('active');
             // Remove default styles
             activeBtn.classList.remove('bg-gray-50', 'text-gray-700', 'border-gray-300');
-            activeBtn.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-300');
-            activeBtn.classList.remove('bg-amber-50', 'text-amber-700', 'border-amber-300');
-            activeBtn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
-            activeBtn.classList.remove('bg-red-50', 'text-red-700', 'border-red-300');
+            activeBtn.classList.remove('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
+            activeBtn.classList.remove('bg-purple-50', 'text-purple-700', 'border-purple-200');
+            activeBtn.classList.remove('bg-green-50', 'text-green-700', 'border-green-200');
+            activeBtn.classList.remove('bg-red-50', 'text-red-700', 'border-red-200');
             
             // Add active styles
             if (status === '') {
                 activeBtn.classList.add('bg-gray-100', 'text-gray-900', 'border-gray-400');
             } else if (status === 'in_progress') {
-                activeBtn.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-400');
+                activeBtn.classList.add('bg-yellow-100', 'text-yellow-800', 'border-yellow-400');
             } else if (status === 'planned') {
-                activeBtn.classList.add('bg-amber-100', 'text-amber-800', 'border-amber-400');
+                activeBtn.classList.add('bg-purple-100', 'text-purple-800', 'border-purple-400');
             } else if (status === 'completed') {
                 activeBtn.classList.add('bg-green-100', 'text-green-800', 'border-green-400');
             } else if (status === 'delayed') {

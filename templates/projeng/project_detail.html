@@ -100,6 +100,21 @@
     .pe-timeline-section {
         order: 3;
     }
+    .progress-drawer-panel {
+        width: min(100vw, 680px);
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+    }
+    .progress-drawer-backdrop {
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+    .progress-drawer-open .progress-drawer-panel {
+        transform: translateX(0);
+    }
+    .progress-drawer-open .progress-drawer-backdrop {
+        opacity: 1;
+    }
     @media (min-width: 1024px) {
         .pe-lg-col-span-2 {
             grid-column: 1 / -1;
@@ -140,7 +155,9 @@
                     Print Report
                 </button>
 
-                <a href="{% url 'projeng:projeng_add_progress_update' project.pk %}" 
+                <a href="{% url 'projeng:projeng_add_progress_update' project.pk %}"
+                   id="open-progress-drawer"
+                   data-progress-drawer-open
                    class="px-5 py-3 rounded-lg bg-green-700 text-white hover:bg-green-800 text-sm font-semibold inline-flex items-center gap-2 shadow-sm">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -828,6 +845,172 @@
             console.warn('Budget alert modal element not found in DOM');
         }
     });
+</script>
+
+<!-- Add Progress Drawer -->
+<div id="progressUpdateDrawer"
+     class="hidden fixed inset-0"
+     style="z-index: 80;"
+     aria-hidden="true">
+    <button type="button"
+            class="progress-drawer-backdrop absolute inset-0 bg-black bg-opacity-40"
+            data-progress-drawer-close
+            aria-label="Close add progress panel"></button>
+    <aside class="progress-drawer-panel absolute right-0 top-0 h-full bg-white shadow-2xl flex flex-col"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="progress-drawer-title">
+        <div class="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-4">
+            <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-wide text-green-700">Progress Update</p>
+                <h2 id="progress-drawer-title" class="text-xl font-bold text-gray-900">Add Update</h2>
+            </div>
+            <button type="button"
+                    data-progress-drawer-close
+                    class="text-gray-400 hover:text-gray-600 transition-colors p-2 -mr-2 rounded-lg hover:bg-gray-100"
+                    aria-label="Close add progress panel">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="px-5 py-4 bg-blue-50 border-b border-blue-100">
+            <p class="text-sm text-blue-900">
+                <span class="font-semibold">Project:</span> {{ project.name }}
+            </p>
+            {% if project.prn %}
+                <p class="text-sm text-blue-900 mt-1">
+                    <span class="font-semibold">PRN:</span> {{ project.prn }}
+                </p>
+            {% endif %}
+        </div>
+        <div class="flex-1 overflow-y-auto px-5 py-5">
+            {% include 'projeng/partials/progress_update_form.html' with progress_form_variant='drawer' %}
+        </div>
+    </aside>
+</div>
+
+<script>
+(function() {
+    const drawer = document.getElementById('progressUpdateDrawer');
+    const openBtn = document.querySelector('[data-progress-drawer-open]');
+    const closeBtns = drawer ? drawer.querySelectorAll('[data-progress-drawer-close]') : [];
+
+    function showToast(message) {
+        if (typeof showToastNotification === 'function') {
+            showToastNotification(message);
+            return;
+        }
+        const toast = document.getElementById('toast-notification');
+        const toastMessage = document.getElementById('toast-message');
+        if (toast && toastMessage) {
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(function() {
+                toast.classList.add('hidden');
+            }, 3500);
+        }
+    }
+
+    function drawerFormIsDirty() {
+        const form = drawer ? drawer.querySelector('[data-progress-update-form]') : null;
+        if (!form) return false;
+        if (form.dataset.progressDirty === 'true') return true;
+        const currentProgress = parseFloat(form.dataset.currentProgress || '0') || 0;
+        const progressInput = form.querySelector('input[name="percentage_complete"]');
+        const description = form.querySelector('textarea[name="description"]');
+        const justification = form.querySelector('textarea[name="justification"]');
+        const photos = form.querySelector('input[name="photos"]');
+        const progressChanged = progressInput && Math.abs((parseFloat(progressInput.value) || 0) - currentProgress) > 0.009;
+        return Boolean(
+            progressChanged ||
+            (description && description.value.trim()) ||
+            (justification && justification.value.trim()) ||
+            (photos && photos.files && photos.files.length)
+        );
+    }
+
+    function openDrawer(event) {
+        if (event) event.preventDefault();
+        if (!drawer) return;
+        drawer.classList.remove('hidden');
+        drawer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(function() {
+            drawer.classList.add('progress-drawer-open');
+            const firstField = drawer.querySelector('[data-percentage-number]');
+            if (firstField) firstField.focus();
+        });
+    }
+
+    function closeDrawer(options) {
+        options = options || {};
+        if (!drawer) return;
+        if (!options.skipPrompt && drawerFormIsDirty()) {
+            const shouldDiscard = window.confirm('Discard this progress update?');
+            if (!shouldDiscard) return;
+        }
+        drawer.classList.remove('progress-drawer-open');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        setTimeout(function() {
+            drawer.classList.add('hidden');
+            if (options.reset !== false) {
+                const form = drawer.querySelector('[data-progress-update-form]');
+                window.dispatchEvent(new CustomEvent('projeng:progress-update-reset', {
+                    detail: { form: form }
+                }));
+            }
+        }, 250);
+    }
+
+    if (openBtn) {
+        openBtn.addEventListener('click', openDrawer);
+    }
+    closeBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            closeDrawer();
+        });
+    });
+
+    window.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && drawer && !drawer.classList.contains('hidden')) {
+            closeDrawer();
+        }
+    });
+
+    window.addEventListener('projeng:progress-update-cancel', function(event) {
+        const detail = event.detail || {};
+        const isDirty = detail.isDirty ? detail.isDirty() : drawerFormIsDirty();
+        if (isDirty && !window.confirm('Discard this progress update?')) return;
+        if (detail.resetForm) detail.resetForm();
+        closeDrawer({ skipPrompt: true, reset: false });
+    });
+
+    window.addEventListener('projeng:progress-update-success', function(event) {
+        const detail = event.detail || {};
+        if (detail.mode !== 'drawer') return;
+        const message = (detail.data && detail.data.message) || 'Progress update added successfully.';
+        try {
+            sessionStorage.setItem('projengProgressToast', message);
+        } catch (err) {}
+        if (detail.resetForm) detail.resetForm();
+        closeDrawer({ skipPrompt: true, reset: false });
+        setTimeout(function() {
+            window.location.reload();
+        }, 350);
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const flash = sessionStorage.getItem('projengProgressToast');
+            if (flash) {
+                sessionStorage.removeItem('projengProgressToast');
+                showToast(flash);
+            }
+        } catch (err) {}
+    });
+})();
 </script>
 
 <!-- Budget Alert Modal -->
